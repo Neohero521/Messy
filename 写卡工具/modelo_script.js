@@ -1,4 +1,4 @@
-$(() => {
+(function() {
   const SCRIPT_ID = 'modelo-char-generator';
 
   function showToast(msg, type) {
@@ -25,9 +25,10 @@ $(() => {
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
-        var old = window.parent.document.getElementById(SCRIPT_ID + '-modal');
+        var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
         if (old) old.remove();
-        var iframe = document.createElement('iframe');
+        var iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
         iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#0d1117;';
@@ -314,7 +315,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             resolve(d);
           } catch (e) { reject(e); }
         });
-        window.parent.document.body.appendChild(iframe);
+        parentDoc.body.appendChild(iframe);
         setTimeout(function() {
           try { if (!iframe.contentDocument || !iframe.contentDocument.body) reject(new Error('iframe timeout')); } catch(e) { reject(e); }
         }, 4000);
@@ -323,7 +324,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   function closeModal() {
-    try { var m = window.parent.document.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
+    try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
   }
 
   // ===== 世界书名称生成 =====
@@ -3574,8 +3575,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   function registerButton() {
     try {
-      if (typeof eventOn === 'function' && typeof getButtonEvent === 'function') {
-        eventOn(getButtonEvent('ModelO角色卡生成器'), function() { openEditor(); });
+      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
+      if (evtOn && getBtnEvt) {
+        evtOn(getBtnEvt('ModelO角色卡生成器'), function() { openEditor(); });
         return true;
       }
     } catch(e) {}
@@ -3584,16 +3587,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   function addFloatingButton() {
     try {
-      var old = window.parent.document.getElementById(SCRIPT_ID + '-btn');
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var old = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (old) old.remove();
-      var btn = window.parent.document.createElement('button');
+      var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '⚡ ModelO';
       btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(247,129,102,.4);transition:all .3s;font-size:14px;';
       btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
       btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
       btn.onclick = openEditor;
-      window.parent.document.body.appendChild(btn);
+      pDoc.body.appendChild(btn);
       return true;
     } catch(e) { return false; }
   }
@@ -3607,4 +3611,4 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   window.addEventListener('pagehide', closeModal);
   tryInit();
-});
+})();
