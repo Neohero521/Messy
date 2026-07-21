@@ -1673,8 +1673,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       var cardData = {
         name: '', description: '', personality: '', scenario: '',
-        first_mes: '', mes_example: '', system_prompt: '', creator_notes: '',
-        post_history_instructions: '', tags: [], alternate_greetings: [],
+        first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
+        post_history_instructions: '', tags: [], creator: 'ModelO Generator',
+        character_version: '', alternate_greetings: [],
         extensions: {
           talkativeness: '0.5',
           fav: false,
@@ -1964,10 +1965,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.scenario = cd.scenario || '';
         cardData.first_mes = cd.first_mes || '';
         cardData.mes_example = cd.mes_example || '';
-        cardData.system_prompt = cd.system_prompt || '';
         cardData.creator_notes = cd.creator_notes || '';
+        cardData.system_prompt = cd.system_prompt || '';
         cardData.post_history_instructions = cd.post_history_instructions || '';
         cardData.tags = cd.tags || [];
+        cardData.creator = cd.creator || 'ModelO Generator';
+        cardData.character_version = cd.character_version !== undefined ? cd.character_version : '';
         cardData.alternate_greetings = cd.alternate_greetings || [];
         cardData.extensions = {
           talkativeness: '0.5',
