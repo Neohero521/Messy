@@ -637,24 +637,114 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
+    '  - 支持纯文本（逗号分隔）和正则表达式（用/包裹，如/weather|rain/i）\n' +
+    '  - 中文场景建议使用use_regex=true实现更灵活的匹配\n' +
+    '  - 每条目建议3-8个触发词，覆盖主要变体说法\n' +
     '- secondary_keys：次级关键词，与主关键词组合实现「与逻辑」触发\n' +
+    '  - selectiveLogic=0 (AND_ANY)：主键命中 + 任一次级键命中 → 触发\n' +
+    '  - selectiveLogic=3 (AND_ALL)：主键命中 + 所有次级键命中 → 触发\n' +
+    '  - selectiveLogic=2 (NOT_ANY)：主键命中 + 次级键都不命中 → 触发\n' +
+    '  - selectiveLogic=1 (NOT_ALL)：主键命中 + 次级键不全命中 → 触发\n' +
+    '  - 典型用法：场景限定（"战斗" + "受伤"）、角色限定（"对话" + "NPC名"）\n' +
     '- use_regex：启用正则匹配，优先级最高\n' +
-    '- match_whole_words：全词匹配，仅英文生效，中文场景禁用\n' +
-    '- scan_depth：限制关键词扫描的历史消息深度\n\n' +
+    '- match_whole_words：全词匹配，仅英文生效，中文场景禁用（设为null）\n' +
+    '- scan_depth：限制关键词扫描的历史消息深度\n' +
+    '  - 常驻规则设为0（不扫描历史）\n' +
+    '  - 近场交互设为2-3\n' +
+    '  - 叙事回忆设为5-8\n\n' +
     '**生效控制类**：\n' +
     '- sticky：粘性触发，触发后永久保留在上下文\n' +
+    '  - 用于状态切换（如进入战斗模式、获得重要道具）\n' +
+    '  - 配合cooldown=0实现一次性永久生效\n' +
     '- cooldown：冷却期，触发后N条消息内不再重复触发\n' +
-    '- delay：延迟触发，匹配后N条消息才注入内容\n\n' +
+    '  - 场景机制类设为3-5，避免规则刷屏\n' +
+    '  - 叙事类设为0或较低值\n' +
+    '- delay：延迟触发，匹配后N条消息才注入内容\n' +
+    '  - 用于伏笔、延迟揭示等叙事效果\n\n' +
     '**递归安全类**：\n' +
     '- prevent_recursion：禁止被其他条目递归触发\n' +
+    '  - 实体类条目（角色/地点/物品）建议开启，防止递归风暴\n' +
     '- exclude_recursion：触发本条后立即终止后续递归\n' +
-    '- delay_until_recursion：仅在递归中触发\n\n' +
-    '**次级关键词逻辑**：\n' +
-    '- selectiveLogic：次级关键词（secondary_keys）匹配逻辑：0=AND_ANY(任一匹配即激活)、1=NOT_ALL(全匹配则阻止)、2=NOT_ANY(任一匹配则阻止)、3=AND_ALL(全匹配才激活)\n' +
-    '- probability：概率触发（0-100%），仅当useProbability=true时生效\n\n' +
-    '**分组互斥类**：\n' +
-    '- group：互斥分组标签，同group的多条目同时触发时仅注入1条（由group_weight决定选中概率）\n' +
-    '- group_weight：同组内的选中权重（snake_case，非groupWeight）\n' +
+    '  - 禁止项类条目建议开启，最高优先级\n' +
+    '- delay_until_recursion：仅在递归中触发（不直接触发）\n' +
+    '  - 用于补充说明、背景展开，被主条目递归带出\n' +
+    '  - 叙事类条目常用，实现"提到A时自动带出A的背景"\n\n' +
+    '**分组互斥类（高级功能，强烈推荐使用）**：\n' +
+    '- group：互斥分组标签，同group的多条目同时触发时仅注入1条\n' +
+    '  - 场景变体：同一场景的不同描述，随机选一个增加多样性\n' +
+    '  - 难度分层：新手/普通/困难三种规则，按进度触发\n' +
+    '  - 时间分支：白天/夜晚/黄昏不同场景描述\n' +
+    '- group_weight：同组内的选中权重（默认100，越高越容易被选中）\n' +
+    '  - 常见变体权重设为100，稀有变体设为20-50\n' +
+    '- use_group_scoring：按键匹配数决定组内胜出（先按匹配数筛选，再按权重选）\n' +
+    '  - 用于大组中优先选择更具体的条目\n' +
+    '  - 例：组"天气"，条目1有键"天气"（权重100），条目2有键"天气,下雨"（权重100）\n' +
+    '    开启use_group_scoring后，提到"下雨"时条目2（2个匹配）胜条目1（1个匹配）\n' +
+    '- group_override：组覆盖（一般保持false即可）\n\n' +
+    '**概率与选择类**：\n' +
+    '- probability：概率触发百分比（0-100），仅当useProbability=true时生效\n' +
+    '  - 核心规则：100%（必触发）\n' +
+    '  - 随机事件：10-30%（增加惊喜感）\n' +
+    '  - 稀有事件：1-5%（彩蛋级）\n' +
+    '  - 叙事类条目：50-70%（有概率补充背景，不强制）\n' +
+    '- useProbability：是否启用概率过滤（true=启用，false=始终触发）\n' +
+    '  - constant=true的常驻条目建议设为false（始终生效）\n' +
+    '  - selective=true的触发条目建议设为true（配合probability使用）\n\n' +
+    '**插入位置类（position）**：\n' +
+    '- 0 = Before Char Defs（角色定义前）：影响中等，用于世界观基底\n' +
+    '- 1 = After Char Defs（角色定义后）：影响较大，用于核心规则\n' +
+    '- 2 = Before Example Messages（示例消息前）：作为对话示例注入\n' +
+    '- 3 = After Example Messages（示例消息后）：作为对话示例注入\n' +
+    '- 4 = Top of AN（作者笔记顶部）：影响随AN位置变化\n' +
+    '- 5 = Bottom of AN（作者笔记底部）：影响随AN位置变化\n' +
+    '- 6 = @ D（指定深度）：在特定聊天深度注入，配合depth字段\n' +
+    '- 7 = Outlet（命名出口）：不自动注入，用{{outlet::名称}}手动调用\n' +
+    '  - outlet_name：出口名称，position=7时必填\n' +
+    '  - 用法：在prompt manager或高级格式中放置{{outlet::myOutlet}}\n\n' +
+    '**内容排序类**：\n' +
+    '- insertion_order：插入顺序/优先级，数字越大越靠后（影响越大）\n' +
+    '  - 最高优先级规则：250-200（基础公理、核心铁则）\n' +
+    '  - 高优先级规则：200-150（交互规则、场景机制）\n' +
+    '  - 中优先级规则：150-80（实体内容、玩法系统）\n' +
+    '  - 低优先级内容：80-30（叙事背景、历史事件）\n' +
+    '  - 补充内容：30以下（彩蛋、可选说明）\n' +
+    '  - 同position下，order大的排在后面（更靠近生成点，影响更大）\n' +
+    '  - 同组内（group）可通过order大小配合group_override实现优先级回退\n\n' +
+    '**策略类（constant/selective）**：\n' +
+    '- constant=true + selective=false：常驻条目，无需关键词，始终生效\n' +
+    '  - 用于基础公理、核心规则、输出格式要求\n' +
+    '  - useProbability建议设为false（始终生效）\n' +
+    '  - scan_depth建议设为0（不扫描历史）\n' +
+    '- constant=false + selective=true：关键词触发条目（最常用）\n' +
+    '  - 用于实体交互、场景机制、叙事背景\n' +
+    '  - 配合keys/secondary_keys实现精准触发\n' +
+    '- constant=true + selective=true：不常用\n' +
+    '- vectorized=true：向量检索触发（需开启向量功能）\n\n' +
+    '**高级匹配功能**：\n' +
+    '- case_sensitive：大小写敏感（null=使用全局设置）\n' +
+    '  - 中文场景可忽略，英文专有名词可设为true\n' +
+    '- automation_id：自动化ID（一般留空）\n' +
+    '- match_persona_description：匹配角色描述（除了消息还匹配persona字段）\n' +
+    '- match_character_description：匹配角色卡描述\n' +
+    '- match_character_personality：匹配角色性格字段\n' +
+    '- match_character_depth_prompt：匹配depth_prompt\n' +
+    '- match_scenario：匹配场景字段\n' +
+    '- match_creator_notes：匹配创作者笔记\n' +
+    '  - 以上match_*字段：设为true时，除了扫描消息，还扫描对应角色卡字段\n' +
+    '  - 典型用法：让某些条目在角色卡描述包含特定关键词时也触发\n\n' +
+    '**其他字段**：\n' +
+    '- comment：条目备注/标题，仅UI显示，不参与触发逻辑\n' +
+    '  - 强烈建议使用规范前缀命名（见下方命名规范）\n' +
+    '- content：条目内容，触发后注入到上下文的实际文本\n' +
+    '  - 必须自包含完整信息，不能依赖comment或keys\n' +
+    '  - 每条建议100-400字，保持精炼\n' +
+    '- id：条目唯一ID（数字，自动生成）\n' +
+    '- enabled：是否启用条目\n' +
+    '- display_index：显示排序（UI用，不影响逻辑）\n' +
+    '- triggers：触发器数组（一般留空）\n' +
+    '- ignore_budget：忽略上下文预算（设为true时始终插入，不计入token限制）\n' +
+    '  - 核心规则可设为true，防止被截断\n' +
+    '- selectiveLogic：次级键逻辑（0=AND_ANY, 1=NOT_ALL, 2=NOT_ANY, 3=AND_ALL）\n\n' +
     '=== 高价值字段生成规范 ===\n\n' +
     '**system_prompt**：\n' +
     '- 精简至≤50字，仅保留AI身份定位\n' +
@@ -673,33 +763,85 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 支持多身份/多难度开局\n\n' +
     '**regex_scripts**：\n' +
     '- 自动生成基础状态同步正则脚本\n' +
-    '- 无需插件实现动态状态栏\n' +
-    '- 格式规范：\n' +
-    '  "regex_scripts": [\n' +
-    '    {\n' +
-    '      "scriptName": "脚本名称",\n' +
-    '      "findRegex": "/匹配模式/flags",\n' +
-    '      "replaceString": "替换内容",\n' +
-    '      "trimStrings": [],\n' +
-    '      "placement": [0,1],\n' +
-    '      "disabled": false,\n' +
-    '      "markdownOnly": false,\n' +
-    '      "promptOnly": false,\n' +
-    '      "runOnEdit": true,\n' +
-    '      "substituteRegex": 0,\n' +
-    '      "minDepth": null,\n' +
-    '      "maxDepth": null\n' +
-    '    }\n' +
-    '  ]\n' +
-    '- 常用示例：\n' +
-    '  1. 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
-    '  2. 行动标签格式化：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
-    '  3. 数值高亮：findRegex="/(\\d+)(点|级|年|%|元)/gi", replaceString="**$1$2**"\n' +
-    '  4. 表情符号转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n' +
-    '  5. 括号内容加粗：findRegex="/\\(([^)]+)\\)/gi", replaceString="**($1)**"\n' +
-    '- placement值：0=用户输入, 1=AI回复, 2=斜杠命令, 3=世界信息, 4=推理内容\n' +
-    '- flags：g=全局匹配, i=忽略大小写, s=点匹配换行, m=多行模式\n' +
-    '- substituteRegex：0=不替换宏, 1=原始替换, 2=转义替换\n\n' +
+    '- 无需插件实现动态状态栏、格式化、内容替换等功能\n' +
+    '- 正则脚本按顺序执行，前一个的输出是后一个的输入\n\n' +
+    '**完整字段说明**：\n' +
+    '- scriptName：脚本名称（仅UI显示，不影响功能）\n' +
+    '- findRegex：查找的正则表达式，格式为 /pattern/flags\n' +
+    '  - 支持JavaScript正则语法，可用标志：g(全局), i(忽略大小写), s(点匹配换行), m(多行), u(Unicode)\n' +
+    '  - 捕获组：用 $1, $2... 在replaceString中引用匹配的分组\n' +
+    '  - 命名组：(?<name>pattern) 用 $<name> 引用\n' +
+    '- replaceString：替换为的内容\n' +
+    '  - 支持 $1-$9 引用捕获组\n' +
+    '  - 支持 $& 引用整个匹配\n' +
+    '  - 支持 $` 引用匹配前的文本，$' 引用匹配后的文本\n' +
+    '  - 当substituteRegex>0时，支持ST宏变量（{{user}}, {{char}}, {{random:A,B}}, {{roll:XdY}}等）\n' +
+    '- trimStrings：要移除的字符串数组（在替换后执行）\n' +
+    '  - 常用于清理多余的换行、空格、特定标记\n' +
+    '  - 按数组顺序逐个移除\n' +
+    '- placement：应用位置数组（可多选）\n' +
+    '  - 0 = User Input（用户输入）：处理用户发送的消息\n' +
+    '  - 1 = AI Response（AI回复）：处理AI生成的回复\n' +
+    '  - 2 = Slash Commands（斜杠命令）：处理/命令的输出\n' +
+    '  - 3 = World Info（世界信息）：处理世界书条目内容\n' +
+    '  - 4 = Reasoning（推理内容）：处理推理模型的推理过程\n' +
+    '  - 常用组合：状态栏格式化用[0,1]，世界书处理用[3]\n' +
+    '- disabled：是否禁用（true=禁用，false=启用）\n' +
+    '- markdownOnly：仅处理Markdown内容（不处理纯文本）\n' +
+    '  - 适合处理加粗、列表等markdown格式\n' +
+    '- promptOnly：仅在发送到模型的提示词中生效（不改变显示）\n' +
+    '  - 适合偷偷修改提示词结构，用户看不到变化\n' +
+    '- runOnEdit：编辑消息时是否重新执行\n' +
+    '  - 建议状态栏类脚本设为true\n' +
+    '- substituteRegex：宏替换模式\n' +
+    '  - 0 = 不替换宏：findRegex和replaceString中的宏保持原样\n' +
+    '  - 1 = 原始替换：在正则执行前替换宏变量\n' +
+    '  - 2 = 转义替换：替换宏并转义特殊字符（推荐用于宏作为模式的一部分时）\n' +
+    '  - 典型用法：要匹配{{char}}的名字时用2，replaceString中用{{user}}时用1\n' +
+    '- minDepth / maxDepth：生效深度范围（null=不限制）\n' +
+    '  - minDepth：从第几条消息开始生效（0=最新消息）\n' +
+    '  - maxDepth：最多到第几条消息\n' +
+    '  - 适合渐进式提示（如前N轮显示引导，之后自动消失）\n\n' +
+    '**常用场景示例**：\n' +
+    '  1. 状态栏格式化：\n' +
+    '     findRegex="/<status>([\\s\\S]*?)</status>/gi"\n' +
+    '     replaceString="\\n**【状态面板】**\\n$1\\n"\n' +
+    '     placement=[0,1], runOnEdit=true\n' +
+    '  2. 行动标签格式化：\n' +
+    '     findRegex="/<action>([\\s\\S]*?)</action>/gi"\n' +
+    '     replaceString="\\n*【行动】$1*\\n"\n' +
+    '     placement=[0,1]\n' +
+    '  3. 数值高亮：\n' +
+    '     findRegex="/(\\d+)(点|级|年|%|元|层|阶)/gi"\n' +
+    '     replaceString="**$1$2**"\n' +
+    '     placement=[0,1]\n' +
+    '  4. 表情符号转换：\n' +
+    '     findRegex="/\\[(微笑|大笑|哭泣|愤怒|思考|惊讶)\\]/gi"\n' +
+    '     replaceString="$1"\n' +
+    '     placement=[0,1]\n' +
+    '  5. 括号内容加粗：\n' +
+    '     findRegex="/\\(([^)]{3,40})\\)/gi"\n' +
+    '     replaceString="**($1)**"\n' +
+    '     placement=[0,1]\n' +
+    '  6. 世界书内容模板替换：\n' +
+    '     findRegex="/\\{\\{playerName\\}\\}/gi"\n' +
+    '     replaceString="{{user}}"\n' +
+    '     placement=[3], substituteRegex=0\n' +
+    '  7. 新手引导（仅前5轮）：\n' +
+    '     findRegex="/^(.*)$/m"\n' +
+    '     replaceString="$1\\n\\n💡 提示：输入\\\"help\\\"查看指令列表"\n' +
+    '     placement=[1], minDepth=0, maxDepth=4\n' +
+    '  8. 用户输入规范化：\n' +
+    '     findRegex="/^[\\s\\S]*?玩家说[:：]\\s*/i"\n' +
+    '     replaceString=""\n' +
+    '     placement=[0], trimStrings=["\\n\\n"]\n\n' +
+    '**设计原则**：\n' +
+    '- 每个脚本只做一件事，功能单一化\n' +
+    '- 注意执行顺序，后执行的会覆盖前面的结果\n' +
+    '- 正则尽量精确，避免误匹配\n' +
+    '- 使用非贪婪匹配 (.*?) 避免匹配过多\n' +
+    '- 中文场景建议开启i标志（忽略大小写对中文无影响，但更安全）\n' +
+    '- 复杂替换考虑拆分成多个简单脚本\n\n' +
     '**personality/scenario**：\n' +
     '- 强制留空（世界模式）\n\n' +
     '=== 初次生成角色卡时的输出格式 ===\n' +
@@ -779,33 +921,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
-    '| 前缀 | constant | selective | position | depth | cooldown | scan_depth | prevent_recursion | probability | group |\n' +
-    '| <基础公理> | true | false | 0 | 0 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <世界元数据> | true | false | 0 | 0 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <交互软规则> | true | false | 1 | 0 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <近场强约束> | false | true | 2 | 2 | 0 | 3 | false | 100 | (空) |\n' +
-    '| <当前局势> | false | true | 2 | 3 | 0 | 3 | false | 100 | (空) |\n' +
-    '| <场景机制> | false | true | 1 | 3 | 3 | 5 | false | 100 | (空) |\n' +
-    '| <核心玩法> | false | true | 1 | 3 | 3 | 5 | false | 100 | (空) |\n' +
-    '| <世界规则> | false | true | 1 | 4 | 3 | 5 | false | 100 | (空) |\n' +
-    '| <实体交互> | false | true | 1 | 3 | 0 | 5 | true | 100 | (空) |\n' +
-    '| <重要角色> | false | true | 1 | 3 | 0 | 5 | true | 100 | (空) |\n' +
-    '| <势力与组织> | false | true | 1 | 3 | 0 | 5 | true | 100 | (空) |\n' +
-    '| <物品> | false | true | 1 | 3 | 0 | 5 | true | 100 | (空) |\n' +
-    '| <地点场景> | false | true | 1 | 3 | 0 | 5 | true | 100 | (空) |\n' +
-    '| <叙事背景> | false | true | 4 | 5 | 0 | 8 | false | 60 | 叙事 |\n' +
-    '| <故事发展> | false | true | 4 | 5 | 0 | 8 | false | 60 | 叙事 |\n' +
-    '| <文化与习俗> | false | true | 4 | 5 | 0 | 8 | false | 60 | 叙事 |\n' +
-    '| <历史事件> | false | true | 4 | 6 | 0 | 8 | false | 50 | 叙事 |\n' +
-    '| <动态适配> | false | true | 1 | 4 | 0 | 5 | false | 100 | (空) |\n' +
-    '| <引导机制> | false | true | 1 | 4 | 0 | 5 | false | 100 | (空) |\n' +
-    '| <互动选项> | false | true | 1 | 4 | 0 | 5 | false | 100 | (空) |\n' +
-    '| <状态栏> | false | true | 2 | 2 | 0 | 3 | false | 100 | (空) |\n' +
-    '| <统一输出格式> | true | false | 0 | 1 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <角色边界> | true | false | 0 | 2 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <禁止项> | true | false | 0 | 3 | 0 | 0 | true | 100 | (空) |\n' +
-    '| <自定义条目> | false | true | 1 | 4 | 0 | 5 | false | 100 | (空) |\n' +
-    '注：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n\n' +
+    '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
+    '| <基础公理> | true | false | 0 | 0 | 250 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <世界元数据> | true | false | 0 | 0 | 240 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <交互软规则> | true | false | 1 | 0 | 150 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <近场强约束> | false | true | 2 | 2 | 180 | 0 | 3 | false | 100 | true | (空) | false |\n' +
+    '| <当前局势> | false | true | 2 | 3 | 170 | 0 | 3 | false | 100 | true | (空) | false |\n' +
+    '| <场景机制> | false | true | 1 | 3 | 140 | 3 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <核心玩法> | false | true | 1 | 3 | 130 | 3 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <世界规则> | false | true | 1 | 4 | 120 | 3 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <实体交互> | false | true | 1 | 3 | 110 | 0 | 5 | true | 100 | true | (空) | false |\n' +
+    '| <重要角色> | false | true | 1 | 3 | 105 | 0 | 5 | true | 100 | true | (空) | false |\n' +
+    '| <势力与组织> | false | true | 1 | 3 | 100 | 0 | 5 | true | 100 | true | (空) | false |\n' +
+    '| <物品> | false | true | 1 | 3 | 95 | 0 | 5 | true | 100 | true | (空) | false |\n' +
+    '| <地点场景> | false | true | 1 | 3 | 90 | 0 | 5 | true | 100 | true | (空) | false |\n' +
+    '| <叙事背景> | false | true | 4 | 5 | 80 | 0 | 8 | false | 60 | true | 叙事 | true |\n' +
+    '| <故事发展> | false | true | 4 | 5 | 75 | 0 | 8 | false | 60 | true | 叙事 | true |\n' +
+    '| <文化与习俗> | false | true | 4 | 5 | 70 | 0 | 8 | false | 60 | true | 叙事 | true |\n' +
+    '| <历史事件> | false | true | 4 | 6 | 65 | 0 | 8 | false | 50 | true | 叙事 | true |\n' +
+    '| <动态适配> | false | true | 1 | 4 | 50 | 0 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <引导机制> | false | true | 1 | 4 | 45 | 0 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <互动选项> | false | true | 1 | 4 | 40 | 0 | 5 | false | 100 | true | (空) | false |\n' +
+    '| <状态栏> | false | true | 2 | 2 | 35 | 0 | 3 | false | 100 | true | (空) | false |\n' +
+    '| <统一输出格式> | true | false | 0 | 1 | 85 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <角色边界> | true | false | 0 | 2 | 80 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <禁止项> | true | false | 0 | 3 | 70 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <自定义条目> | false | true | 1 | 4 | 55 | 0 | 5 | false | 100 | true | (空) | false |\n' +
+    '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
+    '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
+    '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
+    '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n\n' +
     '=== 引导流程（按权重层级搭建） ===\n\n' +
     '**步骤1：定核心铁则**（最高权重，优先确定）\n' +
     '- 确定AI身份定位\n' +
