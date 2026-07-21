@@ -1510,7 +1510,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     try {
       if (typeof generateRaw === 'function') {
         var r3 = await generateRaw({ should_silence: true, ordered_prompts: [
-          { role: 'system', content: '你是世界模式角色卡创作助手，基于ModelO方法论。' },
+          { role: 'system', content: '你是时之写卡器助手，基于SillyTavern原生机制与ST权重分层8体系引导用户创作角色卡。' },
           { role: 'user', content: prompt }
         ]});
         if (r3 && typeof r3 === 'string' && r3.trim().length > 5) return r3.trim();
@@ -1605,7 +1605,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return fullPrompt;
   }
 
-  // ===== 质检规则（20项 · 对齐规范4.3：8基础+4高价值+5世界书+3运行效果） =====
+  // ===== 质检规则（28项 · 对齐规范4.3：8基础+4高价值+5世界书+6世界书高级+3正则脚本+3运行效果） =====
   function runQualityCheck(cd) {
     var results = [];
     var desc = cd.description || '';
@@ -1758,6 +1758,123 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: !hasHighWeightCore ? '核心规则必须放在高权重位（post_history_instructions或<核心铁则>条目）' : '权重分配合理'
     });
 
+    // === 世界书高级功能检查（6项） ===
+    // 递归链条：实体条目关联背景叙事条目（delay_until_recursion）
+    var hasRecursionChain = entries.some(function(e) {
+      var ext = e.extensions || {};
+      return ext.delay_until_recursion === true || ext.delay_until_recursion === 1;
+    });
+    results.push({
+      pass: !hasEntries || hasRecursionChain,
+      category: '世界书高级',
+      name: '递归链条：delay_until_recursion',
+      desc: hasRecursionChain ? '检测到递归链条条目' : '未发现递归链条',
+      fix: !hasEntries ? '无条目' : (!hasRecursionChain ? '建议为叙事类条目开启delay_until_recursion，实现"提到A时自动带出A的背景"' : '递归链条已配置')
+    });
+    // 分组机制：场景变体/难度分层使用group分组
+    var hasGroup = entries.some(function(e) {
+      var ext = e.extensions || {};
+      return ext.group && ext.group !== '';
+    });
+    results.push({
+      pass: !hasEntries || hasGroup,
+      category: '世界书高级',
+      name: '分组机制：group分组',
+      desc: hasGroup ? (entries.filter(function(e){ return (e.extensions||{}).group; }).length + ' 条使用分组') : '未使用分组',
+      fix: !hasEntries ? '无条目' : (!hasGroup ? '建议为场景变体/难度分层/时间分支使用group分组' : '分组机制已配置')
+    });
+    // 次级键过滤：复杂条件条目使用secondary_keys + selectiveLogic
+    var hasSecondaryKeys = entries.some(function(e) {
+      return e.secondary_keys && e.secondary_keys.length > 0;
+    });
+    results.push({
+      pass: !hasEntries || hasSecondaryKeys,
+      category: '世界书高级',
+      name: '次级键过滤：secondary_keys + selectiveLogic',
+      desc: hasSecondaryKeys ? (entries.filter(function(e){ return e.secondary_keys && e.secondary_keys.length > 0; }).length + ' 条使用次级键') : '未使用次级键',
+      fix: !hasEntries ? '无条目' : (!hasSecondaryKeys ? '建议为复杂条件条目设置secondary_keys配合selectiveLogic' : '次级键过滤已配置')
+    });
+    // 概率事件：随机天气/彩蛋/遭遇使用probability
+    var hasProbability = entries.some(function(e) {
+      var ext = e.extensions || {};
+      return ext.useProbability === true && ext.probability !== undefined && ext.probability < 100;
+    });
+    results.push({
+      pass: !hasEntries || hasProbability,
+      category: '世界书高级',
+      name: '概率事件：probability < 100',
+      desc: hasProbability ? (entries.filter(function(e){ var ext=e.extensions||{}; return ext.useProbability===true && ext.probability<100; }).length + ' 条使用概率触发') : '未使用概率触发',
+      fix: !hasEntries ? '无条目' : (!hasProbability ? '建议为随机天气/彩蛋/遭遇设置probability<100增加惊喜感' : '概率事件已配置')
+    });
+    // 正则触发：需要精确匹配说话者时使用\x01正则键
+    var hasRegexKey = entries.some(function(e) {
+      return (e.keys || []).some(function(k) { return typeof k === 'string' && k.indexOf('/') === 0; });
+    });
+    results.push({
+      pass: true, // 正则触发是进阶功能，不强制要求
+      category: '世界书高级',
+      name: '正则触发键（可选）',
+      desc: hasRegexKey ? (entries.filter(function(e){ return (e.keys||[]).some(function(k){ return typeof k==='string' && k.indexOf('/')===0; }); }).length + ' 条使用正则键') : '未使用正则键',
+      fix: !hasRegexKey ? '需要精确匹配说话者时可使用正则键（/\\x01{{user}}:.../i）' : '正则触发键已配置'
+    });
+    // 组评分：大分组条目使用use_group_scoring提升精准度
+    var hasGroupScoring = entries.some(function(e) {
+      var ext = e.extensions || {};
+      return ext.use_group_scoring === true;
+    });
+    results.push({
+      pass: true, // 组评分是进阶功能，不强制要求
+      category: '世界书高级',
+      name: '组评分 use_group_scoring（可选）',
+      desc: hasGroupScoring ? '已配置组评分' : '未使用组评分',
+      fix: !hasGroupScoring ? '大分组条目可开启use_group_scoring提升匹配精准度' : '组评分已配置'
+    });
+
+    // === 正则脚本检查（3项） ===
+    // 脚本功能单一：每个脚本只做一件事（通过名称判断）
+    var multiFunctionScripts = rx.filter(function(s) {
+      var name = s.scriptName || '';
+      // 检查是否一个脚本名包含多个功能关键词
+      var functions = ['状态', '格式', '标签', '高亮', '过滤', '替换', '清理'];
+      var count = functions.filter(function(f) { return name.indexOf(f) >= 0; }).length;
+      return count > 1;
+    }).length;
+    results.push({
+      pass: rx.length === 0 || multiFunctionScripts === 0,
+      category: '正则脚本',
+      name: '脚本功能单一',
+      desc: rx.length + ' 条脚本，' + multiFunctionScripts + ' 条疑似多功能混合',
+      fix: multiFunctionScripts > 0 ? '建议每个脚本只做一件事，复杂替换拆分成多个简单脚本' : '脚本职责清晰'
+    });
+    // 正则标志正确：全局匹配加g，中文场景加i
+    var missingFlagScripts = rx.filter(function(s) {
+      var pattern = s.findRegex || '';
+      // 检查是否缺少g标志
+      var flagMatch = pattern.match(/\/([gimsu]*)$/);
+      var flags = flagMatch ? flagMatch[1] : '';
+      return flags.indexOf('g') < 0;
+    }).length;
+    results.push({
+      pass: rx.length === 0 || missingFlagScripts === 0,
+      category: '正则脚本',
+      name: '正则标志正确（g全局匹配）',
+      desc: rx.length + ' 条脚本，' + missingFlagScripts + ' 条缺少g标志',
+      fix: missingFlagScripts > 0 ? 'findRegex应包含g标志（如/pattern/gi），否则只替换第一个匹配' : '正则标志正确'
+    });
+    // 非贪婪匹配：使用.*?避免过度匹配
+    var greedyScripts = rx.filter(function(s) {
+      var pattern = s.findRegex || '';
+      // 检查是否使用了贪婪匹配 .* 或 .+ 而没有 ?
+      return pattern.indexOf('.*?') < 0 && pattern.indexOf('.+?') < 0 && (pattern.indexOf('.*') >= 0 || pattern.indexOf('.+') >= 0);
+    }).length;
+    results.push({
+      pass: rx.length === 0 || greedyScripts === 0,
+      category: '正则脚本',
+      name: '非贪婪匹配（.*?）',
+      desc: rx.length + ' 条脚本，' + greedyScripts + ' 条使用贪婪匹配',
+      fix: greedyScripts > 0 ? '建议使用.*?或.+?非贪婪匹配，避免匹配过多内容' : '匹配模式安全'
+    });
+
     // === 运行效果检查（3项） ===
     var permanentEntries = entries.filter(function(e) { return e.constant === true; });
     var permanentTokenCount = 0;
@@ -1801,7 +1918,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: noCooldownEntries > 0 ? '场景类条目建议开启cooldown=3防止内容刷屏' : '冷却防抖已配置'
     });
 
-    // === 附加检查（超出规范20项的扩展，不计入主20项） ===
+    // === 附加检查（超出规范28项的扩展，不计入主28项） ===
     var highRiskKeys = ['的', '是', '在', '有', '了', '和', '就', '都', '而', '及', '与', '一个', '一些', '什么', '如何', '怎么'];
     var riskyEntries = entries.filter(function(e) {
       var ks = e.keys || [];
@@ -1981,7 +2098,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) { return toCRLF(g); });
     var cardPostHist = toCRLF(cd.post_history_instructions || '');
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
-    var cardCreatorNotes = toCRLF(cd.creator_notes || 'ModelO角色卡生成器创建');
+    var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
     var depthPrompt = cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' };
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
@@ -1999,7 +2116,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       system_prompt: cardSysPrompt,
       post_history_instructions: cardPostHist,
       tags: cd.tags && cd.tags.length ? cd.tags : [],
-      creator: 'ModelO Generator',
+      creator: '时之写卡器',
       character_version: '',
       alternate_greetings: cardAltGreetings,
       extensions: {
@@ -2049,7 +2166,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var cardData = {
         name: '', description: '', personality: '', scenario: '',
         first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
-        post_history_instructions: '', tags: [], creator: 'ModelO Generator',
+        post_history_instructions: '', tags: [], creator: '时之写卡器',
         character_version: '', alternate_greetings: [],
         extensions: {
           talkativeness: '0.5',
@@ -2083,12 +2200,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '<button class="close-btn" id="closeBtn">×</button>' +
           '<div class="app">' +
             '<div class="welcome">' +
-              '<h2>⚡ ModelO 角色卡生成器</h2>' +
+              '<h2>⚡ 时之写卡器</h2>' +
               '<p>基于SillyTavern原生机制与ST权重分层8体系，通过AI对话逐步引导你创建专业级世界模式角色卡。<br>和AI聊天就能生成符合ST规范的角色卡！</p>' +
               '<div class="welcome-features">' +
                 '<div class="wf-item"><div class="wf-icon">💬</div><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">📊</div><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">20项质检</div><div class="wf-desc">8基础+4高价值+5世界书+3运行效果，专业达标</div></div>' +
+                '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">28项质检</div><div class="wf-desc">8基础+4高价值+5世界书+6世界书高级+3正则+3运行效果，专业达标</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">🎭</div><div class="wf-title">题材预设</div><div class="wf-desc">修仙/末世/西幻/都市等一键套用最优参数</div></div>' +
               '</div>' +
               '<button class="start-btn" id="startBtn">开始创作</button>' +
@@ -2126,7 +2243,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '<button class="close-btn" id="closeBtn">×</button>' +
           '<div class="app">' +
             '<div class="topbar">' +
-              '<h1>⚡ ModelO 角色卡生成器</h1>' +
+              '<h1>⚡ 时之写卡器</h1>' +
               '<span class="phase" id="phaseLabel">0%</span>' +
             '</div>' +
             '<div class="main">' +
@@ -2345,7 +2462,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.system_prompt = cd.system_prompt || '';
         cardData.post_history_instructions = cd.post_history_instructions || '';
         cardData.tags = cd.tags || [];
-        cardData.creator = cd.creator || 'ModelO Generator';
+        cardData.creator = cd.creator || '时之写卡器';
         cardData.character_version = cd.character_version !== undefined ? cd.character_version : '';
         cardData.alternate_greetings = cd.alternate_greetings || [];
         cardData.extensions = {
@@ -3195,12 +3312,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var corePass = coreResults.filter(function(r) { return r.pass; }).length;
         var h = '<div class="modal" id="qcModal">' +
           '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（规范20项 + 附加检查）</h3>' +
+            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（规范28项 + 附加检查）</h3>' +
             '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标 · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
             '<div class="modal-body" style="margin-top:10px">';
-        var categories = ['基础字段', '高价值字段', '世界书', '运行效果', '附加检查'];
-        var catColors = { '基础字段': '#d2a8ff', '高价值字段': '#f78166', '世界书': '#3fb950', '运行效果': '#d29922', '附加检查': '#8b949e' };
+        var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', '附加检查'];
+        var catColors = { '基础字段': '#d2a8ff', '高价值字段': '#f78166', '世界书': '#3fb950', '世界书高级': '#a371f7', '正则脚本': '#f0883e', '运行效果': '#d29922', '附加检查': '#8b949e' };
         categories.forEach(function(cat) {
           var catResults = results.filter(function(r) { return r.category === cat; });
           if (catResults.length === 0) return;
@@ -3974,7 +4091,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             showToast('内容为空，无法下载', 'error');
             return;
           }
-          var fileName = (cardData.name || 'ModelO角色卡').replace(/[<>:"/\\|?*]/g, '_') + '.json';
+          var fileName = (cardData.name || '时之写卡器导出').replace(/[<>:"/\\|?*]/g, '_') + '.json';
 
           var done = false;
 
@@ -4043,7 +4160,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       renderWelcome();
 
     } catch(e) {
-      console.error('ModelO Generator Error:', e);
+      console.error('时之写卡器 Error:', e);
       showToast('打开失败: ' + e.message, 'error');
     }
   }
@@ -4053,7 +4170,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt('ModelO角色卡生成器'), function() { openEditor(); });
+        evtOn(getBtnEvt('时之写卡器'), function() { openEditor(); });
         return true;
       }
     } catch(e) {}
@@ -4067,7 +4184,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (old) old.remove();
       var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
-      btn.textContent = '⚡ ModelO';
+      btn.textContent = '⚡ 时之写卡器';
       btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(247,129,102,.4);transition:all .3s;font-size:14px;';
       btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
       btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
