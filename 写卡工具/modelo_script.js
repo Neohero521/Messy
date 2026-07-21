@@ -653,14 +653,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  - 近场交互设为2-3\n' +
     '  - 叙事回忆设为5-8\n\n' +
     '**生效控制类**：\n' +
-    '- sticky：粘性触发，触发后永久保留在上下文\n' +
-    '  - 用于状态切换（如进入战斗模式、获得重要道具）\n' +
-    '  - 配合cooldown=0实现一次性永久生效\n' +
+    '- sticky：粘性触发，首次触发后永久保留在上下文（即使后续关键词不再出现）\n' +
+    '  - 与constant的区别：constant从对话开始就始终生效；sticky需要先被关键词触发一次，之后才持续生效\n' +
+    '  - 典型场景：状态切换类规则（进入战斗模式后持续生效战斗规则，直到剧情结束）\n' +
+    '  - 典型场景：获得重要道具后持续显示道具效果（首次提到道具→sticky持续注入道具说明）\n' +
+    '  - 典型场景：触发剧情事件后持续影响后续对话（如"被诅咒"状态持续影响AI回复）\n' +
+    '  - 数值含义：0=禁用粘性；正整数N=触发后持续N条消息（N=999可近似永久）；null=使用全局默认\n' +
+    '  - 配合cooldown=0实现一次性触发后永久生效\n' +
     '- cooldown：冷却期，触发后N条消息内不再重复触发\n' +
-    '  - 场景机制类设为3-5，避免规则刷屏\n' +
-    '  - 叙事类设为0或较低值\n' +
+    '  - 场景机制类设为3-5，避免规则刷屏（每3-5条消息最多触发一次）\n' +
+    '  - 叙事类设为0或较低值（允许频繁补充背景）\n' +
+    '  - 数值含义：0=无冷却（每次匹配都触发）；正整数=冷却消息数；null=使用全局默认\n' +
+    '  - 与sticky互斥：sticky让条目持续存在，cooldown让条目间歇触发，不要同时使用\n' +
     '- delay：延迟触发，匹配后N条消息才注入内容\n' +
-    '  - 用于伏笔、延迟揭示等叙事效果\n\n' +
+    '  - 用于伏笔、延迟揭示等叙事效果\n' +
+    '  - 例：提到"宝箱"后delay=2，2条消息后才注入"宝箱里藏有陷阱"的描述\n' +
+    '  - 数值含义：0=无延迟（立即触发）；正整数=延迟消息数\n\n' +
     '**递归安全类**：\n' +
     '- prevent_recursion：禁止被其他条目递归触发\n' +
     '  - 实体类条目（角色/地点/物品）建议开启，防止递归风暴\n' +
@@ -750,7 +758,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  - 用于实体交互、场景机制、叙事背景\n' +
     '  - 配合keys/secondary_keys实现精准触发\n' +
     '- constant=true + selective=true：不常用\n' +
-    '- vectorized=true：向量检索触发（需开启向量功能）\n\n' +
+    '- vectorized=true（🔗向量检索触发）：使用嵌入相似度匹配，而非关键词精确匹配\n' +
+    '  - 原理：将条目内容和聊天内容转为向量，计算语义相似度，超过阈值即触发\n' +
+    '  - 优势：无需穷举关键词，AI说"获取宝物"也能匹配到"获得道具"的条目\n' +
+    '  - 限制：需要用户开启向量数据源（Vector Storage），否则不生效\n' +
+    '  - 适用：语义模糊、表达多样的场景（如情感、氛围、隐含意图）\n' +
+    '  - 不适用：精确规则、数值判定（用普通关键词更可靠）\n' +
+    '  - 可与selective同时开启：关键词或向量相似度，任一满足即触发\n\n' +
     '**高级匹配功能**：\n' +
     '- case_sensitive：大小写敏感（null=使用全局设置）\n' +
     '  - 中文场景可忽略，英文专有名词可设为true\n' +
@@ -787,8 +801,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- comment：条目备注/标题，仅UI显示，不参与触发逻辑\n' +
     '  - 强烈建议使用规范前缀命名（见下方命名规范）\n' +
     '- content：条目内容，触发后注入到上下文的实际文本\n' +
-    '  - 必须自包含完整信息，不能依赖comment或keys\n' +
-    '  - 每条建议100-400字，保持精炼\n' +
+    '  - ⚠️ 必须自包含完整信息！keys、comment、title等字段不会被注入上下文，AI看不到它们\n' +
+    '  - 错误示例：content="如上所述，该角色拥有飞行能力"（AI不知道"如上"指什么）\n' +
+    '  - 正确示例：content="李逍遥：蜀山派弟子，拥有御剑飞行能力，擅长雷系法术"\n' +
+    '  - 条目之间可以互相引用（通过递归触发），但单条内容必须独立可读\n' +
+    '  - 每条建议100-400字，保持精炼，信息密度高\n' +
     '- id：条目唯一ID（数字，自动生成）\n' +
     '- enabled：是否启用条目\n' +
     '- display_index：显示排序（UI用，不影响逻辑）\n' +
@@ -842,7 +859,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- replaceString：替换为的内容\n' +
     '  - 支持 $1-$9 引用捕获组\n' +
     '  - 支持 $& 引用整个匹配\n' +
-    '  - 支持 $` 引用匹配前的文本，$' 引用匹配后的文本\n' +
+    "  - 支持 $` 引用匹配前的文本，$' 引用匹配后的文本\\n" +
     '  - 当substituteRegex>0时，支持ST宏变量（{{user}}, {{char}}, {{random:A,B}}, {{roll:XdY}}等）\n' +
     '- trimStrings：要移除的字符串数组（在替换后执行）\n' +
     '  - 常用于清理多余的换行、空格、特定标记\n' +
@@ -1120,6 +1137,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 场景类条目设置cooldown，避免重复刷屏\n' +
     '- 控制常驻条目（constant=true）数量，总token≤500\n' +
     '- 条目内容保持精炼，单条100-400字，信息密度高\n\n' +
+    '**⚠️ 常见错误与避坑指南**：\n' +
+    '1. 内容不自包含：content中写"如前所述""见上文"→ AI完全看不到上下文，必须写完整信息\n' +
+    '2. 触发词太少：只设1个关键词，用户换个说法就不触发→ 建议每条目3-8个同义词/变体\n' +
+    '3. 递归风暴：实体条目未开prevent_recursion，导致连锁触发耗尽token→ 实体类必须开\n' +
+    '4. 滥用常驻：所有条目都设constant=true→ 常驻token爆炸，只有核心规则才常驻\n' +
+    '5. position错误：把核心规则放position=4（AN位置）但用户禁用了AN→ 条目被忽略\n' +
+    '6. Outlet未放置宏：设了position=7但用户没在Prompt Manager放{{outlet::xxx}}→ 内容不显示\n' +
+    '7. Outlet嵌套：在WI条目内容里放{{outlet::xxx}}宏→ 不支持，可能导致死循环\n' +
+    '8. sticky和cooldown同时用：sticky让条目持续，cooldown让条目间歇→ 逻辑冲突，不要同时设\n' +
+    '9. 正则缺少g标志：findRegex写了复杂正则但没加g→ 只替换第一个匹配，后续不生效\n' +
+    '10. 扫描深度过大：scan_depth=100→ 每次生成都扫描全部历史，严重影响性能\n' +
+    '11. 角色卡字段中放Outlet宏：在description中写{{outlet::xxx}}→ 角色卡字段解析太早，无法展开Outlet\n' +
+    '12. 分组未设group_weight：同组多条目都用默认权重100→ 随机选择无差异，失去分组意义\n\n' +
+    '**🔗 世界书与正则脚本协同工作**：\n' +
+    '- 正则脚本可通过 placement=[3] (World Info) 处理世界书条目注入前的内容\n' +
+    '- 典型协同场景：\n' +
+    '  1. 模板变量替换：WI条目中写{{玩家名}}，用正则替换为{{user}}\n' +
+    '     findRegex="/\\{\\{玩家名\\}\\}/gi", replaceString="{{user}}", placement=[3], substituteRegex=1\n' +
+    '  2. 统一格式化：WI条目内容风格不统一时，用正则自动调整格式\n' +
+    '     如自动给所有"规则:"开头的行加粗：findRegex="/^(规则[:：].*)$/gm", replaceString="**$1**", placement=[3]\n' +
+    '  3. 敏感内容过滤：WI条目中包含需要过滤的词汇\n' +
+    '     findRegex="/(禁词)/gi", replaceString="***", placement=[3]\n' +
+    '  4. 动态状态注入：WI触发后，用正则在AI回复中检测并格式化状态信息\n' +
+    '     WI条目注入"战斗规则" → 正则在AI回复中格式化战斗结果\n' +
+    '- 注意事项：\n' +
+    '  · placement=[3]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
+    '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
+    '  · 一个正则脚本可同时处理多个位置（如placement=[0,1,3]）\n\n' +
+    '**📚 Lore插入策略（多源排序）**：\n' +
+    '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
+    '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
+    '  2. Character Lore First：角色卡世界书条目先注入，再注入全局世界书\n' +
+    '  3. Global Lore First：全局世界书条目先注入，再注入角色卡世界书\n' +
+    '- 还有Chat Lore（聊天级）和Persona Lore（人设级）两个独立来源，始终在最前\n' +
+    '- 完整注入顺序：Chat Lore → Persona Lore → Character/Global Lore（按策略排序）\n' +
+    '- 生成角色卡时无需关心用户的策略设置，只需保证insertion_order合理即可\n\n' +
     '=== 引导流程（按权重层级搭建） ===\n\n' +
     '**步骤1：定核心铁则**（最高权重，优先确定）\n' +
     '- 确定AI身份定位\n' +
@@ -1953,7 +2006,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         talkativeness: '0.5', fav: false, world: cardName,
         depth_prompt: depthPrompt,
         regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
-        xiaobaix-template: {
+        'xiaobaix-template': {
           enabled: false,
           template: '',
           customRegex: '',
@@ -2004,7 +2057,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           world: '',
           depth_prompt: { prompt: '', depth: 0, role: 'system' },
           regex_scripts: [],
-          xiaobaix-template: {
+          'xiaobaix-template': {
             enabled: false,
             template: '',
             customRegex: '',
@@ -2301,7 +2354,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           world: cd.extensions && cd.extensions.world ? cd.extensions.world : '',
           depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' },
           regex_scripts: cd.extensions && cd.extensions.regex_scripts ? cd.extensions.regex_scripts : [],
-          xiaobaix-template: cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
+          'xiaobaix-template': cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
             enabled: false,
             template: '',
             customRegex: '',
