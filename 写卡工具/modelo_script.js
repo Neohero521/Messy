@@ -1607,12 +1607,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardPostHist = toCRLF(cd.post_history_instructions || '');
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
     var cardCreatorNotes = toCRLF(cd.creator_notes || 'ModelO角色卡生成器创建');
-    var depthPrompt = cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 4, role: 'system' };
+    var depthPrompt = cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' };
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
       depthPrompt.role = depthPrompt.role === 1 ? 'user' : (depthPrompt.role === 2 ? 'assistant' : 'system');
     }
-    if (depthPrompt.depth === undefined) depthPrompt.depth = 4;
+    if (depthPrompt.depth === undefined) depthPrompt.depth = 0;
     var cardData = {
       name: cardName,
       description: cardDesc,
@@ -1625,9 +1625,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       post_history_instructions: cardPostHist,
       tags: cd.tags && cd.tags.length ? cd.tags : [],
       creator: 'ModelO Generator',
-      character_version: '1.0',
+      character_version: '',
       alternate_greetings: cardAltGreetings,
-      group_only_greetings: [],
       extensions: {
         talkativeness: '0.5', fav: false, world: cardName,
         depth_prompt: depthPrompt,
@@ -1643,6 +1642,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         },
         tavern_helper: { scripts: [], variables: {} }
       },
+      group_only_greetings: [],
       character_book: {
         entries: entries
       }
@@ -1675,11 +1675,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         name: '', description: '', personality: '', scenario: '',
         first_mes: '', mes_example: '', system_prompt: '', creator_notes: '',
         post_history_instructions: '', tags: [], alternate_greetings: [],
-        group_only_greetings: [],
         extensions: {
           talkativeness: '0.5',
           fav: false,
-          depth_prompt: { prompt: '', depth: 4, role: 'system' },
+          depth_prompt: { prompt: '', depth: 0, role: 'system' },
           regex_scripts: [],
           xiaobaix-template: {
             enabled: false,
@@ -1692,6 +1691,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           },
           tavern_helper: { scripts: [], variables: {} }
         },
+        group_only_greetings: [],
         character_book: { entries: [] }
       };
 
@@ -1969,11 +1969,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.post_history_instructions = cd.post_history_instructions || '';
         cardData.tags = cd.tags || [];
         cardData.alternate_greetings = cd.alternate_greetings || [];
-        cardData.group_only_greetings = cd.group_only_greetings || [];
         cardData.extensions = {
           talkativeness: '0.5',
           fav: false,
-          depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 4, role: 'system' },
+          depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' },
           regex_scripts: cd.extensions && cd.extensions.regex_scripts ? cd.extensions.regex_scripts : [],
           xiaobaix-template: cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
             enabled: false,
@@ -1986,6 +1985,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           },
           tavern_helper: { scripts: [], variables: {} }
         };
+        cardData.group_only_greetings = cd.group_only_greetings || [];
 
         if (cd.character_book) {
           cardData.character_book = {
