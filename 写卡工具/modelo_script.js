@@ -986,7 +986,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         } else {
           if (ne.selective === undefined) ne.selective = true;
           if (ne.constant === undefined) ne.constant = false;
-          if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: false };
+          if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: true };
         }
         var i = existing.findIndex(function(e) { return e.comment === ne.comment; });
         if (i >= 0) { existing[i] = ne; modified = true; } else { existing.push(ne); modified = true; }
@@ -1522,10 +1522,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
       var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
-      var delayUntilRecVal = ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : (defaultDUR ? 1 : 0);
-      if (typeof delayUntilRecVal === 'boolean') {
-        delayUntilRecVal = delayUntilRecVal ? 1 : 0;
-      }
       return {
         id: e.id || (i + 1),
         keys: e.keys || [],
@@ -1546,22 +1542,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           useProbability: useProbVal,
           depth: ext.depth !== undefined ? ext.depth : depth,
           selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : defaultSL,
-          outlet_name: '',
           group: ext.group || defaultGroup,
-          group_override: false,
-          group_weight: groupWeightVal,
           prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : defaultPR,
-          delay_until_recursion: delayUntilRecVal,
           scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : defaultScanDepth,
           match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
-          use_group_scoring: false,
           case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
           automation_id: '',
+          group_override: false,
+          group_weight: groupWeightVal,
+          delay_until_recursion: ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : defaultDUR,
+          use_group_scoring: false,
           role: roleVal,
           vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
           sticky: ext.sticky !== undefined ? ext.sticky : null,
           cooldown: ext.cooldown !== undefined ? ext.cooldown : null,
           delay: ext.delay !== undefined ? ext.delay : null,
+          match_persona_description: ext.match_persona_description !== undefined ? ext.match_persona_description : false,
+          match_character_description: ext.match_character_description !== undefined ? ext.match_character_description : false,
+          match_character_personality: ext.match_character_personality !== undefined ? ext.match_character_personality : false,
+          match_character_depth_prompt: ext.match_character_depth_prompt !== undefined ? ext.match_character_depth_prompt : false,
+          match_scenario: ext.match_scenario !== undefined ? ext.match_scenario : false,
+          match_creator_notes: ext.match_creator_notes !== undefined ? ext.match_creator_notes : false,
+          outlet_name: '',
           triggers: [],
           ignore_budget: false
         }
@@ -1998,7 +2000,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 selective: e.selective !== undefined ? e.selective : true,
                 insertion_order: e.insertion_order || 100,
                 enabled: true,
-                extensions: e.extensions || { position: 4, depth: 4, role: 0, probability: 100 }
+                extensions: e.extensions || { position: 4, depth: 4, role: 0, probability: 100, useProbability: true, selectiveLogic: 0, group: '', group_weight: 100, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: false, use_group_scoring: false, vectorized: false, sticky: 0, cooldown: 0, delay: 0, match_persona_description: false, match_character_description: false, match_character_personality: false, match_character_depth_prompt: false, match_scenario: false, match_creator_notes: false, outlet_name: '', triggers: [], ignore_budget: false, automation_id: '', display_index: 0, scan_depth: null, match_whole_words: null, case_sensitive: null }
               };
             })
           };
@@ -3440,7 +3442,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               creator_notes: cd.creator_notes || '',
               alternate_greetings: (cd.alternate_greetings || []).map(function(g) { return toCRLF(g); }),
               character_book: {
-                name: book.name || '世界设定集',
                 entries: entries.map(function(e, i) {
                   var ext = e.extensions || {};
                   var rawPos = (e.position !== undefined) ? e.position : (ext.position !== undefined ? ext.position : 0);
@@ -3450,8 +3451,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   var topPosStr = (posNum === 0) ? 'before_char' : 'after_char';
                   var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : false);
                   var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
-                  var delayUntilRecVal = ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : 0;
-                  if (typeof delayUntilRecVal === 'boolean') delayUntilRecVal = delayUntilRecVal ? 1 : 0;
                   return {
                     id: e.id || (i + 1),
                     keys: e.keys || [],
@@ -3472,22 +3471,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                       useProbability: useProbVal,
                       depth: ext.depth !== undefined ? ext.depth : 4,
                       selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : 0,
-                      outlet_name: '',
                       group: ext.group || '',
-                      group_override: false,
-                      group_weight: groupWeightVal,
                       prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : false,
-                      delay_until_recursion: delayUntilRecVal,
                       scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : (e.constant ? 0 : 5),
                       match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
-                      use_group_scoring: false,
                       case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
                       automation_id: '',
+                      group_override: false,
+                      group_weight: groupWeightVal,
+                      delay_until_recursion: ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : false,
+                      use_group_scoring: false,
                       role: ext.role !== undefined ? ext.role : 0,
                       vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
                       sticky: ext.sticky !== undefined ? ext.sticky : null,
                       cooldown: ext.cooldown !== undefined ? ext.cooldown : null,
                       delay: ext.delay !== undefined ? ext.delay : null,
+                      match_persona_description: ext.match_persona_description !== undefined ? ext.match_persona_description : false,
+                      match_character_description: ext.match_character_description !== undefined ? ext.match_character_description : false,
+                      match_character_personality: ext.match_character_personality !== undefined ? ext.match_character_personality : false,
+                      match_character_depth_prompt: ext.match_character_depth_prompt !== undefined ? ext.match_character_depth_prompt : false,
+                      match_scenario: ext.match_scenario !== undefined ? ext.match_scenario : false,
+                      match_creator_notes: ext.match_creator_notes !== undefined ? ext.match_creator_notes : false,
+                      outlet_name: '',
                       triggers: [],
                       ignore_budget: false
                     }
