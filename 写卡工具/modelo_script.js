@@ -667,7 +667,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- Few-shot规范输出格式，效果远优于纯文字规则\n\n' +
     '**depth_prompt**：\n' +
     '- 自动生成新手引导内容\n' +
-    '- 默认depth=10，前10轮自动注入\n\n' +
+    '- 默认depth=0，role=system\n\n' +
     '**alternate_greetings**：\n' +
     '- 自动生成3个差异化开局\n' +
     '- 支持多身份/多难度开局\n\n' +
@@ -712,20 +712,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '    "name": "角色卡名称",\n' +
     '    "description": "世界观核心设定...",\n' +
     '    "first_mes": "开场白...",\n' +
+    '    "creator_notes": "创作说明...",\n' +
     '    "system_prompt": "简短身份定位...",\n' +
     '    "post_history_instructions": "核心铁则（最高权重）...",\n' +
-    '    "mes_example": "对话示例...",\n' +
-    '    "alternate_greetings": ["开局1","开局2","开局3"],\n' +
-    '    "creator_notes": "创作说明...",\n' +
     '    "tags": ["标签1"],\n' +
-    '    "character_book": {"name": "世界设定集", "extensions": {}, "entries": [...]},\n' +
+    '    "creator": "创作者名称",\n' +
+    '    "character_version": "",\n' +
+    '    "alternate_greetings": ["开局1","开局2","开局3"],\n' +
     '    "extensions": {\n' +
-    '      "depth_prompt": {"prompt": "新手引导...", "depth": 10, "role": "system"},\n' +
+    '      "talkativeness": "0.5",\n' +
+    '      "fav": false,\n' +
+    '      "world": "世界书名称",\n' +
+    '      "depth_prompt": {"prompt": "", "depth": 0, "role": "system"},\n' +
     '      "regex_scripts": [\n' +
     '        {"scriptName":"状态栏格式化","findRegex":"/<status>(.*?)</status>/gi","replaceString":"**状态：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
     '        {"scriptName":"行动标签","findRegex":"/<action>(.*?)</action>/gi","replaceString":"**行动：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false}\n' +
-    '      ]\n' +
-    '    }\n' +
+    '      ],\n' +
+    '      "xiaobaix-template": {"enabled": false,"template": "","customRegex": "","disableParsers": false,"skipFirstMessage": false,"recentMessageCount": 0,"limitToRecentMessages": false},\n' +
+    '      "tavern_helper": {"scripts": [],"variables": {}}\n' +
+    '    },\n' +
+    '    "group_only_greetings": [],\n' +
+    '    "character_book": {"entries": [...]}\n' +
     '  }\n' +
     '}\n' +
     '```\n\n' +
@@ -845,7 +852,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '**高价值字段检查（4项）**：\n' +
     '- [ ] mes_example：1-2组对话示例\n' +
     '- [ ] alternate_greetings：3个差异化开局\n' +
-    '- [ ] depth_prompt：新手引导内容（depth=10）\n' +
+    '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '- [ ] regex_scripts：基础状态同步正则\n\n' +
     '**世界书检查（5项）**：\n' +
     '- [ ] 条目数：12-30条\n' +
@@ -938,25 +945,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
     delete partial._nochange;
 
-    // 世界书名称 - 规范化，避免AI设置奇怪的名字
-    if (partial.character_book && partial.character_book.name !== undefined) {
-      cd.character_book = cd.character_book || { name: genBookName(cd.name), extensions: {}, entries: [] };
-      var proposedName = partial.character_book.name;
-      var baseName = cd.name || '';
-      var oldName = cd.character_book.name;
-      if (baseName && proposedName.indexOf(baseName) < 0 && proposedName.indexOf('世界书') < 0) {
-        cd.character_book.name = genBookName(baseName);
-      } else {
-        cd.character_book.name = proposedName;
-      }
-      if (oldName !== cd.character_book.name) modified = true;
+    // 世界书名称字段已移除（参考文件中 character_book 不含 name 字段）
+    if (partial.character_book) {
       delete partial.character_book.name;
       if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
     }
 
     if (partial.entries && Array.isArray(partial.entries)) {
-      cd.character_book = cd.character_book || { name: genBookName(cd.name), extensions: {}, entries: [] };
-      if (!cd.character_book.name) cd.character_book.name = genBookName(cd.name);
+      cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
       partial.entries.forEach(function(ne) {
         if (!ne.comment || !ne.comment.trim()) return;
@@ -998,7 +994,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       cd.character_book.entries = existing;
       delete partial.entries;
     }
-    var fields = ['name','description','personality','scenario','first_mes','mes_example','system_prompt','creator_notes','post_history_instructions','tags','alternate_greetings'];
+    var fields = ['name','description','personality','scenario','first_mes','mes_example','creator_notes','system_prompt','post_history_instructions','tags','creator','character_version','alternate_greetings','group_only_greetings'];
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
         var val = partial[f];
@@ -1020,7 +1016,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     if (partial.depth_prompt !== undefined) {
       cd.extensions = cd.extensions || {};
-      cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 10, role: 'system' };
+      cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
       var dp = partial.depth_prompt;
       var dpModified = false;
       if (typeof dp === 'string') {
@@ -1064,7 +1060,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     // 名称变化时自动更新世界书名称
     if (partial.name && cd.character_book) {
-      cd.character_book.name = genBookName(cd.name);
+      // 参考文件中 character_book 不包含 name 字段，此处无需更新
     }
 
     if (partial.extensions) {
@@ -1072,7 +1068,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       for (var ek in partial.extensions) {
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
-            cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 10, role: 0 };
+            cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
             var dp = partial.extensions.depth_prompt;
             if (typeof dp === 'string') cd.extensions.depth_prompt.prompt = dp;
             else if (dp && typeof dp === 'object') {
@@ -1089,7 +1085,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
     }
     if (partial.character_book) {
-      cd.character_book = cd.character_book || { name: genBookName(cd.name), extensions: {}, entries: [] };
+      cd.character_book = cd.character_book || { entries: [] };
       if (partial.character_book.entries) {
         var e2 = cd.character_book.entries || [];
         partial.character_book.entries.forEach(function(ne) {
@@ -1328,9 +1324,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     results.push({
       pass: dp.prompt && dp.prompt.length > 0,
       category: '高价值字段',
-      name: 'depth_prompt 新手引导（depth=10）',
+      name: 'depth_prompt 新手引导（depth=0）',
       desc: dp.prompt && dp.prompt.length ? (dp.prompt.length + ' 字，depth=' + (dp.depth || 0)) : '未设置',
-      fix: !dp.prompt ? '建议生成新手引导内容（默认depth=10，前10轮自动注入）' : '渐进引导已设置'
+      fix: !dp.prompt ? '建议生成新手引导内容（默认depth=0）' : '渐进引导已设置'
     });
     results.push({
       pass: rx.length > 0,
@@ -1493,7 +1489,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   // ===== 生成完整角色卡 =====
   function buildExportCard(cd) {
-    var bookName = (cd.character_book && cd.character_book.name) ? cd.character_book.name : genBookName(cd.name);
     var rawEntries = (cd.character_book && cd.character_book.entries) || [];
     var entries = rawEntries.map(function(e, i) {
       var comment = e.comment || ('条目' + (i + 1));
@@ -1679,6 +1674,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         extensions: {
           talkativeness: '0.5',
           fav: false,
+          world: '',
           depth_prompt: { prompt: '', depth: 0, role: 'system' },
           regex_scripts: [],
           xiaobaix-template: {
@@ -1975,6 +1971,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.extensions = {
           talkativeness: '0.5',
           fav: false,
+          world: cd.extensions && cd.extensions.world ? cd.extensions.world : '',
           depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' },
           regex_scripts: cd.extensions && cd.extensions.regex_scripts ? cd.extensions.regex_scripts : [],
           xiaobaix-template: cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
@@ -3210,7 +3207,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '6. post_history_instructions：≤100字，极度精简，放在常驻最高权重位\n' +
             '7. mes_example：建议生成1-2组对话示例（Few-shot），提升效果\n' +
             '8. alternate_greetings：建议生成3个不同身份/难度的备用开局\n' +
-            '9. depth_prompt：生成新手引导内容，默认depth=10（前10轮自动注入）\n' +
+            '9. depth_prompt：生成新手引导内容，默认depth=0\n' +
             '10. regex_scripts：生成基础状态同步正则脚本，无需插件实现动态状态栏。格式规范：\n' +
             '    - findRegex：使用/模式/flags格式，如"/<status>(.*?)</status>/gi"\n' +
             '    - replaceString：替换内容，支持$1-$9捕获组和{{match}}宏\n' +
@@ -3318,14 +3315,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       // ===== 世界书名称编辑 =====
       function editBookName() {
-        var oldName = (cardData.character_book && cardData.character_book.name) || '';
-        var newName = prompt('设置世界书名称：', oldName);
-        if (newName !== null && newName.trim()) {
-          cardData.character_book = cardData.character_book || { name: '', extensions: {}, entries: [] };
-          cardData.character_book.name = newName.trim();
-          renderPreview();
-          showToast('世界书名称已更新', 'success');
-        }
+        // 参考文件中 character_book 不含 name 字段，此功能已停用
+        showToast('当前模板不支持修改世界书名称', 'info');
       }
 
       // ===== 预览渲染 =====
