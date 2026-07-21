@@ -669,18 +669,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- delay_until_recursion：仅在递归中触发（不直接触发）\n' +
     '  - 用于补充说明、背景展开，被主条目递归带出\n' +
     '  - 叙事类条目常用，实现"提到A时自动带出A的背景"\n\n' +
-    '**分组互斥类（高级功能，强烈推荐使用）**：\n' +
-    '- group：互斥分组标签，同group的多条目同时触发时仅注入1条\n' +
-    '  - 场景变体：同一场景的不同描述，随机选一个增加多样性\n' +
-    '  - 难度分层：新手/普通/困难三种规则，按进度触发\n' +
-    '  - 时间分支：白天/夜晚/黄昏不同场景描述\n' +
-    '- group_weight：同组内的选中权重（默认100，越高越容易被选中）\n' +
-    '  - 常见变体权重设为100，稀有变体设为20-50\n' +
-    '- use_group_scoring：按键匹配数决定组内胜出（先按匹配数筛选，再按权重选）\n' +
-    '  - 用于大组中优先选择更具体的条目\n' +
-    '  - 例：组"天气"，条目1有键"天气"（权重100），条目2有键"天气,下雨"（权重100）\n' +
-    '    开启use_group_scoring后，提到"下雨"时条目2（2个匹配）胜条目1（1个匹配）\n' +
-    '- group_override：组覆盖（一般保持false即可）\n\n' +
+    '**分组互斥类（Inclusion Group，高级功能，强烈推荐使用）**：\n' +
+    '- group：互斥分组标签（逗号分隔，一条目可属多个组），同组多条目同时触发时仅选1条注入\n' +
+    '  - 场景变体：同一场景的不同描述，随机选一个增加多样性和新鲜感\n' +
+    '  - 难度分层：新手/普通/困难三种规则，按进度选择不同深度的规则\n' +
+    '  - 时间分支：白天/夜晚/黄昏/凌晨不同场景描述和氛围\n' +
+    '  - 心情状态：平静/愤怒/悲伤/喜悦等不同状态下的角色行为差异\n' +
+    '  - 多选组：一条目属于多个组时，它的触发会禁用所有相关组的其他条目\n' +
+    '- group_weight：同组内的随机选中权重（默认100，数值越大被选中概率越高）\n' +
+    '  - 常见/普通变体权重设为100，稀有/特殊变体设为20-50\n' +
+    '  - 权重计算：条目的权重 / 组内所有触发条目的权重总和 = 被选中概率\n' +
+    '  - 例：组内3条触发，权重分别为100、50、50 → 选中概率为 50%、25%、25%\n' +
+    '- group_override（Prioritize Inclusion）：组优先级覆盖（true=按order选，false=按权重随机选）\n' +
+    '  - 设为true时：同组多条目都触发时，选insertion_order最高的那条（不是随机）\n' +
+    '  - 用于创建确定性的回退/优先级序列，而非随机选择\n' +
+    '  - 典型用法：低深度(影响大)的条目优先于高深度的通用条目\n' +
+    '  - 例：组"天气"，order=200的"暴雨"条目 和 order=100的"普通天气"条目都触发\n' +
+    '    开启group_override后，order更高的"暴雨"胜（确定性优先级，非随机）\n' +
+    '- use_group_scoring：使用组评分筛选（先按匹配数筛选出最高分子集，再选）\n' +
+    '  - 开启后：先统计组内每条触发条目的key匹配数量，只保留匹配数最多的条目\n' +
+    '  - 然后在最高分条目中，再按group_weight随机选（或group_override按order选）\n' +
+    '  - 评分规则：主键每匹配1个=1分；次级键根据selectiveLogic加分\n' +
+    '    · AND_ANY：每匹配1个次级键=1分\n' +
+    '    · AND_ALL：所有次级键都匹配时加N分（N是次级键总数）\n' +
+    '    · NOT_ANY / NOT_ALL：不加分\n' +
+    '  - 典型用法：大组中优先选择更具体、匹配更精准的条目\n' +
+    '  - 例：组"天气"，条目A keys=[天气]（1分），条目B keys=[天气,下雨]（2分）\n' +
+    '    用户说"下雨了"时，条目B匹配分2 > 条目A的1分，条目B胜出\n\n' +
     '**概率与选择类**：\n' +
     '- probability：概率触发百分比（0-100），仅当useProbability=true时生效\n' +
     '  - 核心规则：100%（必触发）\n' +
@@ -694,13 +709,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 0 = Before Char Defs（角色定义前）：影响中等，用于世界观基底\n' +
     '- 1 = After Char Defs（角色定义后）：影响较大，用于核心规则\n' +
     '- 2 = Before Example Messages（示例消息前）：作为对话示例注入\n' +
+    '  - 遵循示例消息行为规则：上下文满时渐进推出\n' +
+    '  - 按提示词设置格式化为Instruct或Chat Completion格式\n' +
     '- 3 = After Example Messages（示例消息后）：作为对话示例注入\n' +
+    '  - 同position=2，区别在示例消息的前后位置\n' +
     '- 4 = Top of AN（作者笔记顶部）：影响随AN位置变化\n' +
+    '  - ⚠️ 注意：如果Author\'s Note禁用（Insertion Frequency=0），此位置条目会被忽略\n' +
     '- 5 = Bottom of AN（作者笔记底部）：影响随AN位置变化\n' +
-    '- 6 = @ D（指定深度）：在特定聊天深度注入，配合depth字段\n' +
+    '  - 比position=4更靠近生成点，影响更大\n' +
+    '- 6 = @ D（指定深度）：在特定聊天深度注入，配合depth和role字段\n' +
+    '  - depth：注入深度（0=最底部/最新消息位置，数字越大越靠上）\n' +
+    '  - role：消息角色（0=system系统消息, 1=user用户消息, 2=assistant助手消息）\n' +
+    '  - 用于精准控制信息注入的位置和角色\n' +
     '- 7 = Outlet（命名出口）：不自动注入，用{{outlet::名称}}手动调用\n' +
-    '  - outlet_name：出口名称，position=7时必填\n' +
-    '  - 用法：在prompt manager或高级格式中放置{{outlet::myOutlet}}\n\n' +
+    '  - outlet_name：出口名称（大小写敏感，前后空格会被忽略），position=7时必填\n' +
+    '  - 用法：在Prompt Manager或Advanced Formatting中放置 {{outlet::你的出口名}}\n' +
+    '  - 同名称的多条目按insertion_order排序，用换行连接后替换宏\n' +
+    '  - 适合模块化内容管理、自定义布局、条件注入组合\n' +
+    '  ⚠️ Outlet重要限制：\n' +
+    '  - 世界书条目内容中不能放{{outlet::}}宏（计算顺序问题，可能死循环）\n' +
+    '  - 不支持嵌套Outlet（不能在一个出口的内容里调用另一个出口）\n' +
+    '  - 角色卡字段（Description/Personality/Scenario等）不能展开Outlet（解析太早）\n' +
+    '  - Author\'s Note编辑器也不能解析Outlet，要用Top/Bottom of AN位置代替\n' +
+    '  - 没有内容的Outlet宏会被替换为空字符串\n\n' +
     '**内容排序类**：\n' +
     '- insertion_order：插入顺序/优先级，数字越大越靠后（影响越大）\n' +
     '  - 最高优先级规则：250-200（基础公理、核心铁则）\n' +
@@ -732,6 +763,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- match_creator_notes：匹配创作者笔记\n' +
     '  - 以上match_*字段：设为true时，除了扫描消息，还扫描对应角色卡字段\n' +
     '  - 典型用法：让某些条目在角色卡描述包含特定关键词时也触发\n\n' +
+    '**正则触发键（高级功能，极大增强触发灵活性）**：\n' +
+    '- keys数组中的元素如果是 /pattern/flags 格式，会被当作正则表达式匹配\n' +
+    '  - 支持完整JavaScript正则语法：g(全局), i(忽略大小写), s(点匹配换行), m(多行), u(Unicode)\n' +
+    '  - 普通键用逗号分隔（不支持逗号），正则键可包含逗号，作为独立key输入\n' +
+    '  - 例：keys=["修炼", "/境界|修为/i", "/(练气|筑基|金丹).*期/"]\n' +
+    '\n' +
+    '- 高级Per-Message匹配（精确控制谁触发）：\n' +
+    '  - ST在每条消息前添加 \\x01角色名: 前缀，可用正则精确匹配特定说话者\n' +
+    '  - 只匹配用户说的话：/\\x01{{user}}:[^\\x01]*?关键词/i\n' +
+    '  - 只匹配AI说的话：/\\x01{{char}}:[^\\x01]*?关键词/i\n' +
+    '  - 匹配任意角色：/\\x01[^\\x01]*?:[^\\x01]*?关键词/i\n' +
+    '  - 例：只在用户提到"系统"时触发：keys=["/\\x01{{user}}:[^\\x01]*?系统/i"]\n' +
+    '  - 例：只在AI描述天气时触发：keys=["/\\x01{{char}}:[^\\x01]*?(下雨|晴天|下雪)/i"]\n' +
+    '\n' +
+    '- 正则触发键设计原则：\n' +
+    '  - 优先用普通关键词，复杂场景再用正则（性能考虑）\n' +
+    '  - 正则尽量精确，避免过度匹配\n' +
+    '  - 捕获组不影响触发，仅用于匹配判断\n' +
+    '  - 中文场景建议加i标志（不影响中文但更安全）\n' +
+    '  - 需要区分说话者时用\\x01前缀方案\n\n' +
     '**其他字段**：\n' +
     '- comment：条目备注/标题，仅UI显示，不参与触发逻辑\n' +
     '  - 强烈建议使用规范前缀命名（见下方命名规范）\n' +
@@ -744,7 +795,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- triggers：触发器数组（一般留空）\n' +
     '- ignore_budget：忽略上下文预算（设为true时始终插入，不计入token限制）\n' +
     '  - 核心规则可设为true，防止被截断\n' +
-    '- selectiveLogic：次级键逻辑（0=AND_ANY, 1=NOT_ALL, 2=NOT_ANY, 3=AND_ALL）\n\n' +
+    '- selectiveLogic：次级键（secondary_keys）逻辑模式（0=AND_ANY, 1=NOT_ALL, 2=NOT_ANY, 3=AND_ALL）\n' +
+    '  - secondary_keys为空时忽略此设置\n' +
+    '  - 模式0（AND_ANY）：主键触发 + 次级键中至少1个匹配 → 才激活\n' +
+    '    · 用途：精确过滤，需要上下文同时包含主键和某个辅助信息\n' +
+    '    · 例：keys=["战斗"], secondary_keys=["野外","城市","秘境"], selectiveLogic=0\n' +
+    '      → 只有在"战斗"且提到地点类型时才触发，室内对话不触发\n' +
+    '  - 模式3（AND_ALL）：主键触发 + 所有次级键全部匹配 → 才激活\n' +
+    '    · 用途：极精确触发，需要多个条件同时满足\n' +
+    '    · 例：keys=["修炼"], secondary_keys=["突破","瓶颈"], selectiveLogic=3\n' +
+    '      → 只有同时提到"修炼+突破+瓶颈"三个关键词才触发突破指导\n' +
+    '  - 模式2（NOT_ANY）：主键触发 + 次级键中没有任何一个匹配 → 才激活\n' +
+    '    · 用途：排除特定场景，主键出现但某些词不在场时才触发\n' +
+    '    · 例：keys=["休息"], secondary_keys=["战斗","受伤"], selectiveLogic=2\n' +
+    '      → "休息"时不在战斗/受伤状态，才触发悠闲休息的描述\n' +
+    '  - 模式1（NOT_ALL）：主键触发 + 不是所有次级键都匹配 → 才激活\n' +
+    '    · 用途：防止特定组合出现，主键+全部次级键同时出现时反而不触发\n' +
+    '    · 例：keys=["奖励"], secondary_keys=["任务完成","boss击杀"], selectiveLogic=1\n' +
+    '      → 只提"奖励"或只提一个原因时触发，两个原因都有时反而用更高级的奖励条目\n\n' +
     '=== 高价值字段生成规范 ===\n\n' +
     '**system_prompt**：\n' +
     '- 精简至≤50字，仅保留AI身份定位\n' +
@@ -801,7 +869,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- minDepth / maxDepth：生效深度范围（null=不限制）\n' +
     '  - minDepth：从第几条消息开始生效（0=最新消息）\n' +
     '  - maxDepth：最多到第几条消息\n' +
-    '  - 适合渐进式提示（如前N轮显示引导，之后自动消失）\n\n' +
+    '  - 适合渐进式提示（如前N轮显示引导，之后自动消失）\n' +
+    '  - minDepth=-1或空白：Unlimited，也会影响Continue操作的续写消息\n' +
+    '  - 系统提示和工具提示不受深度设置影响\n' +
+    '- 临时性/Ephemerality设置（控制是否写入聊天文件）：\n' +
+    '  - promptOnly=true：只修改发送给模型的提示词，不改变显示，也不写入聊天文件\n' +
+    '    · 用途：偷偷给模型加规则/改格式，用户看不到变化\n' +
+    '    · 对应官方Alter Outgoing Prompt选项\n' +
+    '  - 两个都不设置（默认）：直接修改聊天文件内容，显示和模型看到的一致，修改永久保存\n' +
+    '  - 注意：promptOnly模式下，用户看到的和模型收到的内容不一样，需谨慎使用\n' +
+    '- 正则标志（flags）：写在findRegex的//后面，如/pattern/gi\n' +
+    '  - g：全局匹配（匹配所有，不只第一个），绝大多数情况都要加\n' +
+    '  - i：忽略大小写，中文场景建议加（不影响中文但更安全）\n' +
+    '  - s：dotAll模式，.可以匹配换行符（多行内容匹配时用）\n' +
+    '  - m：多行模式，^和$匹配每行的开头结尾\n' +
+    '  - u：Unicode模式，正确处理Unicode字符\n\n' +
     '**常用场景示例**：\n' +
     '  1. 状态栏格式化：\n' +
     '     findRegex="/<status>([\\s\\S]*?)</status>/gi"\n' +
@@ -834,7 +916,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  8. 用户输入规范化：\n' +
     '     findRegex="/^[\\s\\S]*?玩家说[:：]\\s*/i"\n' +
     '     replaceString=""\n' +
-    '     placement=[0], trimStrings=["\\n\\n"]\n\n' +
+    '     placement=[0], trimStrings=["\\n\\n"]\n' +
+    '  9. 关键词加粗强调（用{{match}}宏）：\n' +
+    '     findRegex="/(修炼|突破|渡劫|法宝)/gi"\n' +
+    '     replaceString="**{{match}}**"\n' +
+    '     placement=[0,1]\n' +
+    '  10. 世界书模板变量替换（placement=[3]）：\n' +
+    '      findRegex="/\\{\\{玩家名\\}\\}/gi"\n' +
+    '      replaceString="{{user}}"\n' +
+    '      placement=[3], substituteRegex=1\n' +
+    '  11. 仅给模型看的隐藏提示（promptOnly=true）：\n' +
+    '      findRegex="/(.*)/s"\n' +
+    '      replaceString="$1\\n\\n[隐藏规则：回复时必须包含状态面板]"\n' +
+    '      placement=[1], promptOnly=true\n' +
+    '  12. 敏感词过滤：\n' +
+    '      findRegex="/(敏感词1|敏感词2)/gi"\n' +
+    '      replaceString="***"\n' +
+    '      placement=[0,1]\n\n' +
+    '**高级场景与设计模式**：\n' +
+    '- 模式1：管道式处理（多脚本串联）\n' +
+    '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
+    '  · 例：脚本1提取状态栏 → 脚本2格式化样式 → 脚本3添加图标\n' +
+    '  · 优势：每个脚本职责单一，易于调试和复用\n' +
+    '- 模式2：条件逻辑判断（配合STscript/Quick Replies）\n' +
+    '  · 设置disabled=true的脚本，通过STscript或斜杠命令按需触发\n' +
+    '  · replaceString中放唯一标记值，用于判断匹配是否成功\n' +
+    '  · 可实现：如果文本包含X，则执行Y操作\n' +
+    '- 模式3：HTML/CSS样式注入\n' +
+    '  · replaceString中包含HTML标签和style样式\n' +
+    '  · 需要用户设置中关闭"Show <tags> in responses"\n' +
+    '  · 可实现：彩色文字、边框、背景色、浮动元素等\n' +
+    '  · 例：把特定关键词变成红色带边框的标签样式\n' +
+    '- 模式4：世界书内容后处理（placement=[3]）\n' +
+    '  · 在世界书条目注入提示词前，对内容进行替换/格式化\n' +
+    '  · 可实现：模板变量替换、统一格式调整、内容裁剪\n' +
+    '  · 注意：需要"Alter Outgoing Prompt"开启（或两个ephemerality都不选）\n\n' +
     '**设计原则**：\n' +
     '- 每个脚本只做一件事，功能单一化\n' +
     '- 注意执行顺序，后执行的会覆盖前面的结果\n' +
@@ -951,6 +1067,59 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n\n' +
+    '=== 世界书高级设计模式与最佳实践 ===\n\n' +
+    '**模式1：递归信息链（Recursive Chaining）**\n' +
+    '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
+    '- 结构：主条目（实体交互）→ 从条目（叙事背景，delay_until_recursion=true）\n' +
+    '- 配置：主条目 prevent_recursion=false，从条目 delay_until_recursion=true + prevent_recursion=true\n' +
+    '- 效果：提到角色名时，自动带出该角色的背景故事（不占常驻token，按需加载）\n' +
+    '- 例：<重要角色>李逍遥（keys=["李逍遥"]，内容含"蜀山派"）→ 递归触发<叙事背景>蜀山派历史\n' +
+    '- 安全限制：最多递归3层，实体类条目必须设prevent_recursion=true防止风暴\n\n' +
+    '**模式2：概率事件系统（Probability-based Events）**\n' +
+    '- 原理：利用probability字段创建随机触发的事件/彩蛋/天气变化\n' +
+    '- 常见概率档位：\n' +
+    '  · 1-5%：稀有彩蛋（奇遇、特殊NPC出现）\n' +
+    '  · 10-30%：随机事件（天气变化、路人偶遇）\n' +
+    '  · 50-70%：补充背景（有概率增加叙事深度）\n' +
+    '  · 100%：必现规则（不建议用probability，直接useProbability=false即可）\n' +
+    '- 配合group使用：同组多个概率条目，实现"每次触发选一个随机事件"\n' +
+    '- 例：组"随机天气"，5条天气描述各20%权重，probability=30%，实现30%概率随机插入一条天气描述\n\n' +
+    '**模式3：渐进式难度适配（Difficulty Scaling）**\n' +
+    '- 原理：用group + group_override + order 实现按进度/深度的规则回退\n' +
+    '- 结构：同group多条目，order递增表示规则越具体/越难，group_override=true\n' +
+    '- 效果：简单关键词触发通用规则（低order），复杂关键词触发高级规则（高order胜出）\n' +
+    '- 例：组"战斗系统"，order=100的"基础战斗规则"（keys=["战斗"]），order=200的"高级战斗规则"（keys=["战斗","技能"]）\n' +
+    '  只提"战斗"时触发基础版，提到"战斗+技能"时触发高级版（更具体）\n\n' +
+    '**模式4：说话者精准触发（Per-Speaker Triggers）**\n' +
+    '- 原理：用正则键 + \\x01分隔符 精确匹配特定角色说的话\n' +
+    '- 用户触发型：keys=["/\\x01{{user}}:[^\\x01]*?指令关键词/i"]\n' +
+    '  用于：用户输入特定指令时注入规则（如用户说"查看状态"时注入状态栏格式）\n' +
+    '- AI触发型：keys=["/\\x01{{char}}:[^\\x01]*?描述关键词/i"]\n' +
+    '  用于：AI生成特定内容后补充上下文（如AI提到战斗结果时注入伤害计算规则）\n' +
+    '- 优势：避免双向误触发，只在需要的说话方向上生效\n\n' +
+    '**模式5：模块化Outlet布局（Modular Outlets）**\n' +
+    '- 原理：用position=7 (Outlet) 将内容分类到不同命名出口，在Prompt Manager中自由组合布局\n' +
+    '- 常见出口命名：\n' +
+    '  · lore_header：世界观头部信息（放在最前）\n' +
+    '  · active_rules：当前生效规则（动态变化）\n' +
+    '  · status_panel：状态栏内容（固定位置）\n' +
+    '  · footer_notes：页脚补充说明\n' +
+    '- 优势：解耦内容和位置，调整布局无需改条目内容\n' +
+    '- 注意：角色卡内置的Outlet需用户手动在Prompt Manager中放置{{outlet::xxx}}宏才生效\n\n' +
+    '**模式6：分组评分精准匹配（Group Scoring）**\n' +
+    '- 原理：use_group_scoring=true，按键匹配数量自动选择最相关的条目\n' +
+    '- 结构：同group多条目，keys数量/具体度递增\n' +
+    '- 效果：用户说的关键词越具体，匹配到的条目越精准\n' +
+    '- 例：组"地点"，条目A keys=["城镇"]（1分），条目B keys=["城镇","黑铁城"]（2分），条目C keys=["城镇","黑铁城","酒馆"]（3分）\n' +
+    '  用户说"黑铁城的酒馆"时，条目C匹配分最高胜出，提供最精准的信息\n\n' +
+    '**世界书性能优化最佳实践**：\n' +
+    '- 优先用普通关键词，正则键仅在必要时使用（正则有性能开销）\n' +
+    '- 合理设置scan_depth：不需要扫描历史的设为0（如常驻条目）\n' +
+    '- 叙事类条目用probability降低触发频率，节省token\n' +
+    '- 实体类条目开启prevent_recursion，防止递归风暴\n' +
+    '- 场景类条目设置cooldown，避免重复刷屏\n' +
+    '- 控制常驻条目（constant=true）数量，总token≤500\n' +
+    '- 条目内容保持精炼，单条100-400字，信息密度高\n\n' +
     '=== 引导流程（按权重层级搭建） ===\n\n' +
     '**步骤1：定核心铁则**（最高权重，优先确定）\n' +
     '- 确定AI身份定位\n' +
@@ -984,7 +1153,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 设计状态同步（regex_scripts）\n' +
     '- 设计互动选项和引导机制\n' +
     '- 生成<动态适配>、<引导机制>、<互动选项>条目\n\n' +
-    '=== 质量检查标准（20项） ===\n\n' +
+    '=== 质量检查标准（28项） ===\n\n' +
     '**基础字段检查（8项）**：\n' +
     '- [ ] name：世界名称明确，体现核心主题\n' +
     '- [ ] description：包含世界核心设定（400字以上）\n' +
@@ -999,12 +1168,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] alternate_greetings：3个差异化开局\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '- [ ] regex_scripts：基础状态同步正则\n\n' +
-    '**世界书检查（5项）**：\n' +
+    '**世界书基础检查（5项）**：\n' +
     '- [ ] 条目数：12-30条\n' +
     '- [ ] 触发词覆盖率：≥50%\n' +
     '- [ ] 条目内容：≥250字/条\n' +
     '- [ ] 条目命名规范：≥50%使用规范前缀\n' +
     '- [ ] 权重合理：核心规则在高权重位\n\n' +
+    '**世界书高级功能检查（6项，进阶可选）**：\n' +
+    '- [ ] 递归链条：实体条目关联背景叙事条目（delay_until_recursion）\n' +
+    '- [ ] 分组机制：场景变体/难度分层使用group分组\n' +
+    '- [ ] 次级键过滤：复杂条件条目使用secondary_keys + selectiveLogic\n' +
+    '- [ ] 概率事件：随机天气/彩蛋/遭遇使用probability\n' +
+    '- [ ] 正则触发：需要精确匹配说话者时使用\\x01正则键\n' +
+    '- [ ] 组评分：大分组条目使用use_group_scoring提升精准度\n\n' +
+    '**正则脚本检查（3项）**：\n' +
+    '- [ ] 脚本功能单一：每个脚本只做一件事\n' +
+    '- [ ] 正则标志正确：全局匹配加g，中文场景加i\n' +
+    '- [ ] 非贪婪匹配：使用.*?避免过度匹配\n\n' +
     '**运行效果检查（3项）**：\n' +
     '- [ ] 常驻Token总量：≤500\n' +
     '- [ ] 递归安全：实体类条目开启prevent_recursion\n' +
