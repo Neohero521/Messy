@@ -904,7 +904,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   // ===== 增量合并 =====
   function mergePartial(partial, cd) {
-    if (!partial || typeof partial !== 'object') return;
+    if (!partial || typeof partial !== 'object') return false;
+    var modified = false;
     if (partial.character && !partial.spec) {
       var ch = partial.character;
       delete partial.character;
@@ -925,12 +926,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           fieldDeletes.push(path);
         }
       });
-      fieldDeletes.forEach(function(p) { var parts = p.split('.'); delete cd[parts[0]]; });
+      fieldDeletes.forEach(function(p) { var parts = p.split('.'); delete cd[parts[0]]; modified = true; });
       entryDeletes.sort(function(a, b) { return b.idx - a.idx; });
       entryDeletes.forEach(function(del) {
         if (cd.character_book && cd.character_book.entries) {
-          if (!isNaN(del.idx)) { cd.character_book.entries.splice(del.idx, 1); }
-          else { cd.character_book.entries = cd.character_book.entries.filter(function(e) { return e.comment !== del.entryKey; }); }
+          if (!isNaN(del.idx)) { cd.character_book.entries.splice(del.idx, 1); modified = true; }
+          else { cd.character_book.entries = cd.character_book.entries.filter(function(e) { return e.comment !== del.entryKey; }); modified = true; }
         }
       });
       delete partial._delete;
@@ -942,11 +943,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       cd.character_book = cd.character_book || { name: genBookName(cd.name), extensions: {}, entries: [] };
       var proposedName = partial.character_book.name;
       var baseName = cd.name || '';
+      var oldName = cd.character_book.name;
       if (baseName && proposedName.indexOf(baseName) < 0 && proposedName.indexOf('世界书') < 0) {
         cd.character_book.name = genBookName(baseName);
       } else {
         cd.character_book.name = proposedName;
       }
+      if (oldName !== cd.character_book.name) modified = true;
       delete partial.character_book.name;
       if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
     }
@@ -956,10 +959,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (!cd.character_book.name) cd.character_book.name = genBookName(cd.name);
       var existing = cd.character_book.entries || [];
       partial.entries.forEach(function(ne) {
+        if (!ne.comment || !ne.comment.trim()) return;
+        if (!ne.content || ne.content.trim().length < 20) return;
         ne.enabled = true;
         var tmpl = getEntryTemplate(ne.comment);
         if (tmpl) {
-          // 应用完整 ST 原生参数模板
           if (ne.selective === undefined) ne.selective = tmpl.selective;
           if (ne.constant === undefined) ne.constant = tmpl.constant;
           if (ne.insertion_order === undefined) ne.insertion_order = tmpl.order;
@@ -989,7 +993,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: false };
         }
         var i = existing.findIndex(function(e) { return e.comment === ne.comment; });
-        if (i >= 0) existing[i] = ne; else existing.push(ne);
+        if (i >= 0) { existing[i] = ne; modified = true; } else { existing.push(ne); modified = true; }
       });
       cd.character_book.entries = existing;
       delete partial.entries;
@@ -998,6 +1002,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
         var val = partial[f];
+        var oldVal = cd[f];
         if (f === 'first_mes' || f === 'description') {
           if (typeof val === 'string' && (val.indexOf('正文已在上方') >= 0 || val.indexOf('占位') >= 0 || val.indexOf('见上方') >= 0 || val.indexOf('参见上文') >= 0)) {
             return;
@@ -1006,7 +1011,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return;
           }
         }
-        cd[f] = val;
+        if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
+          cd[f] = val;
+          modified = true;
+        }
       }
     });
 
@@ -1014,18 +1022,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       cd.extensions = cd.extensions || {};
       cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 10, role: 'system' };
       var dp = partial.depth_prompt;
-      if (typeof dp === 'string') cd.extensions.depth_prompt.prompt = dp;
-      else if (dp && typeof dp === 'object') {
-        if (dp.prompt !== undefined) cd.extensions.depth_prompt.prompt = dp.prompt;
-        if (dp.depth !== undefined) cd.extensions.depth_prompt.depth = dp.depth;
-        if (dp.role !== undefined) cd.extensions.depth_prompt.role = dp.role;
+      var dpModified = false;
+      if (typeof dp === 'string') {
+        if (dp.trim().length > 0 && cd.extensions.depth_prompt.prompt !== dp) {
+          cd.extensions.depth_prompt.prompt = dp;
+          dpModified = true;
+        }
+      } else if (dp && typeof dp === 'object') {
+        if (dp.prompt !== undefined && typeof dp.prompt === 'string' && dp.prompt.trim().length > 0 && cd.extensions.depth_prompt.prompt !== dp.prompt) {
+          cd.extensions.depth_prompt.prompt = dp.prompt;
+          dpModified = true;
+        }
+        if (dp.depth !== undefined && typeof dp.depth === 'number' && dp.depth > 0 && cd.extensions.depth_prompt.depth !== dp.depth) {
+          cd.extensions.depth_prompt.depth = dp.depth;
+          dpModified = true;
+        }
+        if (dp.role !== undefined && ['system', 'user', 'assistant', 0, 1, 2].indexOf(dp.role) >= 0 && cd.extensions.depth_prompt.role !== dp.role) {
+          cd.extensions.depth_prompt.role = dp.role;
+          dpModified = true;
+        }
       }
+      if (dpModified) modified = true;
       delete partial.depth_prompt;
     }
 
     if (partial.regex_scripts !== undefined) {
       cd.extensions = cd.extensions || {};
-      cd.extensions.regex_scripts = partial.regex_scripts || [];
+      cd.extensions.regex_scripts = cd.extensions.regex_scripts || [];
+      var newRx = partial.regex_scripts;
+      if (Array.isArray(newRx)) {
+        var validScripts = newRx.filter(function(s) {
+          return s && typeof s === 'object' && s.findRegex && s.findRegex.trim().length > 0 && s.replaceString !== undefined;
+        });
+        if (validScripts.length > 0 && JSON.stringify(cd.extensions.regex_scripts) !== JSON.stringify(validScripts)) {
+          cd.extensions.regex_scripts = validScripts;
+          modified = true;
+        }
+      }
       delete partial.regex_scripts;
     }
 
@@ -1060,12 +1093,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (partial.character_book.entries) {
         var e2 = cd.character_book.entries || [];
         partial.character_book.entries.forEach(function(ne) {
+          if (!ne.comment || !ne.comment.trim()) return;
+          if (!ne.content || ne.content.trim().length < 20) return;
           var i = e2.findIndex(function(e) { return e.comment === ne.comment; });
-          if (i >= 0) e2[i] = ne; else e2.push(ne);
+          if (i >= 0) { e2[i] = ne; modified = true; } else { e2.push(ne); modified = true; }
         });
         cd.character_book.entries = e2;
       }
     }
+    return modified;
   }
 
   // ===== AI调用 =====
@@ -2531,22 +2567,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (parsed) {
             var hasData = Object.keys(parsed).filter(function(k) { return k !== '_nochange'; }).length > 0;
             if (hasData) {
-              mergePartial(parsed, cardData);
-              if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
-                cardGenerated = true;
+              var actuallyModified = mergePartial(parsed, cardData);
+              if (actuallyModified) {
+                if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
+                  cardGenerated = true;
+                }
+                progress = calcProgress();
               }
-              progress = calcProgress();
             }
           }
-          if (lastUserInput && (lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0) && (!cardData.first_mes || cardData.first_mes.length < 100)) {
-            var dialogueText = aiResponse.replace(/```[\s\S]*?```/g, '').replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '').trim();
-            if (dialogueText.length > 200) {
-              cardData.first_mes = dialogueText;
+          if (lastUserInput && (lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0)) {
+            if (parsed && parsed.first_mes && typeof parsed.first_mes === 'string' && parsed.first_mes.trim().length > 50) {
+              cardData.first_mes = parsed.first_mes.trim();
               progress = calcProgress();
             }
           }
           var modProg = parseModProgress(aiResponse);
-          if (modProg) { moduleProgress = modProg; }
+          if (modProg) {
+            var entries = (cardData.character_book || {}).entries || [];
+            var modMap = {
+              '基础公理': 'axiom',
+              '交互软规则': 'soft_rules',
+              '核心铁则': 'core_rules',
+              '近场强约束': 'near_constraint',
+              '场景机制': 'scene_mechanics',
+              '实体交互': 'entity_interact',
+              '叙事背景': 'narrative_bg',
+              '动态适配': 'dynamic_adapt'
+            };
+            Object.keys(modMap).forEach(function(kw) {
+              var key = modMap[kw];
+              if (modProg[key] === 100) {
+                var count = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
+                if (count === 0) modProg[key] = 0;
+                else if (count === 1) modProg[key] = 50;
+              }
+              if (modProg[key] === 50) {
+                var cnt = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
+                if (cnt === 0) modProg[key] = 0;
+              }
+            });
+            moduleProgress = modProg;
+          }
           var dialogue = aiResponse.replace(/```[\s\S]*?```/g, '').trim();
           if (dialogue) {
             try { addAssistantMsg(dialogue); } catch(e) { console.warn('addAssistantMsg error:', e); }
@@ -3185,12 +3247,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 var applyBtn = doc.getElementById('applyOptBtn');
                 if (applyBtn) {
                   applyBtn.addEventListener('click', function() {
-                    mergePartial(optimized, cardData);
-                    progress = calcProgress();
-                    updateProgress();
-                    renderPreview();
-                    doc.getElementById('optModal').remove();
-                    showToast('✅ 优化已应用', 'success');
+                    var optModified = mergePartial(optimized, cardData);
+                    if (optModified) {
+                      progress = calcProgress();
+                      updateProgress();
+                      renderPreview();
+                      doc.getElementById('optModal').remove();
+                      showToast('✅ 优化已应用', 'success');
+                    } else {
+                      showToast('⚠️ 未检测到有效修改', 'warning');
+                    }
                   });
                 }
               }
