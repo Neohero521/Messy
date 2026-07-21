@@ -1627,15 +1627,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       creator: 'ModelO Generator',
       character_version: '1.0',
       alternate_greetings: cardAltGreetings,
+      group_only_greetings: [],
       extensions: {
         talkativeness: '0.5', fav: false, world: cardName,
         depth_prompt: depthPrompt,
         regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
+        xiaobaix-template: {
+          enabled: false,
+          template: '',
+          customRegex: '',
+          disableParsers: false,
+          skipFirstMessage: false,
+          recentMessageCount: 0,
+          limitToRecentMessages: false
+        },
         tavern_helper: { scripts: [], variables: {} }
       },
       character_book: {
-        entries: entries,
-        name: bookName
+        entries: entries
       }
     };
     // ST规范：顶层需要重复 data 中的关键字段
@@ -1666,8 +1675,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         name: '', description: '', personality: '', scenario: '',
         first_mes: '', mes_example: '', system_prompt: '', creator_notes: '',
         post_history_instructions: '', tags: [], alternate_greetings: [],
-        extensions: {},
-        character_book: { name: '世界设定集', extensions: {}, entries: [] }
+        group_only_greetings: [],
+        extensions: {
+          talkativeness: '0.5',
+          fav: false,
+          depth_prompt: { prompt: '', depth: 4, role: 'system' },
+          regex_scripts: [],
+          xiaobaix-template: {
+            enabled: false,
+            template: '',
+            customRegex: '',
+            disableParsers: false,
+            skipFirstMessage: false,
+            recentMessageCount: 0,
+            limitToRecentMessages: false
+          },
+          tavern_helper: { scripts: [], variables: {} }
+        },
+        character_book: { entries: [] }
       };
 
       var messages = [];
@@ -1944,18 +1969,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.post_history_instructions = cd.post_history_instructions || '';
         cardData.tags = cd.tags || [];
         cardData.alternate_greetings = cd.alternate_greetings || [];
-        cardData.extensions = cd.extensions || {};
-        if (cd.extensions && cd.extensions.depth_prompt) {
-          cardData.extensions.depth_prompt = cd.extensions.depth_prompt;
-        }
-        if (cd.extensions && cd.extensions.regex_scripts) {
-          cardData.extensions.regex_scripts = cd.extensions.regex_scripts;
-        }
+        cardData.group_only_greetings = cd.group_only_greetings || [];
+        cardData.extensions = {
+          talkativeness: '0.5',
+          fav: false,
+          depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 4, role: 'system' },
+          regex_scripts: cd.extensions && cd.extensions.regex_scripts ? cd.extensions.regex_scripts : [],
+          xiaobaix-template: cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
+            enabled: false,
+            template: '',
+            customRegex: '',
+            disableParsers: false,
+            skipFirstMessage: false,
+            recentMessageCount: 0,
+            limitToRecentMessages: false
+          },
+          tavern_helper: { scripts: [], variables: {} }
+        };
 
         if (cd.character_book) {
           cardData.character_book = {
-            name: cd.character_book.name || genBookName(cd.name || ''),
-            extensions: cd.character_book.extensions || {},
             entries: (cd.character_book.entries || []).map(function(e) {
               return {
                 comment: e.comment || '',
