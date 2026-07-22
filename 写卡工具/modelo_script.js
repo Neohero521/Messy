@@ -3506,8 +3506,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (optBtn) {
           optBtn.addEventListener('click', function() {
             modalEl.remove();
-            var failed = results.filter(function(r) { return !r.pass; }).map(function(r) { return r.name; });
-            showOptimizeModal(failed.join('、'));
+            var failedItems = results.filter(function(r) { return !r.pass; });
+            var failedNames = failedItems.map(function(r) { return r.name; });
+            var optInstructions = buildOptimizeInstructions(failedItems);
+            showOptimizeModal(failedNames.join('、'), optInstructions);
           });
         }
       }
@@ -3778,9 +3780,91 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
       }
 
+      // ===== 优化指令映射（质检未达标项→AI优化指令） =====
+      function buildOptimizeInstructions(failedItems) {
+        var instructions = [];
+        var fieldMap = {
+          '世界/角色名称': 'name',
+          '世界观描述 ≥400字': 'description',
+          '开场白 ≥500字': 'first_mes',
+          '系统指令 ≤50字（仅AI身份定位）': 'system_prompt',
+          '核心铁则 post_history_instructions ≤100字': 'post_history_instructions',
+          '标签数量 2-12个': 'tags',
+          'mes_example 对话示例（Few-shot）': 'mes_example',
+          'alternate_greetings 3个差异化开局': 'alternate_greetings',
+          'depth_prompt 新手引导（depth=0）': 'depth_prompt',
+          'regex_scripts 状态同步正则': 'regex_scripts',
+          '条目数 12-30条': 'entries',
+          '触发词覆盖率 ≥50%': 'entries',
+          '条目内容 ≥250字': 'entries',
+          '条目命名规范 ≥50%': 'entries',
+          '权重合理性：核心规则在高权重位': 'entries',
+          'content自包含性（无上下文依赖）': 'entries',
+          '递归链条：delay_until_recursion': 'entries',
+          '分组机制：group分组': 'entries',
+          '次级键过滤：secondary_keys + selectiveLogic': 'entries',
+          '概率事件：probability < 100': 'entries',
+          '正则触发键': 'entries',
+          '组评分 use_group_scoring': 'entries',
+          'sticky/cooldown冲突检查': 'entries',
+          'position配置合理性': 'entries',
+          '脚本功能单一': 'regex_scripts',
+          '正则标志正确（g全局匹配）': 'regex_scripts',
+          '非贪婪匹配（.*?）': 'regex_scripts',
+          'placement配置检查': 'regex_scripts',
+          'substituteRegex范围（0-2）': 'regex_scripts',
+          '状态栏脚本runOnEdit': 'regex_scripts',
+          '常驻Token总量 ≤500': 'entries',
+          '递归安全：实体类条目开启prevent_recursion': 'entries',
+          '冷却防抖：场景类条目开启cooldown': 'entries'
+        };
+        var instructionMap = {
+          '世界/角色名称': '请设置一个简洁有力的世界名称',
+          '世界观描述 ≥400字': '世界观描述字数不足，请补充到400字以上，增加世界背景、地理、历史、文化等细节，提升沉浸感',
+          '开场白 ≥500字': '开场白字数不足，请扩展到500-800字。结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩',
+          '系统指令 ≤50字（仅AI身份定位）': '系统指令过长，请精简到50字以内，只保留AI身份定位，核心规则迁移到post_history_instructions',
+          '核心铁则 post_history_instructions ≤100字': '核心铁则未设置或过长。请设置post_history_instructions，控制在100字以内，放置最核心的规则（这是最高权重位置）',
+          '标签数量 2-12个': '标签数量不符合要求，请设置2-12个标签，精准描述世界题材和风格',
+          'mes_example 对话示例（Few-shot）': '缺少对话示例，请生成1-2组对话示例（Few-shot），展示NPC如何与玩家互动',
+          'alternate_greetings 3个差异化开局': '备用开局不足3个，请生成3个不同身份/难度的备用开场白，提升重玩价值',
+          'depth_prompt 新手引导（depth=0）': '缺少新手引导，请生成depth_prompt内容，默认depth=0，帮助新玩家了解世界规则',
+          'regex_scripts 状态同步正则': '缺少状态同步正则脚本，请生成3-5条实用正则脚本，覆盖状态格式化、数值高亮、行动标签等场景',
+          '条目数 12-30条': '世界书条目数量不足或过多。请确保条目数在12-30条之间，覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块',
+          '触发词覆盖率 ≥50%': '触发词覆盖率不足，请为至少50%的条目设置精准的触发词（keys字段），确保条目能被正确触发',
+          '条目内容 ≥250字': '条目内容过短，请将至少50%的条目内容扩充到250字以上，提供完整自包含的信息',
+          '条目命名规范 ≥50%': '条目命名不规范，请为至少50%的条目使用规范前缀，如<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>',
+          '权重合理性：核心规则在高权重位': '核心规则权重分配不合理。请确保核心规则放在高权重位（post_history_instructions或<核心铁则>条目），近场约束放在适当位置',
+          'content自包含性（无上下文依赖）': '条目内容存在上下文依赖。请移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息',
+          '递归链条：delay_until_recursion': '未使用递归链条。请为叙事类条目开启delay_until_recursion，实现"提到A时自动带出A的背景信息"的效果',
+          '分组机制：group分组': '未使用分组机制。请为场景变体/难度分层/时间分支等条目设置group分组，实现互斥或多选效果',
+          '次级键过滤：secondary_keys + selectiveLogic': '未使用次级键过滤。请为复杂条件条目设置secondary_keys配合selectiveLogic，实现精准触发控制',
+          '概率事件：probability < 100': '未使用概率触发。请为随机天气/彩蛋/遭遇等条目设置probability<100，增加游戏惊喜感',
+          '正则触发键': '未使用正则触发键。请为需要精确匹配说话者的条目使用正则键，如/\\x01{{user}}:.../i实现精准触发',
+          '组评分 use_group_scoring': '未使用组评分。请为大分组条目开启use_group_scoring，提升匹配精准度',
+          'sticky/cooldown冲突检查': '发现sticky和cooldown冲突配置。sticky让条目持续存在，cooldown让条目间歇触发，两者逻辑冲突，请移除其中一个',
+          'position配置合理性': 'position配置有误。constant条目position应≤1；position=6需配depth+role；position=7需配outlet_name',
+          '脚本功能单一': '发现多功能混合的正则脚本。请确保每个脚本只做一件事，复杂替换拆分成多个简单脚本',
+          '正则标志正确（g全局匹配）': '正则脚本缺少g标志。请确保findRegex包含g标志（如/pattern/gi），否则只替换第一个匹配',
+          '非贪婪匹配（.*?）': '正则脚本使用贪婪匹配。请使用.*?或.+?非贪婪匹配，避免匹配过多内容',
+          'placement配置检查': '正则脚本未设置placement。请为每条脚本设置至少1个placement位置（如[0,1]处理用户输入和AI回复）',
+          'substituteRegex范围（0-2）': 'substituteRegex超出范围。请确保在0-2范围内（0=不替换宏，1=原始替换，2=转义替换）',
+          '状态栏脚本runOnEdit': '状态栏类脚本未开启runOnEdit。请开启runOnEdit=true，编辑消息时自动重新执行脚本',
+          '常驻Token总量 ≤500': '常驻Token总量超过500。请将非核心内容移到触发条目，控制常驻Token≤500，确保有足够预算给触发条目',
+          '递归安全：实体类条目开启prevent_recursion': '实体类条目未开启prevent_recursion。请为<实体交互>、<重要角色>、<地点场景>等条目开启prevent_recursion，防止链式触发导致Token爆炸',
+          '冷却防抖：场景类条目开启cooldown': '场景类条目未设置冷却。请为<场景机制>、<核心玩法>等条目开启cooldown=3，防止内容刷屏'
+        };
+        failedItems.forEach(function(item) {
+          var instr = instructionMap[item.name];
+          if (instr) {
+            instructions.push('- ' + instr);
+          }
+        });
+        return instructions.join('\n');
+      }
+
       // ===== 优化弹窗 =====
       var selectedOptFields = [];
-      function showOptimizeModal(presetReq) {
+      function showOptimizeModal(presetReq, optInstructions) {
         if (!cardData.name && !cardData.description) {
           showToast('还没有内容可以优化哦', 'warning');
           return;
@@ -3808,7 +3892,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           h += '<span class="opt-field-tag" data-key="' + f.key + '">' + f.label + '</span>';
         });
         h += '</div>' +
-            '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="2" style="margin:6px 0;min-height:50px">' + (presetReq || '') + '</textarea>' +
+            '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + (optInstructions || '') + (presetReq ? ('\n\n' + presetReq) : '') + '</textarea>' +
             '<div id="optProgress" style="display:none;text-align:center;padding:12px;color:#d2a8ff;font-size:.85em"><span class="typing" style="display:inline"><span>●</span><span>●</span><span>●</span></span> AI正在优化...</div>' +
             '<div id="optResult" class="modal-body" style="display:none"></div>' +
             '<div class="modal-actions">' +
@@ -3849,36 +3933,80 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         try {
           var cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
-          var optPrompt = '你是角色卡优化专家。请针对以下字段优化角色卡，只返回优化后的JSON对象（顶层字段，不需要chara_card_v3包装）。\n\n' +
-            '=== 要优化的字段 ===\n' + selectedOptFields.join(', ') + '\n\n' +
-            (customReq ? '=== 具体优化要求 ===\n' + customReq + '\n\n' : '') +
-            '=== 优化原则（对齐质检标准）===\n' +
-            '1. 只优化目标字段，不修改无关内容\n' +
-            '2. 保持原有风格和设定，提升质量而非推翻重来\n' +
-            '3. description：建议≥400字，增加细节和沉浸感\n' +
-            '4. first_mes：建议500-800字，遵循：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
-            '5. system_prompt：≤50字，仅AI身份定位，核心规则迁移到post_history_instructions\n' +
-            '6. post_history_instructions：≤100字，极度精简，放在常驻最高权重位\n' +
-            '7. mes_example：建议生成1-2组对话示例（Few-shot），提升效果\n' +
-            '8. alternate_greetings：建议生成3个不同身份/难度的备用开局\n' +
-            '9. depth_prompt：生成新手引导内容，默认depth=0\n' +
-            '10. regex_scripts：生成基础状态同步正则脚本，无需插件实现动态状态栏。格式规范：\n' +
-            '    - findRegex：使用/模式/flags格式，如"/<status>(.*?)</status>/gi"\n' +
-            '    - replaceString：替换内容，支持$1-$9捕获组和{{match}}宏\n' +
-            '    - placement：[0,1]表示同时作用于用户输入和AI回复\n' +
-            '    - runOnEdit：true表示编辑消息时也运行\n' +
-            '    - 常用正则示例：\n' +
-            '      * 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
-            '      * 行动标签：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
-            '      * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
-            '      * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n' +
-            '    - 生成3-5条实用正则脚本，覆盖状态格式化、数值高亮、行动标签等场景\n' +
-            '11. tags：建议2-12个，精准描述世界题材和风格\n' +
-            '12. 世界书条目：优先优化现有条目（用相同comment覆盖），条目内容≥250字，使用<基础公理>等规范前缀，实体类条目开启prevent_recursion，场景类条目开启cooldown\n' +
-            '13. first_mes字段必须包含完整的开场白文本，严禁使用占位符\n' +
-            '14. 内容尺度跟随用户已有设定，不主动增加NSFW内容\n\n' +
-            '=== 当前角色卡 ===\n```json\n' + cardStr + '\n```\n\n' +
-            '只输出```json代码块，包含优化后的字段。entries必须放在顶层。extensions字段中的depth_prompt和regex_scripts直接放在顶层输出。';
+          var optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书、正则脚本规范。请针对指定字段优化角色卡。\n\n' +
+            '=== 任务目标 ===\n' +
+            '只优化以下字段，其他字段保持不变：' + selectedOptFields.join(', ') + '\n\n' +
+            (customReq ? '=== 用户额外要求 ===\n' + customReq + '\n\n' : '') +
+            '=== 字段优化细则（必须严格遵守） ===\n' +
+            '【description 世界观描述】\n' +
+            '- 字数：≥400字\n' +
+            '- 内容：包含世界核心设定、地理、历史、文化、社会结构等，提升沉浸感\n' +
+            '- 语言：生动具体，避免抽象描述\n\n' +
+            '【first_mes 开场白】\n' +
+            '- 字数：500-800字\n' +
+            '- 结构：场景描写 → 动作驱动 → 内心独白 → 自然对话 → 结尾留钩\n' +
+            '- 必须包含完整文本，严禁使用占位符\n\n' +
+            '【system_prompt 系统指令】\n' +
+            '- 字数：≤50字\n' +
+            '- 内容：仅AI身份定位（如"你是一个神秘的酒馆老板"）\n' +
+            '- 核心规则必须放在post_history_instructions\n\n' +
+            '【post_history_instructions 核心铁则】\n' +
+            '- 字数：≤100字\n' +
+            '- 内容：极度精简的核心规则，放在最高权重位置\n' +
+            '- 格式：分号分隔的短句，如"保持神秘；拒绝透露秘密；偶尔说谜语"\n\n' +
+            '【mes_example 对话示例】\n' +
+            '- 数量：1-2组\n' +
+            '- 格式：<START>用户消息<END>\n<START>助手消息<END>\n' +
+            '- 作用：展示NPC性格和对话风格（Few-shot）\n\n' +
+            '【alternate_greetings 备用开局】\n' +
+            '- 数量：至少3个\n' +
+            '- 差异化：不同身份/难度/场景的开场白\n' +
+            '- 提升重玩价值\n\n' +
+            '【depth_prompt 新手引导】\n' +
+            '- prompt：新手引导内容，教玩家如何互动\n' +
+            '- depth：默认0（表示对所有玩家生效）\n\n' +
+            '【regex_scripts 状态同步正则】\n' +
+            '- 数量：3-5条实用脚本\n' +
+            '- 格式规范：\n' +
+            '  * findRegex：/模式/flags格式（必须包含g全局匹配，中文加i忽略大小写）\n' +
+            '  * replaceString：支持$1-$9捕获组、{{match}}宏、$&完整匹配\n' +
+            '  * placement：[0]=用户输入，[1]=AI回复，[0,1]=两者都处理\n' +
+            '  * substituteRegex：0=不替换宏，1=原始替换，2=转义替换（一般用1）\n' +
+            '  * runOnEdit：true=编辑消息时重新执行（状态栏类脚本建议开启）\n' +
+            '  * scriptName：简短描述脚本功能\n' +
+            '- 常用场景：\n' +
+            '  * 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
+            '  * 行动标签：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
+            '  * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
+            '  * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n\n' +
+            '【tags 标签】\n' +
+            '- 数量：2-12个\n' +
+            '- 内容：精准描述世界题材和风格\n' +
+            '- 格式：简短词语，如"奇幻""中世纪""魔法"\n\n' +
+            '【entries 世界书条目】\n' +
+            '- 数量：12-30条\n' +
+            '- 命名规范：使用<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>等前缀\n' +
+            '- content要求：≥250字，完整自包含，严禁使用"如上所述""见上文"等上下文依赖词\n' +
+            '- keys：精准触发词，避免泛用词（如"的""是"）\n' +
+            '- 核心配置：\n' +
+            '  * constant=true：常驻条目（核心规则、基础公理），position应≤1\n' +
+            '  * constant=false：触发条目，position=4（默认）\n' +
+            '  * prevent_recursion：实体类条目必须开启，防止链式触发\n' +
+            '  * cooldown：场景类条目建议设为3，防止刷屏\n' +
+            '  * group/group_weight：场景变体使用分组实现互斥\n' +
+            '  * delay_until_recursion：叙事类条目开启，实现关联触发\n' +
+            '  * probability：随机事件设为<100\n' +
+            '  * secondary_keys+selectiveLogic：复杂条件控制\n' +
+            '- 优化策略：优先优化现有条目（用相同comment覆盖），不足则补充新条目\n\n' +
+            '=== 输出格式 ===\n' +
+            '只输出```json代码块，包含优化后的字段。\n' +
+            '规则：\n' +
+            '1. entries字段直接放在顶层，不需要嵌套在character_book中\n' +
+            '2. depth_prompt和regex_scripts直接放在顶层，不需要嵌套在extensions中\n' +
+            '3. 只包含被优化的字段，其他字段不要输出\n' +
+            '4. 保持JSON格式正确，使用双引号\n\n' +
+            '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
+
 
           var reply = await callAI(optPrompt);
           var optimized = extractJSON(reply);
