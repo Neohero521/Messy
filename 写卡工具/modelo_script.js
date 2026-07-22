@@ -768,7 +768,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '**高级匹配功能**：\n' +
     '- case_sensitive：大小写敏感（null=使用全局设置）\n' +
     '  - 中文场景可忽略，英文专有名词可设为true\n' +
-    '- automation_id：自动化ID（一般留空）\n' +
+    '- automation_id：自动化触发ID（进阶功能）\n' +
+    '  - 设置后，当此条目被激活时，会自动执行同名STscript脚本\n' +
+    '  - 用途：条目触发时自动执行复杂逻辑（如更新变量、发送通知、触发其他操作）\n' +
+    '  - 例：automation_id="combat_start" → 条目激活时自动执行/combat_start脚本\n' +
+    '  - 不需要自动化功能时留空\n' +
+    '- per-entry scan_depth：条目级扫描深度覆盖（覆盖全局设置）\n' +
+    '  - 最大值：1000（足够扫描整个长对话）\n' +
+    '  - 用途：某些条目需要扫描更远历史（如追溯剧情伏笔）或更近历史（如即时反应）\n' +
+    '  - 例：常驻条目设为0（不扫描历史），事件触发条目设为10-20\n' +
     '- match_persona_description：匹配角色描述（除了消息还匹配persona字段）\n' +
     '- match_character_description：匹配角色卡描述\n' +
     '- match_character_personality：匹配角色性格字段\n' +
