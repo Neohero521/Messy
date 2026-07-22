@@ -2159,7 +2159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var defaultER = tmpl ? tmpl.exclude_recursion : false;
       var defaultDUR = tmpl ? !!tmpl.delay_until_recursion : false;
       var defaultUseProb = tmpl ? tmpl.useProbability : false;
-      var defaultScanDepth = tmpl ? tmpl.scan_depth : 5;
+      var defaultScanDepth = tmpl ? tmpl.scan_depth : null;
       var ext = e.extensions || {};
       var rawPos = ext.position !== undefined ? ext.position : pos;
       var posNum = typeof rawPos === 'string'
@@ -2607,6 +2607,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
 
       function importCardData(data) {
+        var rawData = data;
         var cd = data.data || data;
         if (!cd || typeof cd !== 'object') { showToast('无效的角色卡格式', 'error'); return; }
 
@@ -2616,7 +2617,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.scenario = cd.scenario || '';
         cardData.first_mes = cd.first_mes || '';
         cardData.mes_example = cd.mes_example || '';
-        cardData.creator_notes = cd.creator_notes || '';
+        cardData.creator_notes = cd.creator_notes || (rawData.creatorcomment !== undefined ? rawData.creatorcomment : '');
         cardData.system_prompt = cd.system_prompt || '';
         cardData.post_history_instructions = cd.post_history_instructions || '';
         cardData.tags = cd.tags || [];
