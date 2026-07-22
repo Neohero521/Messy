@@ -1263,8 +1263,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 设计状态同步（regex_scripts）\n' +
     '- 设计互动选项和引导机制\n' +
     '- 生成<动态适配>、<引导机制>、<互动选项>条目\n\n' +
-    '=== 质量检查标准（28项） ===\n\n' +
-    '**基础字段检查（8项）**：\n' +
+    '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
+    '**基础字段检查（8项）：**\n' +
     '- [ ] name：世界名称明确，体现核心主题\n' +
     '- [ ] description：包含世界核心设定（400字以上）\n' +
     '- [ ] personality：空字符串""（世界模式强制留空）\n' +
@@ -1273,32 +1273,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] system_prompt：身份定位（50字以内）\n' +
     '- [ ] post_history_instructions：核心铁则（100字以内，最高权重）\n' +
     '- [ ] tags：2-12个标签\n\n' +
-    '**高价值字段检查（4项）**：\n' +
+    '**高价值字段检查（4项）：**\n' +
     '- [ ] mes_example：1-2组对话示例\n' +
     '- [ ] alternate_greetings：3个差异化开局\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '- [ ] regex_scripts：基础状态同步正则\n\n' +
-    '**世界书基础检查（5项）**：\n' +
+    '**世界书基础检查（6项）：**\n' +
     '- [ ] 条目数：12-30条\n' +
     '- [ ] 触发词覆盖率：≥50%\n' +
     '- [ ] 条目内容：≥250字/条\n' +
     '- [ ] 条目命名规范：≥50%使用规范前缀\n' +
-    '- [ ] 权重合理：核心规则在高权重位\n\n' +
-    '**世界书高级功能检查（6项，进阶可选）**：\n' +
+    '- [ ] 权重合理：核心规则在高权重位\n' +
+    '- [ ] content自包含性：无"如上所述"等上下文依赖词\n\n' +
+    '**世界书高级功能检查（8项，进阶可选）：**\n' +
     '- [ ] 递归链条：实体条目关联背景叙事条目（delay_until_recursion）\n' +
     '- [ ] 分组机制：场景变体/难度分层使用group分组\n' +
     '- [ ] 次级键过滤：复杂条件条目使用secondary_keys + selectiveLogic\n' +
     '- [ ] 概率事件：随机天气/彩蛋/遭遇使用probability\n' +
     '- [ ] 正则触发：需要精确匹配说话者时使用\\x01正则键\n' +
-    '- [ ] 组评分：大分组条目使用use_group_scoring提升精准度\n\n' +
-    '**正则脚本检查（3项）**：\n' +
+    '- [ ] 组评分：大分组条目使用use_group_scoring提升精准度\n' +
+    '- [ ] sticky/cooldown冲突：不同时在一条目设置两者\n' +
+    '- [ ] position配置：constant条目position≤1，position=6/7需配对应字段\n\n' +
+    '**正则脚本检查（6项）：**\n' +
     '- [ ] 脚本功能单一：每个脚本只做一件事\n' +
     '- [ ] 正则标志正确：全局匹配加g，中文场景加i\n' +
-    '- [ ] 非贪婪匹配：使用.*?避免过度匹配\n\n' +
-    '**运行效果检查（3项）**：\n' +
+    '- [ ] 非贪婪匹配：使用.*?避免过度匹配\n' +
+    '- [ ] placement配置：至少设置1个应用位置\n' +
+    '- [ ] substituteRegex范围：在0-2范围内\n' +
+    '- [ ] runOnEdit：状态栏类脚本建议开启\n\n' +
+    '**运行效果检查（3项）：**\n' +
     '- [ ] 常驻Token总量：≤500\n' +
     '- [ ] 递归安全：实体类条目开启prevent_recursion\n' +
     '- [ ] 冷却防抖：场景类条目开启cooldown\n\n' +
+    '**附加检查（6项，不计入核心）：**\n' +
+    '- [ ] 触发词精准度：无"的""是"等泛用词\n' +
+    '- [ ] 上下文占用估算：8k窗口≤60%\n' +
+    '- [ ] 中文适配：match_whole_words未错误开启\n' +
+    '- [ ] 创作者备注≤100字\n' +
+    '- [ ] 常驻条目group冲突检测\n' +
+    '- [ ] Outlet限制检查（如有）\n\n' +
     '=== 状态栏格式（8体系） ===\n\n' +
     '<statusblock>\n' +
     '<details open>\n' +
@@ -1662,7 +1675,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return fullPrompt;
   }
 
-  // ===== 质检规则（28项 · 对齐规范4.3：8基础+4高价值+5世界书+6世界书高级+3正则脚本+3运行效果） =====
+  // ===== 质检规则（32项核心 + 6项附加 · 对齐官方文档） =====
   function runQualityCheck(cd) {
     var results = [];
     var desc = cd.description || '';
@@ -1771,7 +1784,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: rx.length === 0 ? '建议生成基础状态同步正则脚本，无需插件实现动态状态栏' : '状态正则已配置'
     });
 
-    // === 世界书检查（5项） ===
+    // === 世界书基础检查（6项） ===
     results.push({
       pass: entries.length >= 12 && entries.length <= 30,
       category: '世界书',
@@ -1814,8 +1827,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       desc: 'post_history_instructions: ' + (phi.length > 0 ? '✓' : '✗') + ' | 核心铁则条目: ' + coreIronRuleCount + ' | 近场强约束: ' + nearConstraintCount,
       fix: !hasHighWeightCore ? '核心规则必须放在高权重位（post_history_instructions或<核心铁则>条目）' : '权重分配合理'
     });
+    // content自包含性：检查是否有依赖上下文的内容（新增）
+    var selfContainedBadPatterns = ['如上所述', '见上文', '前文提到', '之前说过', '上述内容', '上面提到', '如前文', '如前所述'];
+    var nonSelfContainedEntries = entries.filter(function(e) {
+      var c = e.content || '';
+      return selfContainedBadPatterns.some(function(p) { return c.indexOf(p) >= 0; });
+    }).length;
+    results.push({
+      pass: !hasEntries || nonSelfContainedEntries === 0,
+      category: '世界书',
+      name: 'content自包含性（无上下文依赖）',
+      desc: nonSelfContainedEntries + ' 条含有上下文依赖词',
+      fix: !hasEntries ? '无条目' : (nonSelfContainedEntries > 0 ? '条目内容必须自包含完整信息，禁止使用"如上所述""见上文"等依赖上下文的内容' : '内容自包含性良好')
+    });
 
-    // === 世界书高级功能检查（6项） ===
+    // === 世界书高级功能检查（8项） ===
     // 递归链条：实体条目关联背景叙事条目（delay_until_recursion）
     var hasRecursionChain = entries.some(function(e) {
       var ext = e.extensions || {};
@@ -1863,35 +1889,74 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       desc: hasProbability ? (entries.filter(function(e){ var ext=e.extensions||{}; return ext.useProbability===true && ext.probability<100; }).length + ' 条使用概率触发') : '未使用概率触发',
       fix: !hasEntries ? '无条目' : (!hasProbability ? '建议为随机天气/彩蛋/遭遇设置probability<100增加惊喜感' : '概率事件已配置')
     });
-    // 正则触发：需要精确匹配说话者时使用\x01正则键
+    // 正则触发：需要精确匹配说话者时使用\x01正则键（修改为真正检查）
     var hasRegexKey = entries.some(function(e) {
       return (e.keys || []).some(function(k) { return typeof k === 'string' && k.indexOf('/') === 0; });
     });
     results.push({
-      pass: true, // 正则触发是进阶功能，不强制要求
+      pass: !hasEntries || hasRegexKey,
       category: '世界书高级',
-      name: '正则触发键（可选）',
+      name: '正则触发键',
       desc: hasRegexKey ? (entries.filter(function(e){ return (e.keys||[]).some(function(k){ return typeof k==='string' && k.indexOf('/')===0; }); }).length + ' 条使用正则键') : '未使用正则键',
-      fix: !hasRegexKey ? '需要精确匹配说话者时可使用正则键（/\\x01{{user}}:.../i）' : '正则触发键已配置'
+      fix: !hasEntries ? '无条目' : (!hasRegexKey ? '需要精确匹配说话者时可使用正则键（/\\x01{{user}}:.../i）实现精准触发' : '正则触发键已配置')
     });
-    // 组评分：大分组条目使用use_group_scoring提升精准度
+    // 组评分：大分组条目使用use_group_scoring提升精准度（修改为真正检查）
     var hasGroupScoring = entries.some(function(e) {
       var ext = e.extensions || {};
       return ext.use_group_scoring === true;
     });
     results.push({
-      pass: true, // 组评分是进阶功能，不强制要求
+      pass: !hasEntries || hasGroupScoring,
       category: '世界书高级',
-      name: '组评分 use_group_scoring（可选）',
+      name: '组评分 use_group_scoring',
       desc: hasGroupScoring ? '已配置组评分' : '未使用组评分',
-      fix: !hasGroupScoring ? '大分组条目可开启use_group_scoring提升匹配精准度' : '组评分已配置'
+      fix: !hasEntries ? '无条目' : (!hasGroupScoring ? '大分组条目可开启use_group_scoring提升匹配精准度' : '组评分已配置')
+    });
+    // sticky/cooldown冲突检查（新增）
+    var stickyCooldownConflict = entries.filter(function(e) {
+      var ext = e.extensions || {};
+      var stickyVal = ext.sticky;
+      var cdVal = ext.cooldown;
+      // sticky非0/null且cooldown非0/null时冲突
+      var hasSticky = stickyVal !== undefined && stickyVal !== null && stickyVal !== 0 && stickyVal !== false;
+      var hasCooldown = cdVal !== undefined && cdVal !== null && cdVal !== 0;
+      return hasSticky && hasCooldown;
+    }).length;
+    results.push({
+      pass: !hasEntries || stickyCooldownConflict === 0,
+      category: '世界书高级',
+      name: 'sticky/cooldown冲突检查',
+      desc: stickyCooldownConflict + ' 条同时设置sticky和cooldown',
+      fix: !hasEntries ? '无条目' : (stickyCooldownConflict > 0 ? 'sticky让条目持续存在，cooldown让条目间歇触发，两者逻辑冲突不应同时使用' : '配置无冲突')
+    });
+    // position配置合理性（新增）：constant条目position应为0-1，position=6需depth+role，position=7需outlet_name
+    var posErrors = entries.filter(function(e) {
+      var pos = e.position;
+      var ext = e.extensions || {};
+      // constant=true时position应在0-1范围
+      if (e.constant === true && pos !== undefined && pos !== null && pos > 1) return true;
+      // position=6时需要有depth和role
+      if (pos === 6) {
+        if (ext.depth === undefined || ext.role === undefined) return true;
+      }
+      // position=7时需要有outlet_name
+      if (pos === 7) {
+        if (!ext.outlet_name || ext.outlet_name === '') return true;
+      }
+      return false;
+    }).length;
+    results.push({
+      pass: !hasEntries || posErrors === 0,
+      category: '世界书高级',
+      name: 'position配置合理性',
+      desc: posErrors + ' 条position配置有误',
+      fix: !hasEntries ? '无条目' : (posErrors > 0 ? 'constant条目position应≤1；position=6需配depth+role；position=7需配outlet_name' : 'position配置正确')
     });
 
-    // === 正则脚本检查（3项） ===
+    // === 正则脚本检查（6项） ===
     // 脚本功能单一：每个脚本只做一件事（通过名称判断）
     var multiFunctionScripts = rx.filter(function(s) {
       var name = s.scriptName || '';
-      // 检查是否一个脚本名包含多个功能关键词
       var functions = ['状态', '格式', '标签', '高亮', '过滤', '替换', '清理'];
       var count = functions.filter(function(f) { return name.indexOf(f) >= 0; }).length;
       return count > 1;
@@ -1906,7 +1971,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     // 正则标志正确：全局匹配加g，中文场景加i
     var missingFlagScripts = rx.filter(function(s) {
       var pattern = s.findRegex || '';
-      // 检查是否缺少g标志
       var flagMatch = pattern.match(/\/([gimsu]*)$/);
       var flags = flagMatch ? flagMatch[1] : '';
       return flags.indexOf('g') < 0;
@@ -1921,7 +1985,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     // 非贪婪匹配：使用.*?避免过度匹配
     var greedyScripts = rx.filter(function(s) {
       var pattern = s.findRegex || '';
-      // 检查是否使用了贪婪匹配 .* 或 .+ 而没有 ?
       return pattern.indexOf('.*?') < 0 && pattern.indexOf('.+?') < 0 && (pattern.indexOf('.*') >= 0 || pattern.indexOf('.+') >= 0);
     }).length;
     results.push({
@@ -1930,6 +1993,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       name: '非贪婪匹配（.*?）',
       desc: rx.length + ' 条脚本，' + greedyScripts + ' 条使用贪婪匹配',
       fix: greedyScripts > 0 ? '建议使用.*?或.+?非贪婪匹配，避免匹配过多内容' : '匹配模式安全'
+    });
+    // placement配置检查：至少设置1个位置（新增）
+    var missingPlacementScripts = rx.filter(function(s) {
+      var p = s.placement;
+      return !p || !Array.isArray(p) || p.length === 0;
+    }).length;
+    results.push({
+      pass: rx.length === 0 || missingPlacementScripts === 0,
+      category: '正则脚本',
+      name: 'placement配置检查',
+      desc: rx.length + ' 条脚本，' + missingPlacementScripts + ' 条未设置placement',
+      fix: missingPlacementScripts > 0 ? '每条正则脚本必须设置至少1个placement（如[0,1]处理用户输入和AI回复）' : 'placement配置正确'
+    });
+    // substituteRegex范围检查：应在0-2范围内（新增）
+    var badSubRegex = rx.filter(function(s) {
+      var sr = s.substituteRegex;
+      return sr !== undefined && sr !== null && (sr < 0 || sr > 2);
+    }).length;
+    results.push({
+      pass: rx.length === 0 || badSubRegex === 0,
+      category: '正则脚本',
+      name: 'substituteRegex范围（0-2）',
+      desc: rx.length + ' 条脚本，' + badSubRegex + ' 条substituteRegex超出范围',
+      fix: badSubRegex > 0 ? 'substituteRegex必须在0-2范围内（0=不替换宏，1=原始替换，2=转义替换）' : 'substituteRegex配置正确'
+    });
+    // runOnEdit建议：状态栏类脚本建议开启runOnEdit（新增）
+    var statusScriptsWithoutRunOnEdit = rx.filter(function(s) {
+      var name = (s.scriptName || '').toLowerCase();
+      var isStatusScript = name.indexOf('状态') >= 0 || name.indexOf('status') >= 0 || name.indexOf('格式化') >= 0;
+      return isStatusScript && s.runOnEdit !== true;
+    }).length;
+    results.push({
+      pass: rx.length === 0 || statusScriptsWithoutRunOnEdit === 0,
+      category: '正则脚本',
+      name: '状态栏脚本runOnEdit',
+      desc: rx.length + ' 条脚本，' + statusScriptsWithoutRunOnEdit + ' 条状态栏脚本未开启runOnEdit',
+      fix: statusScriptsWithoutRunOnEdit > 0 ? '状态栏类脚本建议开启runOnEdit=true，编辑消息时自动重新执行' : 'runOnEdit配置正确'
     });
 
     // === 运行效果检查（3项） ===
@@ -1975,7 +2075,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: noCooldownEntries > 0 ? '场景类条目建议开启cooldown=3防止内容刷屏' : '冷却防抖已配置'
     });
 
-    // === 附加检查（超出规范28项的扩展，不计入主28项） ===
+    // === 附加检查（6项扩展，不计入核心32项） ===
     var highRiskKeys = ['的', '是', '在', '有', '了', '和', '就', '都', '而', '及', '与', '一个', '一些', '什么', '如何', '怎么'];
     var riskyEntries = entries.filter(function(e) {
       var ks = e.keys || [];
@@ -2262,7 +2362,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               '<div class="welcome-features">' +
                 '<div class="wf-item"><div class="wf-icon">💬</div><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">📊</div><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">28项质检</div><div class="wf-desc">8基础+4高价值+5世界书+6世界书高级+3正则+3运行效果，专业达标</div></div>' +
+                '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">32项质检</div><div class="wf-desc">8基础+4高价值+6世界书+8世界书高级+6正则+3运行效果+6附加，专业达标</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">🎭</div><div class="wf-title">题材预设</div><div class="wf-desc">修仙/末世/西幻/都市等一键套用最优参数</div></div>' +
               '</div>' +
               '<button class="start-btn" id="startBtn">开始创作</button>' +
@@ -3369,7 +3469,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var corePass = coreResults.filter(function(r) { return r.pass; }).length;
         var h = '<div class="modal" id="qcModal">' +
           '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（规范28项 + 附加检查）</h3>' +
+            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（32项核心 + 6项附加）</h3>' +
             '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标 · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
             '<div class="modal-body" style="margin-top:10px">';
