@@ -2276,8 +2276,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       creator: '时之写卡器',
       character_version: '',
       alternate_greetings: cardAltGreetings,
+      group_only_greetings: [],
       extensions: {
-        talkativeness: '0.5', fav: false, world: cardName,
+        talkativeness: '0.5',
+        fav: false,
+        world: cardName,
         depth_prompt: depthPrompt,
         regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
         'xiaobaix-template': {
@@ -2291,12 +2294,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         },
         tavern_helper: { scripts: [], variables: {} }
       },
-      group_only_greetings: [],
       character_book: {
         entries: entries
       }
     };
-    // ST规范：顶层需要重复 data 中的关键字段
+    // ST规范：顶层需要重复 data 中的关键字段（v3格式顶层用 creatorcomment，data内沿用 creator_notes）
     return {
       name: cardName,
       description: cardDesc,
@@ -2324,7 +2326,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         name: '', description: '', personality: '', scenario: '',
         first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
         post_history_instructions: '', tags: [], creator: '时之写卡器',
-        character_version: '', alternate_greetings: [],
+        character_version: '', alternate_greetings: [], group_only_greetings: [],
         extensions: {
           talkativeness: '0.5',
           fav: false,
@@ -2342,7 +2344,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           },
           tavern_helper: { scripts: [], variables: {} }
         },
-        group_only_greetings: [],
         character_book: { entries: [] }
       };
 
