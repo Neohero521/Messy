@@ -677,6 +677,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- delay_until_recursion：仅在递归中触发（不直接触发）\n' +
     '  - 用于补充说明、背景展开，被主条目递归带出\n' +
     '  - 叙事类条目常用，实现"提到A时自动带出A的背景"\n\n' +
+    '**群聊角色排除（Character Exclusion，群聊专用）**：\n' +
+    '- character_exclusion：角色排除列表（数组），列表中的角色不会触发此条目\n' +
+    '  - 用途：在群聊中控制条目只被特定角色触发，避免不相关角色触发\n' +
+    '  - 例：Jamie和Bill群聊，条目设置了character_exclusion=["Bill"]，则只有Jamie能触发此条目\n' +
+    '  - 典型场景：角色专属背景只在角色自己说话时触发，避免其他角色无意间触发\n' +
+    '  - 注意：这是角色级别的过滤，与关键词触发是独立的两个条件\n\n' +
     '**分组互斥类（Inclusion Group，高级功能，强烈推荐使用）**：\n' +
     '- group：互斥分组标签（逗号分隔，一条目可属多个组），同组多条目同时触发时仅选1条注入\n' +
     '  - 场景变体：同一场景的不同描述，随机选一个增加多样性和新鲜感\n' +
@@ -848,6 +854,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '    · 用途：防止特定组合出现，主键+全部次级键同时出现时反而不触发\n' +
     '    · 例：keys=["奖励"], secondary_keys=["任务完成","boss击杀"], selectiveLogic=1\n' +
     '      → 只提"奖励"或只提一个原因时触发，两个原因都有时反而用更高级的奖励条目\n\n' +
+    '**全局预算与激活控制（用户侧设置，生成角色卡时需了解）**：\n' +
+    '- Budget Cap（预算上限）：世界书总token上限，防止注入过多内容撑爆上下文\n' +
+    '  - 通常设为1024或2048，取决于模型上下文长度\n' +
+    '  - 角色卡设计原则：常驻条目总token≤500，确保有足够预算给触发条目\n' +
+    '- Min Activations（最小激活数）：确保至少激活N条条目的全局设置\n' +
+    '  - 设为非零值时，即使scan_depth内没找到关键词，也会向后搜索直到激活指定数量的条目\n' +
+    '  - 用途：确保关键信息不被遗漏（如每次生成都注入一些世界背景）\n' +
+    '  - 注意：仍受Budget Cap和Max Depth限制\n' +
+    '  - 生成角色卡时无需设置此值，但需了解用户可能使用此功能\n' +
+    '- Extension Prompts扫描：世界书可扫描扩展提示词（如Chat Lore、Persona Lore等）\n' +
+    '  - 这些内容不在聊天消息中，但在上下文中存在\n' +
+    '  - 生成角色卡时无需关心此设置\n\n' +
     '=== 高价值字段生成规范 ===\n\n' +
     '**system_prompt**：\n' +
     '- 精简至≤50字，仅保留AI身份定位\n' +
@@ -867,7 +885,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '**regex_scripts**：\n' +
     '- 自动生成基础状态同步正则脚本\n' +
     '- 无需插件实现动态状态栏、格式化、内容替换等功能\n' +
-    '- 正则脚本按顺序执行，前一个的输出是后一个的输入\n\n' +
+    '- 正则脚本按顺序执行，前一个的输出是后一个的输入\n' +
+    '- **脚本类型**：\n' +
+    '  · Global脚本：全局生效，保存在settings.json，适用于所有角色卡\n' +
+    '  · Scoped脚本：仅对当前角色卡生效，保存在角色卡数据中\n' +
+    '  · 生成角色卡时使用Scoped脚本（保存在extensions.regex_scripts中）\n' +
+    '- **脚本执行顺序**：按脚本列表顺序执行，前一个的输出是后一个的输入\n' +
+    '- **Ephemerality临时性设置**（控制是否写入聊天文件）：\n' +
+    '  · promptOnly=true：只修改发送给模型的提示词，不改变显示，不写入聊天文件\n' +
+    '    用途：偷偷给模型加规则/改格式，用户看不到变化\n' +
+    '  · 默认（都不设置）：直接修改聊天内容，显示和模型一致，永久保存\n' +
+    '  · 注意：promptOnly模式用户和模型看到的内容不同，需谨慎使用\n\n' +
     '**完整字段说明**：\n' +
     '- scriptName：脚本名称（仅UI显示，不影响功能）\n' +
     '- findRegex：查找的正则表达式，格式为 /pattern/flags\n' +
@@ -878,6 +906,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  - 支持 $1-$9 引用捕获组\n' +
     '  - 支持 $& 引用整个匹配\n' +
     "  - 支持 $` 引用匹配前的文本，$' 引用匹配后的文本\\n" +
+    '  - 支持 {{match}} 宏引用整个匹配（与$&等效，但更直观）\n' +
     '  - 当substituteRegex>0时，支持ST宏变量（{{user}}, {{char}}, {{random:A,B}}, {{roll:XdY}}等）\n' +
     '- trimStrings：要移除的字符串数组（在替换后执行）\n' +
     '  - 常用于清理多余的换行、空格、特定标记\n' +
