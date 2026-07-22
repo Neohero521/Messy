@@ -683,7 +683,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  - 难度分层：新手/普通/困难三种规则，按进度选择不同深度的规则\n' +
     '  - 时间分支：白天/夜晚/黄昏/凌晨不同场景描述和氛围\n' +
     '  - 心情状态：平静/愤怒/悲伤/喜悦等不同状态下的角色行为差异\n' +
-    '  - 多选组：一条目属于多个组时，它的触发会禁用所有相关组的其他条目\n' +
+    '  - 多选组：一条目属于多个组时（如group="天气,事件"），它的触发会禁用所有相关组的其他条目\n' +
+    '    · 例：条目A的group="天气,季节"，条目B的group="天气"，条目C的group="季节"\n' +
+    '    · 当A触发时，B和C都会被禁用（因为A属于天气组和季节组）\n' +
+    '    · 当B触发时，A会被禁用（A属于天气组），但C不受影响\n' +
     '- group_weight：同组内的随机选中权重（默认100，数值越大被选中概率越高）\n' +
     '  - 常见/普通变体权重设为100，稀有/特殊变体设为20-50\n' +
     '  - 权重计算：条目的权重 / 组内所有触发条目的权重总和 = 被选中概率\n' +
@@ -702,6 +705,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '    · AND_ALL：所有次级键都匹配时加N分（N是次级键总数）\n' +
     '    · NOT_ANY / NOT_ALL：不加分\n' +
     '  - 典型用法：大组中优先选择更具体、匹配更精准的条目\n' +
+    '  - 完整示例：\n' +
+    '    · 组"歌曲"有两条条目：\n' +
+    '      - 条目1：keys=["song", "sing", "黑猫"], group="歌曲", group_weight=100\n' +
+    '      - 条目2：keys=["song", "sing", "幽灵"], group="歌曲", group_weight=100\n' +
+    '    · 用户输入"我在唱黑猫之歌" → 条目1匹配3个key，条目2匹配2个key\n' +
+    '    · use_group_scoring=true时：只保留条目1（匹配数最多），直接注入\n' +
+    '    · use_group_scoring=false时：两条都保留，按group_weight随机选\n' +
     '  - 例：组"天气"，条目A keys=[天气]（1分），条目B keys=[天气,下雨]（2分）\n' +
     '    用户说"下雨了"时，条目B匹配分2 > 条目A的1分，条目B胜出\n\n' +
     '**概率与选择类**：\n' +
@@ -957,7 +967,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  12. 敏感词过滤：\n' +
     '      findRegex="/(敏感词1|敏感词2)/gi"\n' +
     '      replaceString="***"\n' +
-    '      placement=[0,1]\n\n' +
+    '      placement=[0,1]\n' +
+    '  13. HTML/CSS样式注入（彩色标签）：\n' +
+    '      findRegex="/<status>([\\s\\S]*?)</status>/gi"\n' +
+    '      replaceString="<div style=\\"background:#1a1a2e;padding:8px 12px;border-radius:8px;border-left:4px solid #e94560;color:#e0e0e0;\\">$1</div>"\n' +
+    '      placement=[1]\n' +
+    '      注意：需要在用户设置中关闭"Show <tags> in responses"\n' +
+    '  14. STscript布尔判断（配合斜杠命令）：\n' +
+    '      findRegex="/<action>([^<]+)</action>/gi"\n' +
+    '      replaceString="ACTION_MATCH_FOUND"\n' +
+    '      disabled=true（默认禁用，通过STscript按需触发）\n' +
+    '      用途：在STscript中判断是否匹配成功，执行条件分支\n\n' +
     '**高级场景与设计模式**：\n' +
     '- 模式1：管道式处理（多脚本串联）\n' +
     '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
