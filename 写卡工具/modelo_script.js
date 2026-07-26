@@ -1610,8 +1610,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       partial.entries.forEach(function(ne) {
         if (!ne.comment || !ne.comment.trim()) return;
         if (!ne.content || ne.content.trim().length < 20) return;
-        ne.enabled = true;
         var tmpl = getEntryTemplate(ne.comment);
+        // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化），
+        // 其余条目默认开启；优先使用模板里定义的 enabled 默认值
+        ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
+        // 变量列表条目内容必须含 {{format_message_variable::stat_data}} 宏，
+        // AI 常误写成 {{null}} 等，此处实时修正以保证质检通过
+        if (ne.comment && ne.comment.indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
+          ne.content = normalizeVarListContent(ne.content);
+        }
         if (tmpl) {
           if (ne.selective === undefined) ne.selective = tmpl.selective;
           if (ne.constant === undefined) ne.constant = tmpl.constant;
@@ -2404,6 +2411,80 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return results;
   }
 
+  // ===== MVU 变量结构脚本生成（对齐官方一键写卡器 install-schema） =====
+  // 解析 [InitVar] 条目中的 JSON，生成 zod 4 schema 脚本并注册到 MVU
+  // InitVar 格式：{ "角色名": { "变量名": [初始值, "更新条件"], ... }, ... }
+  function generateMvuSchemaScript(initVarContent) {
+    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    var FOOTER = "});\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
+    var lines = [];
+    var parsed = null;
+    try { parsed = JSON.parse(initVarContent || '{}'); } catch (e) { parsed = null; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      // 解析失败：兜底输出世界对象，保证脚本仍可注册
+      parsed = { '世界': { '当前时间': ['', ''], '当前地点': ['', ''] } };
+    }
+    Object.keys(parsed).forEach(function(catName) {
+      var cat = parsed[catName];
+      if (!cat || typeof cat !== 'object' || Array.isArray(cat)) {
+        lines.push('  ' + catName + ': z.record(z.string(), z.unknown()).prefault({}),');
+        return;
+      }
+      lines.push('  ' + catName + ': z.object({');
+      Object.keys(cat).forEach(function(varName) {
+        var varVal = cat[varName];
+        var initVal = Array.isArray(varVal) ? varVal[0] : varVal;
+        var condStr = Array.isArray(varVal) ? String(varVal[1] || '') : '';
+        var zodLine;
+        if (typeof initVal === 'number') {
+          // 好感度或显式标注 0-100 范围的数值加 _.clamp 约束
+          if (varName.indexOf('好感') >= 0 || /0-100|0~100/.test(condStr)) {
+            zodLine = '    ' + varName + ': z.coerce.number().prefault(0).transform(value => _.clamp(value, 0, 100)),';
+          } else {
+            zodLine = '    ' + varName + ': z.coerce.number().prefault(0),';
+          }
+        } else if (typeof initVal === 'boolean') {
+          zodLine = '    ' + varName + ': z.boolean().prefault(false),';
+        } else if (Array.isArray(initVal)) {
+          zodLine = '    ' + varName + ': z.array(z.unknown()).prefault([]),';
+        } else if (initVal && typeof initVal === 'object') {
+          zodLine = '    ' + varName + ': z.record(z.string(), z.unknown()).prefault({}),';
+        } else {
+          zodLine = "    " + varName + ": z.string().prefault(''),";
+        }
+        lines.push(zodLine);
+      });
+      lines.push('  }).prefault({}),');
+    });
+    return HEADER + '\n' + lines.join('\n') + '\n' + FOOTER;
+  }
+
+  // ===== 变量列表内容规范化（确保含 {{format_message_variable::stat_data}} 宏） =====
+  // 对齐官方写卡器变量列表固定格式：
+  //   ---
+  //   <status_current_variable>
+  //   {{format_message_variable::stat_data}}
+  //   </status_current_variable>
+  function normalizeVarListContent(content) {
+    var macro = '{{format_message_variable::stat_data}}';
+    var stdBlock = '---\n<status_current_variable>\n' + macro + '\n</status_current_variable>';
+    if (!content || !content.trim()) return stdBlock;
+    if (content.indexOf(macro) >= 0) return content; // 已含宏，无需修改
+    // 修正 AI 误写的占位符（如 {{null}}、{{get_message_variable::stat_data}} 等）
+    var cleaned = content.replace(/\{\{null\}\}/gi, macro)
+                         .replace(/\{\{get_message_variable::stat_data\}\}/gi, macro)
+                         .replace(/\{\{format_message_variable::[^}]*\}\}/gi, macro);
+    if (cleaned.indexOf(macro) >= 0) return cleaned;
+    // 仍未含宏：若有包裹标签则在标签内注入，否则追加标准块
+    if (/<status_current_variable>[\s\S]*?<\/status_current_variable>/i.test(cleaned)) {
+      cleaned = cleaned.replace(/(<status_current_variable>)([\s\S]*?)(<\/status_current_variable>)/i,
+        '$1\n' + macro + '\n$3');
+    } else {
+      cleaned = cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
+    }
+    return cleaned;
+  }
+
   // ===== 生成完整角色卡 =====
   function buildExportCard(cd) {
     var rawEntries = (cd.character_book && cd.character_book.entries) || [];
@@ -2440,16 +2521,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
       var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
+      // MVU 安全网：[InitVar] 条目必须 enabled=false；变量列表内容必须含宏
+      var isInitVar = comment.indexOf('[InitVar]') >= 0;
+      var isVarList = comment.indexOf('变量列表') >= 0;
+      var outContent = e.content || '';
+      if (isVarList) outContent = normalizeVarListContent(outContent);
       return {
         id: e.id || (i + 1),
         keys: e.keys || [],
         secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
         comment: comment,
-        content: e.content || '',
+        content: outContent,
         constant: e.constant !== undefined ? e.constant : isConst,
         selective: e.selective !== undefined ? e.selective : isSel,
         insertion_order: e.insertion_order || order,
-        enabled: e.enabled !== undefined ? e.enabled : defaultEnabled,
+        enabled: isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled),
         position: topPosStr,
         use_regex: e.use_regex !== undefined ? e.use_regex : true,
         extensions: {
@@ -2571,6 +2657,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   { name: '清除旧楼层变量', visible: false }
                 ]
               },
+              data: {}
+            });
+          }
+          // 自动注入“变量结构”zod schema 脚本（对齐官方一键写卡器 install-schema 步骤）
+          // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
+          var hasSchema = mvuScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0; });
+          if (!hasSchema) {
+            // 从 [InitVar] 条目中提取初始变量 JSON，据此生成 zod schema
+            var initVarEntry = rawEntries.filter(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; })[0];
+            var schemaContent = generateMvuSchemaScript(initVarEntry ? (initVarEntry.content || '') : '');
+            mvuScripts.push({
+              type: 'script',
+              enabled: true,
+              name: '变量结构',
+              id: 'qz-mvu-schema',
+              content: schemaContent,
+              info: '自动生成的 MVU 变量结构脚本。',
+              button: { enabled: true, buttons: [] },
               data: {}
             });
           }
@@ -3098,12 +3202,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               var defaultDepth = tmpl ? tmpl.depth : 4;
               var defaultOrder = tmpl ? tmpl.order : 100;
               var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-              // enabled 必须保留原值（[InitVar] 条目必须为 false，否则 MVU 无法初始化）
-              var enabledVal = e.enabled !== undefined ? e.enabled : defaultEnabled;
+              // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
+              var isInitVar = comment.indexOf('[InitVar]') >= 0;
+              var isVarList = comment.indexOf('变量列表') >= 0;
+              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               var ext = e.extensions || {};
               return {
                 comment: comment,
-                content: e.content || '',
+                content: isVarList ? normalizeVarListContent(e.content || '') : (e.content || ''),
                 keys: e.keys || [],
                 secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
                 constant: e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false),
