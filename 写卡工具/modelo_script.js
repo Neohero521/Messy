@@ -438,7 +438,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '修炼境界突破、宗门任务、探索秘境、炼丹炼器',
         '世界规则': '境界压制、灵气浓度、天劫法则',
         '实体交互': '宗门掌门、长老、师兄妹、妖兽、灵草',
-        '[InitVar]初始变量': '玩家.境界:练气期, 玩家.灵石:100, 玩家.宗门:青云宗'
+        '[InitVar]初始变量': '玩家:\n  境界: 练气期\n  灵石: 100\n  宗门: 青云宗'
       }
     },
     '末世': {
@@ -453,7 +453,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '搜刮物资、营地建设、丧尸战斗、幸存者招募',
         '世界规则': '感染机制、辐射区、物资刷新、变异等级',
         '实体交互': '幸存者、商人、掠夺者、变异体、军方残部',
-        '[InitVar]初始变量': '玩家.生命值:100, 玩家.食物:50, 玩家.弹药:30, 营地.安全等级:低'
+        '[InitVar]初始变量': '玩家:\n  生命值: 100\n  食物: 50\n  弹药: 30\n营地:\n  安全等级: 低'
       }
     },
     '西幻': {
@@ -468,7 +468,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '冒险者任务、魔法修炼、公会升级、队伍组建',
         '世界规则': '魔力体系、种族天赋、阵营倾向、神祇祝福',
         '实体交互': '冒险者、魔法师、骑士、精灵、矮人、龙、魔王军',
-        '[InitVar]初始变量': '玩家.等级:1, 玩家.金币:100, 玩家.职业:冒险者, 玩家.声望:0'
+        '[InitVar]初始变量': '玩家:\n  等级: 1\n  金币: 100\n  职业: 冒险者\n  声望: 0'
       }
     },
     '都市': {
@@ -483,7 +483,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '异能觉醒、组织任务、日常经营、身份隐藏',
         '世界规则': '异能分级、副作用、组织法则、暴露代价',
         '实体交互': '异能者、组织成员、普通人、商人、情报贩子',
-        '[InitVar]初始变量': '玩家.异能等级:F, 玩家.金钱:5000, 玩家.声望:0, 玩家.暴露风险:低'
+        '[InitVar]初始变量': '玩家:\n  异能等级: F\n  金钱: 5000\n  声望: 0\n  暴露风险: 低'
       }
     },
     '科幻': {
@@ -498,7 +498,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '星际航行、文明接触、科技研发、资源采集',
         '世界规则': '物理定律、科技等级、文明分类、AI法则',
         '实体交互': '舰长、AI、异星生物、殖民者、联盟官员',
-        '[InitVar]初始变量': '玩家.飞船等级:1, 玩家.信用点:1000, 玩家.探索度:0, 玩家.科技等级:1'
+        '[InitVar]初始变量': '玩家:\n  飞船等级: 1\n  信用点: 1000\n  探索度: 0\n  科技等级: 1'
       }
     },
     '校园': {
@@ -513,7 +513,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '课程学习、社团活动、人际社交、事件参与',
         '世界规则': '学期制度、社团规则、人际关系、事件触发',
         '实体交互': '同学、前辈、老师、社团成员、青梅竹马',
-        '[InitVar]初始变量': '玩家.年级:高一, 玩家.学力:中等, 玩家.人气:普通, 玩家.社团:未加入'
+        '[InitVar]初始变量': '玩家:\n  年级: 高一\n  学力: 中等\n  人气: 普通\n  社团: 未加入'
       }
     }
   };
@@ -733,33 +733,54 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  3. 变量模板：全内容适配ST原生宏变量（{{user}}/{{random:A,B}}/{{roll:XdY}}/{{date}}/{{time}}）\n' +
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
-    '### 9. MVU变量系统（MagVarUpdate，进阶可选）\n' +
+    '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
-    '- 工作原理：每次LLM生成完消息后，MVU扫描<UpdateVariable>段中的变量变更语句，更新stat_data和display_data\n' +
+    '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
     '- 五大核心组件（写卡器自动注入脚本和正则，世界书条目需AI生成）：\n' +
-    '  1. [InitVar]初始变量：世界书条目（enabled=false禁用），JSON格式定义所有变量的初始值和更新条件\n' +
-    '     · 格式：每个变量为 [初始值, "更新条件说明"] 数组，支持嵌套对象分层\n' +
-    '     · 示例：{"角色":{"好感度":[0,"[-1,100]之间,情绪变化时更新"],"位置":["教堂","移动后改变"]}}\n' +
-    '  2. 变量列表：世界书条目（constant=true），通过宏注入当前变量值给LLM\n' +
-    '     · 内容：<status_current_variable>{{format_message_variable::stat_data}}</status_current_variable>\n' +
-    '  3. 变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
-    '     · 包含check条件、取值范围、更新频率限制等\n' +
-    '  4. 变量输出格式：世界书条目（constant=true），定义<UpdateVariable>段的输出格式\n' +
-    '     · 格式：<UpdateVariable><Analysis>路径: Y/N</Analysis>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
-    '     · _.set()语法：_.set(\'变量路径\', 老值, 新值);//更新原因（老值不重要，MVU只关心新值）\n' +
-    '  5. 正则脚本：4个必备正则（写卡器自动注入）\n' +
-    '     · 正则1：移除旧消息的UpdateVariable段（AI输出, 仅格式提示词, minDepth=4，保留最近2楼给AI）\n' +
-    '     · 正则2：移除所有消息的UpdateVariable段（AI输出, 仅格式显示）\n' +
-    '     · 正则3：对AI隐藏<StatusPlaceHolderImpl/>（AI输出, 仅格式提示词，不勾仅格式显示）\n' +
-    '     · 正则4：状态栏显示占位（AI输出, 仅格式显示，替换占位符为空或状态栏HTML）\n' +
-    '- stat_data vs display_data：\n' +
-    '  · stat_data：当前值，格式为 [最新值, "更新条件"] 数组，用于逻辑判断\n' +
-    '  · display_data：显示值，格式为 "老值->新值(原因)" 字符串，用于状态栏展示\n' +
-    '  · SafeGetValue函数：处理数组/字符串两种情况，取数组第一个元素或直接返回字符串\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由MVU在每条消息尾部注入，配合正则替换为状态栏HTML\n' +
-    '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable>段覆盖[InitVar]默认值\n' +
-    '- 变量更新回调：监听 mag_variable_updated/mag_variable_update_ended 事件实现自定义逻辑\n' +
-    '- 条目前缀：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式、<状态变量输出>\n\n' +
+    '  1. [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量的初始值\n' +
+    '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
+    '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
+    '     · 示例：\n' +
+    '       白娅:\n' +
+    '         依存度: 35\n' +
+    '         着装:\n' +
+    '           上装: 深蓝色校服外套\n' +
+    '         受孕: false\n' +
+    '       主角:\n' +
+    '         物品栏:\n' +
+    '           薄荷糖:\n' +
+    '             描述: 提神用薄荷糖\n' +
+    '             数量: 1\n' +
+    '  2. 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
+    '     · 固定内容：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
+    '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
+    '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
+    '  3. [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '     · YAML格式，沿用变量结构层级，每变量含 type/range/check 三字段\n' +
+    '     · check 是核心，用自然语言说明何时更新、更新成什么值\n' +
+    '     · 示例：\n' +
+    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      range: 0~100\\n      check:\\n        - 根据白娅对<user>行为的感知调整 ±(3~6)\\n        - 单次互动最多+1，同一剧情日累计最多+5\n' +
+    '  4. [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
+    '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
+    '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
+    '     · 格式模板：\n' +
+    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects\\n    - supported ops: replace, delta, insert, remove, move\\n    - don\'t update field names starts with `_` as they are readonly\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding check, according only to current reply: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
+    '     · AI实际输出示例：\n' +
+    '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
+    '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
+    '  5. 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
+    '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）\n' +
+    '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值）\n' +
+    '     · 默认值用.prefault(默认值)（AI漏写字段时自动填充）\n' +
+    '     · 字段不固定对象用z.record(键类型, 值类型)\n' +
+    '     · 字段含义用.describe(\'描述\')\n' +
+    '  6. 正则脚本：3个必备正则（写卡器自动注入）\n' +
+    '     · 正则1：[不发送]去除变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth可调保留最近N楼）\n' +
+    '     · 正则2：[美化/折叠/仅提示]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示）\n' +
+    '     · 正则3：[美化/折叠/仅提示]完整变量更新 - 美化完整的<UpdateVariable>（仅格式显示）\n' +
+    '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable><initvar>YAML内容</initvar></UpdateVariable>覆盖[InitVar]默认值\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾，后续消息由AI按变量输出格式输出；MVU bundle.js 内部处理占位符替换为状态栏HTML\n' +
+    '- 条目前缀：[InitVar]初始变量、变量列表、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -1257,10 +1278,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <角色边界>：角色行为限制和不可触犯的底线\n' +
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n' +
-    '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式，enabled=false禁用）\n' +
+    '- [InitVar]初始变量：MVU变量系统初始值YAML（缩进表示层级，enabled=false禁用）\n' +
     '- 变量列表：MVU当前变量注入（含{{format_message_variable::stat_data}}宏）\n' +
     '- 变量更新规则：MVU变量更新分析规则（check条件、取值范围等）\n' +
-    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含_.set()语法）\n' +
+    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含JSON Patch命令）\n' +
     '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
     '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
@@ -1382,33 +1403,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  · placement=[4]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
     '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
     '  · 一个正则脚本可同时处理多个位置（如placement=[1,2,4]）\n\n' +
-    '**🔗 MVU变量系统设计模式（MagVarUpdate，进阶可选）**：\n' +
+    '**🔗 MVU变量系统设计模式（MagVarUpdate zod，进阶可选）**：\n' +
     '- 模式1：分层变量结构\n' +
-    '  · 原理：按角色/物品/状态等分类嵌套JSON结构，如 { "主角": { "好感度": [0, "..."] }, "物品": { "金币": [100, "..."] } }\n' +
+    '  · 原理：按角色/世界/物品等分类用YAML缩进嵌套，如 白娅:\\n  依存度: 35\\n  着装:\\n    上装: 校服\n' +
     '  · 优势：结构清晰，LLM更容易理解变量归属和关系，引导更准确的变量更新\n' +
-    '  · 注意：每个变量都是 [初始值, 更新条件说明] 的数组格式\n' +
+    '  · 注意：YAML用缩进表示层级，冒号后空格建立从属；数值/文本/真假值三种基本类型\n' +
     '- 模式2：开局变量初始化\n' +
-    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable>段，覆盖初始值\n' +
-    '  · 格式：<UpdateVariable>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
+    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable><initvar>块，覆盖[InitVar]默认值\n' +
+    '  · 格式：<UpdateVariable>\\n<initvar>\\n白娅:\\n  依存度: 15\\n</initvar>\\n</UpdateVariable>\n' +
     '  · 用途：不同开局有不同的初始变量（如不同身份有不同道具/属性）\n' +
     '- 模式3：变量驱动的分段内容\n' +
     '  · 原理：用提示词模板语法 + getvar("stat_data") 实现根据变量值显示不同内容\n' +
-    '  · 格式：<% if (getvar("stat_data").角色.好感度[0] >= 50) { %>...<% } %>\n' +
-    '  · 注意：第一个if用 _.has() 检查变量是否初始化完成，避免模板报错\n' +
-    '- 模式4：display_data状态显示\n' +
-    '  · 原理：MVU提供stat_data（当前值数组）和display_data（"老->新(原因)"格式）\n' +
-    '  · stat_data：用于逻辑判断，格式为 [当前值, "更新条件"]\n' +
-    '  · display_data：用于显示给用户，格式为 "旧值->新值(更新原因)"\n' +
-    '  · SafeGetValue：需要写一个工具函数处理数组和非数组两种情况\n' +
+    '  · 格式：<% if (getvar("stat_data.白娅.依存度") >= 50) { %>...<% } %>\n' +
+    '  · 注意：第一个if用 typeof 检查变量是否初始化完成，避免模板报错\n' +
+    '- 模式4：状态栏占位符\n' +
+    '  · 原理：变量输出格式定义AI输出<StatusPlaceHolderImpl/>，正则替换为状态栏HTML\n' +
+    '  · 用途：状态栏自动显示当前变量值，无需AI输出完整状态栏文本\n' +
     '- 模式5：变量更新回调（高阶，需JS能力）\n' +
     '  · 原理：监听 mag_variable_updated / mag_variable_update_ended 事件\n' +
     '  · 用途：LLM忘记更新时自动补全（如日期自动+1）、触发特殊逻辑\n' +
     '  · 参考：MagVarUpdate example_src\n' +
-    '- MVU安装四件套：\n' +
-    '  1. 局部脚本：import \'https://gcore.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@master/artifact/bundle.js\'\n' +
-    '  2. 正则1：去除变量更新段 /<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm（仅格式显示+仅格式提示词）\n' +
-    '  3. 正则2：对AI隐藏状态栏 /<StatusPlaceHolderImpl/> （仅格式提示词）\n' +
-    '  4. 世界书：[InitVar]初始变量 + 变量更新规则条目\n\n' +
+    '- MVU zod安装五件套（写卡器自动注入）：\n' +
+    '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'\n' +
+    '  2. 变量结构脚本：用zod 4定义变量结构并registerMvuSchema注册\n' +
+    '  3. 正则1：[不发送]去除变量更新 /<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm（仅格式提示词）\n' +
+    '  4. 正则2-3：[美化/折叠/仅提示]美化变量更新（仅格式显示）\n' +
+    '  5. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -1610,8 +1630,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       partial.entries.forEach(function(ne) {
         if (!ne.comment || !ne.comment.trim()) return;
         if (!ne.content || ne.content.trim().length < 20) return;
-        ne.enabled = true;
         var tmpl = getEntryTemplate(ne.comment);
+        // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化），
+        // 其余条目默认开启；优先使用模板里定义的 enabled 默认值
+        ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
+        // 变量列表条目内容必须含 {{format_message_variable::stat_data}} 宏，
+        // AI 常误写成 {{null}} 等，此处实时修正以保证质检通过
+        if (ne.comment && ne.comment.indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
+          ne.content = normalizeVarListContent(ne.content);
+        }
         if (tmpl) {
           if (ne.selective === undefined) ne.selective = tmpl.selective;
           if (ne.constant === undefined) ne.constant = tmpl.constant;
@@ -2390,7 +2417,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时会自动注入6条正则（仅格式思维链+只发送最新2楼+美化2条+状态栏2条）' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时会自动注入4条正则（仅格式思维链+只发送最新2楼+美化完成+美化更新中）' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -2402,6 +2429,131 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     });
 
     return results;
+  }
+
+  // ===== MVU 变量结构脚本生成（对齐官方一键写卡器 install-schema） =====
+  // 解析 [InitVar] 条目中的 YAML，生成 zod 4 schema 脚本并注册到 MVU
+  // InitVar YAML 格式（缩进表示层级，冒号后空格建立从属）：
+  //   白娅:
+  //     依存度: 35
+  //     着装:
+  //       上装: 深蓝色校服
+  function generateMvuSchemaScript(initVarContent) {
+    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    var FOOTER = "});\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
+
+    // 简易 YAML 解析（支持缩进层级 + key: value，兼容代码块包裹）
+    function parseYamlSimple(text) {
+      // 去除 ```yaml / ``` 代码块包裹
+      var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+      if (!cleaned) return null;
+      var lines = cleaned.split('\n');
+      var root = {};
+      var stack = [{ indent: -1, node: root }];
+      for (var i = 0; i < lines.length; i++) {
+        var raw = lines[i];
+        if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
+        // 计算缩进（空格数，制表符按2空格）
+        var indent = 0;
+        while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
+          indent += raw[indent] === '\t' ? 2 : 1;
+        }
+        var content = raw.slice(indent).trim();
+        var colonIdx = content.indexOf(':');
+        if (colonIdx < 0) continue;
+        var key = content.slice(0, colonIdx).trim();
+        var valStr = content.slice(colonIdx + 1).trim();
+        // 弹栈到当前缩进的父级
+        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
+        var parent = stack[stack.length - 1].node;
+        // 解析值类型
+        var val;
+        if (valStr === '') {
+          // 子对象
+          val = {};
+          parent[key] = val;
+          stack.push({ indent: indent, node: val });
+        } else if (valStr === 'true' || valStr === 'false') {
+          parent[key] = valStr === 'true';
+        } else if (/^-?\d+(\.\d+)?$/.test(valStr)) {
+          parent[key] = Number(valStr);
+        } else {
+          // 去除引号
+          parent[key] = valStr.replace(/^['"]|['"]$/g, '');
+        }
+      }
+      return root;
+    }
+
+    // 判断变量是否为好感度类（需 0-100 范围限制）
+    function isAffinityLike(name) {
+      return /好感|依存|信任|忠诚|友好|亲密|心情/.test(name);
+    }
+
+    // 递归生成 zod schema 行（支持嵌套对象）
+    function genZodLines(obj, indent) {
+      var pad = new Array(indent + 1).join(' ');
+      var out = [];
+      Object.keys(obj).forEach(function(key) {
+        var val = obj[key];
+        var line;
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          // 嵌套对象
+          out.push(pad + key + ': z.object({');
+          out = out.concat(genZodLines(val, indent + 2));
+          out.push(pad + '}).prefault({}),');
+        } else if (typeof val === 'number') {
+          if (isAffinityLike(key)) {
+            // 好感度类：0-100 范围限制（用 transform 而非 min/max，避免拒绝超范围值）
+            out.push(pad + key + ': z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100)),');
+          } else {
+            out.push(pad + key + ': z.coerce.number().prefault(' + val + '),');
+          }
+        } else if (typeof val === 'boolean') {
+          out.push(pad + key + ': z.boolean().prefault(' + val + '),');
+        } else {
+          // 字符串：去引号转义
+          var esc = String(val).replace(/'/g, "\\'");
+          out.push(pad + key + ": z.string().prefault('" + esc + "'),");
+        }
+      });
+      return out;
+    }
+
+    var parsed = parseYamlSimple(initVarContent);
+    if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+      // 解析失败：兜底输出世界对象，保证脚本仍可注册
+      parsed = { '世界': { '当前时间': '开局', '当前地点': '待定' } };
+    }
+
+    var lines = genZodLines(parsed, 2);
+    return HEADER + '\n' + lines.join('\n') + '\n' + FOOTER;
+  }
+
+  // ===== 变量列表内容规范化（确保含 {{format_message_variable::stat_data}} 宏） =====
+  // 对齐官方写卡器变量列表固定格式：
+  //   ---
+  //   <status_current_variable>
+  //   {{format_message_variable::stat_data}}
+  //   </status_current_variable>
+  function normalizeVarListContent(content) {
+    var macro = '{{format_message_variable::stat_data}}';
+    var stdBlock = '---\n<status_current_variable>\n' + macro + '\n</status_current_variable>';
+    if (!content || !content.trim()) return stdBlock;
+    if (content.indexOf(macro) >= 0) return content; // 已含宏，无需修改
+    // 修正 AI 误写的占位符（如 {{null}}、{{get_message_variable::stat_data}} 等）
+    var cleaned = content.replace(/\{\{null\}\}/gi, macro)
+                         .replace(/\{\{get_message_variable::stat_data\}\}/gi, macro)
+                         .replace(/\{\{format_message_variable::[^}]*\}\}/gi, macro);
+    if (cleaned.indexOf(macro) >= 0) return cleaned;
+    // 仍未含宏：若有包裹标签则在标签内注入，否则追加标准块
+    if (/<status_current_variable>[\s\S]*?<\/status_current_variable>/i.test(cleaned)) {
+      cleaned = cleaned.replace(/(<status_current_variable>)([\s\S]*?)(<\/status_current_variable>)/i,
+        '$1\n' + macro + '\n$3');
+    } else {
+      cleaned = cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
+    }
+    return cleaned;
   }
 
   // ===== 生成完整角色卡 =====
@@ -2440,16 +2592,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
       var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
+      // MVU 安全网：[InitVar] 条目必须 enabled=false；变量列表内容必须含宏
+      var isInitVar = comment.indexOf('[InitVar]') >= 0;
+      var isVarList = comment.indexOf('变量列表') >= 0;
+      var outContent = e.content || '';
+      if (isVarList) outContent = normalizeVarListContent(outContent);
       return {
         id: e.id || (i + 1),
         keys: e.keys || [],
         secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
         comment: comment,
-        content: e.content || '',
+        content: outContent,
         constant: e.constant !== undefined ? e.constant : isConst,
         selective: e.selective !== undefined ? e.selective : isSel,
         insertion_order: e.insertion_order || order,
-        enabled: e.enabled !== undefined ? e.enabled : defaultEnabled,
+        enabled: isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled),
         position: topPosStr,
         use_regex: e.use_regex !== undefined ? e.use_regex : true,
         extensions: {
@@ -2574,6 +2731,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               data: {}
             });
           }
+          // 自动注入“变量结构”zod schema 脚本（对齐官方一键写卡器 install-schema 步骤）
+          // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
+          var hasSchema = mvuScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0; });
+          if (!hasSchema) {
+            // 从 [InitVar] 条目中提取初始变量 JSON，据此生成 zod schema
+            var initVarEntry = rawEntries.filter(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; })[0];
+            var schemaContent = generateMvuSchemaScript(initVarEntry ? (initVarEntry.content || '') : '');
+            mvuScripts.push({
+              type: 'script',
+              enabled: true,
+              name: '变量结构',
+              id: 'qz-mvu-schema',
+              content: schemaContent,
+              info: '自动生成的 MVU 变量结构脚本。',
+              button: { enabled: true, buttons: [] },
+              data: {}
+            });
+          }
           // 自动注入MVU必备正则脚本（6条，对齐官方写卡器参考实现）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
           var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
@@ -2657,48 +2832,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               maxDepth: null
             });
           }
-          // 正则5：一键生卡_隐藏状态栏标记 - 从提示词移除StatusPlaceHolderImpl（AI不需要看到占位符）
-          var hasStatusHideRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.promptOnly;
-          });
-          if (!hasStatusHideRegex) {
-            mvuRegex.push({
-              id: 'qz-card-status-hide',
-              scriptName: '一键生卡_隐藏状态栏标记',
-              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: true,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
-          // 正则6：一键生卡_MVU状态栏 - 显示侧替换StatusPlaceHolderImpl为空（用户无HTML状态栏时隐藏占位符标签）
-          var hasStatusDisplayRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly;
-          });
-          if (!hasStatusDisplayRegex) {
-            mvuRegex.push({
-              id: 'qz-card-status',
-              scriptName: '一键生卡_MVU状态栏',
-              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: true,
-              promptOnly: false,
-              runOnEdit: true,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
+          // 注：StatusPlaceHolderImpl 占位符由 MVU bundle.js 内部处理，无需额外正则
+          // （官方一键写卡器仅注入上述4条正则，多注入会与 MVU 内部逻辑冲突）
         }
         return {
           talkativeness: '0.5',
@@ -3098,12 +3233,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               var defaultDepth = tmpl ? tmpl.depth : 4;
               var defaultOrder = tmpl ? tmpl.order : 100;
               var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-              // enabled 必须保留原值（[InitVar] 条目必须为 false，否则 MVU 无法初始化）
-              var enabledVal = e.enabled !== undefined ? e.enabled : defaultEnabled;
+              // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
+              var isInitVar = comment.indexOf('[InitVar]') >= 0;
+              var isVarList = comment.indexOf('变量列表') >= 0;
+              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               var ext = e.extensions || {};
               return {
                 comment: comment,
-                content: e.content || '',
+                content: isVarList ? normalizeVarListContent(e.content || '') : (e.content || ''),
                 keys: e.keys || [],
                 secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
                 constant: e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false),
@@ -4293,84 +4430,86 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       // ===== 优化指令映射（质检未达标项→AI优化指令） =====
       function buildOptimizeInstructions(failedItems) {
-        var instructions = [];
-        var fieldMap = {
-          '世界/角色名称': 'name',
-          '世界观描述 ≥400字': 'description',
-          '开场白 ≥500字': 'first_mes',
-          '系统指令 ≤50字（仅AI身份定位）': 'system_prompt',
-          '核心铁则 post_history_instructions ≤100字': 'post_history_instructions',
-          '标签数量 2-12个': 'tags',
-          'mes_example 对话示例（Few-shot）': 'mes_example',
-          'alternate_greetings 3个差异化开局': 'alternate_greetings',
-          'depth_prompt 新手引导（depth=0）': 'depth_prompt',
-          'regex_scripts 状态同步正则': 'regex_scripts',
-          '条目数 12-30条': 'entries',
-          '触发词覆盖率 ≥50%': 'entries',
-          '条目内容 ≥250字': 'entries',
-          '条目命名规范 ≥50%': 'entries',
-          '权重合理性：核心规则在高权重位': 'entries',
-          'content自包含性（无上下文依赖）': 'entries',
-          '递归链条：delay_until_recursion': 'entries',
-          '分组机制：group分组': 'entries',
-          '次级键过滤：secondary_keys + selectiveLogic': 'entries',
-          '概率事件：probability < 100': 'entries',
-          '正则触发键': 'entries',
-          '组评分 use_group_scoring': 'entries',
-          'sticky/cooldown冲突检查': 'entries',
-          'position配置合理性': 'entries',
-          '脚本功能单一': 'regex_scripts',
-          '正则标志正确（g全局匹配）': 'regex_scripts',
-          '非贪婪匹配（.*?）': 'regex_scripts',
-          'placement配置检查': 'regex_scripts',
-          'substituteRegex范围（0-2）': 'regex_scripts',
-          '状态栏脚本runOnEdit': 'regex_scripts',
-          '常驻Token总量 ≤500': 'entries',
-          '递归安全：实体类条目开启prevent_recursion': 'entries',
-          '冷却防抖：场景类条目开启cooldown': 'entries'
-        };
+        // 每条指令统一为「问题 · 影响 · 修复」三段式，便于 AI 精准理解与执行
+        // field 字段用于在弹窗中按字段分组展示，并驱动 AI 优化目标字段
         var instructionMap = {
-          '世界/角色名称': '请设置一个简洁有力的世界名称',
-          '世界观描述 ≥400字': '世界观描述字数不足，请补充到400字以上，增加世界背景、地理、历史、文化等细节，提升沉浸感',
-          '开场白 ≥500字': '开场白字数不足，请扩展到500-800字。结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩',
-          '系统指令 ≤50字（仅AI身份定位）': '系统指令过长，请精简到50字以内，只保留AI身份定位，核心规则迁移到post_history_instructions',
-          '核心铁则 post_history_instructions ≤100字': '核心铁则未设置或过长。请设置post_history_instructions，控制在100字以内，放置最核心的规则（这是最高权重位置）',
-          '标签数量 2-12个': '标签数量不符合要求，请设置2-12个标签，精准描述世界题材和风格',
-          'mes_example 对话示例（Few-shot）': '缺少对话示例，请生成1-2组对话示例（Few-shot），展示NPC如何与玩家互动',
-          'alternate_greetings 3个差异化开局': '备用开局不足3个，请生成3个不同身份/难度的备用开场白，提升重玩价值',
-          'depth_prompt 新手引导（depth=0）': '缺少新手引导，请生成depth_prompt内容，默认depth=0，帮助新玩家了解世界规则',
-          'regex_scripts 状态同步正则': '缺少状态同步正则脚本，请生成3-5条实用正则脚本，覆盖状态格式化、数值高亮、行动标签等场景',
-          '条目数 12-30条': '世界书条目数量不足或过多。请确保条目数在12-30条之间，覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块',
-          '触发词覆盖率 ≥50%': '触发词覆盖率不足，请为至少50%的条目设置精准的触发词（keys字段），确保条目能被正确触发',
-          '条目内容 ≥250字': '条目内容过短，请将至少50%的条目内容扩充到250字以上，提供完整自包含的信息',
-          '条目命名规范 ≥50%': '条目命名不规范，请为至少50%的条目使用规范前缀，如<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>',
-          '权重合理性：核心规则在高权重位': '核心规则权重分配不合理。请确保核心规则放在高权重位（post_history_instructions或<核心铁则>条目），近场约束放在适当位置',
-          'content自包含性（无上下文依赖）': '条目内容存在上下文依赖。请移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息',
-          '递归链条：delay_until_recursion': '未使用递归链条。请为叙事类条目开启delay_until_recursion，实现"提到A时自动带出A的背景信息"的效果',
-          '分组机制：group分组': '未使用分组机制。请为场景变体/难度分层/时间分支等条目设置group分组，实现互斥或多选效果',
-          '次级键过滤：secondary_keys + selectiveLogic': '未使用次级键过滤。请为复杂条件条目设置secondary_keys配合selectiveLogic，实现精准触发控制',
-          '概率事件：probability < 100': '未使用概率触发。请为随机天气/彩蛋/遭遇等条目设置probability<100，增加游戏惊喜感',
-          '正则触发键': '未使用正则触发键。请为需要精确匹配说话者的条目使用正则键，如/\\x01{{user}}:.../i实现精准触发',
-          '组评分 use_group_scoring': '未使用组评分。请为大分组条目开启use_group_scoring，提升匹配精准度',
-          'sticky/cooldown冲突检查': '发现sticky和cooldown冲突配置。sticky让条目持续存在，cooldown让条目间歇触发，两者逻辑冲突，请移除其中一个',
-          'position配置合理性': 'position配置有误。constant条目position应≤1；position=6需配depth+role；position=7需配outlet_name',
-          '脚本功能单一': '发现多功能混合的正则脚本。请确保每个脚本只做一件事，复杂替换拆分成多个简单脚本',
-          '正则标志正确（g全局匹配）': '正则脚本缺少g标志。请确保findRegex包含g标志（如/pattern/gi），否则只替换第一个匹配',
-          '非贪婪匹配（.*?）': '正则脚本使用贪婪匹配。请使用.*?或.+?非贪婪匹配，避免匹配过多内容',
-          'placement配置检查': '正则脚本未设置placement。请为每条脚本设置至少1个placement位置（如[0,1]处理用户输入和AI回复）',
-          'substituteRegex范围（0-2）': 'substituteRegex超出范围。请确保在0-2范围内（0=不替换宏，1=原始替换，2=转义替换）',
-          '状态栏脚本runOnEdit': '状态栏类脚本未开启runOnEdit。请开启runOnEdit=true，编辑消息时自动重新执行脚本',
-          '常驻Token总量 ≤500': '常驻Token总量超过500。请将非核心内容移到触发条目，控制常驻Token≤500，确保有足够预算给触发条目',
-          '递归安全：实体类条目开启prevent_recursion': '实体类条目未开启prevent_recursion。请为<实体交互>、<重要角色>、<地点场景>等条目开启prevent_recursion，防止链式触发导致Token爆炸',
-          '冷却防抖：场景类条目开启cooldown': '场景类条目未设置冷却。请为<场景机制>、<核心玩法>等条目开启cooldown=3，防止内容刷屏'
+          // === 基础字段 ===
+          '世界/角色名称': { field: 'name', instr: '问题：世界/角色名称为空\n影响：无法识别卡片主体\n修复：设置一个简洁有力的世界名称（如「青云大陆」），不超过15字' },
+          '世界观描述 ≥400字': { field: 'description', instr: '问题：世界观描述不足400字\n影响：世界背景单薄，AI缺乏设定锚点\n修复：补充到≥400字，覆盖世界核心设定、地理、历史、文化、社会结构，语言生动具体避免抽象' },
+          '性格描述（世界模式留空）': { field: 'personality', instr: '问题：世界模式下 personality 非空\n影响：与世界观模式规范冲突，可能干扰AI\n修复：清空 personality 字段（世界模式人设由世界书条目承载）' },
+          '场景设定（世界模式留空）': { field: 'scenario', instr: '问题：世界模式下 scenario 非空\n影响：与世界观模式规范冲突\n修复：清空 scenario 字段（场景由世界书触发条目动态提供）' },
+          '开场白 ≥500字': { field: 'first_mes', instr: '问题：开场白不足500字\n影响：代入感弱，玩家难以进入情境\n修复：扩展到500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符' },
+          '系统指令 ≤50字（仅AI身份定位）': { field: 'system_prompt', instr: '问题：system_prompt 过长或为空\n影响：挤占上下文，核心规则权重不足\n修复：精简到≤50字，仅保留AI身份定位一句话（如"你是某世界的叙事AI"）；核心规则迁移到 post_history_instructions' },
+          '核心铁则 post_history_instructions ≤100字': { field: 'post_history_instructions', instr: '问题：post_history_instructions 未设或过长\n影响：缺少最高权重位的硬性约束，AI遵循度下降\n修复：设置≤100字的核心铁则，分号分隔短句（如"保持神秘；拒绝透露秘密；偶尔说谜语"）。这是权重最高的位置，遵循度是system_prompt的2倍以上' },
+          '标签数量 2-12个': { field: 'tags', instr: '问题：标签数量不在2-12范围\n影响：分类与检索困难\n修复：设置2-12个简短标签，精准描述世界题材和风格（如"奇幻""中世纪""魔法"）' },
+          // === 高价值字段 ===
+          'mes_example 对话示例（Few-shot）': { field: 'mes_example', instr: '问题：缺少 mes_example 对话示例\n影响：AI缺少 Few-shot 示范，输出风格不稳定\n修复：生成1-2组对话示例，格式 <START>用户消息<END>\\n<START>助手消息<END>，展示NPC性格和对话风格' },
+          'alternate_greetings 3个差异化开局': { field: 'alternate_greetings', instr: '问题：备用开局不足3个\n影响：重玩价值低\n修复：生成至少3个不同身份/难度/场景的备用开场白，每个500字左右' },
+          'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效）' },
+          'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：生成3-5条实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换' },
+          // === 世界书基础 ===
+          '条目数 12-30条': { field: 'entries', instr: '问题：世界书条目数不在12-30范围\n影响：覆盖不全或Token浪费\n修复：调整到12-30条，覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块' },
+          '触发词覆盖率 ≥50%': { field: 'entries', instr: '问题：触发词覆盖率不足50%\n影响：触发条目无法被正确激活\n修复：为≥50%的条目设置精准 keys 触发词，避免泛用词（如"的""是"）' },
+          '条目内容 ≥250字': { field: 'entries', instr: '问题：超过半数条目内容不足250字\n影响：信息密度低，触发后AI可参考内容不足\n修复：将≥50%的条目内容扩充到≥250字，提供完整自包含的信息' },
+          '条目命名规范 ≥50%': { field: 'entries', instr: '问题：条目命名不规范\n影响：难以识别条目职能与权重层级\n修复：为≥50%的条目使用规范前缀：<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>；MVU条目用[InitVar]前缀' },
+          '权重合理性：核心规则在高权重位': { field: 'entries', instr: '问题：核心规则未在高权重位\n影响：AI容易忽略核心规则\n修复：核心规则必须放在 post_history_instructions 或 <核心铁则> 条目（高权重位），近场约束放适当位置' },
+          'content自包含性（无上下文依赖）': { field: 'entries', instr: '问题：条目content含上下文依赖词\n影响：条目单独触发时信息不完整\n修复：移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息' },
+          // === 世界书高级 ===
+          '递归链条：delay_until_recursion': { field: 'entries', instr: '问题：未使用递归链条\n影响：无法实现"提到A自动带出A背景"\n修复：为叙事类条目开启 extensions.delay_until_recursion=true，实现关联触发' },
+          '分组机制：group分组': { field: 'entries', instr: '问题：未使用group分组\n影响：场景变体/难度分层无法互斥\n修复：为场景变体/难度分层/时间分支设置 extensions.group 分组（同组仅注入1条实现互斥）' },
+          '次级键过滤：secondary_keys + selectiveLogic': { field: 'entries', instr: '问题：未使用次级键过滤\n影响：复杂条件触发不精准\n修复：为复杂条件条目设置 secondary_keys 配合 extensions.selectiveLogic（0=AND_ANY,1=NOT_ALL,2=NOT_ANY,3=AND_ALL）' },
+          '概率事件：probability < 100': { field: 'entries', instr: '问题：未使用概率触发\n影响：缺少随机性与惊喜感\n修复：为随机天气/彩蛋/遭遇条目设置 extensions.useProbability=true 且 extensions.probability<100' },
+          '正则触发键': { field: 'entries', instr: '问题：未使用正则触发键\n影响：无法精确匹配说话者\n修复：为需要精确匹配的条目使用正则键，如 keys:["/^\\\\x01{{user}}:.*?/i"]' },
+          '组评分 use_group_scoring': { field: 'entries', instr: '问题：未使用组评分\n影响：大分组匹配精准度不足\n修复：为大分组条目开启 extensions.use_group_scoring=true' },
+          'sticky/cooldown冲突检查': { field: 'entries', instr: '问题：条目同时设置sticky和cooldown\n影响：逻辑冲突（sticky持续存在 vs cooldown间歇触发）\n修复：移除其中一个，按需保留单一机制' },
+          'position配置合理性': { field: 'entries', instr: '问题：position配置有误\n影响：注入位置异常\n修复：constant条目 extensions.position≤1；position=6需配depth+role；position=7需配outlet_name' },
+          // === 正则脚本 ===
+          '脚本功能单一': { field: 'regex_scripts', instr: '问题：正则脚本功能混合\n影响：难以维护与调试\n修复：每个脚本只做一件事，复杂替换拆分成多个简单脚本' },
+          '正则标志正确（g全局匹配）': { field: 'regex_scripts', instr: '问题：findRegex缺少g标志\n影响：只替换第一个匹配\n修复：findRegex 包含g标志（如/pattern/gi），中文场景加i' },
+          '非贪婪匹配（.*?）': { field: 'regex_scripts', instr: '问题：使用贪婪匹配.*或.+\n影响：匹配过多内容\n修复：改用.*?或.+?非贪婪匹配' },
+          'placement配置检查': { field: 'regex_scripts', instr: '问题：未设置placement\n影响：脚本不知在哪个位置执行\n修复：设置placement数组，[0]=用户输入、[1]=AI回复、[0,1]=两者都处理' },
+          'substituteRegex范围（0-2）': { field: 'regex_scripts', instr: '问题：substituteRegex超出0-2范围\n影响：宏替换行为异常\n修复：设为0(不替换宏)/1(原始替换)/2(转义替换)，一般用1' },
+          '状态栏脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏脚本未开启runOnEdit\n影响：编辑消息时状态栏不刷新\n修复：状态栏类脚本设置 runOnEdit=true' },
+          // === 运行效果 ===
+          '常驻Token总量 ≤500': { field: 'entries', instr: '问题：常驻Token总量超过500\n影响：挤占上下文预算，长对话记忆受损\n修复：将非核心内容从constant条目移到触发条目，控制常驻Token≤500' },
+          '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
+          '冷却防抖：场景类条目开启cooldown': { field: 'entries', instr: '问题：场景类条目未设置cooldown\n影响：内容刷屏\n修复：为<场景机制>、<核心玩法>等条目设置 extensions.cooldown=3' },
+          // === MVU变量系统 ===
+          'MVU四大核心条目完整': { field: 'entries', instr: '问题：MVU四大核心条目不完整\n影响：变量系统无法正常运作\n修复：生成完整四件套——\n  1. [InitVar]初始变量：YAML格式定义所有变量初始值（缩进表示层级，如 白娅:\\n  依存度: 35）\n  2. 变量列表：固定内容 "---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>"\n  3. [mvu_update]变量更新规则：YAML格式，含 type/range/check 三字段\n  4. [mvu_update]变量输出格式：定义 <UpdateVariable> 输出格式，采用 JSON Patch 标准（replace/delta/insert/remove/move 操作）' },
+          '[InitVar]条目enabled=false': { field: 'entries', instr: '问题：[InitVar]条目 enabled=true\n影响：MVU不会读取已开启的initvar条目，导致变量初始化失败\n修复：将 [InitVar] 条目的 enabled 改为 false（必须禁用，MVU只读取禁用的initvar条目进行初始化）' },
+          '变量列表含format_message_variable宏': { field: 'entries', instr: '问题：变量列表条目缺少 {{format_message_variable::stat_data}} 宏\n影响：LLM无法读取当前变量值，变量更新无依据\n修复：变量列表条目内容必须包含宏，固定格式：\n  ---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n  注意：禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体' }
         };
+
+        // 按字段分组，便于 AI 按字段批量处理
+        var groups = {};
         failedItems.forEach(function(item) {
-          var instr = instructionMap[item.name];
-          if (instr) {
-            instructions.push('- ' + instr);
-          }
+          var entry = instructionMap[item.name];
+          if (!entry) return;
+          if (!groups[entry.field]) groups[entry.field] = [];
+          groups[entry.field].push({ name: item.name, instr: entry.instr });
         });
-        return instructions.join('\n');
+
+        // 输出结构化 Markdown，AI 可按字段定位与执行
+        var lines = [];
+        lines.push('# 待优化项清单（按字段分组）');
+        lines.push('');
+        lines.push('共 ' + failedItems.length + ' 项未达标，需优化字段：' + Object.keys(groups).join('、'));
+        lines.push('');
+        Object.keys(groups).forEach(function(field) {
+          lines.push('## 字段：' + field);
+          groups[field].forEach(function(item, idx) {
+            lines.push('');
+            lines.push('### ' + (idx + 1) + '. ' + item.name);
+            lines.push(item.instr);
+          });
+          lines.push('');
+        });
+        lines.push('## 执行要求');
+        lines.push('- 严格按上述"修复"方法执行，不要遗漏任何一项');
+        lines.push('- 输出 JSON 代码块，只包含被优化的字段（entries/depth_prompt/regex_scripts 放顶层，不嵌套）');
+        lines.push('- entries 优化时优先用相同 comment 覆盖现有条目，不足再新增');
+        lines.push('- MVU 相关条目必须遵守：[InitVar] enabled=false，变量列表必须含 {{format_message_variable::stat_data}} 宏');
+        return lines.join('\n');
       }
 
       // ===== 优化弹窗 =====
@@ -4509,13 +4648,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '  * probability：随机事件设为<100\n' +
             '  * secondary_keys+selectiveLogic：复杂条件控制\n' +
             '- 优化策略：优先优化现有条目（用相同comment覆盖），不足则补充新条目\n\n' +
+            '【MVU 变量系统条目（仅当优化 entries 且卡内已含 MVU 条目时适用）】\n' +
+            'MVU 四大核心条目必须成套存在，缺一不可：\n' +
+            '1. [InitVar]初始变量（comment 以 [InitVar] 开头）\n' +
+            '   - enabled 必须 false（MVU 只读取禁用的 initvar 条目进行初始化，true 会失效）\n' +
+            '   - content 为合法 JSON，格式 { "分类名": { "变量名": [初始值, "更新条件"], ... } }\n' +
+            '   - 示例：{ "主角": { "体力值": [100, "0-100，活动消耗，休息恢复"] }, "同桌": { "好感度": [0, "0-100，互动良好时增加"] } }\n' +
+            '2. 变量列表（comment 含"变量列表"）\n' +
+            '   - content 必须包含宏 {{format_message_variable::stat_data}}（否则 LLM 无法读取当前变量值）\n' +
+            '   - 固定格式：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
+            '   - 禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体\n' +
+            '3. 变量更新规则（comment 含"变量更新规则"）\n' +
+            '   - 定义每个变量在什么条件下更新、更新成什么值\n' +
+            '4. 变量输出格式（comment 含"变量输出格式"，建议加 [mvu_update] 前缀）\n' +
+            '   - 定义 <UpdateVariable> 输出格式，采用 JSON Patch (RFC 6902) 标准\n' +
+            '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
+            '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
+            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、必备正则、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
             '规则：\n' +
             '1. entries字段直接放在顶层，不需要嵌套在character_book中\n' +
             '2. depth_prompt和regex_scripts直接放在顶层，不需要嵌套在extensions中\n' +
             '3. 只包含被优化的字段，其他字段不要输出\n' +
-            '4. 保持JSON格式正确，使用双引号\n\n' +
+            '4. 保持JSON格式正确，使用双引号\n' +
+            '5. [InitVar] 条目的 enabled 必须为 false；变量列表 content 必须含 {{format_message_variable::stat_data}} 宏\n\n' +
             '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
 
 
@@ -4687,21 +4844,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var entries = (cardData.character_book || {}).entries || [];
           var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
           if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、UpdateVariable正则、StatusPlaceHolder正则
-            // 这里基于导出后的 card 检测是否完整注入
+            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、4条MVU正则
             var ext = (exportCard.data && exportCard.data.extensions) || {};
             var rxScripts = ext.regex_scripts || [];
             var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
             var hasBundle = helperScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0; });
+            var hasSchema = helperScripts.some(function(s) { return (s.content || '').indexOf('registerMvuSchema') >= 0; });
             var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
-            var hasStatusRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
-            if (hasBundle && hasUpdRx && hasStatusRx) {
+            if (hasBundle && hasSchema && hasUpdRx) {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js脚本和6条正则已自动注入导出JSON', 'success');
+                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+4条正则已自动注入导出JSON', 'success');
               }, 500);
             } else {
               setTimeout(function() {
-                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本和正则', 'info');
+                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本和正则', 'info');
               }, 500);
             }
           }
