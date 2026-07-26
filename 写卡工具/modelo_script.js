@@ -1943,13 +1943,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       desc: entriesWithContent + '/' + entries.length + ' 条达标',
       fix: !hasEntries ? '无条目' : (entriesWithContent < entries.length * 0.5 ? '建议扩充不达标条目内容至250字以上' : '条目内容充实')
     });
-    var entriesWithPrefix = entries.filter(function(e) { return /^<[^>]+>/.test(e.comment || ''); }).length;
+    var entriesWithPrefix = entries.filter(function(e) { return /^<[^>]+>/.test(e.comment || '') || /^\[InitVar\]/.test(e.comment || '') || isMVUEntry(e.comment || ''); }).length;
     results.push({
       pass: hasEntries && entriesWithPrefix >= Math.max(1, entries.length * 0.5),
       category: '世界书',
       name: '条目命名规范 ≥50%',
-      desc: entriesWithPrefix + '/' + entries.length + ' 条使用<模块>前缀',
-      fix: !hasEntries ? '无条目' : (entriesWithPrefix < entries.length * 0.5 ? '建议使用<基础公理>、<核心铁则>等规范前缀' : '命名规范良好')
+      desc: entriesWithPrefix + '/' + entries.length + ' 条使用规范前缀',
+      fix: !hasEntries ? '无条目' : (entriesWithPrefix < entries.length * 0.5 ? '建议使用<基础公理>、<核心铁则>等规范前缀（MVU条目用[InitVar]前缀）' : '命名规范良好')
     });
     // 权重合理性：核心规则在高权重位
     var coreIronRuleCount = entries.filter(function(e) { return (e.comment || '').indexOf('<核心铁则>') >= 0 || (e.comment || '').indexOf('<禁止项>') >= 0; }).length;
@@ -2271,6 +2271,59 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: conflictGroups.length > 0 ? '常驻条目(constant=true)不应设置非空group，否则同组仅注入1条。冲突group：' + conflictGroups.join(', ') + '。建议清空常驻条目的group字段' : '常驻条目group配置正确'
     });
 
+    // === MVU变量系统检查（5项，进阶可选） ===
+    var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
+    var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; });
+    var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+    var hasVarRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
+    var hasVarFormat = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
+    var hasAnyMVU = mvuEntries.length > 0;
+    // 检查InitVar条目的enabled是否为false
+    var initVarEnabledWrong = mvuEntries.some(function(e) {
+      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled !== false;
+    });
+    results.push({
+      pass: !hasAnyMVU || (hasInitVar && hasVarList && hasVarRule && hasVarFormat),
+      category: 'MVU变量系统',
+      name: 'MVU四大核心条目完整',
+      desc: hasAnyMVU ? ('InitVar:' + (hasInitVar ? '✓' : '✗') + ' 变量列表:' + (hasVarList ? '✓' : '✗') + ' 更新规则:' + (hasVarRule ? '✓' : '✗') + ' 输出格式:' + (hasVarFormat ? '✓' : '✗')) : '未使用MVU变量系统',
+      fix: !hasAnyMVU ? '如需变量系统，请生成[InitVar]初始变量、变量列表、变量更新规则、变量输出格式四个条目' : (!hasInitVar ? '缺少[InitVar]初始变量条目' : (!hasVarList ? '缺少变量列表条目（含{{get_message_variable::stat_data}}宏）' : (!hasVarRule ? '缺少变量更新规则条目' : '缺少变量输出格式条目（定义<UpdateVariable>输出格式）')))
+    });
+    results.push({
+      pass: !hasInitVar || !initVarEnabledWrong,
+      category: 'MVU变量系统',
+      name: '[InitVar]条目enabled=false',
+      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled未设为false' : 'InitVar条目已正确禁用'),
+      fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化' : '配置正确'
+    });
+    var mvuScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
+    var hasBundleScript = mvuScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0 || (s.content || '').indexOf('MagVarUpdate') >= 0; });
+    results.push({
+      pass: !hasAnyMVU || hasBundleScript,
+      category: 'MVU变量系统',
+      name: 'MVU脚本已注入',
+      desc: hasBundleScript ? '检测到bundle.js导入脚本' : (hasAnyMVU ? '未检测到MVU脚本' : '未使用MVU变量系统'),
+      fix: hasAnyMVU && !hasBundleScript ? '导出时会自动注入import bundle.js脚本，如未检测到请检查tavern_helper.scripts' : '配置正确'
+    });
+    var mvuRegexScripts = rx || [];
+    var hasUpdateVarRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; });
+    var hasStatusRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0; });
+    results.push({
+      pass: !hasAnyMVU || (hasUpdateVarRegex && hasStatusRegex),
+      category: 'MVU变量系统',
+      name: 'MVU必备正则已配置',
+      desc: hasAnyMVU ? ('去除UpdateVariable:' + (hasUpdateVarRegex ? '✓' : '✗') + ' 隐藏StatusPlaceHolder:' + (hasStatusRegex ? '✓' : '✗')) : '未使用MVU变量系统',
+      fix: hasAnyMVU && (!hasUpdateVarRegex || !hasStatusRegex) ? '导出时会自动注入MVU必备正则，如未检测到请检查regex_scripts' : '配置正确'
+    });
+    var hasStatusPlaceHolder = first.indexOf('StatusPlaceHolderImpl') >= 0;
+    results.push({
+      pass: !hasAnyMVU || hasStatusPlaceHolder,
+      category: 'MVU变量系统',
+      name: '开场白含StatusPlaceHolderImpl占位符',
+      desc: !hasAnyMVU ? '未使用MVU变量系统' : (hasStatusPlaceHolder ? '开场白已包含占位符' : '开场白缺少占位符'),
+      fix: hasAnyMVU && !hasStatusPlaceHolder ? '导出时会自动在开场白末尾追加<StatusPlaceHolderImpl/>，如未检测到请手动添加' : '配置正确'
+    });
+
     return results;
   }
 
@@ -2475,6 +2528,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               disabled: false,
               markdownOnly: false,
               promptOnly: true,
+              runOnEdit: true,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 自动注入MVU状态栏显示正则（如果尚未存在）- 替换占位符为空，避免标签直接显示给用户
+          var hasStatusDisplayRegex = mvuRegex.some(function(r) {
+            var isStatus = (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0;
+            var isDisplay = r.destination ? r.destination.display : (r.markdownOnly && !r.promptOnly);
+            return isStatus && isDisplay;
+          });
+          if (!hasStatusDisplayRegex) {
+            mvuRegex.push({
+              id: 'mvu-display-status',
+              scriptName: 'MVU-状态栏显示占位',
+              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: true,
+              promptOnly: false,
               runOnEdit: true,
               substituteRegex: 0,
               minDepth: null,
@@ -3693,16 +3769,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         var results = runQualityCheck(cardData);
         var passCount = results.filter(function(r) { return r.pass; }).length;
-        var coreResults = results.filter(function(r) { return r.category !== '附加检查'; });
+        var coreResults = results.filter(function(r) { return r.category !== '附加检查' && r.category !== 'MVU变量系统'; });
         var corePass = coreResults.filter(function(r) { return r.pass; }).length;
+        var mvuResults = results.filter(function(r) { return r.category === 'MVU变量系统'; });
+        var mvuPass = mvuResults.filter(function(r) { return r.pass; }).length;
         var h = '<div class="modal" id="qcModal">' +
           '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（32项核心 + 6项附加）</h3>' +
-            '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标 · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
+            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（' + coreResults.length + '项核心 + ' + mvuResults.length + '项MVU + ' + (results.length - coreResults.length - mvuResults.length) + '项附加）</h3>' +
+            '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标' + (mvuResults.length > 0 ? ' · MVU ' + mvuPass + '/' + mvuResults.length + ' 项达标' : '') + ' · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
             '<div class="modal-body" style="margin-top:10px">';
-        var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', '附加检查'];
-        var catColors = { '基础字段': '#d2a8ff', '高价值字段': '#f78166', '世界书': '#3fb950', '世界书高级': '#a371f7', '正则脚本': '#f0883e', '运行效果': '#d29922', '附加检查': '#8b949e' };
+        var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
+        var catColors = { '基础字段': '#d2a8ff', '高价值字段': '#f78166', '世界书': '#3fb950', '世界书高级': '#a371f7', '正则脚本': '#f0883e', '运行效果': '#d29922', 'MVU变量系统': '#58a6ff', '附加检查': '#8b949e' };
         categories.forEach(function(cat) {
           var catResults = results.filter(function(r) { return r.category === cat; });
           if (catResults.length === 0) return;
