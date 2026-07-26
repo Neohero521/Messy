@@ -369,10 +369,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
-    '[InitVar]初始变量': { constant: true, selective: false, position: 0, depth: 0, order: 245, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
-    '变量列表': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
-    '变量更新规则': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
-    '变量输出格式': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 4, depth: 4, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
+    '变量列表': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '变量更新规则': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '变量输出格式': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '状态变量输出': { constant: false, selective: true, position: 2, depth: 2, order: 45, sticky: null, cooldown: null, delay: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 3, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100, secondary_keys: [] }
   };
 
@@ -405,10 +405,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { level: '极低', color: '#6e7681', desc: 'position=0 常驻' },
     '禁止项': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，禁止规则' },
     '自定义条目': { level: '中', color: '#3fb950', desc: '用户自定义' },
-    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=0 常驻(enabled=false)，MVU变量初始化JSON' },
-    '变量列表': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，注入当前变量值给LLM' },
-    '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=0 常驻，MVU变量更新分析规则' },
-    '变量输出格式': { level: '低', color: '#8b949e', desc: 'position=0 常驻，定义<UpdateVariable>输出格式' },
+    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=4(at_depth d=4) 常驻(enabled=false)，MVU变量初始化JSON' },
+    '变量列表': { level: '极低', color: '#6e7681', desc: 'position=4(at_depth d=0) 常驻，注入当前变量值给LLM' },
+    '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=4(at_depth d=0) 常驻，MVU变量更新分析规则' },
+    '变量输出格式': { level: '低', color: '#8b949e', desc: 'position=4(at_depth d=0) 常驻，定义<UpdateVariable>输出格式' },
     '状态变量输出': { level: '中', color: '#3fb950', desc: 'position=2 触发，输出当前变量状态给LLM' }
   };
 
@@ -680,15 +680,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 格式：每个变量为 [初始值, "更新条件说明"] 数组，支持嵌套对象分层\n' +
     '     · 示例：{"角色":{"好感度":[0,"[-1,100]之间,情绪变化时更新"],"位置":["教堂","移动后改变"]}}\n' +
     '  2. 变量列表：世界书条目（constant=true），通过宏注入当前变量值给LLM\n' +
-    '     · 内容：<status_current_variable>{{get_message_variable::stat_data}}</status_current_variable>\n' +
+    '     · 内容：<status_current_variable>{{format_message_variable::stat_data}}</status_current_variable>\n' +
     '  3. 变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
     '     · 包含check条件、取值范围、更新频率限制等\n' +
     '  4. 变量输出格式：世界书条目（constant=true），定义<UpdateVariable>段的输出格式\n' +
     '     · 格式：<UpdateVariable><Analysis>路径: Y/N</Analysis>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
     '     · _.set()语法：_.set(\'变量路径\', 老值, 新值);//更新原因（老值不重要，MVU只关心新值）\n' +
-    '  5. 正则脚本：2个必备正则（写卡器自动注入）\n' +
-    '     · 正则1：去除<UpdateVariable>段（AI输出, 仅格式显示+仅格式提示词）\n' +
-    '     · 正则2：对AI隐藏<StatusPlaceHolderImpl/>（AI输出, 仅格式提示词，不勾仅格式显示）\n' +
+    '  5. 正则脚本：4个必备正则（写卡器自动注入）\n' +
+    '     · 正则1：移除旧消息的UpdateVariable段（AI输出, 仅格式提示词, minDepth=4，保留最近2楼给AI）\n' +
+    '     · 正则2：移除所有消息的UpdateVariable段（AI输出, 仅格式显示）\n' +
+    '     · 正则3：对AI隐藏<StatusPlaceHolderImpl/>（AI输出, 仅格式提示词，不勾仅格式显示）\n' +
+    '     · 正则4：状态栏显示占位（AI输出, 仅格式显示，替换占位符为空或状态栏HTML）\n' +
     '- stat_data vs display_data：\n' +
     '  · stat_data：当前值，格式为 [最新值, "更新条件"] 数组，用于逻辑判断\n' +
     '  · display_data：显示值，格式为 "老值->新值(原因)" 字符串，用于状态栏展示\n' +
@@ -1070,17 +1072,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString="ACTION_MATCH_FOUND"\n' +
     '      disabled=true（默认禁用，通过STscript按需触发）\n' +
     '      用途：在STscript中判断是否匹配成功，执行条件分支\n' +
-    '  15. MVU-去除变量更新段（AI输出，仅格式显示+仅格式提示词）：\n' +
+    '  15. MVU-移除旧变量更新(提示词)（AI输出，仅格式提示词，minDepth=4）：\n' +
     '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
     '      replaceString=""\n' +
-    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=true\n' +
-    '      用途：从显示和提示词中移除<UpdateVariable>段，变量由MVU脚本处理\n' +
-    '  16. MVU-对AI隐藏状态栏（AI输出，仅格式提示词）：\n' +
+    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true, minDepth=4\n' +
+    '      用途：只从depth>=4的旧消息提示词中移除<UpdateVariable>段，保留最近2楼让AI看到变量更新历史\n' +
+    '  16. MVU-移除变量更新(显示)（AI输出，仅格式显示）：\n' +
+    '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
+    '      replaceString=""\n' +
+    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false\n' +
+    '      用途：从所有消息的显示中移除<UpdateVariable>段，用户不需要看到变量更新代码\n' +
+    '  17. MVU-对AI隐藏状态栏（AI输出，仅格式提示词）：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
     '      replaceString=""\n' +
     '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
-    '  17. MVU-状态栏美化显示（AI输出，仅格式显示）：\n' +
+    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
     "      replaceString=\"```html\\n...状态栏HTML/EJS...\\n```\"\n" +
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false\n' +
@@ -1190,7 +1197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n' +
     '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式，enabled=false禁用）\n' +
-    '- 变量列表：MVU当前变量注入（含{{get_message_variable::stat_data}}宏）\n' +
+    '- 变量列表：MVU当前变量注入（含{{format_message_variable::stat_data}}宏）\n' +
     '- 变量更新规则：MVU变量更新分析规则（check条件、取值范围等）\n' +
     '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含_.set()语法）\n' +
     '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
@@ -1221,10 +1228,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '| <角色边界> | true | false | 0 | 2 | 80 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <禁止项> | true | false | 0 | 3 | 70 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <自定义条目> | false | true | 1 | 4 | 55 | 0 | 5 | false | 100 | true | (空) | false |\n' +
-    '| [InitVar]初始变量 | true | false | 0 | 0 | 245 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
-    '| 变量列表 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
-    '| 变量更新规则 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
-    '| 变量输出格式 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [InitVar]初始变量 | true | false | 4 | 4 | 200 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
+    '| 变量列表 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| 变量更新规则 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| 变量输出格式 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <状态变量输出> | false | true | 2 | 2 | 45 | 0 | 3 | false | 100 | true | (空) | false |\n' +
     '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
@@ -2287,7 +2294,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       category: 'MVU变量系统',
       name: 'MVU四大核心条目完整',
       desc: hasAnyMVU ? ('InitVar:' + (hasInitVar ? '✓' : '✗') + ' 变量列表:' + (hasVarList ? '✓' : '✗') + ' 更新规则:' + (hasVarRule ? '✓' : '✗') + ' 输出格式:' + (hasVarFormat ? '✓' : '✗')) : '未使用MVU变量系统',
-      fix: !hasAnyMVU ? '如需变量系统，请生成[InitVar]初始变量、变量列表、变量更新规则、变量输出格式四个条目' : (!hasInitVar ? '缺少[InitVar]初始变量条目' : (!hasVarList ? '缺少变量列表条目（含{{get_message_variable::stat_data}}宏）' : (!hasVarRule ? '缺少变量更新规则条目' : '缺少变量输出格式条目（定义<UpdateVariable>输出格式）')))
+      fix: !hasAnyMVU ? '如需变量系统，请生成[InitVar]初始变量、变量列表、变量更新规则、变量输出格式四个条目' : (!hasInitVar ? '缺少[InitVar]初始变量条目' : (!hasVarList ? '缺少变量列表条目（含{{format_message_variable::stat_data}}宏）' : (!hasVarRule ? '缺少变量更新规则条目' : '缺少变量输出格式条目（定义<UpdateVariable>输出格式）')))
     });
     results.push({
       pass: !hasInitVar || !initVarEnabledWrong,
@@ -2308,12 +2315,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var mvuRegexScripts = rx || [];
     var hasUpdateVarRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; });
     var hasStatusRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0; });
+    var updateVarRegexCount = mvuRegexScripts.filter(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; }).length;
+    var statusRegexCount = mvuRegexScripts.filter(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0; }).length;
     results.push({
       pass: !hasAnyMVU || (hasUpdateVarRegex && hasStatusRegex),
       category: 'MVU变量系统',
       name: 'MVU必备正则已配置',
-      desc: hasAnyMVU ? ('去除UpdateVariable:' + (hasUpdateVarRegex ? '✓' : '✗') + ' 隐藏StatusPlaceHolder:' + (hasStatusRegex ? '✓' : '✗')) : '未使用MVU变量系统',
-      fix: hasAnyMVU && (!hasUpdateVarRegex || !hasStatusRegex) ? '导出时会自动注入MVU必备正则，如未检测到请检查regex_scripts' : '配置正确'
+      desc: hasAnyMVU ? ('UpdateVariable正则:' + updateVarRegexCount + '条 StatusPlaceHolder正则:' + statusRegexCount + '条') : '未使用MVU变量系统',
+      fix: hasAnyMVU && (!hasUpdateVarRegex || !hasStatusRegex) ? '导出时会自动注入MVU必备正则（UpdateVariable 2条 + StatusPlaceHolder 2条），如未检测到请检查regex_scripts' : '配置正确'
     });
     var hasStatusPlaceHolder = first.indexOf('StatusPlaceHolderImpl') >= 0;
     results.push({
@@ -2498,18 +2507,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             });
           }
           // 自动注入MVU必备正则脚本（如果尚未存在）
-          var hasUpdateVarRegex = mvuRegex.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; });
-          if (!hasUpdateVarRegex) {
+          // 正则1：从提示词中移除旧消息的UpdateVariable段（保留最近2楼给AI看，minDepth=4）
+          var hasUpdateVarPromptRegex = mvuRegex.some(function(r) {
+            return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && (r.destination ? r.destination.prompt : r.promptOnly);
+          });
+          if (!hasUpdateVarPromptRegex) {
             mvuRegex.push({
-              id: 'mvu-remove-updatevar',
-              scriptName: 'MVU-去除变量更新段',
+              id: 'mvu-remove-updatevar-prompt',
+              scriptName: 'MVU-移除旧变量更新(提示词)',
+              findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: true,
+              substituteRegex: 0,
+              minDepth: 4,
+              maxDepth: null
+            });
+          }
+          // 正则2：从显示中移除所有UpdateVariable段（用户不需要看到变量更新代码）
+          var hasUpdateVarDisplayRegex = mvuRegex.some(function(r) {
+            return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && (r.destination ? r.destination.display : (r.markdownOnly && !r.promptOnly));
+          });
+          if (!hasUpdateVarDisplayRegex) {
+            mvuRegex.push({
+              id: 'mvu-remove-updatevar-display',
+              scriptName: 'MVU-移除变量更新(显示)',
               findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
               replaceString: '',
               trimStrings: [],
               placement: [2],
               disabled: false,
               markdownOnly: true,
-              promptOnly: true,
+              promptOnly: false,
               runOnEdit: true,
               substituteRegex: 0,
               minDepth: null,
