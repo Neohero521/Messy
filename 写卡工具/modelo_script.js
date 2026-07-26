@@ -368,7 +368,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '统一输出格式': { constant: true, selective: false, position: 0, depth: 1, order: 85, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
-    '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 }
+    '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 0, depth: 0, order: 245, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '变量更新规则': { constant: true, selective: false, position: 1, depth: 0, order: 145, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '状态变量输出': { constant: false, selective: true, position: 2, depth: 2, order: 45, sticky: null, cooldown: null, delay: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 3, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100, secondary_keys: [] }
   };
 
   // ===== 权重等级映射（用于权重可视化预览） =====
@@ -399,7 +402,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '统一输出格式': { level: '极低', color: '#6e7681', desc: 'position=0 常驻' },
     '角色边界': { level: '极低', color: '#6e7681', desc: 'position=0 常驻' },
     '禁止项': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，禁止规则' },
-    '自定义条目': { level: '中', color: '#3fb950', desc: '用户自定义' }
+    '自定义条目': { level: '中', color: '#3fb950', desc: '用户自定义' },
+    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，MVU变量初始化JSON' },
+    '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=1 常驻，MVU变量更新规则说明' },
+    '状态变量输出': { level: '中', color: '#3fb950', desc: 'position=2 触发，输出当前变量状态给LLM' }
   };
 
   // ===== 题材预设模板（规范4.4：一键套用最优参数） =====
@@ -415,7 +421,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '灵气为本，天道循环，修炼逆天而行',
         '核心玩法': '修炼境界突破、宗门任务、探索秘境、炼丹炼器',
         '世界规则': '境界压制、灵气浓度、天劫法则',
-        '实体交互': '宗门掌门、长老、师兄妹、妖兽、灵草'
+        '实体交互': '宗门掌门、长老、师兄妹、妖兽、灵草',
+        '[InitVar]初始变量': '玩家.境界:练气期, 玩家.灵石:100, 玩家.宗门:青云宗'
       }
     },
     '末世': {
@@ -429,7 +436,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '病毒爆发，文明崩塌，适者生存',
         '核心玩法': '搜刮物资、营地建设、丧尸战斗、幸存者招募',
         '世界规则': '感染机制、辐射区、物资刷新、变异等级',
-        '实体交互': '幸存者、商人、掠夺者、变异体、军方残部'
+        '实体交互': '幸存者、商人、掠夺者、变异体、军方残部',
+        '[InitVar]初始变量': '玩家.生命值:100, 玩家.食物:50, 玩家.弹药:30, 营地.安全等级:低'
       }
     },
     '西幻': {
@@ -443,7 +451,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '魔力弥漫，诸神注视，善恶有报',
         '核心玩法': '冒险者任务、魔法修炼、公会升级、队伍组建',
         '世界规则': '魔力体系、种族天赋、阵营倾向、神祇祝福',
-        '实体交互': '冒险者、魔法师、骑士、精灵、矮人、龙、魔王军'
+        '实体交互': '冒险者、魔法师、骑士、精灵、矮人、龙、魔王军',
+        '[InitVar]初始变量': '玩家.等级:1, 玩家.金币:100, 玩家.职业:冒险者, 玩家.声望:0'
       }
     },
     '都市': {
@@ -457,7 +466,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '觉醒者少数，组织维稳，表里世界并存',
         '核心玩法': '异能觉醒、组织任务、日常经营、身份隐藏',
         '世界规则': '异能分级、副作用、组织法则、暴露代价',
-        '实体交互': '异能者、组织成员、普通人、商人、情报贩子'
+        '实体交互': '异能者、组织成员、普通人、商人、情报贩子',
+        '[InitVar]初始变量': '玩家.异能等级:F, 玩家.金钱:5000, 玩家.声望:0, 玩家.暴露风险:低'
       }
     },
     '科幻': {
@@ -471,7 +481,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '物理法则不可违背，能量守恒，文明分级',
         '核心玩法': '星际航行、文明接触、科技研发、资源采集',
         '世界规则': '物理定律、科技等级、文明分类、AI法则',
-        '实体交互': '舰长、AI、异星生物、殖民者、联盟官员'
+        '实体交互': '舰长、AI、异星生物、殖民者、联盟官员',
+        '[InitVar]初始变量': '玩家.飞船等级:1, 玩家.信用点:1000, 玩家.探索度:0, 玩家.科技等级:1'
       }
     },
     '校园': {
@@ -485,7 +496,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '基础公理': '学园生活，成长为主，友情与恋爱并重',
         '核心玩法': '课程学习、社团活动、人际社交、事件参与',
         '世界规则': '学期制度、社团规则、人际关系、事件触发',
-        '实体交互': '同学、前辈、老师、社团成员、青梅竹马'
+        '实体交互': '同学、前辈、老师、社团成员、青梅竹马',
+        '[InitVar]初始变量': '玩家.年级:高一, 玩家.学力:中等, 玩家.人气:普通, 玩家.社团:未加入'
       }
     }
   };
@@ -508,6 +520,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var prefixKey = m ? m[1] : '';
     if (['动态适配', '引导机制', '互动选项', '状态栏'].indexOf(prefixKey) >= 0) return '动态系统';
     if (['叙事背景', '故事发展', '文化与习俗', '历史事件'].indexOf(prefixKey) >= 0) return '叙事';
+    if ((e.comment || '').indexOf('[InitVar]') >= 0 || prefixKey === '变量更新规则') return '变量系统';
+    if (prefixKey === '状态变量输出') return '变量系统';
     return '触发体系';
   }
 
@@ -525,11 +539,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     ],
     dynamic: [
       { key: 'dynamic_adapt', name: '动态适配', icon: '🔄', weight: 100, position: 1, depth: 4 }
+    ],
+    variable: [
+      { key: 'init_var', name: '初始变量', icon: '📊', weight: 100, position: 0, order: 245 },
+      { key: 'var_update_rule', name: '变量更新规则', icon: '📝', weight: 100, position: 1, order: 145 }
     ]
   };
 
-  // ===== 系统提示词（ST权重分层8体系） =====
-  var SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系，通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
+  // ===== 系统提示词（ST权重分层8体系 + MVU变量系统） =====
+  var SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
     '=== ⚠️ 【绝对禁止】最高优先级规则 ===\n' +
     '1. 严禁输出任何内部思考过程，包括但不限于：<thinking>标签、<think>标签、[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]、[角色认知迷雾]、[角色活性与自然回应]、[风格适配]、[反思 & 设定校对]、[物理规则]、[正文字数检测]、[输出顺序检查]、<!-- End of The ECoT -->等\n' +
     '2. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
@@ -625,7 +643,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 内容：主线剧情、支线故事、世界历史、文化习俗\n' +
     '- 特性：浅深度不触发，剧情推进到对应阶段才解锁；同组（叙事）互斥，多条同时命中仅注入1条；position=4（Author Note顶部）用于轻量叙事点缀\n' +
     '- 条目前缀：<叙事背景>、<故事发展>、<文化与习俗>、<历史事件>\n\n' +
-    '**第三部分：1套动态适配系统**\n\n' +
+    '**第三部分：1套动态适配系统 + 1套变量系统**\n\n' +
     '### 8. 动态适配系统\n' +
     '- ST能力：alternate_greetings + depth_prompt + regex_scripts + 内置宏变量\n' +
     '- 内容：\n' +
@@ -634,6 +652,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  3. 变量模板：全内容适配ST原生宏变量（{{user}}/{{random:A,B}}/{{roll:XdY}}/{{date}}/{{time}}）\n' +
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
+    '### 9. MVU变量系统（MagVarUpdate，进阶可选）\n' +
+    '- 核心脚本：import MagVarUpdate bundle.js（需用户在角色卡局部脚本中添加）\n' +
+    '- 工作原理：每次LLM生成完消息后，扫描<UpdateVariable>段中的变量变更语句，更新stat_data和display_data\n' +
+    '- 三大核心组件：\n' +
+    '  1. [InitVar]初始变量：世界书条目，JSON格式定义所有变量的初始值和更新条件\n' +
+    '  2. 变量更新规则：世界书条目，告诉LLM如何分析和输出变量更新\n' +
+    '  3. 正则脚本：2个必备正则（去除变量更新段 + 隐藏状态栏占位符）\n' +
+    '- 变量优势：\n' +
+    '  · 不依赖正则逐楼扫描，性能更好\n' +
+    '  · 变量记录不依赖过往楼层，可随时隐藏/删除旧消息\n' +
+    '  · 支持变量更新回调（如日期自动+1）\n' +
+    '  · 可将完整变量JSON传给LLM设计状态栏\n' +
+    '  · 支持stat_data（当前值数组）和display_data（显示用"老->新(原因)"格式）\n' +
+    '- 条目前缀：[InitVar]初始变量、<变量更新规则>、<状态变量输出>\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -1006,7 +1038,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      findRegex="/<action>([^<]+)</action>/gi"\n' +
     '      replaceString="ACTION_MATCH_FOUND"\n' +
     '      disabled=true（默认禁用，通过STscript按需触发）\n' +
-    '      用途：在STscript中判断是否匹配成功，执行条件分支\n\n' +
+    '      用途：在STscript中判断是否匹配成功，执行条件分支\n' +
+    '  15. MVU-去除变量更新段（仅格式显示+仅格式提示词）：\n' +
+    '      findRegex="/<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm"\n' +
+    '      replaceString=""\n' +
+    '      placement=[1], promptOnly=false（仅格式显示+仅格式提示词）\n' +
+    '      用途：从显示和提示词中移除<UpdateVariable>段，变量由MVU脚本处理\n' +
+    '  16. MVU-对AI隐藏状态栏（仅格式提示词）：\n' +
+    '      findRegex="/<StatusPlaceHolderImpl/>/gi"\n' +
+    '      replaceString=""\n' +
+    '      placement=[1], promptOnly=true（仅格式提示词）\n' +
+    '      用途：不让模型看到状态栏占位符，避免干扰生成\n' +
+    '  17. MVU-纯文本状态栏显示（render阶段）：\n' +
+    '      findRegex="/<StatusPlaceHolderImpl/>/gi"\n' +
+    "      replaceString=\"<% if (runType == 'render') { %>...状态栏内容...<% } %>\"\n" +
+    '      placement=[1], substituteRegex=0\n' +
+    '      用途：在渲染阶段将占位符替换为实际状态栏（配合MVU的display_data）\n\n' +
     '**高级场景与设计模式**：\n' +
     '- 模式1：管道式处理（多脚本串联）\n' +
     '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
@@ -1109,7 +1156,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <统一输出格式>：AI回复格式规范\n' +
     '- <角色边界>：角色行为限制和不可触犯的底线\n' +
     '- <禁止项>：禁止出现的词汇或行为\n' +
-    '- <自定义条目>：用户自定义内容\n\n' +
+    '- <自定义条目>：用户自定义内容\n' +
+    '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式）\n' +
+    '- <变量更新规则>：MVU变量更新分析规则和输出格式说明\n' +
+    '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
     '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
     '| <基础公理> | true | false | 0 | 0 | 250 | 0 | 0 | true | 100 | false | (空) | false |\n' +
@@ -1137,10 +1187,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '| <角色边界> | true | false | 0 | 2 | 80 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <禁止项> | true | false | 0 | 3 | 70 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <自定义条目> | false | true | 1 | 4 | 55 | 0 | 5 | false | 100 | true | (空) | false |\n' +
+    '| [InitVar]初始变量 | true | false | 0 | 0 | 245 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <变量更新规则> | true | false | 1 | 0 | 145 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| <状态变量输出> | false | true | 2 | 2 | 45 | 0 | 3 | false | 100 | true | (空) | false |\n' +
     '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
-    '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n\n' +
+    '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n' +
+    '注5：MVU变量系统需要额外安装脚本（import bundle.js），世界书条目和正则只是配置部分\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -1222,6 +1276,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  · placement=[3]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
     '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
     '  · 一个正则脚本可同时处理多个位置（如placement=[0,1,3]）\n\n' +
+    '**🔗 MVU变量系统设计模式（MagVarUpdate，进阶可选）**：\n' +
+    '- 模式1：分层变量结构\n' +
+    '  · 原理：按角色/物品/状态等分类嵌套JSON结构，如 { "主角": { "好感度": [0, "..."] }, "物品": { "金币": [100, "..."] } }\n' +
+    '  · 优势：结构清晰，LLM更容易理解变量归属和关系，引导更准确的变量更新\n' +
+    '  · 注意：每个变量都是 [初始值, 更新条件说明] 的数组格式\n' +
+    '- 模式2：开局变量初始化\n' +
+    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable>段，覆盖初始值\n' +
+    '  · 格式：<UpdateVariable>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
+    '  · 用途：不同开局有不同的初始变量（如不同身份有不同道具/属性）\n' +
+    '- 模式3：变量驱动的分段内容\n' +
+    '  · 原理：用提示词模板语法 + getvar("stat_data") 实现根据变量值显示不同内容\n' +
+    '  · 格式：<% if (getvar("stat_data").角色.好感度[0] >= 50) { %>...<% } %>\n' +
+    '  · 注意：第一个if用 _.has() 检查变量是否初始化完成，避免模板报错\n' +
+    '- 模式4：display_data状态显示\n' +
+    '  · 原理：MVU提供stat_data（当前值数组）和display_data（"老->新(原因)"格式）\n' +
+    '  · stat_data：用于逻辑判断，格式为 [当前值, "更新条件"]\n' +
+    '  · display_data：用于显示给用户，格式为 "旧值->新值(更新原因)"\n' +
+    '  · SafeGetValue：需要写一个工具函数处理数组和非数组两种情况\n' +
+    '- 模式5：变量更新回调（高阶，需JS能力）\n' +
+    '  · 原理：监听 mag_variable_updated / mag_variable_update_ended 事件\n' +
+    '  · 用途：LLM忘记更新时自动补全（如日期自动+1）、触发特殊逻辑\n' +
+    '  · 参考：MagVarUpdate example_src\n' +
+    '- MVU安装四件套：\n' +
+    '  1. 局部脚本：import \'https://gcore.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@master/artifact/bundle.js\'\n' +
+    '  2. 正则1：去除变量更新段 /<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm（仅格式显示+仅格式提示词）\n' +
+    '  3. 正则2：对AI隐藏状态栏 /<StatusPlaceHolderImpl/> （仅格式提示词）\n' +
+    '  4. 世界书：[InitVar]初始变量 + 变量更新规则条目\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -1263,6 +1344,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 设计状态同步（regex_scripts）\n' +
     '- 设计互动选项和引导机制\n' +
     '- 生成<动态适配>、<引导机制>、<互动选项>条目\n\n' +
+    '**步骤7：配变量系统**（MVU变量系统，进阶可选）\n' +
+    '- 确定是否需要MVU变量系统（如需复杂状态管理、好感度系统等）\n' +
+    '- 设计变量结构（按角色/物品/状态分层嵌套）\n' +
+    '- 编写[InitVar]初始变量JSON\n' +
+    '- 编写变量更新规则条目\n' +
+    '- 配置MVU专用正则脚本（去除变量更新段 + 隐藏状态栏占位符）\n' +
+    '- 如需状态栏，设计<StatusPlaceHolderImpl/>和display_data显示逻辑\n' +
+    '- 生成[InitVar]初始变量、<变量更新规则>条目\n\n' +
     '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
     '**基础字段检查（8项）：**\n' +
     '- [ ] name：世界名称明确，体现核心主题\n' +
@@ -1312,7 +1401,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] 创作者备注≤100字\n' +
     '- [ ] 常驻条目group冲突检测\n' +
     '- [ ] Outlet限制检查（如有）\n\n' +
-    '=== 状态栏格式（8体系） ===\n\n' +
+    '**MVU变量系统检查（7项，进阶可选）：**\n' +
+    '- [ ] 初始变量：[InitVar]条目存在，JSON格式合法\n' +
+    '- [ ] 变量格式：每个变量都是 [初始值, 更新条件] 数组格式\n' +
+    '- [ ] 变量更新规则：<变量更新规则>条目存在，格式说明清晰\n' +
+    '- [ ] 必备正则1：去除变量更新段正则存在（/<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm）\n' +
+    '- [ ] 必备正则2：对AI隐藏状态栏正则存在（/<StatusPlaceHolderImpl/>/）\n' +
+    '- [ ] 脚本引入：角色卡局部脚本引入了MagVarUpdate bundle.js\n' +
+    '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n\n' +
+    '=== 状态栏格式（9体系） ===\n\n' +
     '<statusblock>\n' +
     '<details open>\n' +
     '<summary><b>信息完整度 XX%</b></summary>\n' +
@@ -1325,6 +1422,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '<li><b>👥 实体交互</b>：[✅/⏳/❌] - [摘要]</li>\n' +
     '<li><b>📖 叙事背景</b>：[✅/⏳/❌] - [摘要]</li>\n' +
     '<li><b>🔄 动态适配</b>：[✅/⏳/❌] - [摘要]</li>\n' +
+    '<li><b>📊 变量系统</b>：[✅/⏳/❌] - [摘要]（进阶可选）</li>\n' +
     '</ul>\n' +
     '</details>\n' +
     '<details open>\n' +
