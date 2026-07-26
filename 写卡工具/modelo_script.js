@@ -503,7 +503,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   };
 
   function getEntryTemplate(comment) {
-    var m = (comment || '').match(/^<([^>]+)>/);
+    if (!comment) return null;
+    // 支持 [InitVar]xxx 前缀格式（MVU变量系统）
+    if (comment.indexOf('[InitVar]') === 0) {
+      return ENTRY_TEMPLATES['[InitVar]初始变量'];
+    }
+    // 支持 <xxx> 前缀格式（标准条目）
+    var m = comment.match(/^<([^>]+)>/);
     if (!m) return null;
     var key = m[1];
     if (ENTRY_TEMPLATES[key]) return ENTRY_TEMPLATES[key];
@@ -513,15 +519,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   // UI显示分组（基于条目类型，非ST group字段）
   function getDisplayGroup(e) {
-    var tmpl = getEntryTemplate(e.comment || '');
+    var comment = e.comment || '';
+    // 变量系统优先判断（避免被 constant=true 的常驻体系拦截）
+    if (comment.indexOf('[InitVar]') >= 0) return '变量系统';
+    var m = comment.match(/^<([^>]+)>/);
+    var prefixKey = m ? m[1] : '';
+    if (prefixKey === '变量更新规则' || prefixKey === '状态变量输出') return '变量系统';
+    // 常驻体系判断
+    var tmpl = getEntryTemplate(comment);
     var isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
     if (isConst) return '常驻体系';
-    var m = (e.comment || '').match(/^<([^>]+)>/);
-    var prefixKey = m ? m[1] : '';
     if (['动态适配', '引导机制', '互动选项', '状态栏'].indexOf(prefixKey) >= 0) return '动态系统';
     if (['叙事背景', '故事发展', '文化与习俗', '历史事件'].indexOf(prefixKey) >= 0) return '叙事';
-    if ((e.comment || '').indexOf('[InitVar]') >= 0 || prefixKey === '变量更新规则') return '变量系统';
-    if (prefixKey === '状态变量输出') return '变量系统';
     return '触发体系';
   }
 
@@ -2449,7 +2458,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var isGenerating = false;
       var cardGenerated = false;
       var progress = 0;
-      var moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0 };
+      var moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
 
       function renderWelcome() {
         doc.body.innerHTML =
@@ -2514,6 +2523,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '<button class="mod-focus-btn" data-mod="entity_interact">👥 实体交互</button>' +
                   '<button class="mod-focus-btn" data-mod="narrative_bg">📖 叙事背景</button>' +
                   '<button class="mod-focus-btn" data-mod="dynamic_adapt">🔄 动态适配</button>' +
+                  '<button class="mod-focus-btn" data-mod="init_var">📊 初始变量</button>' +
+                  '<button class="mod-focus-btn" data-mod="var_update_rule">📝 变量更新规则</button>' +
                 '</div>' +
                 '<div class="mod-dash" id="modDash" style="margin:0;border-left:none;border-right:none;border-radius:0">' +
                   '<div class="md-header" id="modDashHeader"><span>📊 模块进度仪表盘</span><span class="md-arrow">▼</span></div>' +
@@ -2807,7 +2818,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             messages = state.messages || [];
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
-            moduleProgress = state.moduleProgress || { gameplay: 0, rules: 0, situation: 0, characters: 0, story: 0, guide: 0 };
+            moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
             return true;
           }
         } catch(e) {}
@@ -2846,7 +2857,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           scene_mechanics: '场景机制',
           entity_interact: '实体交互',
           narrative_bg: '叙事背景',
-          dynamic_adapt: '动态适配'
+          dynamic_adapt: '动态适配',
+          init_var: 'MVU变量系统（初始变量）',
+          var_update_rule: 'MVU变量系统（变量更新规则）'
         };
         var modName = modNames[mod] || '该模块';
         var input = doc.getElementById('chatInput');
@@ -2860,7 +2873,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var modBtns = doc.querySelectorAll('.mod-focus-btn');
         if (!modBtns || !modBtns.length) return;
         var mp = getModuleProgress();
-        var modMap = { 'axiom': 0, 'soft_rules': 0, 'core_rules': 0, 'near_constraint': 0, 'scene_mechanics': 0, 'entity_interact': 0, 'narrative_bg': 0, 'dynamic_adapt': 0 };
+        var modMap = { 'axiom': 0, 'soft_rules': 0, 'core_rules': 0, 'near_constraint': 0, 'scene_mechanics': 0, 'entity_interact': 0, 'narrative_bg': 0, 'dynamic_adapt': 0, 'init_var': 0, 'var_update_rule': 0 };
         Object.keys(mp).forEach(function(k) { if (mp[k]) modMap[k] = 100; });
         var aiMp = moduleProgress || {};
         Object.keys(aiMp).forEach(function(k) { if (aiMp[k] > 0) modMap[k] = Math.max(modMap[k] || 0, aiMp[k]); });
@@ -2882,7 +2895,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
         var hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
         var actions = [];
-        // 引导流程6步（规范4.5）：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配
+        // 引导流程7步（规范4.5）：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配→配变量系统
         if (p < 20) {
           actions.push({ action: 'genre', label: '🎭 题材预设' });
           actions.push({ action: 'core_rules', label: '🔐 定核心铁则', hl: true });
@@ -2895,6 +2908,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         } else if (p < 80) {
           actions.push({ action: 'narrative_bg', label: '📖 补叙事背景' });
           actions.push({ action: 'dynamic_adapt', label: '🔄 做动态适配', hl: true });
+        } else if (p < 95) {
+          actions.push({ action: 'init_var', label: '📊 配变量系统', hl: true });
+          actions.push({ action: 'generate', label: '✨ 生成角色卡' });
         } else {
           actions.push({ action: 'generate', label: '✨ 生成角色卡', hl: true });
           actions.push({ action: 'optimize', label: '🔧 优化' });
@@ -2947,6 +2963,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           entity_interact: '请帮我设计实体交互和重要角色',
           narrative_bg: '请帮我完善叙事背景和故事发展',
           dynamic_adapt: '请帮我设计动态适配和引导机制',
+          init_var: '请帮我设计MVU变量系统的[InitVar]初始变量和变量更新规则，包括正则脚本配置',
+          var_update_rule: '请帮我完善变量更新规则和状态变量输出条目',
           opening: '请根据已有设定生成开场白',
           generate: '生成完整角色卡'
         };
@@ -3060,10 +3078,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           { key: 'scene_mechanics', icon: '⚔️', name: '场景机制', group: '触发' },
           { key: 'entity_interact', icon: '👥', name: '实体交互', group: '触发' },
           { key: 'narrative_bg', icon: '📖', name: '叙事背景', group: '触发' },
-          { key: 'dynamic_adapt', icon: '🔄', name: '动态适配', group: '动态' }
+          { key: 'dynamic_adapt', icon: '🔄', name: '动态适配', group: '动态' },
+          { key: 'init_var', icon: '📊', name: '初始变量', group: '变量' },
+          { key: 'var_update_rule', icon: '📝', name: '变量更新规则', group: '变量' }
         ];
         var h = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #21262d">';
-        var groups = { '常驻': '#3fb950', '触发': '#d2a8ff', '动态': '#f78166' };
+        var groups = { '常驻': '#3fb950', '触发': '#d2a8ff', '动态': '#f78166', '变量': '#58a6ff' };
         Object.keys(groups).forEach(function(g) {
           h += '<span style="font-size:.62em;color:' + groups[g] + ';background:rgba(255,255,255,.03);padding:1px 6px;border-radius:3px">' + g + '体系</span>';
         });
@@ -3120,7 +3140,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '\n\n=== AI分析指令 ===\n' +
             '请全面分析当前角色卡的内容，完成以下任务：\n' +
             '1. 评估每个体系的完成度，输出到```json代码块中\n' +
-            '2. JSON格式：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100}\n' +
+            '2. JSON格式：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
             '3. 在回复中给出每个体系的改进建议和下一步行动方向\n' +
             '4. 最后给出一条适合用户输入的建议指令（放在<suggestion>标签中）\n\n' +
             '当前内容：\n' +
@@ -3171,7 +3191,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function getDetailedModuleProgress() {
         var entries = (cardData.character_book || {}).entries || [];
-        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0 };
+        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
         var modKeywords = {
           axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
           soft_rules: ['交互软规则', '互动选项', '叙事风格', '剧情引导'],
@@ -3180,7 +3200,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           scene_mechanics: ['场景机制', '核心玩法', '世界规则', '战斗规则', '修炼', '谈判'],
           entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景', 'NPC'],
           narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件', '主线剧情'],
-          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt']
+          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt'],
+          init_var: ['[InitVar]', '初始变量', 'InitVar'],
+          var_update_rule: ['变量更新规则', 'UpdateVariable', 'status_current_variable']
         };
         Object.keys(modKeywords).forEach(function(mod) {
           var kws = modKeywords[mod];
@@ -3224,9 +3246,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '场景机制': 'scene_mechanics',
           '实体交互': 'entity_interact',
           '叙事背景': 'narrative_bg',
-          '动态适配': 'dynamic_adapt'
+          '动态适配': 'dynamic_adapt',
+          '初始变量': 'init_var',
+          '变量更新规则': 'var_update_rule',
+          '变量系统': 'init_var'
         };
-        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0 };
+        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
         Object.keys(modMap).forEach(function(kw) {
           var key = modMap[kw];
           var re = new RegExp(kw + '[^\\n]*?([✅⏳❌])');
@@ -3380,7 +3405,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               '场景机制': 'scene_mechanics',
               '实体交互': 'entity_interact',
               '叙事背景': 'narrative_bg',
-              '动态适配': 'dynamic_adapt'
+              '动态适配': 'dynamic_adapt',
+              '初始变量': 'init_var',
+              '变量更新规则': 'var_update_rule'
             };
             Object.keys(modMap).forEach(function(kw) {
               var key = modMap[kw];
@@ -3502,7 +3529,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           scene_mechanics: ['场景机制', '核心玩法', '世界规则', '战斗规则'],
           entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景'],
           narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件'],
-          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏']
+          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏'],
+          init_var: ['[InitVar]', '初始变量', 'InitVar'],
+          var_update_rule: ['变量更新规则', 'UpdateVariable', 'status_current_variable']
         };
         var result = {};
         Object.keys(keywords).forEach(function(mod) {
@@ -4272,6 +4301,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         try {
           var exportCard = buildExportCard(cardData);
+          // 检测是否包含MVU变量系统条目，给出安装提醒
+          var entries = (cardData.character_book || {}).entries || [];
+          var hasMVU = entries.some(function(e) {
+            var c = e.comment || '';
+            return c.indexOf('[InitVar]') >= 0 || c.indexOf('变量更新规则') >= 0 || c.indexOf('UpdateVariable') >= 0;
+          });
+          if (hasMVU) {
+            var scripts = (cardData.extensions || {}).regex_scripts || [];
+            var hasMVURegex = scripts.some(function(s) {
+              var p = s.findRegex || '';
+              return p.indexOf('UpdateVariable') >= 0 || p.indexOf('StatusPlaceHolder') >= 0;
+            });
+            if (!hasMVURegex) {
+              setTimeout(function() {
+                showToast('检测到MVU变量系统条目，但缺少必备正则脚本，请确保已配置去除UpdateVariable段和隐藏StatusPlaceHolder的正则', 'warning');
+              }, 500);
+            } else {
+              setTimeout(function() {
+                showToast('MVU变量系统已配置完整，导入酒馆后请在角色卡局部脚本中添加 import bundle.js', 'info');
+              }, 500);
+            }
+          }
           showJsonModal(JSON.stringify(exportCard, null, 2));
         } catch(e) {
           showToast('保存失败: ' + e.message, 'error');
