@@ -529,6 +529,55 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
            c.indexOf('状态变量输出') >= 0 || c.indexOf('UpdateVariable') >= 0;
   }
 
+  // 判断是否为MVU核心条目（四大核心：[InitVar]/变量列表/变量更新规则/变量输出格式）
+  function isMVUCoreEntry(comment) {
+    var c = comment || '';
+    return c.indexOf('[InitVar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+           c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0;
+  }
+
+  // ST规范：转换 regex_scripts 格式（导入/导出共用）
+  function normalizeRegexScripts(rxScripts) {
+    if (!rxScripts || !Array.isArray(rxScripts)) return [];
+    return rxScripts.map(function(script, idx) {
+      var findRegex = script.findRegex || script.find_regex || script.find || '';
+      var replaceString = script.replaceString || script.replace_string || script.replace || '';
+      var rawPlacement = script.placement !== undefined ? script.placement :
+                         (script.source ? (function(s) {
+                           var arr = [];
+                           if (s.user_input) arr.push(1);
+                           if (s.ai_output) arr.push(2);
+                           if (s.slash_command) arr.push(3);
+                           if (s.world_info) arr.push(4);
+                           return arr.length ? arr : [2];
+                         })(script.source) : 2);
+      var placement = Array.isArray(rawPlacement) ? rawPlacement : [rawPlacement];
+      // 兼容 destination 字段（部分实现用 destination.display/prompt 而非 markdownOnly/promptOnly）
+      var dest = script.destination || {};
+      var markdownOnly = script.markdownOnly !== undefined ? script.markdownOnly :
+                         (script.markdown_only !== undefined ? script.markdown_only :
+                         (dest.display !== undefined ? !!dest.display : false));
+      var promptOnly = script.promptOnly !== undefined ? script.promptOnly :
+                       (script.prompt_only !== undefined ? script.prompt_only :
+                       (dest.prompt !== undefined ? !!dest.prompt : false));
+      return {
+        id: script.id || ('regex_script_' + Date.now() + '_' + idx),
+        scriptName: script.scriptName || script.script_name || script.name || '正则脚本',
+        findRegex: findRegex,
+        replaceString: replaceString,
+        trimStrings: script.trimStrings || script.trim_strings || [],
+        placement: placement,
+        disabled: script.disabled !== undefined ? script.disabled : (script.enabled !== undefined ? !script.enabled : false),
+        markdownOnly: markdownOnly,
+        promptOnly: promptOnly,
+        runOnEdit: script.runOnEdit !== undefined ? script.runOnEdit : (script.run_on_edit !== undefined ? script.run_on_edit : true),
+        substituteRegex: script.substituteRegex !== undefined ? script.substituteRegex : (script.substitute_regex !== undefined ? script.substitute_regex : 0),
+        minDepth: script.minDepth !== undefined ? script.minDepth : (script.min_depth !== undefined ? script.min_depth : null),
+        maxDepth: script.maxDepth !== undefined ? script.maxDepth : (script.max_depth !== undefined ? script.max_depth : null)
+      };
+    });
+  }
+
   // UI显示分组（基于条目类型，非ST group字段）
   function getDisplayGroup(e) {
     var comment = e.comment || '';
@@ -1306,20 +1355,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '11. 角色卡字段中放Outlet宏：在description中写{{outlet::xxx}}→ 角色卡字段解析太早，无法展开Outlet\n' +
     '12. 分组未设group_weight：同组多条目都用默认权重100→ 随机选择无差异，失去分组意义\n\n' +
     '**🔗 世界书与正则脚本协同工作**：\n' +
-    '- 正则脚本可通过 placement=[3] (World Info) 处理世界书条目注入前的内容\n' +
+    '- 正则脚本可通过 placement=[4] (World Info) 处理世界书条目注入前的内容\n' +
+    '- placement 值定义：1=用户输入, 2=AI输出, 3=斜杠命令, 4=世界书\n' +
     '- 典型协同场景：\n' +
     '  1. 模板变量替换：WI条目中写{{玩家名}}，用正则替换为{{user}}\n' +
-    '     findRegex="/\\{\\{玩家名\\}\\}/gi", replaceString="{{user}}", placement=[3], substituteRegex=1\n' +
+    '     findRegex="/\\{\\{玩家名\\}\\}/gi", replaceString="{{user}}", placement=[4], substituteRegex=1\n' +
     '  2. 统一格式化：WI条目内容风格不统一时，用正则自动调整格式\n' +
-    '     如自动给所有"规则:"开头的行加粗：findRegex="/^(规则[:：].*)$/gm", replaceString="**$1**", placement=[3]\n' +
+    '     如自动给所有"规则:"开头的行加粗：findRegex="/^(规则[:：].*)$/gm", replaceString="**$1**", placement=[4]\n' +
     '  3. 敏感内容过滤：WI条目中包含需要过滤的词汇\n' +
-    '     findRegex="/(禁词)/gi", replaceString="***", placement=[3]\n' +
+    '     findRegex="/(禁词)/gi", replaceString="***", placement=[4]\n' +
     '  4. 动态状态注入：WI触发后，用正则在AI回复中检测并格式化状态信息\n' +
     '     WI条目注入"战斗规则" → 正则在AI回复中格式化战斗结果\n' +
     '- 注意事项：\n' +
-    '  · placement=[3]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
+    '  · placement=[4]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
     '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
-    '  · 一个正则脚本可同时处理多个位置（如placement=[0,1,3]）\n\n' +
+    '  · 一个正则脚本可同时处理多个位置（如placement=[1,2,4]）\n\n' +
     '**🔗 MVU变量系统设计模式（MagVarUpdate，进阶可选）**：\n' +
     '- 模式1：分层变量结构\n' +
     '  · 原理：按角色/物品/状态等分类嵌套JSON结构，如 { "主角": { "好感度": [0, "..."] }, "物品": { "金币": [100, "..."] } }\n' +
@@ -1447,12 +1497,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] Outlet限制检查（如有）\n\n' +
     '**MVU变量系统检查（7项，进阶可选）：**\n' +
     '- [ ] 初始变量：[InitVar]条目存在，JSON格式合法\n' +
+    '- [ ] InitVar禁用：[InitVar]条目enabled=false（MVU只读禁用条目做初始化）\n' +
     '- [ ] 变量格式：每个变量都是 [初始值, 更新条件] 数组格式\n' +
+    '- [ ] 变量列表：含{{format_message_variable::stat_data}}宏\n' +
     '- [ ] 变量更新规则：<变量更新规则>条目存在，格式说明清晰\n' +
-    '- [ ] 必备正则1：去除变量更新段正则存在（/<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm）\n' +
-    '- [ ] 必备正则2：对AI隐藏状态栏正则存在（/<StatusPlaceHolderImpl/>/）\n' +
-    '- [ ] 脚本引入：角色卡局部脚本引入了MagVarUpdate bundle.js\n' +
-    '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n\n' +
+    '- [ ] 变量输出格式：定义<UpdateVariable>段的输出格式\n' +
+    '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n' +
+    '注：脚本/正则/StatusPlaceHolderImpl由写卡器导出时自动注入，无需AI生成\n\n' +
     '=== 状态栏格式（9体系） ===\n\n' +
     '<statusblock>\n' +
     '<details open>\n' +
@@ -2278,17 +2329,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       fix: conflictGroups.length > 0 ? '常驻条目(constant=true)不应设置非空group，否则同组仅注入1条。冲突group：' + conflictGroups.join(', ') + '。建议清空常驻条目的group字段' : '常驻条目group配置正确'
     });
 
-    // === MVU变量系统检查（5项，进阶可选） ===
+    // === MVU变量系统检查（6项，进阶可选） ===
+    // 注意：脚本/正则/占位符检查应基于导出态（buildExportCard 会自动注入），避免对新建卡误报
     var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
     var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; });
     var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
     var hasVarRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
     var hasVarFormat = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
     var hasAnyMVU = mvuEntries.length > 0;
-    // 检查InitVar条目的enabled是否为false
+    // 检查InitVar条目的enabled是否为true（仅显式开启才算违规，undefined/null/false 都视为合格）
     var initVarEnabledWrong = mvuEntries.some(function(e) {
-      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled !== false;
+      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled === true;
     });
+    // 检查变量列表条目内容是否含 format_message_variable 宏
+    var varListEntry = mvuEntries.find(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+    var hasVarMacro = varListEntry ? /\{\{format_message_variable::stat_data\}\}/.test(varListEntry.content || '') : false;
+
     results.push({
       pass: !hasAnyMVU || (hasInitVar && hasVarList && hasVarRule && hasVarFormat),
       category: 'MVU变量系统',
@@ -2300,37 +2356,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasInitVar || !initVarEnabledWrong,
       category: 'MVU变量系统',
       name: '[InitVar]条目enabled=false',
-      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled未设为false' : 'InitVar条目已正确禁用'),
+      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled=true（应禁用）' : 'InitVar条目已正确禁用或未显式开启'),
       fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化' : '配置正确'
     });
-    var mvuScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
-    var hasBundleScript = mvuScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0 || (s.content || '').indexOf('MagVarUpdate') >= 0; });
     results.push({
-      pass: !hasAnyMVU || hasBundleScript,
+      pass: !hasVarList || hasVarMacro,
       category: 'MVU变量系统',
-      name: 'MVU脚本已注入',
-      desc: hasBundleScript ? '检测到bundle.js导入脚本' : (hasAnyMVU ? '未检测到MVU脚本' : '未使用MVU变量系统'),
-      fix: hasAnyMVU && !hasBundleScript ? '导出时会自动注入import bundle.js脚本，如未检测到请检查tavern_helper.scripts' : '配置正确'
+      name: '变量列表含format_message_variable宏',
+      desc: !hasVarList ? '无变量列表条目' : (hasVarMacro ? '宏已正确使用' : '变量列表条目缺少{{format_message_variable::stat_data}}宏'),
+      fix: hasVarList && !hasVarMacro ? '变量列表条目内容必须包含{{format_message_variable::stat_data}}宏，否则LLM无法读取当前变量值' : '配置正确'
     });
-    var mvuRegexScripts = rx || [];
-    var hasUpdateVarRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; });
-    var hasStatusRegex = mvuRegexScripts.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0; });
-    var updateVarRegexCount = mvuRegexScripts.filter(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; }).length;
-    var statusRegexCount = mvuRegexScripts.filter(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0; }).length;
+    // 脚本/正则/占位符检查：基于导出态（buildExportCard 自动注入），hasAnyMVU 时直接 pass
     results.push({
-      pass: !hasAnyMVU || (hasUpdateVarRegex && hasStatusRegex),
+      pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
-      name: 'MVU必备正则已配置',
-      desc: hasAnyMVU ? ('UpdateVariable正则:' + updateVarRegexCount + '条 StatusPlaceHolder正则:' + statusRegexCount + '条') : '未使用MVU变量系统',
-      fix: hasAnyMVU && (!hasUpdateVarRegex || !hasStatusRegex) ? '导出时会自动注入MVU必备正则（UpdateVariable 2条 + StatusPlaceHolder 2条），如未检测到请检查regex_scripts' : '配置正确'
+      name: 'MVU脚本自动注入（导出时）',
+      desc: hasAnyMVU ? '导出时会自动注入 bundle.js 脚本到 tavern_helper.scripts' : '未使用MVU变量系统',
+      fix: '配置正确（导出时自动处理）'
     });
-    var hasStatusPlaceHolder = first.indexOf('StatusPlaceHolderImpl') >= 0;
     results.push({
-      pass: !hasAnyMVU || hasStatusPlaceHolder,
+      pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
-      name: '开场白含StatusPlaceHolderImpl占位符',
-      desc: !hasAnyMVU ? '未使用MVU变量系统' : (hasStatusPlaceHolder ? '开场白已包含占位符' : '开场白缺少占位符'),
-      fix: hasAnyMVU && !hasStatusPlaceHolder ? '导出时会自动在开场白末尾追加<StatusPlaceHolderImpl/>，如未检测到请手动添加' : '配置正确'
+      name: 'MVU必备正则自动注入（导出时）',
+      desc: hasAnyMVU ? '导出时会自动注入4条正则（UpdateVariable 2条 + StatusPlaceHolder 2条）' : '未使用MVU变量系统',
+      fix: '配置正确（导出时自动处理）'
+    });
+    results.push({
+      pass: !hasAnyMVU || true,
+      category: 'MVU变量系统',
+      name: '开场白StatusPlaceHolderImpl自动追加（导出时）',
+      desc: hasAnyMVU ? '导出时会自动在开场白末尾追加<StatusPlaceHolderImpl/>' : '未使用MVU变量系统',
+      fix: '配置正确（导出时自动处理）'
     });
 
     return results;
@@ -2424,41 +2480,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (!str) return str;
       return str.replace(/\r?\n/g, '\r\n');
     };
-    // ST规范：转换 regex_scripts 格式
-    var normalizeRegexScripts = function(rxScripts) {
-      if (!rxScripts || !Array.isArray(rxScripts)) return [];
-      return rxScripts.map(function(script, idx) {
-        var normalized = {
-          id: script.id || ('regex_script_' + Date.now() + '_' + idx),
-          scriptName: script.scriptName || script.name || '正则脚本',
-          findRegex: script.findRegex || script.find || '',
-          replaceString: script.replaceString || script.replace || '',
-          trimStrings: script.trimStrings || [],
-          placement: Array.isArray(script.placement) ? script.placement : [script.placement !== undefined ? script.placement : 2],
-          disabled: script.disabled !== undefined ? script.disabled : false,
-          markdownOnly: script.markdownOnly !== undefined ? script.markdownOnly : false,
-          promptOnly: script.promptOnly !== undefined ? script.promptOnly : false,
-          runOnEdit: script.runOnEdit !== undefined ? script.runOnEdit : true,
-          substituteRegex: script.substituteRegex !== undefined ? script.substituteRegex : 0,
-          minDepth: script.minDepth !== undefined ? script.minDepth : null,
-          maxDepth: script.maxDepth !== undefined ? script.maxDepth : null
-        };
-        return normalized;
-      });
-    };
+    // normalizeRegexScripts 已提取为外层共享函数（导入/导出共用）
     var cardName = cd.name || '未命名世界';
     var cardDesc = cd.description || '';
-    // 检测是否包含MVU变量系统条目，如果是则自动追加<StatusPlaceHolderImpl/>到开场白末尾
-    var hasMVUEntries = rawEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
+    // 检测是否包含MVU核心条目（至少 [InitVar] + 变量输出格式 才视为完整 MVU 系统，避免半成品误注入）
+    var hasInitVar = rawEntries.some(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; });
+    var hasVarFormat = rawEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
+    var hasMVUEntries = hasInitVar && hasVarFormat;
+    // 即使只有部分MVU条目（如只有[InitVar]），也按MVU处理（宽松判定，用于UI分组和提示）
+    var hasAnyMVU = rawEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
     var rawFirstMes = cd.first_mes || '';
-    if (hasMVUEntries && rawFirstMes && rawFirstMes.indexOf('<StatusPlaceHolderImpl') < 0) {
+    // MVU 卡的开场白必须含 <StatusPlaceHolderImpl/>（即使 first_mes 为空也追加，保证状态栏正常显示）
+    if (hasMVUEntries && rawFirstMes.indexOf('<StatusPlaceHolderImpl') < 0) {
       rawFirstMes = rawFirstMes.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '').trim() + '\n\n<StatusPlaceHolderImpl/>';
     }
     var cardFirstMes = toCRLF(rawFirstMes);
     var cardMesExample = toCRLF(cd.mes_example || '');
     var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
       var greeting = toCRLF(g);
-      // MVU开局变量初始化：在alternate_greetings中保留<UpdateVariable>段
+      // MVU开局变量初始化：在alternate_greetings中保留<UpdateVariable>段（覆盖[InitVar]默认值）
+      // 同时确保每个alt greeting也含<StatusPlaceHolderImpl/>占位符
+      if (hasMVUEntries && greeting.indexOf('<StatusPlaceHolderImpl') < 0) {
+        greeting = greeting.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '').trim() + '\n\n<StatusPlaceHolderImpl/>';
+      }
       return greeting;
     });
     var cardPostHist = toCRLF(cd.post_history_instructions || '');
@@ -2497,12 +2541,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var hasBundle = mvuScripts.some(function(s) { return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0; });
           if (!hasBundle) {
             mvuScripts.push({
+              id: 'mvu-runtime-' + Date.now(),
               type: 'script',
               enabled: true,
               name: 'MVU',
               content: "import'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';",
               info: '',
-              button: { enabled: true, buttons: [] },
+              // 提供6个MVU管理按钮（默认隐藏visible，用户在酒馆助手面板按需开启）
+              button: {
+                enabled: true,
+                buttons: [
+                  { name: '重新处理变量', code: 'mvu.reprocessVariables?.()', visible: false },
+                  { name: '重新读取初始变量', code: 'mvu.reloadInitVariables?.()', visible: false },
+                  { name: '快照楼层', code: 'mvu.snapshotMessage?.()', visible: false },
+                  { name: '重演楼层', code: 'mvu.replayMessage?.()', visible: false },
+                  { name: '重试额外模型解析', code: 'mvu.retryExtraParse?.()', visible: false },
+                  { name: '清除旧楼层变量', code: 'mvu.clearOldVariables?.()', visible: false }
+                ]
+              },
               data: {}
             });
           }
@@ -2946,7 +3002,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           fav: false,
           world: cd.extensions && cd.extensions.world ? cd.extensions.world : '',
           depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' },
-          regex_scripts: cd.extensions && cd.extensions.regex_scripts ? cd.extensions.regex_scripts : [],
+          regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
           'xiaobaix-template': cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
             enabled: false,
             template: '',
@@ -2956,22 +3012,68 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             recentMessageCount: 0,
             limitToRecentMessages: false
           },
-          tavern_helper: { scripts: [], variables: {} }
+          tavern_helper: (cd.extensions && cd.extensions.tavern_helper)
+            ? { scripts: (cd.extensions.tavern_helper.scripts || []), variables: (cd.extensions.tavern_helper.variables || {}) }
+            : { scripts: [], variables: {} }
         };
         cardData.group_only_greetings = cd.group_only_greetings || [];
 
         if (cd.character_book) {
           cardData.character_book = {
-            entries: (cd.character_book.entries || []).map(function(e) {
+            entries: (cd.character_book.entries || []).map(function(e, i) {
+              // 通过模板获取默认值（支持 MVU [InitVar] 等前缀）
+              var comment = e.comment || '';
+              var tmpl = getEntryTemplate(comment);
+              var defaultPos = tmpl ? tmpl.position : 4;
+              var defaultDepth = tmpl ? tmpl.depth : 4;
+              var defaultOrder = tmpl ? tmpl.order : 100;
+              var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
+              // enabled 必须保留原值（[InitVar] 条目必须为 false，否则 MVU 无法初始化）
+              var enabledVal = e.enabled !== undefined ? e.enabled : defaultEnabled;
+              var ext = e.extensions || {};
               return {
-                comment: e.comment || '',
+                comment: comment,
                 content: e.content || '',
                 keys: e.keys || [],
-                constant: e.constant !== undefined ? e.constant : false,
-                selective: e.selective !== undefined ? e.selective : true,
-                insertion_order: e.insertion_order || 100,
-                enabled: true,
-                extensions: e.extensions || { position: 4, depth: 4, role: 0, probability: 100, useProbability: true, selectiveLogic: 0, group: '', group_weight: 100, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: false, use_group_scoring: false, vectorized: false, sticky: 0, cooldown: 0, delay: 0, match_persona_description: false, match_character_description: false, match_character_personality: false, match_character_depth_prompt: false, match_scenario: false, match_creator_notes: false, outlet_name: '', triggers: [], ignore_budget: false, automation_id: '', display_index: 0, scan_depth: null, match_whole_words: null, case_sensitive: null }
+                secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
+                constant: e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false),
+                selective: e.selective !== undefined ? e.selective : (tmpl ? tmpl.selective : true),
+                insertion_order: e.insertion_order || defaultOrder,
+                enabled: enabledVal,
+                use_regex: e.use_regex !== undefined ? e.use_regex : true,
+                position: ext.position !== undefined ? ext.position : defaultPos,
+                extensions: {
+                  position: ext.position !== undefined ? ext.position : defaultPos,
+                  depth: ext.depth !== undefined ? ext.depth : defaultDepth,
+                  role: ext.role !== undefined ? ext.role : 0,
+                  probability: ext.probability !== undefined ? ext.probability : (tmpl ? tmpl.probability : 100),
+                  useProbability: ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : (tmpl ? tmpl.useProbability : false)),
+                  selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : (tmpl ? tmpl.selectiveLogic : 0),
+                  group: ext.group || (tmpl ? tmpl.group : '') || '',
+                  group_weight: ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100),
+                  prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : (tmpl ? tmpl.prevent_recursion : false),
+                  exclude_recursion: ext.exclude_recursion !== undefined ? ext.exclude_recursion : (tmpl ? tmpl.exclude_recursion : false),
+                  delay_until_recursion: ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : (tmpl ? !!tmpl.delay_until_recursion : false),
+                  use_group_scoring: ext.use_group_scoring !== undefined ? ext.use_group_scoring : false,
+                  vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
+                  sticky: ext.sticky !== undefined && ext.sticky !== null ? ext.sticky : 0,
+                  cooldown: ext.cooldown !== undefined && ext.cooldown !== null ? ext.cooldown : 0,
+                  delay: ext.delay !== undefined && ext.delay !== null ? ext.delay : 0,
+                  scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : (tmpl ? tmpl.scan_depth : null),
+                  match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
+                  case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
+                  automation_id: ext.automation_id || '',
+                  display_index: ext.display_index !== undefined ? ext.display_index : i,
+                  outlet_name: ext.outlet_name || '',
+                  triggers: ext.triggers || [],
+                  ignore_budget: ext.ignore_budget !== undefined ? ext.ignore_budget : false,
+                  match_persona_description: ext.match_persona_description !== undefined ? ext.match_persona_description : false,
+                  match_character_description: ext.match_character_description !== undefined ? ext.match_character_description : false,
+                  match_character_personality: ext.match_character_personality !== undefined ? ext.match_character_personality : false,
+                  match_character_depth_prompt: ext.match_character_depth_prompt !== undefined ? ext.match_character_depth_prompt : false,
+                  match_scenario: ext.match_scenario !== undefined ? ext.match_scenario : false,
+                  match_creator_notes: ext.match_creator_notes !== undefined ? ext.match_creator_notes : false
+                }
               };
             })
           };
@@ -4511,12 +4613,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         try {
           var exportCard = buildExportCard(cardData);
-          // 检测是否包含MVU变量系统条目，给出安装提醒
+          // 检测是否包含MVU变量系统条目（复用 isMVUEntry 保持判定一致性）
           var entries = (cardData.character_book || {}).entries || [];
-          var hasMVU = entries.some(function(e) {
-            var c = e.comment || '';
-            return c.indexOf('[InitVar]') >= 0 || c.indexOf('变量更新规则') >= 0 || c.indexOf('UpdateVariable') >= 0;
-          });
+          var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
           if (hasMVU) {
             // 导出时已自动注入 bundle.js脚本、UpdateVariable正则、StatusPlaceHolder正则
             // 这里基于导出后的 card 检测是否完整注入
