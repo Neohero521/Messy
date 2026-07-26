@@ -4518,18 +4518,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return c.indexOf('[InitVar]') >= 0 || c.indexOf('变量更新规则') >= 0 || c.indexOf('UpdateVariable') >= 0;
           });
           if (hasMVU) {
-            var scripts = (cardData.extensions || {}).regex_scripts || [];
-            var hasMVURegex = scripts.some(function(s) {
-              var p = s.findRegex || '';
-              return p.indexOf('UpdateVariable') >= 0 || p.indexOf('StatusPlaceHolder') >= 0;
-            });
-            if (!hasMVURegex) {
+            // 导出时已自动注入 bundle.js脚本、UpdateVariable正则、StatusPlaceHolder正则
+            // 这里基于导出后的 card 检测是否完整注入
+            var ext = (exportCard.data && exportCard.data.extensions) || {};
+            var rxScripts = ext.regex_scripts || [];
+            var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
+            var hasBundle = helperScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0; });
+            var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
+            var hasStatusRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
+            if (hasBundle && hasUpdRx && hasStatusRx) {
               setTimeout(function() {
-                showToast('检测到MVU变量系统条目，但缺少必备正则脚本，请确保已配置去除UpdateVariable段和隐藏StatusPlaceHolder的正则', 'warning');
+                showToast('MVU变量系统已配置完整，bundle.js脚本和4条正则已自动注入导出JSON', 'success');
               }, 500);
             } else {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，导入酒馆后请在角色卡局部脚本中添加 import bundle.js', 'info');
+                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本和正则', 'info');
               }, 500);
             }
           }
@@ -4564,142 +4567,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var currentFormat = 'v3';
 
         function buildV2Card(cd) {
-          var book = cd.character_book || {};
-          var entries = book.entries || [];
-          var toCRLF = function(str) { return str ? str.replace(/\r?\n/g, '\r\n') : str; };
+          // 复用 buildExportCard 确保 MVU 正则/脚本/StatusPlaceHolderImpl 等自动注入逻辑一致
+          var v3Card = buildExportCard(cd);
+          var data = v3Card.data;
           return JSON.stringify({
             spec: 'chara_card_v2',
             spec_version: '2.0',
             data: {
-              name: cd.name || '',
-              description: cd.description || '',
-              personality: cd.personality || '',
-              scenario: cd.scenario || '',
-              first_mes: toCRLF(cd.first_mes || ''),
-              mes_example: toCRLF(cd.mes_example || ''),
-              system_prompt: toCRLF(cd.system_prompt || ''),
-              post_history_instructions: toCRLF(cd.post_history_instructions || ''),
-              tags: cd.tags || [],
-              creator_notes: cd.creator_notes || '',
-              alternate_greetings: (cd.alternate_greetings || []).map(function(g) { return toCRLF(g); }),
-              character_book: {
-                entries: entries.map(function(e, i) {
-                  var ext = e.extensions || {};
-                  var rawPos = (e.position !== undefined) ? e.position : (ext.position !== undefined ? ext.position : 0);
-                  var posNum = typeof rawPos === 'string'
-                    ? (rawPos === 'before_char' || rawPos === '0' ? 0 : 1)
-                    : rawPos;
-                  var topPosStr = (posNum === 0) ? 'before_char' : 'after_char';
-                  var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : false);
-                  var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
-                  return {
-                    id: e.id || (i + 1),
-                    keys: e.keys || [],
-                    secondary_keys: e.secondary_keys || [],
-                    comment: e.comment || '',
-                    content: e.content || '',
-                    constant: e.constant !== undefined ? e.constant : false,
-                    selective: e.selective !== undefined ? e.selective : true,
-                    insertion_order: e.insertion_order || 100,
-                    enabled: true,
-                    position: topPosStr,
-                    use_regex: e.use_regex !== undefined ? e.use_regex : true,
-                    extensions: {
-                      position: posNum,
-                      exclude_recursion: ext.exclude_recursion !== undefined ? ext.exclude_recursion : false,
-                      display_index: i,
-                      probability: ext.probability !== undefined ? ext.probability : 100,
-                      useProbability: useProbVal,
-                      depth: ext.depth !== undefined ? ext.depth : 4,
-                      selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : 0,
-                      group: ext.group || '',
-                      prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : false,
-                      scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : (e.constant ? 0 : 5),
-                      match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
-                      case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
-                      automation_id: '',
-                      group_override: false,
-                      group_weight: groupWeightVal,
-                      delay_until_recursion: ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : false,
-                      use_group_scoring: false,
-                      role: ext.role !== undefined ? ext.role : 0,
-                      vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
-                      sticky: ext.sticky !== undefined && ext.sticky !== null ? ext.sticky : 0,
-                      cooldown: ext.cooldown !== undefined && ext.cooldown !== null ? ext.cooldown : 0,
-                      delay: ext.delay !== undefined && ext.delay !== null ? ext.delay : 0,
-                      match_persona_description: ext.match_persona_description !== undefined ? ext.match_persona_description : false,
-                      match_character_description: ext.match_character_description !== undefined ? ext.match_character_description : false,
-                      match_character_personality: ext.match_character_personality !== undefined ? ext.match_character_personality : false,
-                      match_character_depth_prompt: ext.match_character_depth_prompt !== undefined ? ext.match_character_depth_prompt : false,
-                      match_scenario: ext.match_scenario !== undefined ? ext.match_scenario : false,
-                      match_creator_notes: ext.match_creator_notes !== undefined ? ext.match_creator_notes : false,
-                      outlet_name: '',
-                      triggers: [],
-                      ignore_budget: false
-                    }
-                  };
-                })
-              }
+              name: data.name,
+              description: data.description,
+              personality: data.personality,
+              scenario: data.scenario,
+              first_mes: data.first_mes,
+              mes_example: data.mes_example,
+              system_prompt: data.system_prompt,
+              post_history_instructions: data.post_history_instructions,
+              tags: data.tags,
+              creator_notes: data.creator_notes,
+              creator: data.creator,
+              character_version: data.character_version,
+              alternate_greetings: data.alternate_greetings,
+              group_only_greetings: data.group_only_greetings,
+              extensions: data.extensions,
+              character_book: data.character_book
             }
           }, null, 2);
         }
 
         function buildLorebook(cd) {
-          var book = cd.character_book || {};
+          // 复用 buildExportCard 确保条目 enabled/position/depth 等字段与 V3 一致（如 [InitVar] enabled=false）
+          var v3Card = buildExportCard(cd);
+          var book = v3Card.data.character_book || {};
           return JSON.stringify({
-            name: book.name || '世界设定集',
+            name: cd.name || '世界设定集',
             description: cd.description || '',
-            entries: (book.entries || []).map(function(e, i) {
-              var ext = e.extensions || {};
-              var rawPos = (e.position !== undefined) ? e.position : (ext.position !== undefined ? ext.position : 0);
-              var posNum = typeof rawPos === 'string'
-                ? (rawPos === 'before_char' || rawPos === '0' ? 0 : 1)
-                : rawPos;
-              var topPosStr = (posNum === 0) ? 'before_char' : 'after_char';
-              var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : false);
-              var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
-              var delayUntilRecVal = ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : false;
-              return {
-                id: e.id || (i + 1),
-                keys: e.keys || [],
-                secondary_keys: e.secondary_keys || [],
-                comment: e.comment || '',
-                content: e.content || '',
-                constant: e.constant !== undefined ? e.constant : false,
-                selective: e.selective !== undefined ? e.selective : true,
-                insertion_order: e.insertion_order || 100,
-                enabled: true,
-                position: topPosStr,
-                use_regex: e.use_regex !== undefined ? e.use_regex : true,
-                extensions: {
-                  position: posNum,
-                  exclude_recursion: ext.exclude_recursion !== undefined ? ext.exclude_recursion : false,
-                  display_index: i,
-                  probability: ext.probability !== undefined ? ext.probability : 100,
-                  useProbability: useProbVal,
-                  depth: ext.depth !== undefined ? ext.depth : 4,
-                  selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : 0,
-                  outlet_name: '',
-                  group: ext.group || '',
-                  group_override: false,
-                  group_weight: groupWeightVal,
-                  prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : false,
-                  delay_until_recursion: delayUntilRecVal,
-                  scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : (e.constant ? 0 : 5),
-                  match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
-                  use_group_scoring: false,
-                  case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
-                  automation_id: '',
-                  role: ext.role !== undefined ? ext.role : 0,
-                  vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
-                  sticky: ext.sticky !== undefined && ext.sticky !== null ? ext.sticky : 0,
-                  cooldown: ext.cooldown !== undefined && ext.cooldown !== null ? ext.cooldown : 0,
-                  delay: ext.delay !== undefined && ext.delay !== null ? ext.delay : 0,
-                  triggers: [],
-                  ignore_budget: false
-                }
-              };
-            })
+            entries: book.entries || []
           }, null, 2);
         }
 
