@@ -779,7 +779,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 正则2：[美化/折叠/仅提示]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示）\n' +
     '     · 正则3：[美化/折叠/仅提示]完整变量更新 - 美化完整的<UpdateVariable>（仅格式显示）\n' +
     '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable><initvar>YAML内容</initvar></UpdateVariable>覆盖[InitVar]默认值\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由变量输出格式定义AI输出，配合正则替换为状态栏HTML\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾，后续消息由AI按变量输出格式输出；MVU bundle.js 内部处理占位符替换为状态栏HTML\n' +
     '- 条目前缀：[InitVar]初始变量、变量列表、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
@@ -2417,7 +2417,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时会自动注入6条正则（仅格式思维链+只发送最新2楼+美化2条+状态栏2条）' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时会自动注入4条正则（仅格式思维链+只发送最新2楼+美化完成+美化更新中）' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -2832,48 +2832,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               maxDepth: null
             });
           }
-          // 正则5：一键生卡_隐藏状态栏标记 - 从提示词移除StatusPlaceHolderImpl（AI不需要看到占位符）
-          var hasStatusHideRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.promptOnly;
-          });
-          if (!hasStatusHideRegex) {
-            mvuRegex.push({
-              id: 'qz-card-status-hide',
-              scriptName: '一键生卡_隐藏状态栏标记',
-              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: true,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
-          // 正则6：一键生卡_MVU状态栏 - 显示侧替换StatusPlaceHolderImpl为空（用户无HTML状态栏时隐藏占位符标签）
-          var hasStatusDisplayRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly;
-          });
-          if (!hasStatusDisplayRegex) {
-            mvuRegex.push({
-              id: 'qz-card-status',
-              scriptName: '一键生卡_MVU状态栏',
-              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: true,
-              promptOnly: false,
-              runOnEdit: true,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
+          // 注：StatusPlaceHolderImpl 占位符由 MVU bundle.js 内部处理，无需额外正则
+          // （官方一键写卡器仅注入上述4条正则，多注入会与 MVU 内部逻辑冲突）
         }
         return {
           talkativeness: '0.5',
@@ -4884,21 +4844,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var entries = (cardData.character_book || {}).entries || [];
           var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
           if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、UpdateVariable正则、StatusPlaceHolder正则
-            // 这里基于导出后的 card 检测是否完整注入
+            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、4条MVU正则
             var ext = (exportCard.data && exportCard.data.extensions) || {};
             var rxScripts = ext.regex_scripts || [];
             var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
             var hasBundle = helperScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0; });
+            var hasSchema = helperScripts.some(function(s) { return (s.content || '').indexOf('registerMvuSchema') >= 0; });
             var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
-            var hasStatusRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
-            if (hasBundle && hasUpdRx && hasStatusRx) {
+            if (hasBundle && hasSchema && hasUpdRx) {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js脚本和6条正则已自动注入导出JSON', 'success');
+                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+4条正则已自动注入导出JSON', 'success');
               }, 500);
             } else {
               setTimeout(function() {
-                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本和正则', 'info');
+                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本和正则', 'info');
               }, 500);
             }
           }
