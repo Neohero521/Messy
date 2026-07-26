@@ -438,7 +438,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '修炼境界突破、宗门任务、探索秘境、炼丹炼器',
         '世界规则': '境界压制、灵气浓度、天劫法则',
         '实体交互': '宗门掌门、长老、师兄妹、妖兽、灵草',
-        '[InitVar]初始变量': '玩家.境界:练气期, 玩家.灵石:100, 玩家.宗门:青云宗'
+        '[InitVar]初始变量': '玩家:\n  境界: 练气期\n  灵石: 100\n  宗门: 青云宗'
       }
     },
     '末世': {
@@ -453,7 +453,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '搜刮物资、营地建设、丧尸战斗、幸存者招募',
         '世界规则': '感染机制、辐射区、物资刷新、变异等级',
         '实体交互': '幸存者、商人、掠夺者、变异体、军方残部',
-        '[InitVar]初始变量': '玩家.生命值:100, 玩家.食物:50, 玩家.弹药:30, 营地.安全等级:低'
+        '[InitVar]初始变量': '玩家:\n  生命值: 100\n  食物: 50\n  弹药: 30\n营地:\n  安全等级: 低'
       }
     },
     '西幻': {
@@ -468,7 +468,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '冒险者任务、魔法修炼、公会升级、队伍组建',
         '世界规则': '魔力体系、种族天赋、阵营倾向、神祇祝福',
         '实体交互': '冒险者、魔法师、骑士、精灵、矮人、龙、魔王军',
-        '[InitVar]初始变量': '玩家.等级:1, 玩家.金币:100, 玩家.职业:冒险者, 玩家.声望:0'
+        '[InitVar]初始变量': '玩家:\n  等级: 1\n  金币: 100\n  职业: 冒险者\n  声望: 0'
       }
     },
     '都市': {
@@ -483,7 +483,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '异能觉醒、组织任务、日常经营、身份隐藏',
         '世界规则': '异能分级、副作用、组织法则、暴露代价',
         '实体交互': '异能者、组织成员、普通人、商人、情报贩子',
-        '[InitVar]初始变量': '玩家.异能等级:F, 玩家.金钱:5000, 玩家.声望:0, 玩家.暴露风险:低'
+        '[InitVar]初始变量': '玩家:\n  异能等级: F\n  金钱: 5000\n  声望: 0\n  暴露风险: 低'
       }
     },
     '科幻': {
@@ -498,7 +498,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '星际航行、文明接触、科技研发、资源采集',
         '世界规则': '物理定律、科技等级、文明分类、AI法则',
         '实体交互': '舰长、AI、异星生物、殖民者、联盟官员',
-        '[InitVar]初始变量': '玩家.飞船等级:1, 玩家.信用点:1000, 玩家.探索度:0, 玩家.科技等级:1'
+        '[InitVar]初始变量': '玩家:\n  飞船等级: 1\n  信用点: 1000\n  探索度: 0\n  科技等级: 1'
       }
     },
     '校园': {
@@ -513,7 +513,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '核心玩法': '课程学习、社团活动、人际社交、事件参与',
         '世界规则': '学期制度、社团规则、人际关系、事件触发',
         '实体交互': '同学、前辈、老师、社团成员、青梅竹马',
-        '[InitVar]初始变量': '玩家.年级:高一, 玩家.学力:中等, 玩家.人气:普通, 玩家.社团:未加入'
+        '[InitVar]初始变量': '玩家:\n  年级: 高一\n  学力: 中等\n  人气: 普通\n  社团: 未加入'
       }
     }
   };
@@ -733,33 +733,54 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  3. 变量模板：全内容适配ST原生宏变量（{{user}}/{{random:A,B}}/{{roll:XdY}}/{{date}}/{{time}}）\n' +
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
-    '### 9. MVU变量系统（MagVarUpdate，进阶可选）\n' +
+    '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
-    '- 工作原理：每次LLM生成完消息后，MVU扫描<UpdateVariable>段中的变量变更语句，更新stat_data和display_data\n' +
+    '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
     '- 五大核心组件（写卡器自动注入脚本和正则，世界书条目需AI生成）：\n' +
-    '  1. [InitVar]初始变量：世界书条目（enabled=false禁用），JSON格式定义所有变量的初始值和更新条件\n' +
-    '     · 格式：每个变量为 [初始值, "更新条件说明"] 数组，支持嵌套对象分层\n' +
-    '     · 示例：{"角色":{"好感度":[0,"[-1,100]之间,情绪变化时更新"],"位置":["教堂","移动后改变"]}}\n' +
-    '  2. 变量列表：世界书条目（constant=true），通过宏注入当前变量值给LLM\n' +
-    '     · 内容：<status_current_variable>{{format_message_variable::stat_data}}</status_current_variable>\n' +
-    '  3. 变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
-    '     · 包含check条件、取值范围、更新频率限制等\n' +
-    '  4. 变量输出格式：世界书条目（constant=true），定义<UpdateVariable>段的输出格式\n' +
-    '     · 格式：<UpdateVariable><Analysis>路径: Y/N</Analysis>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
-    '     · _.set()语法：_.set(\'变量路径\', 老值, 新值);//更新原因（老值不重要，MVU只关心新值）\n' +
-    '  5. 正则脚本：4个必备正则（写卡器自动注入）\n' +
-    '     · 正则1：移除旧消息的UpdateVariable段（AI输出, 仅格式提示词, minDepth=4，保留最近2楼给AI）\n' +
-    '     · 正则2：移除所有消息的UpdateVariable段（AI输出, 仅格式显示）\n' +
-    '     · 正则3：对AI隐藏<StatusPlaceHolderImpl/>（AI输出, 仅格式提示词，不勾仅格式显示）\n' +
-    '     · 正则4：状态栏显示占位（AI输出, 仅格式显示，替换占位符为空或状态栏HTML）\n' +
-    '- stat_data vs display_data：\n' +
-    '  · stat_data：当前值，格式为 [最新值, "更新条件"] 数组，用于逻辑判断\n' +
-    '  · display_data：显示值，格式为 "老值->新值(原因)" 字符串，用于状态栏展示\n' +
-    '  · SafeGetValue函数：处理数组/字符串两种情况，取数组第一个元素或直接返回字符串\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由MVU在每条消息尾部注入，配合正则替换为状态栏HTML\n' +
-    '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable>段覆盖[InitVar]默认值\n' +
-    '- 变量更新回调：监听 mag_variable_updated/mag_variable_update_ended 事件实现自定义逻辑\n' +
-    '- 条目前缀：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式、<状态变量输出>\n\n' +
+    '  1. [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量的初始值\n' +
+    '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
+    '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
+    '     · 示例：\n' +
+    '       白娅:\n' +
+    '         依存度: 35\n' +
+    '         着装:\n' +
+    '           上装: 深蓝色校服外套\n' +
+    '         受孕: false\n' +
+    '       主角:\n' +
+    '         物品栏:\n' +
+    '           薄荷糖:\n' +
+    '             描述: 提神用薄荷糖\n' +
+    '             数量: 1\n' +
+    '  2. 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
+    '     · 固定内容：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
+    '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
+    '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
+    '  3. [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '     · YAML格式，沿用变量结构层级，每变量含 type/range/check 三字段\n' +
+    '     · check 是核心，用自然语言说明何时更新、更新成什么值\n' +
+    '     · 示例：\n' +
+    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      range: 0~100\\n      check:\\n        - 根据白娅对<user>行为的感知调整 ±(3~6)\\n        - 单次互动最多+1，同一剧情日累计最多+5\n' +
+    '  4. [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
+    '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
+    '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
+    '     · 格式模板：\n' +
+    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects\\n    - supported ops: replace, delta, insert, remove, move\\n    - don\'t update field names starts with `_` as they are readonly\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding check, according only to current reply: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
+    '     · AI实际输出示例：\n' +
+    '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
+    '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
+    '  5. 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
+    '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）\n' +
+    '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值）\n' +
+    '     · 默认值用.prefault(默认值)（AI漏写字段时自动填充）\n' +
+    '     · 字段不固定对象用z.record(键类型, 值类型)\n' +
+    '     · 字段含义用.describe(\'描述\')\n' +
+    '  6. 正则脚本：3个必备正则（写卡器自动注入）\n' +
+    '     · 正则1：[不发送]去除变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth可调保留最近N楼）\n' +
+    '     · 正则2：[美化/折叠/仅提示]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示）\n' +
+    '     · 正则3：[美化/折叠/仅提示]完整变量更新 - 美化完整的<UpdateVariable>（仅格式显示）\n' +
+    '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable><initvar>YAML内容</initvar></UpdateVariable>覆盖[InitVar]默认值\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由变量输出格式定义AI输出，配合正则替换为状态栏HTML\n' +
+    '- 条目前缀：[InitVar]初始变量、变量列表、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -1257,10 +1278,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <角色边界>：角色行为限制和不可触犯的底线\n' +
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n' +
-    '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式，enabled=false禁用）\n' +
+    '- [InitVar]初始变量：MVU变量系统初始值YAML（缩进表示层级，enabled=false禁用）\n' +
     '- 变量列表：MVU当前变量注入（含{{format_message_variable::stat_data}}宏）\n' +
     '- 变量更新规则：MVU变量更新分析规则（check条件、取值范围等）\n' +
-    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含_.set()语法）\n' +
+    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含JSON Patch命令）\n' +
     '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
     '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
@@ -1382,33 +1403,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  · placement=[4]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
     '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
     '  · 一个正则脚本可同时处理多个位置（如placement=[1,2,4]）\n\n' +
-    '**🔗 MVU变量系统设计模式（MagVarUpdate，进阶可选）**：\n' +
+    '**🔗 MVU变量系统设计模式（MagVarUpdate zod，进阶可选）**：\n' +
     '- 模式1：分层变量结构\n' +
-    '  · 原理：按角色/物品/状态等分类嵌套JSON结构，如 { "主角": { "好感度": [0, "..."] }, "物品": { "金币": [100, "..."] } }\n' +
+    '  · 原理：按角色/世界/物品等分类用YAML缩进嵌套，如 白娅:\\n  依存度: 35\\n  着装:\\n    上装: 校服\n' +
     '  · 优势：结构清晰，LLM更容易理解变量归属和关系，引导更准确的变量更新\n' +
-    '  · 注意：每个变量都是 [初始值, 更新条件说明] 的数组格式\n' +
+    '  · 注意：YAML用缩进表示层级，冒号后空格建立从属；数值/文本/真假值三种基本类型\n' +
     '- 模式2：开局变量初始化\n' +
-    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable>段，覆盖初始值\n' +
-    '  · 格式：<UpdateVariable>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
+    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable><initvar>块，覆盖[InitVar]默认值\n' +
+    '  · 格式：<UpdateVariable>\\n<initvar>\\n白娅:\\n  依存度: 15\\n</initvar>\\n</UpdateVariable>\n' +
     '  · 用途：不同开局有不同的初始变量（如不同身份有不同道具/属性）\n' +
     '- 模式3：变量驱动的分段内容\n' +
     '  · 原理：用提示词模板语法 + getvar("stat_data") 实现根据变量值显示不同内容\n' +
-    '  · 格式：<% if (getvar("stat_data").角色.好感度[0] >= 50) { %>...<% } %>\n' +
-    '  · 注意：第一个if用 _.has() 检查变量是否初始化完成，避免模板报错\n' +
-    '- 模式4：display_data状态显示\n' +
-    '  · 原理：MVU提供stat_data（当前值数组）和display_data（"老->新(原因)"格式）\n' +
-    '  · stat_data：用于逻辑判断，格式为 [当前值, "更新条件"]\n' +
-    '  · display_data：用于显示给用户，格式为 "旧值->新值(更新原因)"\n' +
-    '  · SafeGetValue：需要写一个工具函数处理数组和非数组两种情况\n' +
+    '  · 格式：<% if (getvar("stat_data.白娅.依存度") >= 50) { %>...<% } %>\n' +
+    '  · 注意：第一个if用 typeof 检查变量是否初始化完成，避免模板报错\n' +
+    '- 模式4：状态栏占位符\n' +
+    '  · 原理：变量输出格式定义AI输出<StatusPlaceHolderImpl/>，正则替换为状态栏HTML\n' +
+    '  · 用途：状态栏自动显示当前变量值，无需AI输出完整状态栏文本\n' +
     '- 模式5：变量更新回调（高阶，需JS能力）\n' +
     '  · 原理：监听 mag_variable_updated / mag_variable_update_ended 事件\n' +
     '  · 用途：LLM忘记更新时自动补全（如日期自动+1）、触发特殊逻辑\n' +
     '  · 参考：MagVarUpdate example_src\n' +
-    '- MVU安装四件套：\n' +
-    '  1. 局部脚本：import \'https://gcore.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@master/artifact/bundle.js\'\n' +
-    '  2. 正则1：去除变量更新段 /<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm（仅格式显示+仅格式提示词）\n' +
-    '  3. 正则2：对AI隐藏状态栏 /<StatusPlaceHolderImpl/> （仅格式提示词）\n' +
-    '  4. 世界书：[InitVar]初始变量 + 变量更新规则条目\n\n' +
+    '- MVU zod安装五件套（写卡器自动注入）：\n' +
+    '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'\n' +
+    '  2. 变量结构脚本：用zod 4定义变量结构并registerMvuSchema注册\n' +
+    '  3. 正则1：[不发送]去除变量更新 /<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm（仅格式提示词）\n' +
+    '  4. 正则2-3：[美化/折叠/仅提示]美化变量更新（仅格式显示）\n' +
+    '  5. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -2412,50 +2432,101 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   // ===== MVU 变量结构脚本生成（对齐官方一键写卡器 install-schema） =====
-  // 解析 [InitVar] 条目中的 JSON，生成 zod 4 schema 脚本并注册到 MVU
-  // InitVar 格式：{ "角色名": { "变量名": [初始值, "更新条件"], ... }, ... }
+  // 解析 [InitVar] 条目中的 YAML，生成 zod 4 schema 脚本并注册到 MVU
+  // InitVar YAML 格式（缩进表示层级，冒号后空格建立从属）：
+  //   白娅:
+  //     依存度: 35
+  //     着装:
+  //       上装: 深蓝色校服
   function generateMvuSchemaScript(initVarContent) {
     var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
     var FOOTER = "});\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
-    var lines = [];
-    var parsed = null;
-    try { parsed = JSON.parse(initVarContent || '{}'); } catch (e) { parsed = null; }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      // 解析失败：兜底输出世界对象，保证脚本仍可注册
-      parsed = { '世界': { '当前时间': ['', ''], '当前地点': ['', ''] } };
-    }
-    Object.keys(parsed).forEach(function(catName) {
-      var cat = parsed[catName];
-      if (!cat || typeof cat !== 'object' || Array.isArray(cat)) {
-        lines.push('  ' + catName + ': z.record(z.string(), z.unknown()).prefault({}),');
-        return;
-      }
-      lines.push('  ' + catName + ': z.object({');
-      Object.keys(cat).forEach(function(varName) {
-        var varVal = cat[varName];
-        var initVal = Array.isArray(varVal) ? varVal[0] : varVal;
-        var condStr = Array.isArray(varVal) ? String(varVal[1] || '') : '';
-        var zodLine;
-        if (typeof initVal === 'number') {
-          // 好感度或显式标注 0-100 范围的数值加 _.clamp 约束
-          if (varName.indexOf('好感') >= 0 || /0-100|0~100/.test(condStr)) {
-            zodLine = '    ' + varName + ': z.coerce.number().prefault(0).transform(value => _.clamp(value, 0, 100)),';
-          } else {
-            zodLine = '    ' + varName + ': z.coerce.number().prefault(0),';
-          }
-        } else if (typeof initVal === 'boolean') {
-          zodLine = '    ' + varName + ': z.boolean().prefault(false),';
-        } else if (Array.isArray(initVal)) {
-          zodLine = '    ' + varName + ': z.array(z.unknown()).prefault([]),';
-        } else if (initVal && typeof initVal === 'object') {
-          zodLine = '    ' + varName + ': z.record(z.string(), z.unknown()).prefault({}),';
-        } else {
-          zodLine = "    " + varName + ": z.string().prefault(''),";
+
+    // 简易 YAML 解析（支持缩进层级 + key: value，兼容代码块包裹）
+    function parseYamlSimple(text) {
+      // 去除 ```yaml / ``` 代码块包裹
+      var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+      if (!cleaned) return null;
+      var lines = cleaned.split('\n');
+      var root = {};
+      var stack = [{ indent: -1, node: root }];
+      for (var i = 0; i < lines.length; i++) {
+        var raw = lines[i];
+        if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
+        // 计算缩进（空格数，制表符按2空格）
+        var indent = 0;
+        while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
+          indent += raw[indent] === '\t' ? 2 : 1;
         }
-        lines.push(zodLine);
+        var content = raw.slice(indent).trim();
+        var colonIdx = content.indexOf(':');
+        if (colonIdx < 0) continue;
+        var key = content.slice(0, colonIdx).trim();
+        var valStr = content.slice(colonIdx + 1).trim();
+        // 弹栈到当前缩进的父级
+        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
+        var parent = stack[stack.length - 1].node;
+        // 解析值类型
+        var val;
+        if (valStr === '') {
+          // 子对象
+          val = {};
+          parent[key] = val;
+          stack.push({ indent: indent, node: val });
+        } else if (valStr === 'true' || valStr === 'false') {
+          parent[key] = valStr === 'true';
+        } else if (/^-?\d+(\.\d+)?$/.test(valStr)) {
+          parent[key] = Number(valStr);
+        } else {
+          // 去除引号
+          parent[key] = valStr.replace(/^['"]|['"]$/g, '');
+        }
+      }
+      return root;
+    }
+
+    // 判断变量是否为好感度类（需 0-100 范围限制）
+    function isAffinityLike(name) {
+      return /好感|依存|信任|忠诚|友好|亲密|心情/.test(name);
+    }
+
+    // 递归生成 zod schema 行（支持嵌套对象）
+    function genZodLines(obj, indent) {
+      var pad = new Array(indent + 1).join(' ');
+      var out = [];
+      Object.keys(obj).forEach(function(key) {
+        var val = obj[key];
+        var line;
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          // 嵌套对象
+          out.push(pad + key + ': z.object({');
+          out = out.concat(genZodLines(val, indent + 2));
+          out.push(pad + '}).prefault({}),');
+        } else if (typeof val === 'number') {
+          if (isAffinityLike(key)) {
+            // 好感度类：0-100 范围限制（用 transform 而非 min/max，避免拒绝超范围值）
+            out.push(pad + key + ': z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100)),');
+          } else {
+            out.push(pad + key + ': z.coerce.number().prefault(' + val + '),');
+          }
+        } else if (typeof val === 'boolean') {
+          out.push(pad + key + ': z.boolean().prefault(' + val + '),');
+        } else {
+          // 字符串：去引号转义
+          var esc = String(val).replace(/'/g, "\\'");
+          out.push(pad + key + ": z.string().prefault('" + esc + "'),");
+        }
       });
-      lines.push('  }).prefault({}),');
-    });
+      return out;
+    }
+
+    var parsed = parseYamlSimple(initVarContent);
+    if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+      // 解析失败：兜底输出世界对象，保证脚本仍可注册
+      parsed = { '世界': { '当前时间': '开局', '当前地点': '待定' } };
+    }
+
+    var lines = genZodLines(parsed, 2);
     return HEADER + '\n' + lines.join('\n') + '\n' + FOOTER;
   }
 
@@ -4444,7 +4515,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
           '冷却防抖：场景类条目开启cooldown': { field: 'entries', instr: '问题：场景类条目未设置cooldown\n影响：内容刷屏\n修复：为<场景机制>、<核心玩法>等条目设置 extensions.cooldown=3' },
           // === MVU变量系统 ===
-          'MVU四大核心条目完整': { field: 'entries', instr: '问题：MVU四大核心条目不完整\n影响：变量系统无法正常运作\n修复：生成完整四件套——\n  1. [InitVar]初始变量：JSON格式定义所有变量初始值（变量名:[初始值,"更新条件"]）\n  2. 变量列表：固定内容 "---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>"\n  3. 变量更新规则：定义各变量的更新条件与触发逻辑\n  4. 变量输出格式：定义 <UpdateVariable> 输出格式（含 _.set/_.add/_.assign/_.remove 命令）' },
+          'MVU四大核心条目完整': { field: 'entries', instr: '问题：MVU四大核心条目不完整\n影响：变量系统无法正常运作\n修复：生成完整四件套——\n  1. [InitVar]初始变量：YAML格式定义所有变量初始值（缩进表示层级，如 白娅:\\n  依存度: 35）\n  2. 变量列表：固定内容 "---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>"\n  3. [mvu_update]变量更新规则：YAML格式，含 type/range/check 三字段\n  4. [mvu_update]变量输出格式：定义 <UpdateVariable> 输出格式，采用 JSON Patch 标准（replace/delta/insert/remove/move 操作）' },
           '[InitVar]条目enabled=false': { field: 'entries', instr: '问题：[InitVar]条目 enabled=true\n影响：MVU不会读取已开启的initvar条目，导致变量初始化失败\n修复：将 [InitVar] 条目的 enabled 改为 false（必须禁用，MVU只读取禁用的initvar条目进行初始化）' },
           '变量列表含format_message_variable宏': { field: 'entries', instr: '问题：变量列表条目缺少 {{format_message_variable::stat_data}} 宏\n影响：LLM无法读取当前变量值，变量更新无依据\n修复：变量列表条目内容必须包含宏，固定格式：\n  ---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n  注意：禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体' }
         };
@@ -4629,9 +4700,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '   - 禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体\n' +
             '3. 变量更新规则（comment 含"变量更新规则"）\n' +
             '   - 定义每个变量在什么条件下更新、更新成什么值\n' +
-            '4. 变量输出格式（comment 含"变量输出格式"）\n' +
-            '   - 定义 <UpdateVariable> 输出格式，含 _.set/_.add/_.assign/_.remove 四种命令\n' +
-            '   - 示例：_.set("主角.体力值", 80, "跑步消耗"); _.add("同桌.好感度", 5, "送冷饮")\n' +
+            '4. 变量输出格式（comment 含"变量输出格式"，建议加 [mvu_update] 前缀）\n' +
+            '   - 定义 <UpdateVariable> 输出格式，采用 JSON Patch (RFC 6902) 标准\n' +
+            '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
+            '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、必备正则、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
