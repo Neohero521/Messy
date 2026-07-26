@@ -343,6 +343,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   group: 空字符串=无互斥分组（多条可共存）；非空=同组仅注入1条（用于叙事类互斥）
   //   selectiveLogic: 0=AND_ANY 1=NOT_ALL 2=NOT_ANY 3=AND_ALL（次级关键词逻辑，非随机选择）
   //          注意：核心铁则不在世界书条目中，而是放入post_history_instructions字段（常驻最高权重位）
+
+  // ===== MVU 美化正则 HTML 模板（三明月喵风格，来自官方写卡器参考）=====
+  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align: center; margin: 10px 0;">\n<div style="display: inline-block; text-align: left;">\n  <details class="neko-complete" style="border: none; background: none;">\n    <summary style="\n      list-style: none;\n      cursor: pointer;\n      display: inline-flex;\n      align-items: center;\n      gap: 0;\n      position: relative;\n      padding: 0;\n    ">\n      <span style="\n        display: inline-block;\n        width: 52px;\n        height: 52px;\n        border-radius: 50%;\n        overflow: hidden;\n        border: 2.5px solid rgba(70, 115, 175, 0.5);\n        box-shadow: 0 0 10px rgba(70, 115, 175, 0.25), 0 0 20px rgba(110, 150, 200, 0.15);\n        flex-shrink: 0;\n        z-index: 3;\n        position: relative;\n        animation: neko-happy 1.5s ease-in-out infinite;\n        background: #dae3f0;\n      ">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="喵~" />\n      </span>\n      <span style="\n        display: flex;\n        align-items: center;\n        height: 34px;\n        margin-left: -12px;\n        padding: 0 24px 0 22px;\n        background: linear-gradient(135deg, #e6edf5 0%, #cdd8ea 50%, #dae3f0 100%);\n        border: 1.5px solid rgba(80, 120, 180, 0.35);\n        border-radius: 0 17px 17px 0;\n        position: relative;\n        z-index: 2;\n      ">\n        <span style="flex: 1; font-size: 0.9em; font-weight: 600; background: linear-gradient(90deg, #5a82b5, #3d6098, #4d75aa, #5a82b5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: text-shimmer 3s linear infinite;">喵喵喵~ 变量完成了喵~</span>\n        <small style="color: #3d6098; font-size: 0.75em; opacity: 0.7;"><span class="neko-toggle" data-close="展开喵 ▶" data-open="收起喵 ▼"></span></small>\n      </span>\n    </summary>\n    <div style="max-height: 320px; overflow-y: auto; margin-left: 26px; margin-top: 6px; padding: 12px 20px; color: #4a5568; line-height: 1.8; white-space: pre-wrap; background: linear-gradient(135deg, rgba(230, 237, 245, 0.6) 0%, rgba(205, 216, 234, 0.4) 100%); border: 1.5px solid rgba(80, 120, 180, 0.25); border-radius: 14px; font-size: 0.9em; max-width: 450px;">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.neko-complete summary::marker{display:none}.neko-complete[open]>div{animation:neko-slide-in .4s ease forwards}.neko-complete[open] .neko-toggle::after{content:attr(data-open)}.neko-complete:not([open]) .neko-toggle::after{content:attr(data-close)}@keyframes neko-happy{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-3px) rotate(-3deg)}75%{transform:translateY(-3px) rotate(3deg)}}@keyframes text-shimmer{0%{background-position:0% center}100%{background-position:200% center}}@keyframes neko-slide-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
+
+  var MVU_BEAUTIFY_THINKING = '<div style="text-align: center; margin: 10px 0;">\n<div style="display: inline-block; text-align: left;">\n  <details class="neko-thinking" style="border: none; background: none;">\n    <summary style="\n      list-style: none;\n      cursor: pointer;\n      display: inline-flex;\n      align-items: center;\n      gap: 0;\n      position: relative;\n      padding: 0;\n    ">\n      <span style="\n        display: inline-block;\n        width: 52px;\n        height: 52px;\n        border-radius: 50%;\n        overflow: hidden;\n        border: 2.5px solid rgba(90, 130, 190, 0.45);\n        box-shadow: 0 0 10px rgba(90, 130, 190, 0.2), 0 0 20px rgba(130, 165, 210, 0.12);\n        flex-shrink: 0;\n        z-index: 3;\n        position: relative;\n        animation: neko-bounce 2s ease-in-out infinite;\n        background: #dde6f0;\n      ">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="喵~" />\n      </span>\n      <span style="\n        display: flex;\n        align-items: center;\n        height: 34px;\n        margin-left: -12px;\n        padding: 0 24px 0 22px;\n        background: linear-gradient(135deg, #e8eef5 0%, #d0dcea 50%, #dde6f0 100%);\n        border: 1.5px solid rgba(120, 150, 200, 0.35);\n        border-radius: 0 17px 17px 0;\n        position: relative;\n        z-index: 2;\n      ">\n        <span style="flex: 1; font-size: 0.9em; font-weight: 600; background: linear-gradient(90deg, #4a6fa5, #6b8ec2, #7a9dcc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">喵喵喵~ 正在变量中~</span>\n        <span style="font-size: 0.9em; opacity: 0.6; animation: paw-wiggle 1.5s ease-in-out infinite;">🐾</span>\n        <span class="blue-glow" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 0 17px 17px 0; background: linear-gradient(90deg, transparent 0%, rgba(130, 165, 210, 0.06) 20%, rgba(100, 140, 195, 0.1) 50%, rgba(130, 165, 210, 0.06) 80%, transparent 100%); animation: blue-sweep 3s linear infinite; transform: translateX(-100%); pointer-events: none;"></span>\n      </span>\n    </summary>\n    <div style="max-height: 320px; overflow-y: auto; margin-left: 26px; margin-top: 6px; padding: 12px 20px; color: #4a5568; line-height: 1.8; white-space: pre-wrap; background: linear-gradient(135deg, rgba(232, 238, 245, 0.6) 0%, rgba(208, 220, 234, 0.4) 100%); border: 1.5px solid rgba(120, 150, 200, 0.25); border-radius: 14px; font-size: 0.9em; max-width: 450px;">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.neko-thinking summary::marker{display:none}.neko-thinking[open]>div{animation:neko-content-in .4s ease forwards}.neko-thinking[open] summary .blue-glow{animation:none!important;opacity:0}@keyframes neko-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes paw-wiggle{0%,100%{transform:rotate(0deg) scale(1)}25%{transform:rotate(-10deg) scale(1.1)}75%{transform:rotate(10deg) scale(1.1)}}@keyframes blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}@keyframes neko-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
+
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '世界元数据': { constant: true, selective: false, position: 0, depth: 0, order: 240, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -2378,7 +2384,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时会自动注入4条正则（UpdateVariable 2条 + StatusPlaceHolder 2条）' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时会自动注入6条正则（仅格式思维链+只发送最新2楼+美化2条+状态栏2条）' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -2538,39 +2544,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var mvuRegex = existingRx.slice();
         if (hasMVU) {
           // 自动注入MVU bundle.js脚本（如果尚未存在）
+          // 使用官方写卡器的固定UUID，确保与官方实现兼容
           var hasBundle = mvuScripts.some(function(s) { return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0; });
           if (!hasBundle) {
             mvuScripts.push({
-              id: 'mvu-runtime-' + Date.now(),
               type: 'script',
               enabled: true,
               name: 'MVU',
+              id: '961f366d-e403-45c2-8155-3d14ec86de53',
               content: "import'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';",
               info: '',
-              // 提供6个MVU管理按钮（默认隐藏visible，用户在酒馆助手面板按需开启）
               button: {
                 enabled: true,
                 buttons: [
-                  { name: '重新处理变量', code: 'mvu.reprocessVariables?.()', visible: false },
-                  { name: '重新读取初始变量', code: 'mvu.reloadInitVariables?.()', visible: false },
-                  { name: '快照楼层', code: 'mvu.snapshotMessage?.()', visible: false },
-                  { name: '重演楼层', code: 'mvu.replayMessage?.()', visible: false },
-                  { name: '重试额外模型解析', code: 'mvu.retryExtraParse?.()', visible: false },
-                  { name: '清除旧楼层变量', code: 'mvu.clearOldVariables?.()', visible: false }
+                  { name: '重新处理变量', visible: false },
+                  { name: '重新读取初始变量', visible: false },
+                  { name: '快照楼层', visible: false },
+                  { name: '重演楼层', visible: false },
+                  { name: '重试额外模型解析', visible: false },
+                  { name: '清除旧楼层变量', visible: false }
                 ]
               },
               data: {}
             });
           }
-          // 自动注入MVU必备正则脚本（如果尚未存在）
-          // 正则1：从提示词中移除旧消息的UpdateVariable段（保留最近2楼给AI看，minDepth=4）
+          // 自动注入MVU必备正则脚本（6条，对齐官方写卡器参考实现）
+          // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
+          var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
+          if (!hasAnalysisRegex) {
+            mvuRegex.push({
+              id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36',
+              scriptName: '仅格式思维链',
+              findRegex: '/<Analysis>[\\s\\S]+?<\\/Analysis>/gm',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: true,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 正则2：只发送最新2楼的变量更新 - 从提示词移除旧UpdateVariable段（minDepth=4保留最近2楼）
           var hasUpdateVarPromptRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && (r.destination ? r.destination.prompt : r.promptOnly);
+            return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly;
           });
           if (!hasUpdateVarPromptRegex) {
             mvuRegex.push({
-              id: 'mvu-remove-updatevar-prompt',
-              scriptName: 'MVU-移除旧变量更新(提示词)',
+              id: '5bb4b588-23ca-4564-8df5-882104eff764',
+              scriptName: '只发送最新2楼的变量更新',
               findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
               replaceString: '',
               trimStrings: [],
@@ -2584,32 +2609,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               maxDepth: null
             });
           }
-          // 正则2：从显示中移除所有UpdateVariable段（用户不需要看到变量更新代码）
-          var hasUpdateVarDisplayRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && (r.destination ? r.destination.display : (r.markdownOnly && !r.promptOnly));
+          // 正则3：[美化]变量完成-三明月喵 - 美化已完成的UpdateVariable显示（markdownOnly）
+          var hasBeautifyCompleteRegex = mvuRegex.some(function(r) {
+            return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('neko-complete') >= 0;
           });
-          if (!hasUpdateVarDisplayRegex) {
+          if (!hasBeautifyCompleteRegex) {
             mvuRegex.push({
-              id: 'mvu-remove-updatevar-display',
-              scriptName: 'MVU-移除变量更新(显示)',
-              findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
-              replaceString: '',
+              id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5',
+              scriptName: '[美化]变量完成-三明月喵',
+              findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+              replaceString: MVU_BEAUTIFY_COMPLETE,
               trimStrings: [],
               placement: [2],
               disabled: false,
               markdownOnly: true,
               promptOnly: false,
-              runOnEdit: true,
+              runOnEdit: false,
               substituteRegex: 0,
               minDepth: null,
               maxDepth: null
             });
           }
-          var hasStatusHideRegex = mvuRegex.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0 && (r.destination ? r.destination.prompt : r.promptOnly); });
+          // 正则4：[美化]变量更新中-三明月喵 - 美化流式输出中的UpdateVariable显示
+          var hasBeautifyThinkingRegex = mvuRegex.some(function(r) {
+            return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('neko-thinking') >= 0;
+          });
+          if (!hasBeautifyThinkingRegex) {
+            mvuRegex.push({
+              id: 'bf1b7441-5cf1-426d-bd6c-911332be9923',
+              scriptName: '[美化]变量更新中-三明月喵',
+              findRegex: '/<UpdateVariable(?:variable)?>(?!.*<\\/UpdateVariable(?:variable)?>)\\s*(.*)\\s*$/gsi',
+              replaceString: MVU_BEAUTIFY_THINKING,
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: true,
+              promptOnly: false,
+              runOnEdit: false,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 正则5：一键生卡_隐藏状态栏标记 - 从提示词移除StatusPlaceHolderImpl（AI不需要看到占位符）
+          var hasStatusHideRegex = mvuRegex.some(function(r) {
+            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.promptOnly;
+          });
           if (!hasStatusHideRegex) {
             mvuRegex.push({
-              id: 'mvu-hide-status',
-              scriptName: 'MVU-对AI隐藏状态栏',
+              id: 'qz-card-status-hide',
+              scriptName: '一键生卡_隐藏状态栏标记',
               findRegex: '/<StatusPlaceHolderImpl\\/>/g',
               replaceString: '',
               trimStrings: [],
@@ -2623,16 +2672,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               maxDepth: null
             });
           }
-          // 自动注入MVU状态栏显示正则（如果尚未存在）- 替换占位符为空，避免标签直接显示给用户
+          // 正则6：一键生卡_MVU状态栏 - 显示侧替换StatusPlaceHolderImpl为空（用户无HTML状态栏时隐藏占位符标签）
           var hasStatusDisplayRegex = mvuRegex.some(function(r) {
-            var isStatus = (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0;
-            var isDisplay = r.destination ? r.destination.display : (r.markdownOnly && !r.promptOnly);
-            return isStatus && isDisplay;
+            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly;
           });
           if (!hasStatusDisplayRegex) {
             mvuRegex.push({
-              id: 'mvu-display-status',
-              scriptName: 'MVU-状态栏显示占位',
+              id: 'qz-card-status',
+              scriptName: '一键生卡_MVU状态栏',
               findRegex: '/<StatusPlaceHolderImpl\\/>/g',
               replaceString: '',
               trimStrings: [],
@@ -4627,7 +4674,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             var hasStatusRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
             if (hasBundle && hasUpdRx && hasStatusRx) {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js脚本和4条正则已自动注入导出JSON', 'success');
+                showToast('MVU变量系统已配置完整，bundle.js脚本和6条正则已自动注入导出JSON', 'success');
               }, 500);
             } else {
               setTimeout(function() {
