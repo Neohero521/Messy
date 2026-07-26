@@ -369,8 +369,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
-    '[InitVar]初始变量': { constant: true, selective: false, position: 0, depth: 0, order: 245, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
-    '变量更新规则': { constant: true, selective: false, position: 1, depth: 0, order: 145, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 0, depth: 0, order: 245, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
+    '变量列表': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '变量更新规则': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
+    '变量输出格式': { constant: true, selective: false, position: 0, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '状态变量输出': { constant: false, selective: true, position: 2, depth: 2, order: 45, sticky: null, cooldown: null, delay: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 3, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100, secondary_keys: [] }
   };
 
@@ -403,8 +405,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { level: '极低', color: '#6e7681', desc: 'position=0 常驻' },
     '禁止项': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，禁止规则' },
     '自定义条目': { level: '中', color: '#3fb950', desc: '用户自定义' },
-    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，MVU变量初始化JSON' },
-    '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=1 常驻，MVU变量更新规则说明' },
+    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=0 常驻(enabled=false)，MVU变量初始化JSON' },
+    '变量列表': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，注入当前变量值给LLM' },
+    '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=0 常驻，MVU变量更新分析规则' },
+    '变量输出格式': { level: '低', color: '#8b949e', desc: 'position=0 常驻，定义<UpdateVariable>输出格式' },
     '状态变量输出': { level: '中', color: '#3fb950', desc: 'position=2 触发，输出当前变量状态给LLM' }
   };
 
@@ -517,18 +521,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return fuzzyMatch ? ENTRY_TEMPLATES[fuzzyMatch] : null;
   }
 
+  // 判断条目是否属于MVU变量系统
+  function isMVUEntry(comment) {
+    var c = comment || '';
+    return c.indexOf('[InitVar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+           c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
+           c.indexOf('状态变量输出') >= 0 || c.indexOf('UpdateVariable') >= 0;
+  }
+
   // UI显示分组（基于条目类型，非ST group字段）
   function getDisplayGroup(e) {
     var comment = e.comment || '';
     // 变量系统优先判断（避免被 constant=true 的常驻体系拦截）
-    if (comment.indexOf('[InitVar]') >= 0) return '变量系统';
-    var m = comment.match(/^<([^>]+)>/);
-    var prefixKey = m ? m[1] : '';
-    if (prefixKey === '变量更新规则' || prefixKey === '状态变量输出') return '变量系统';
+    if (isMVUEntry(comment)) return '变量系统';
     // 常驻体系判断
     var tmpl = getEntryTemplate(comment);
     var isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
     if (isConst) return '常驻体系';
+    var m = comment.match(/^<([^>]+)>/);
+    var prefixKey = m ? m[1] : '';
     if (['动态适配', '引导机制', '互动选项', '状态栏'].indexOf(prefixKey) >= 0) return '动态系统';
     if (['叙事背景', '故事发展', '文化与习俗', '历史事件'].indexOf(prefixKey) >= 0) return '叙事';
     return '触发体系';
@@ -662,19 +673,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
     '### 9. MVU变量系统（MagVarUpdate，进阶可选）\n' +
-    '- 核心脚本：import MagVarUpdate bundle.js（需用户在角色卡局部脚本中添加）\n' +
-    '- 工作原理：每次LLM生成完消息后，扫描<UpdateVariable>段中的变量变更语句，更新stat_data和display_data\n' +
-    '- 三大核心组件：\n' +
-    '  1. [InitVar]初始变量：世界书条目，JSON格式定义所有变量的初始值和更新条件\n' +
-    '  2. 变量更新规则：世界书条目，告诉LLM如何分析和输出变量更新\n' +
-    '  3. 正则脚本：2个必备正则（去除变量更新段 + 隐藏状态栏占位符）\n' +
-    '- 变量优势：\n' +
-    '  · 不依赖正则逐楼扫描，性能更好\n' +
-    '  · 变量记录不依赖过往楼层，可随时隐藏/删除旧消息\n' +
-    '  · 支持变量更新回调（如日期自动+1）\n' +
-    '  · 可将完整变量JSON传给LLM设计状态栏\n' +
-    '  · 支持stat_data（当前值数组）和display_data（显示用"老->新(原因)"格式）\n' +
-    '- 条目前缀：[InitVar]初始变量、<变量更新规则>、<状态变量输出>\n\n' +
+    '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
+    '- 工作原理：每次LLM生成完消息后，MVU扫描<UpdateVariable>段中的变量变更语句，更新stat_data和display_data\n' +
+    '- 五大核心组件（写卡器自动注入脚本和正则，世界书条目需AI生成）：\n' +
+    '  1. [InitVar]初始变量：世界书条目（enabled=false禁用），JSON格式定义所有变量的初始值和更新条件\n' +
+    '     · 格式：每个变量为 [初始值, "更新条件说明"] 数组，支持嵌套对象分层\n' +
+    '     · 示例：{"角色":{"好感度":[0,"[-1,100]之间,情绪变化时更新"],"位置":["教堂","移动后改变"]}}\n' +
+    '  2. 变量列表：世界书条目（constant=true），通过宏注入当前变量值给LLM\n' +
+    '     · 内容：<status_current_variable>{{get_message_variable::stat_data}}</status_current_variable>\n' +
+    '  3. 变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '     · 包含check条件、取值范围、更新频率限制等\n' +
+    '  4. 变量输出格式：世界书条目（constant=true），定义<UpdateVariable>段的输出格式\n' +
+    '     · 格式：<UpdateVariable><Analysis>路径: Y/N</Analysis>_.set(\'路径\', 旧值, 新值);//原因</UpdateVariable>\n' +
+    '     · _.set()语法：_.set(\'变量路径\', 老值, 新值);//更新原因（老值不重要，MVU只关心新值）\n' +
+    '  5. 正则脚本：2个必备正则（写卡器自动注入）\n' +
+    '     · 正则1：去除<UpdateVariable>段（AI输出, 仅格式显示+仅格式提示词）\n' +
+    '     · 正则2：对AI隐藏<StatusPlaceHolderImpl/>（AI输出, 仅格式提示词，不勾仅格式显示）\n' +
+    '- stat_data vs display_data：\n' +
+    '  · stat_data：当前值，格式为 [最新值, "更新条件"] 数组，用于逻辑判断\n' +
+    '  · display_data：显示值，格式为 "老值->新值(原因)" 字符串，用于状态栏展示\n' +
+    '  · SafeGetValue函数：处理数组/字符串两种情况，取数组第一个元素或直接返回字符串\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由MVU在每条消息尾部注入，配合正则替换为状态栏HTML\n' +
+    '- 开局变量初始化：在alternate_greetings中嵌入<UpdateVariable>段覆盖[InitVar]默认值\n' +
+    '- 变量更新回调：监听 mag_variable_updated/mag_variable_update_ended 事件实现自定义逻辑\n' +
+    '- 条目前缀：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式、<状态变量输出>\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -1048,21 +1070,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString="ACTION_MATCH_FOUND"\n' +
     '      disabled=true（默认禁用，通过STscript按需触发）\n' +
     '      用途：在STscript中判断是否匹配成功，执行条件分支\n' +
-    '  15. MVU-去除变量更新段（仅格式显示+仅格式提示词）：\n' +
-    '      findRegex="/<UpdateVariable>[\\s\\S]*?</UpdateVariable>/gm"\n' +
+    '  15. MVU-去除变量更新段（AI输出，仅格式显示+仅格式提示词）：\n' +
+    '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
     '      replaceString=""\n' +
-    '      placement=[1], promptOnly=false（仅格式显示+仅格式提示词）\n' +
+    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=true\n' +
     '      用途：从显示和提示词中移除<UpdateVariable>段，变量由MVU脚本处理\n' +
-    '  16. MVU-对AI隐藏状态栏（仅格式提示词）：\n' +
-    '      findRegex="/<StatusPlaceHolderImpl/>/gi"\n' +
+    '  16. MVU-对AI隐藏状态栏（AI输出，仅格式提示词）：\n' +
+    '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
     '      replaceString=""\n' +
-    '      placement=[1], promptOnly=true（仅格式提示词）\n' +
-    '      用途：不让模型看到状态栏占位符，避免干扰生成\n' +
-    '  17. MVU-纯文本状态栏显示（render阶段）：\n' +
-    '      findRegex="/<StatusPlaceHolderImpl/>/gi"\n' +
-    "      replaceString=\"<% if (runType == 'render') { %>...状态栏内容...<% } %>\"\n" +
-    '      placement=[1], substituteRegex=0\n' +
-    '      用途：在渲染阶段将占位符替换为实际状态栏（配合MVU的display_data）\n\n' +
+    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
+    '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
+    '  17. MVU-状态栏美化显示（AI输出，仅格式显示）：\n' +
+    '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
+    "      replaceString=\"```html\\n...状态栏HTML/EJS...\\n```\"\n" +
+    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false\n' +
+    '      用途：在渲染阶段将占位符替换为实际状态栏HTML（配合MVU的display_data）\n' +
+    "      注意：EJS中用 <% if (runType == 'render') { %> 包裹，通过 getVariables 读取 display_data\n\n" +
     '**高级场景与设计模式**：\n' +
     '- 模式1：管道式处理（多脚本串联）\n' +
     '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
@@ -1166,8 +1189,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- <角色边界>：角色行为限制和不可触犯的底线\n' +
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n' +
-    '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式）\n' +
-    '- <变量更新规则>：MVU变量更新分析规则和输出格式说明\n' +
+    '- [InitVar]初始变量：MVU变量系统初始值JSON（变量名:[初始值, 更新条件]格式，enabled=false禁用）\n' +
+    '- 变量列表：MVU当前变量注入（含{{get_message_variable::stat_data}}宏）\n' +
+    '- 变量更新规则：MVU变量更新分析规则（check条件、取值范围等）\n' +
+    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含_.set()语法）\n' +
     '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
     '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
@@ -1196,14 +1221,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '| <角色边界> | true | false | 0 | 2 | 80 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <禁止项> | true | false | 0 | 3 | 70 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <自定义条目> | false | true | 1 | 4 | 55 | 0 | 5 | false | 100 | true | (空) | false |\n' +
-    '| [InitVar]初始变量 | true | false | 0 | 0 | 245 | 0 | 0 | true | 100 | false | (空) | false |\n' +
-    '| <变量更新规则> | true | false | 1 | 0 | 145 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [InitVar]初始变量 | true | false | 0 | 0 | 245 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
+    '| 变量列表 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| 变量更新规则 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| 变量输出格式 | true | false | 0 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <状态变量输出> | false | true | 2 | 2 | 45 | 0 | 3 | false | 100 | true | (空) | false |\n' +
     '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n' +
-    '注5：MVU变量系统需要额外安装脚本（import bundle.js），世界书条目和正则只是配置部分\n\n' +
+    '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
+    '注6：MVU脚本和正则由写卡器自动注入，无需AI生成；世界书条目需AI生成\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -2267,6 +2295,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var defaultDUR = tmpl ? !!tmpl.delay_until_recursion : false;
       var defaultUseProb = tmpl ? tmpl.useProbability : false;
       var defaultScanDepth = tmpl ? tmpl.scan_depth : null;
+      var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
       var ext = e.extensions || {};
       var rawPos = ext.position !== undefined ? ext.position : pos;
       var posNum = typeof rawPos === 'string'
@@ -2290,7 +2319,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         constant: e.constant !== undefined ? e.constant : isConst,
         selective: e.selective !== undefined ? e.selective : isSel,
         insertion_order: e.insertion_order || order,
-        enabled: true,
+        enabled: e.enabled !== undefined ? e.enabled : defaultEnabled,
         position: topPosStr,
         use_regex: e.use_regex !== undefined ? e.use_regex : true,
         extensions: {
@@ -2357,9 +2386,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     };
     var cardName = cd.name || '未命名世界';
     var cardDesc = cd.description || '';
-    var cardFirstMes = toCRLF(cd.first_mes || '');
+    // 检测是否包含MVU变量系统条目，如果是则自动追加<StatusPlaceHolderImpl/>到开场白末尾
+    var hasMVUEntries = rawEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
+    var rawFirstMes = cd.first_mes || '';
+    if (hasMVUEntries && rawFirstMes && rawFirstMes.indexOf('<StatusPlaceHolderImpl') < 0) {
+      rawFirstMes = rawFirstMes.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '').trim() + '\n\n<StatusPlaceHolderImpl/>';
+    }
+    var cardFirstMes = toCRLF(rawFirstMes);
     var cardMesExample = toCRLF(cd.mes_example || '');
-    var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) { return toCRLF(g); });
+    var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
+      var greeting = toCRLF(g);
+      // MVU开局变量初始化：在alternate_greetings中保留<UpdateVariable>段
+      return greeting;
+    });
     var cardPostHist = toCRLF(cd.post_history_instructions || '');
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
     var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
@@ -2384,23 +2423,83 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       character_version: '',
       alternate_greetings: cardAltGreetings,
       group_only_greetings: [],
-      extensions: {
-        talkativeness: '0.5',
-        fav: false,
-        world: cardName,
-        depth_prompt: depthPrompt,
-        regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
-        'xiaobaix-template': {
-          enabled: false,
-          template: '',
-          customRegex: '',
-          disableParsers: false,
-          skipFirstMessage: false,
-          recentMessageCount: 0,
-          limitToRecentMessages: false
-        },
-        tavern_helper: { scripts: [], variables: {} }
-      },
+      extensions: (function() {
+        // 检测是否包含MVU变量系统条目（复用前面的检测结果）
+        var hasMVU = hasMVUEntries;
+        var existingRx = normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts);
+        var existingScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
+        var mvuScripts = existingScripts.slice();
+        var mvuRegex = existingRx.slice();
+        if (hasMVU) {
+          // 自动注入MVU bundle.js脚本（如果尚未存在）
+          var hasBundle = mvuScripts.some(function(s) { return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0; });
+          if (!hasBundle) {
+            mvuScripts.push({
+              type: 'script',
+              enabled: true,
+              name: 'MVU',
+              content: "import'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';",
+              info: '',
+              button: { enabled: true, buttons: [] },
+              data: {}
+            });
+          }
+          // 自动注入MVU必备正则脚本（如果尚未存在）
+          var hasUpdateVarRegex = mvuRegex.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0; });
+          if (!hasUpdateVarRegex) {
+            mvuRegex.push({
+              id: 'mvu-remove-updatevar',
+              scriptName: 'MVU-去除变量更新段',
+              findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: true,
+              promptOnly: true,
+              runOnEdit: true,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          var hasStatusHideRegex = mvuRegex.some(function(r) { return (r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolder') >= 0 && (r.destination ? r.destination.prompt : r.promptOnly); });
+          if (!hasStatusHideRegex) {
+            mvuRegex.push({
+              id: 'mvu-hide-status',
+              scriptName: 'MVU-对AI隐藏状态栏',
+              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: true,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+        }
+        return {
+          talkativeness: '0.5',
+          fav: false,
+          world: cardName,
+          depth_prompt: depthPrompt,
+          regex_scripts: mvuRegex,
+          'xiaobaix-template': {
+            enabled: false,
+            template: '',
+            customRegex: '',
+            disableParsers: false,
+            skipFirstMessage: false,
+            recentMessageCount: 0,
+            limitToRecentMessages: false
+          },
+          tavern_helper: { scripts: mvuScripts, variables: {} }
+        };
+      })(),
       character_book: {
         entries: entries
       }
@@ -3201,8 +3300,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景', 'NPC'],
           narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件', '主线剧情'],
           dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt'],
-          init_var: ['[InitVar]', '初始变量', 'InitVar'],
-          var_update_rule: ['变量更新规则', 'UpdateVariable', 'status_current_variable']
+          init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
+          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable']
         };
         Object.keys(modKeywords).forEach(function(mod) {
           var kws = modKeywords[mod];
@@ -3530,8 +3629,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景'],
           narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件'],
           dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏'],
-          init_var: ['[InitVar]', '初始变量', 'InitVar'],
-          var_update_rule: ['变量更新规则', 'UpdateVariable', 'status_current_variable']
+          init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
+          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable']
         };
         var result = {};
         Object.keys(keywords).forEach(function(mod) {

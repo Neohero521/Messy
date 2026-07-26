@@ -1,0 +1,45 @@
+=== statusRegexHtml positions ===
+[64737, 68970, 112306, 383059, 387280]
+
+=== statusRegexHtml occurrence 0 at pos 64737 ===
+state.targetCharacter, ensureArtifacts(state).mvuSchemaScript);\n    return;\n  }\n\n  if (stageKey === \'install-regex\') {\n    await installMvuRegexes(state.targetCharacter, ensureArtifacts(state).statusRegexHtml);\n    return;\n  }\n\n  if (stageKey === \'write-avatar\') {\n    await updateTargetAvatar(state.targetCharacter, avatarFile.value);\n  }\n}\n\nasync function runPipeline(startIndex = 0) {\n  if (isBusy.value) return;\n  resetWriterGenerationStop();\n  stopRequested.value = false;\n  generationHeartbeat.value = null;\n  isBusy.value = true;\n  workStarted.value = true;\n  failedStageIndex.value = null;\n\n  if (startIndex === 0) {\n    previewText.value = \'\';\n    const active
+---END---
+
+=== statusRegexHtml occurrence 1 at pos 68970 ===
+erEntries(state.targetWorldbook, artifacts.entries);\n    await installMvuSchemaScript(state.targetCharacter, artifacts.mvuSchemaScript);\n    await installMvuRegexes(state.targetCharacter, artifacts.statusRegexHtml);\n    if (rolesReady.length === state.activeRoles.length) {\n      const opening = await generateOpening(\n        state.openingStyle,\n        state.openingOutline,\n        requireWorldview(state).content,\n        rolesReady,\n        retryOptionsFor(state, stageKey),\n      );\n      state.opening = opening;\n      await updateFirstMessage(state.targetCharacter, opening.content);\n    }\n\n    updateStage(stageIndex, \'done\');\n    clearRetryAvoidTerms(state, stageKey);\n  
+---END---
+
+=== statusRegexHtml occurrence 2 at pos 112306 ===
+ary:{logic:'and_any',keys:[]},scan_depth:'same_as_global'},p(0,200),!1)]}function P(n,e){const t=e.length>1;return{entries:[...x(n),...y(e),...e.flatMap((n,e)=>k(n,e,t)),...w(e)],mvuSchemaScript:v(e),statusRegexHtml:h(e)}}function V(){return i}function B(n){return`${n}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`}function E(n){const e=n.trim();if(!e)throw new Error('角色卡名称不能为空');if('current'===e)throw new Error('角色卡名称不能是 current');return e}async function U(n,e){const t=E(n);let a=!1;if(!getCharacterNames().includes(t)&&(a=await createCharacter(t),!a))try{await getCharacter(t)}catch{throw new Error(`创建角色卡失败：${t}`)}return await W(t,e),{name:t,created:a}}function q(n){return{type:n.ty
+---END---
+
+=== statusRegexHtml occurrence 3 at pos 383059 ===
+色');return void await _n(e.targetWorldbook,w(n))}'install-runtime'!==n?'install-schema'!==n?'install-regex'!==n?'write-avatar'===n&&await W(e.targetCharacter,c.value):await Yn(e.targetCharacter,jn(e).statusRegexHtml):await H(e.targetCharacter,jn(e).mvuSchemaScript):await async function(n){const e=JSON.parse('{\n  "type": "script",\n  "enabled": true,\n  "name": "MVU",\n  "id": "961f366d-e403-45c2-8155-3d14ec86de53",\n  "content": "import\'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\';",\n  "info": "",\n  "button": {\n    "enabled": true,\n    "buttons": [\n      {\n        "name": "重新处理变量",\n        "visible": false\n      },\n      {\n        "name": "重新
+---END---
+
+=== statusRegexHtml occurrence 4 at pos 387280 ===
+const o=Sn(t),s=P(Xn(t),o);if(t.artifacts=s,await async function(n,e){await On(n),await _n(n,e)}(t.targetWorldbook,s.entries),await H(t.targetCharacter,s.mvuSchemaScript),await Yn(t.targetCharacter,s.statusRegexHtml),o.length===t.activeRoles.length){const n=await Jn(t.openingStyle,t.openingOutline,Xn(t).content,o,Ln(t,r));t.opening=n,await R(t.targetCharacter,n.content)}Un(e,'done'),Dn(t,r);const A=En(`write-role-${n}`);A>=0&&Un(A,'done'),wn('success',`${i.name} 已重ROLL并刷新世界书/MVU/状态栏`),toastr.success(`${i.name} 已重ROLL`)}catch(a){const r=a instanceof Error?a.message:String(a);C.value=e,Un(e,'error',r),Hn(t,`generate-role-${n}`,r),wn('error',r),toastr.error(r,'一键角色卡写卡器')}finally{J.value=null,I.
+---END---
+
+=== mvuSchemaScript positions ===
+[64583, 68890, 112285, 383108, 387234]
+
+=== mvuSchemaScript occurrence 0 at pos 64583 ===
+    await installMvuRuntimeScript(state.targetCharacter);\n    return;\n  }\n\n  if (stageKey === \'install-schema\') {\n    await installMvuSchemaScript(state.targetCharacter, ensureArtifacts(state).mvuSchemaScript);\n    return;\n  }\n\n  if (stageKey === \'install-regex\') {\n    await installMvuRegexes(state.targetCharacter, ensureArtifacts(state).statusRegexHtml);\n    return;\n  }\n\n  if (stageKey === \'write-avatar\') {\n    await updateTargetAvatar(state.targetCharacter, avatarFile.value);\n  }\n}\n\nasync function runPipeline(startIndex = 0) {\n  if (isBusy.value) return;\n  resetWriterGenerationStop();\n  stopRequested.value = false;\n  generationHeartbeat.value = null;\n  isBusy.
+---END---
+
+=== mvuSchemaScript occurrence 1 at pos 68890 ===
+ew(state), rolesReady);\n    state.artifacts = artifacts;\n    await replaceWriterEntries(state.targetWorldbook, artifacts.entries);\n    await installMvuSchemaScript(state.targetCharacter, artifacts.mvuSchemaScript);\n    await installMvuRegexes(state.targetCharacter, artifacts.statusRegexHtml);\n    if (rolesReady.length === state.activeRoles.length) {\n      const opening = await generateOpening(\n        state.openingStyle,\n        state.openingOutline,\n        requireWorldview(state).content,\n        rolesReady,\n        retryOptionsFor(state, stageKey),\n      );\n      state.opening = opening;\n      await updateFirstMessage(state.targetCharacter, opening.content);\n    }\n\n    up
+---END---
+
+=== mvuSchemaScript occurrence 2 at pos 112285 ===
+',keys:[],keys_secondary:{logic:'and_any',keys:[]},scan_depth:'same_as_global'},p(0,200),!1)]}function P(n,e){const t=e.length>1;return{entries:[...x(n),...y(e),...e.flatMap((n,e)=>k(n,e,t)),...w(e)],mvuSchemaScript:v(e),statusRegexHtml:h(e)}}function V(){return i}function B(n){return`${n}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`}function E(n){const e=n.trim();if(!e)throw new Error('角色卡名称不能为空');if('current'===e)throw new Error('角色卡名称不能是 current');return e}async function U(n,e){const t=E(n);let a=!1;if(!getCharacterNames().includes(t)&&(a=await createCharacter(t),!a))try{await getCharacter(t)}catch{throw new Error(`创建角色卡失败：${t}`)}return await W(t,e),{name:t,created:a}}function 
+---END---
+
+=== mvuSchemaScript occurrence 3 at pos 383108 ===
+'install-runtime'!==n?'install-schema'!==n?'install-regex'!==n?'write-avatar'===n&&await W(e.targetCharacter,c.value):await Yn(e.targetCharacter,jn(e).statusRegexHtml):await H(e.targetCharacter,jn(e).mvuSchemaScript):await async function(n){const e=JSON.parse('{\n  "type": "script",\n  "enabled": true,\n  "name": "MVU",\n  "id": "961f366d-e403-45c2-8155-3d14ec86de53",\n  "content": "import\'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\';",\n  "info": "",\n  "button": {\n    "enabled": true,\n    "buttons": [\n      {\n        "name": "重新处理变量",\n        "visible": false\n      },\n      {\n        "name": "重新读取初始变量",\n        "visible": false\n      },\n   
+---END---
+
+=== mvuSchemaScript occurrence 4 at pos 387234 ===
+sults[n]=i,t.artifacts=void 0,u.value=i.basic;const o=Sn(t),s=P(Xn(t),o);if(t.artifacts=s,await async function(n,e){await On(n),await _n(n,e)}(t.targetWorldbook,s.entries),await H(t.targetCharacter,s.mvuSchemaScript),await Yn(t.targetCharacter,s.statusRegexHtml),o.length===t.activeRoles.length){const n=await Jn(t.openingStyle,t.openingOutline,Xn(t).content,o,Ln(t,r));t.opening=n,await R(t.targetCharacter,n.content)}Un(e,'done'),Dn(t,r);const A=En(`write-role-${n}`);A>=0&&Un(A,'done'),wn('success',`${i.name} 已重ROLL并刷新世界书/MVU/状态栏`),toastr.success(`${i.name} 已重ROLL`)}catch(a){const r=a instanceof Error?a.message:String(a);C.value=e,Un(e,'error',r),Hn(t,`generate-role-${n}`,r),wn('error',r),toas
+---END---
