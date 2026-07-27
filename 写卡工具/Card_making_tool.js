@@ -3456,22 +3456,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               data: {}
             });
           }
-          // 自动注入"世界书调用"(WTC) 脚本
-          // 用途：将世界书内容用 <observed_piece class="剧情/设定"> 标签包裹，让 AI 区分剧情推进和设定信息
-          // 这有助于 AI 在变量更新时正确识别哪些是世界书设定、哪些是当前剧情
-          var hasWTC = mvuScripts.some(function(s) { return (s.content || '').indexOf('LorebookToolCall') >= 0 || (s.content || '').indexOf('wtc') >= 0; });
-          if (!hasWTC) {
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: '世界书调用',
-              id: 'wtc-lorebook-call',
-              content: 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js',
-              info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
-          }
+          // 注意：参考文件（小玉藻写卡器1.0）的 MVU 变量系统只注入 2 个脚本（MVU bundle + 变量结构 schema）
+          // WTC（世界书调用）不属于 MVU 变量系统，是另一个独立写卡器（明月秋青）的脚本，此处不注入
           // 自动注入MVU必备正则脚本（6条）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
           var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
