@@ -3030,222 +3030,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return cleanTrailingCommas(rawScript);
   }
 
-  // ===== 根据 InitVar 变量结构动态生成 MVU 状态栏 HTML =====
-  // 用途：将 <StatusPlaceHolderImpl/> 替换为可视化状态栏，样式根据用户的变量结构定制
-  // 解析 InitVar YAML/JSON，识别"世界"全局变量和角色属性，生成对应的 CSS+JS 渲染代码
-  function generateStatusBarHtml(initVarContent) {
-    // 简易 YAML 解析（支持2层嵌套对象）
-    function parseSimple(text) {
-      var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
-      if (!cleaned) return null;
-      if (cleaned.charAt(0) === '{') {
-        try { return JSON.parse(cleaned); } catch (e) {}
-      }
-      var lines = cleaned.split('\n');
-      var root = {};
-      var stack = [{ indent: -1, node: root }];
-      for (var i = 0; i < lines.length; i++) {
-        var raw = lines[i];
-        if (!raw.trim() || raw.trim().charAt(0) === '#') continue;
-        var indent = 0;
-        while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
-          indent += raw[indent] === '\t' ? 2 : 1;
-        }
-        var content = raw.slice(indent).trim();
-        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
-        var top = stack[stack.length - 1];
-        var colonIdx = content.indexOf(':');
-        if (colonIdx < 0) continue;
-        var key = content.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
-        var valStr = content.slice(colonIdx + 1).trim();
-        if (valStr === '') {
-          top.node[key] = {};
-          stack.push({ indent: indent, node: top.node[key] });
-        } else {
-          var v = valStr.replace(/^['"]|['"]$/g, '');
-          if (v === 'true') v = true;
-          else if (v === 'false') v = false;
-          else if (/^-?\d+(\.\d+)?$/.test(v)) v = Number(v);
-          top.node[key] = v;
-        }
-      }
-      return root;
-    }
-
-    var parsed = parseSimple(initVarContent);
-    if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-      parsed = { '世界': { '当前时间': '开局', '当前地点': '待定' } };
-    }
-
-    // 变量分类辅助函数
-    function isAffinityLike(name) {
-      return /好感|依存|信任|忠诚|友好|亲密|心情|活跃度|体力值|生命值|魔法值|血量|san值|理智值|情绪|心情值|好感度/.test(name);
-    }
-    function isEnumLike(name) {
-      return /状态|类型|阶段|阵营|属性|元素|品质|等级|稀有度|身份|职业|流派|性别|倾向|立场|形态|行为|行动|战斗|模式|种族|职位|类别|分类|品级|段位|阶级|派系/.test(name);
-    }
-    function isHidden(key) { return key.charAt(0) === '_' || key.charAt(0) === '$'; }
-
-    // 分类：世界全局变量 + 角色属性
-    var worldFields = [];
-    var roleNames = [];
-    var roleProps = {};
-
-    Object.keys(parsed).forEach(function(key) {
-      var val = parsed[key];
-      if (key === '世界' && val && typeof val === 'object' && !Array.isArray(val)) {
-        Object.keys(val).forEach(function(fk) {
-          if (isHidden(fk)) return;
-          worldFields.push({ key: fk, val: val[fk] });
-        });
-      } else if (val && typeof val === 'object' && !Array.isArray(val)) {
-        roleNames.push(key);
-        var props = [];
-        Object.keys(val).forEach(function(pk) {
-          if (isHidden(pk)) return;
-          var pv = val[pk];
-          var type = 'text';
-          if (typeof pv === 'number') {
-            type = isAffinityLike(pk) ? 'affinity' : 'number';
-          } else if (typeof pv === 'boolean') {
-            type = 'boolean';
-          } else if (typeof pv === 'string') {
-            type = isEnumLike(pk) ? 'badge' : 'text';
-          }
-          props.push({ key: pk, type: type, val: pv });
-        });
-        roleProps[key] = props;
-      }
-    });
-
-    // 生成 JS 配置对象（嵌入 HTML 的 <script> 中）
-    var configWorld = worldFields.map(function(f) {
-      return '{ key:"' + f.key + '", type:"text" }';
-    }).join(',');
-    var configRoles = roleNames.map(function(rn) {
-      var props = roleProps[rn].map(function(p) {
-        return '{ key:"' + p.key + '", type:"' + p.type + '" }';
-      }).join(',');
-      return '"' + rn + '":[' + props + ']';
-    }).join(',');
-    var configScript = 'var MVU_S_CONFIG = { worldFields:[' + configWorld + '], roles:{' + configRoles + '} };';
-
-    // 生成世界字段渲染 HTML（头部场景信息）
-    var sceneSpans = worldFields.map(function(f, i) {
-      return '<span id="mvu-s-scene-' + i + '" data-key="' + f.key + '">' + f.val + '</span>';
-    }).join('\n        ');
-
-    // 构建完整 HTML
-    var html = '<!doctype html>\n';
-    html += '<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n';
-    html += '  <style>\n';
-    html += '    :root { --mvu-s-cold: #325c9d; --mvu-s-sky: #4eb9e7; --mvu-s-soft: #f5b7c9; --mvu-s-hot: #bd2d3a; --mvu-s-green: #4caf50; --mvu-s-amber: #ff9800; }\n';
-    html += '    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #18211f; }\n';
-    html += '    .mvu-s-card-status { width: 100%; box-sizing: border-box; border: 1px solid rgba(31,45,42,.13); border-radius: 8px; background: linear-gradient(135deg, rgba(247,245,239,.96), rgba(230,236,232,.96)); padding: 10px; box-shadow: 0 12px 30px rgba(21,29,27,.12); }\n';
-    html += '    .mvu-s-card-status-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }\n';
-    html += '    .mvu-s-card-status-head h3 { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; }\n';
-    html += '    .mvu-s-card-status-head p { margin: 3px 0 0; color: #66736d; font-size: 11px; line-height: 1.4; }\n';
-    html += '    .mvu-s-card-status-scene { display: grid; gap: 3px; min-width: 96px; color: #66736d; font-size: 11px; text-align: right; }\n';
-    html += '    .mvu-s-role-list { display: grid; gap: 8px; }\n';
-    html += '    .mvu-s-status-role { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr; align-items: center; min-height: 82px; overflow: hidden; border: 1px solid rgba(255,255,255,.58); border-radius: 8px; background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(238,242,239,.72)); box-shadow: inset 0 0 0 1px rgba(31,45,42,.05); }\n';
-    html += '    .mvu-s-status-role-body { display: grid; gap: 9px; min-width: 0; padding: 12px; }\n';
-    html += '    .mvu-s-role-name { margin: 0; overflow: hidden; color: currentColor; font-size: 16px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }\n';
-    // 好感度进度条
-    html += '    .mvu-s-affection-row { display: grid; grid-template-columns: 58px minmax(88px,1fr) 40px; align-items: center; gap: 9px; min-width: 0; }\n';
-    html += '    .mvu-s-affection-label { font-size: 12px; color: #66736d; }\n';
-    html += '    .mvu-s-affection-bar { height: 8px; border-radius: 4px; background: rgba(31,45,42,.08); overflow: hidden; }\n';
-    html += '    .mvu-s-affection-fill { height: 100%; border-radius: 4px; background: var(--mvu-s-sky); transition: width .4s ease; }\n';
-    html += '    .mvu-s-affection-value { font-size: 12px; color: #18211f; text-align: right; font-variant-numeric: tabular-nums; }\n';
-    // 通用属性行
-    html += '    .mvu-s-prop-row { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 9px; min-width: 0; }\n';
-    html += '    .mvu-s-prop-label { font-size: 12px; color: #66736d; }\n';
-    html += '    .mvu-s-prop-value { font-size: 12px; color: #18211f; }\n';
-    // badge 标签
-    html += '    .mvu-s-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }\n';
-    html += '    .mvu-s-badge-active { background: rgba(76,175,80,.15); color: #2e7d32; border: 1px solid rgba(76,175,80,.3); }\n';
-    html += '    .mvu-s-badge-paused { background: rgba(255,152,0,.15); color: #e65100; border: 1px solid rgba(255,152,0,.3); }\n';
-    html += '    .mvu-s-badge-done { background: rgba(33,150,243,.15); color: #1565c0; border: 1px solid rgba(33,150,243,.3); }\n';
-    html += '    .mvu-s-badge-fail { background: rgba(244,67,54,.15); color: #c62828; border: 1px solid rgba(244,67,54,.3); }\n';
-    html += '    .mvu-s-badge-default { background: rgba(31,45,42,.08); color: #455a4f; border: 1px solid rgba(31,45,42,.12); }\n';
-    // 布尔标签
-    html += '    .mvu-s-bool-true { background: rgba(76,175,80,.15); color: #2e7d32; }\n';
-    html += '    .mvu-s-bool-false { background: rgba(31,45,42,.08); color: #999; }\n';
-    html += '  </style>\n</head>\n<body>\n';
-    html += '  <section class="mvu-s-card-status">\n';
-    html += '    <div class="mvu-s-card-status-head">\n';
-    html += '      <div>\n        <h3>角色状态</h3>\n        <p>CURRENT STATUS</p>\n      </div>\n';
-    html += '      <div class="mvu-s-card-status-scene">\n        ' + sceneSpans + '\n      </div>\n';
-    html += '    </div>\n';
-    html += '    <div id="mvu-s-role-list" class="mvu-s-role-list"></div>\n';
-    html += '  </section>\n';
-    // JS 渲染逻辑（根据配置动态渲染）
-    html += '  <script>\n';
-    html += '    ' + configScript + '\n';
-    html += '    function errorCatched(fn){ return function(){ try { fn.apply(this, arguments); } catch(e){ console.error("[mvu-s-status]", e); } }; }\n';
-    html += '    function getStatData(){ try { return Mvu.getVar("stat_data") || {}; } catch(e){ return {}; } }\n';
-    html += '    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }\n';
-    html += '    function affColor(v){ if (v <= 30) return "var(--mvu-s-cold)"; if (v <= 70) return "var(--mvu-s-sky)"; return "var(--mvu-s-hot)"; }\n';
-    html += '    function badgeClass(val){ var v = String(val); if (/进行中|活跃|开启/.test(v)) return "mvu-s-badge-active"; if (/暂停|等待|休眠/.test(v)) return "mvu-s-badge-paused"; if (/完成|结束|成功/.test(v)) return "mvu-s-badge-done"; if (/失败|死亡|摧毁/.test(v)) return "mvu-s-badge-fail"; return "mvu-s-badge-default"; }\n';
-    html += '    function escHtml(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }\n';
-    html += '    function renderProp(prop, val){\n';
-    html += '      var k = prop.key, t = prop.type;\n';
-    html += '      if (t === "affinity") {\n';
-    html += '        var aff = clamp(Number(val != null ? val : 0), 0, 100);\n';
-    html += '        return \'<div class="mvu-s-affection-row">\' +\n';
-    html += '          \'<span class="mvu-s-affection-label">\' + escHtml(k) + \'</span>\' +\n';
-    html += '          \'<div class="mvu-s-affection-bar"><div class="mvu-s-affection-fill" style="width:\' + aff + \'%;background:\' + affColor(aff) + \'"></div></div>\' +\n';
-    html += '          \'<span class="mvu-s-affection-value">\' + aff + \'</span></div>\';\n';
-    html += '      }\n';
-    html += '      if (t === "badge") {\n';
-    html += '        return \'<div class="mvu-s-prop-row"><span class="mvu-s-prop-label">\' + escHtml(k) + \'</span>\' +\n';
-    html += '          \'<span class="mvu-s-badge \' + badgeClass(val) + \'">\' + escHtml(val) + \'</span></div>\';\n';
-    html += '      }\n';
-    html += '      if (t === "boolean") {\n';
-    html += '        var bv = val ? "是" : "否";\n';
-    html += '        var bc = val ? "mvu-s-badge mvu-s-bool-true" : "mvu-s-badge mvu-s-bool-false";\n';
-    html += '        return \'<div class="mvu-s-prop-row"><span class="mvu-s-prop-label">\' + escHtml(k) + \'</span>\' +\n';
-    html += '          \'<span class="\' + bc + \'">\' + bv + \'</span></div>\';\n';
-    html += '      }\n';
-    html += '      // 默认：number / text\n';
-    html += '      return \'<div class="mvu-s-prop-row"><span class="mvu-s-prop-label">\' + escHtml(k) + \'</span>\' +\n';
-    html += '        \'<span class="mvu-s-prop-value">\' + escHtml(val) + \'</span></div>\';\n';
-    html += '    }\n';
-    html += '    function renderRole(name, info, props){\n';
-    html += '      var body = \'<h4 class="mvu-s-role-name">\' + escHtml(name) + \'</h4>\';\n';
-    html += '      props.forEach(function(prop){\n';
-    html += '        var val = (info && info[prop.key] != null) ? info[prop.key] : "";\n';
-    html += '        body += renderProp(prop, val);\n';
-    html += '      });\n';
-    html += '      return \'<div class="mvu-s-status-role"><div class="mvu-s-status-role-body">\' + body + \'</div></div>\';\n';
-    html += '    }\n';
-    html += '    function init(){\n';
-    html += '      var stat = getStatData();\n';
-    html += '      var world = stat["世界"] || {};\n';
-    html += '      // 更新头部场景字段\n';
-    html += '      MVU_S_CONFIG.worldFields.forEach(function(f, i){\n';
-    html += '        var el = document.getElementById("mvu-s-scene-" + i);\n';
-    html += '        if (el && world[f.key] != null) el.textContent = world[f.key];\n';
-    html += '      });\n';
-    html += '      // 渲染角色列表\n';
-    html += '      var list = document.getElementById("mvu-s-role-list");\n';
-    html += '      if (!list) return;\n';
-    html += '      var html = "";\n';
-    html += '      Object.keys(MVU_S_CONFIG.roles).forEach(function(name){\n';
-    html += '        var info = stat[name];\n';
-    html += '        var props = MVU_S_CONFIG.roles[name];\n';
-    html += '        if (info && typeof info === "object") html += renderRole(name, info, props);\n';
-    html += '      });\n';
-    html += '      list.innerHTML = html || \'<div style="color:#999;font-size:12px;text-align:center;padding:12px">暂无角色数据</div>\';\n';
-    html += '    }\n';
-    html += '    $(errorCatched(init));\n';
-    html += '    try {\n';
-    html += '      eventOn(Mvu.events.VARIABLE_INITIALIZED, errorCatched(init));\n';
-    html += '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, errorCatched(init));\n';
-    html += '    } catch(e) {}\n';
-    html += '  <\/script>\n</body>\n</html>';
-    return html;
-  }
-
   // ===== 变量列表内容规范化（确保含 {{format_message_variable::stat_data}} 宏） =====
   // MVU 规范的变量列表固定格式：
   //   ---
@@ -3657,9 +3441,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 自动注入"变量结构"zod schema 脚本
           // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
           var hasSchema = mvuScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0; });
-          // 从预填充后的 [InitVar] 条目中提取初始变量内容（供 schema 和状态栏生成共用）
-          var initVarEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
           if (!hasSchema) {
+            // 从预填充后的 [InitVar] 条目中提取初始变量内容，据此生成 zod schema
+            var initVarEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
             var schemaContent = generateMvuSchemaScript(initVarEntry ? (initVarEntry.content || '') : '');
             mvuScripts.push({
               type: 'script',
@@ -3793,15 +3577,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             });
           }
           // 正则6：[美化]MVU状态栏 - 将 <StatusPlaceHolderImpl/> 替换为状态栏HTML（仅格式显示）
-          // 状态栏HTML根据 InitVar 变量结构动态生成，匹配用户的变量定义
           var hasStatusBarRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly;
           });
           if (!hasStatusBarRegex) {
-            // 从预填充后的 [InitVar] 条目生成状态栏HTML，用 ```html 代码块包裹（ST会渲染）
-            var mvuInitVarForStatusBar = initVarEntry ? (initVarEntry.content || '') : '';
-            var statusBarHtml = generateStatusBarHtml(mvuInitVarForStatusBar);
-            var statusBarReplace = '```html\n' + statusBarHtml + '\n```';
+            // 用 ```html 代码块包裹，ST正则替换时会渲染为可视化状态栏
+            var statusBarReplace = '```html\n' + MVU_STATUS_BAR_HTML + '\n```';
             mvuRegex.push({
               id: 'mvu-status-bar',
               scriptName: '[美化]MVU状态栏',
