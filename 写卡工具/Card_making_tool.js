@@ -773,7 +773,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
     '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
-    '- 五大核心组件（写卡器自动注入脚本和正则，世界书条目需AI生成）：\n' +
+    '- 五大核心组件（写卡器自动注入脚本和正则1-5，世界书条目和正则6需AI生成）：\n' +
     '  1. [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量的初始值\n' +
     '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
     '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
@@ -829,19 +829,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 示例：<% if (getvar("stat_data.白娅.好感度") >= 50) { %>温柔依赖模式<% } %>\n' +
     '     · 分段建议：≥80深爱 / ≥50好感 / ≥20熟识 / <20陌生\n' +
     '     · 典型场景：根据好感度/剧情日切换角色语气、称呼、行为\n' +
-    '  8. 正则脚本：6个必备正则（写卡器自动注入）\n' +
-    '     · 正则1：仅格式思维链 - 从提示词移除<Analysis>段（AI思维链无需重复发送）\n' +
-    '     · 正则2：[不发送]只发送最新2楼的变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth=4保留最近2楼）\n' +
-    '     · 正则3：[美化]变量完成 - 美化已完成的<UpdateVariable>显示（仅格式显示，折叠样式）\n' +
-    '     · 正则4：[美化]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示，流式动画）\n' +
-    '     · 正则5：[不发送]隐藏状态栏标记 - 从提示词移除<StatusPlaceHolderImpl/>占位符（AI不需要看到它）\n' +
-    '     · 正则6：[美化]MVU状态栏 - 将<StatusPlaceHolderImpl/>替换为状态栏HTML（仅格式显示，渲染可视化状态栏）\n' +
+    '  8. 正则脚本：6个必备正则\n' +
+    '     · 正则1：仅格式思维链 - 从提示词移除<Analysis>段（AI思维链无需重复发送）【写卡器自动注入】\n' +
+    '     · 正则2：[不发送]只发送最新2楼的变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth=4保留最近2楼）【写卡器自动注入】\n' +
+    '     · 正则3：[美化]变量完成 - 美化已完成的<UpdateVariable>显示（仅格式显示，折叠样式）【写卡器自动注入】\n' +
+    '     · 正则4：[美化]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示，流式动画）【写卡器自动注入】\n' +
+    '     · 正则5：[不发送]隐藏状态栏标记 - 从提示词移除<StatusPlaceHolderImpl/>占位符（AI不需要看到它）【写卡器自动注入】\n' +
+    '     · 正则6：[美化]MVU状态栏 - 将<StatusPlaceHolderImpl/>替换为状态栏HTML（仅格式显示，渲染可视化状态栏）【⚠️AI必须根据用户需求生成！】\n' +
     '- 三版正则选择：promptOnly版只影响发送给AI的内容；markdownOnly版只影响显示；全局版（无promptOnly/markdownOnly）影响所有内容\n' +
     '- 开局变量初始化：\n' +
     '  1. [InitVar] 条目定义默认初始值（enabled=false，仅初始化时读取一次）\n' +
     '  2. 若需开局动态设置（根据玩家选择），在alternate_greetings中嵌入<UpdateVariable><initvar>YAML</initvar></UpdateVariable>覆盖\n' +
     '  3. 初始化后变量可在状态栏玩家直接修改（通过酒馆助手UI）\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；正则5从提示词移除占位符，正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
+    '- ⚠️【重中之重】正则6（美化状态栏）必须由AI根据用户需求生成！配置要求：\n' +
+    '  · findRegex: "/<StatusPlaceHolderImpl\\\\/>/g"\n' +
+    '  · replaceString: 必须用 ```html 代码块包裹状态栏HTML（即 "```html\\n<!doctype html>...</html>\\n```"）\n' +
+    '  · placement: [2]（AI输出）\n' +
+    '  · markdownOnly: true, promptOnly: false（仅格式显示，不影响发给AI的提示词）\n' +
+    '  · runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null\n' +
+    '  · 状态栏HTML必须：监听 Mvu.events.VARIABLE_INITIALIZED 和 VARIABLE_UPDATE_ENDED 事件，通过 Mvu.getVar("stat_data") 读取变量动态渲染\n' +
+    '  · 根据用户需求（如修仙境界、末世生存、校园好感度等）设计匹配主题的状态栏样式和布局\n' +
     '- 更新铁则：AI不得修改 _ 开头的只读字段；使用 delta 操作进行数值增减；使用 replace 进行文本/对象替换；remove 删除物品；insert 添加新物品/条目\n' +
     '- 条目前缀：[InitVar]初始变量、变量列表、变量分段提示（EJS模板）、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
@@ -1232,12 +1240,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString=""\n' +
     '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
-    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）：\n' +
+    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成】：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```html\\n...状态栏HTML/EJS...\\n```\"\n" +
-    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false\n' +
-    '      用途：在渲染阶段将占位符替换为实际状态栏HTML（配合MVU的display_data）\n' +
-    "      注意：EJS中用 <% if (runType == 'render') { %> 包裹，通过 getVariables 读取 display_data\n\n" +
+    "      replaceString=\"```html\\n<!doctype html>...状态栏HTML...\\n```\"\n" +
+    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
+    '      用途：在渲染阶段将占位符替换为实际状态栏HTML（配合MVU的stat_data）\n' +
+    "      注意：HTML中监听 Mvu.events.VARIABLE_INITIALIZED 和 VARIABLE_UPDATE_ENDED 事件，通过 Mvu.getVar(\"stat_data\") 读取变量动态渲染；根据用户题材需求定制状态栏样式\n\n" +
     '**高级场景与设计模式**：\n' +
     '- 模式1：管道式处理（多脚本串联）\n' +
     '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
@@ -1289,7 +1297,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      "depth_prompt": {"prompt": "", "depth": 0, "role": "system"},\n' +
     '      "regex_scripts": [\n' +
     '        {"scriptName":"状态栏格式化","findRegex":"/<status>(.*?)</status>/gi","replaceString":"**状态：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
-    '        {"scriptName":"行动标签","findRegex":"/<action>(.*?)</action>/gi","replaceString":"**行动：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false}\n' +
+    '        {"scriptName":"行动标签","findRegex":"/<action>(.*?)</action>/gi","replaceString":"**行动：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
+    '        {"scriptName":"[美化]MVU状态栏","findRegex":"/<StatusPlaceHolderImpl\\\\/>/g","replaceString":"```html\\n<!doctype html>...</html>\\n```","placement":[2],"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null,"disabled":false}\n' +
     '      ],\n' +
     '      "xiaobaix-template": {"enabled": false,"template": "","customRegex": "","disableParsers": false,"skipFirstMessage": false,"recentMessageCount": 0,"limitToRecentMessages": false},\n' +
     '      "tavern_helper": {"scripts": [],"variables": {}}\n' +
@@ -1383,7 +1392,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n' +
     '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
-    '注6：MVU脚本和正则由写卡器自动注入，无需AI生成；世界书条目需AI生成\n\n' +
+    '注6：MVU脚本（bundle.js/zod schema）和正则1-5由写卡器自动注入，无需AI生成；正则6（美化状态栏）和世界书条目需AI生成\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -1486,13 +1495,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  · 原理：监听 mag_variable_updated / mag_variable_update_ended 事件\n' +
     '  · 用途：LLM忘记更新时自动补全（如日期自动+1）、触发特殊逻辑\n' +
     '  · 参考：MagVarUpdate example_src\n' +
-    '- MVU zod安装五件套（写卡器自动注入）：\n' +
-    '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'\n' +
-    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定\n' +
-    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册\n' +
-    '  4. 6个正则脚本：思维链移除/变量更新截断/变量美化/状态栏隐藏/状态栏渲染\n' +
-    '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes\n' +
-    '  6. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式\n\n' +
+    '- MVU zod安装清单：\n' +
+    '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'【写卡器自动注入】\n' +
+    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定【写卡器自动注入】\n' +
+    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【写卡器自动注入】\n' +
+    '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI生成\n' +
+    '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
+    '  6. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -1539,9 +1548,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 设计变量结构（按角色/物品/状态分层嵌套）\n' +
     '- 编写[InitVar]初始变量JSON\n' +
     '- 编写变量更新规则条目\n' +
-    '- 配置MVU专用正则脚本（去除变量更新段 + 隐藏状态栏占位符）\n' +
-    '- 如需状态栏，设计<StatusPlaceHolderImpl/>和display_data显示逻辑\n' +
-    '- 生成[InitVar]初始变量、<变量更新规则>条目\n\n' +
+    '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
+    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须根据用户需求生成匹配主题的状态栏HTML，放入regex_scripts中\n' +
+    '  · 配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true\n' +
+    '  · replaceString必须用```html代码块包裹（如 "```html\\n<!doctype html>...</html>\\n```"）\n' +
+    '  · HTML内监听Mvu.events.VARIABLE_INITIALIZED和VARIABLE_UPDATE_ENDED事件，通过Mvu.getVar("stat_data")动态渲染\n' +
+    '  · 根据题材定制（修仙显示境界灵力、末世显示生命物资、校园显示好感度等）\n' +
+    '- 生成[InitVar]初始变量、变量更新规则、变量输出格式条目\n\n' +
     '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
     '**基础字段检查（8项）：**\n' +
     '- [ ] name：世界名称明确，体现核心主题\n' +
@@ -1599,7 +1612,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] 变量更新规则：<变量更新规则>条目存在，格式说明清晰\n' +
     '- [ ] 变量输出格式：定义<UpdateVariable>段的输出格式\n' +
     '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n' +
-    '注：脚本/正则/StatusPlaceHolderImpl由写卡器导出时自动注入，无需AI生成\n\n' +
+    '- [ ] 美化状态栏正则：regex_scripts中含StatusPlaceHolderImpl的markdownOnly正则（正则6，AI生成）\n' +
+    '注：脚本（bundle.js/zod schema）、正则1-5、StatusPlaceHolderImpl占位符由写卡器导出时自动注入；正则6（美化状态栏）必须由AI生成\n\n' +
     '=== MVU 酒馆助手脚本 API ===\n\n' +
     '**脚本侧变量约定**：\n' +
     '- 变量名以 `_` 开头：AI 不可更新（仅脚本能改），如 `_internal_state`\n' +
@@ -2511,7 +2525,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时会自动注入4条正则（仅格式思维链+只发送最新2楼+美化完成+美化更新中）' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时自动注入正则1-5（思维链移除/变量更新截断/美化×2/状态栏隐藏）；正则6（美化状态栏）需AI生成' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -3577,11 +3591,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             });
           }
           // 正则6：[美化]MVU状态栏 - 将 <StatusPlaceHolderImpl/> 替换为状态栏HTML（仅格式显示）
+          // 检测AI是否已生成美化状态栏正则（findRegex含StatusPlaceHolderImpl + markdownOnly + 非promptOnly）
           var hasStatusBarRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly;
           });
           if (!hasStatusBarRegex) {
-            // 用 ```html 代码块包裹，ST正则替换时会渲染为可视化状态栏
+            // AI未生成时回退：用 ```html 代码块包裹默认状态栏HTML
             var statusBarReplace = '```html\n' + MVU_STATUS_BAR_HTML + '\n```';
             mvuRegex.push({
               id: 'mvu-status-bar',
@@ -5429,7 +5444,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '   - 定义 <UpdateVariable> 输出格式，采用 JSON Patch (RFC 6902) 标准\n' +
             '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
             '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
-            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、必备正则、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n\n' +
+            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
+            '⚠️但正则6（美化状态栏）必须由AI生成！配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, replaceString用```html代码块包裹状态栏HTML（监听Mvu.events事件动态渲染stat_data）\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
             '规则：\n' +
@@ -5609,7 +5625,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var entries = (cardData.character_book || {}).entries || [];
           var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
           if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、4条MVU正则
+            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、正则1-5；正则6（美化状态栏）由AI生成或回退默认
             var ext = (exportCard.data && exportCard.data.extensions) || {};
             var rxScripts = ext.regex_scripts || [];
             var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
@@ -5618,7 +5634,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
             if (hasBundle && hasSchema && hasUpdRx) {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+4条正则已自动注入导出JSON', 'success');
+                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+正则1-5已自动注入，正则6（美化状态栏）需AI生成', 'success');
               }, 500);
             } else {
               setTimeout(function() {
