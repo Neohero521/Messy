@@ -177,7 +177,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .mod-dash .md-analyze-btn:active{background:rgba(210,168,255,.3)}
 .mod-dash .md-header .md-arrow{font-size:.65em;transition:transform .2s;color:#8b949e}
 .mod-dash.collapsed .md-header .md-arrow{transform:rotate(-90deg)}
-.mod-dash .md-body{padding:0 10px 8px;transition:max-height .3s ease;max-height:200px;overflow:hidden}
+.mod-dash .md-body{padding:0 10px 8px;transition:max-height .3s ease;max-height:420px;overflow-y:auto}
 .mod-dash.collapsed .md-body{max-height:0;padding-top:0;padding-bottom:0}
 .mod-dash-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:.7em;cursor:pointer;padding:3px 5px;border-radius:4px;transition:background .15s}
 .mod-dash-item:hover{background:#0d1117}
@@ -245,12 +245,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .wv-group-header{font-size:.7em;font-weight:600;color:#d2a8ff;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;align-items:center}
 .wv-group-count{font-size:.85em;color:#8b949e;font-weight:400}
 
-.genre-preset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
-.genre-preset-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:8px;cursor:pointer;transition:all .2s;text-align:center}
-.genre-preset-card:hover{border-color:#f78166;background:rgba(247,129,102,.05);transform:translateY(-1px)}
-.genre-preset-card .gp-icon{font-size:1.4em;margin-bottom:4px}
-.genre-preset-card .gp-name{font-size:.78em;font-weight:600;color:#d2a8ff;margin-bottom:2px}
-.genre-preset-card .gp-desc{font-size:.6em;color:#8b949e;line-height:1.3}
 
 .group-mgr-list{margin:8px 0}
 .group-mgr-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#0d1117;border:1px solid #21262d;border-radius:5px;margin-bottom:4px;font-size:.72em}
@@ -425,7 +419,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { level: '极低', color: '#6e7681', desc: 'position=0 常驻' },
     '禁止项': { level: '极低', color: '#6e7681', desc: 'position=0 常驻，禁止规则' },
     '自定义条目': { level: '中', color: '#3fb950', desc: '用户自定义' },
-    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=4(at_depth d=4) 常驻(enabled=false)，MVU变量初始化JSON' },
+    '[InitVar]初始变量': { level: '极低', color: '#6e7681', desc: 'position=4(at_depth d=4) 常驻(enabled=false)，MVU变量初始化YAML' },
     '变量列表': { level: '极低', color: '#6e7681', desc: 'position=4(at_depth d=0) 常驻，注入当前变量值给LLM' },
     '变量更新规则': { level: '低', color: '#8b949e', desc: 'position=4(at_depth d=0) 常驻，MVU变量更新分析规则' },
     '变量输出格式': { level: '低', color: '#8b949e', desc: 'position=4(at_depth d=0) 常驻，定义<UpdateVariable>输出格式' },
@@ -433,99 +427,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '状态变量输出': { level: '中', color: '#3fb950', desc: 'position=2 触发，输出当前变量状态给LLM' }
   };
 
-  // ===== 题材预设模板（规范4.4：一键套用最优参数） =====
-  var GENRE_PRESETS = {
-    '修仙': {
-      icon: '🏔️', desc: '修炼境界、宗门势力、天材地宝',
-      tags: ['🎲 RPG', '🏔️ 修仙', '⚔️ 玄幻', '🧘 修炼'],
-      suggestedName: '青云大陆',
-      keyTerms: ['修炼', '境界', '灵气', '宗门', '丹药', '法宝', '渡劫', '元婴', '金丹', '筑基'],
-      sceneKeys: ['战斗', '修炼', '突破', '渡劫', '炼丹', '炼器', '拍卖', '宗门'],
-      coreRule: '修仙境界：练气→筑基→金丹→元婴→化神→渡劫→大乘。境界差距决定战力，不可越级挑战。',
-      entryHints: {
-        '基础公理': '灵气为本，天道循环，修炼逆天而行',
-        '核心玩法': '修炼境界突破、宗门任务、探索秘境、炼丹炼器',
-        '世界规则': '境界压制、灵气浓度、天劫法则',
-        '实体交互': '宗门掌门、长老、师兄妹、妖兽、灵草',
-        '[InitVar]初始变量': '玩家:\n  境界: 练气期\n  灵石: 100\n  宗门: 青云宗'
-      }
-    },
-    '末世': {
-      icon: '☢️', desc: '资源匮乏、丧尸变异、人类幸存',
-      tags: ['🎲 RPG', '☢️ 末世', '🔫 生存', '🧟 变异'],
-      suggestedName: '废土纪元',
-      keyTerms: ['丧尸', '变异', '幸存者', '物资', '避难所', '辐射', '进化', '搜刮', '营地', '感染'],
-      sceneKeys: ['战斗', '搜刮', '逃亡', '建设', '交易', '侦查', '救援', '防守'],
-      coreRule: '物资稀缺，资源即生命。丧尸夜间活跃，幸存者营地需轮流守夜。感染超过72小时必变异。',
-      entryHints: {
-        '基础公理': '病毒爆发，文明崩塌，适者生存',
-        '核心玩法': '搜刮物资、营地建设、丧尸战斗、幸存者招募',
-        '世界规则': '感染机制、辐射区、物资刷新、变异等级',
-        '实体交互': '幸存者、商人、掠夺者、变异体、军方残部',
-        '[InitVar]初始变量': '玩家:\n  生命值: 100\n  食物: 50\n  弹药: 30\n营地:\n  安全等级: 低'
-      }
-    },
-    '西幻': {
-      icon: '🏰', desc: '魔法骑士、王国纷争、龙与地下城',
-      tags: ['🎲 RPG', '🏰 西幻', '✨ 魔法', '⚔️ 冒险'],
-      suggestedName: '艾尔德兰大陆',
-      keyTerms: ['魔法', '骑士', '龙', '精灵', '矮人', '公会', '魔王', '圣剑', '咒文', '冒险者'],
-      sceneKeys: ['战斗', '冒险', '魔法', '交易', '任务', '探索', '谈判', '召唤'],
-      coreRule: '魔法遵循等价交换，施法消耗魔力。冒险者公会分级任务（F-SSS）。种族间有文化隔阂。',
-      entryHints: {
-        '基础公理': '魔力弥漫，诸神注视，善恶有报',
-        '核心玩法': '冒险者任务、魔法修炼、公会升级、队伍组建',
-        '世界规则': '魔力体系、种族天赋、阵营倾向、神祇祝福',
-        '实体交互': '冒险者、魔法师、骑士、精灵、矮人、龙、魔王军',
-        '[InitVar]初始变量': '玩家:\n  等级: 1\n  金币: 100\n  职业: 冒险者\n  声望: 0'
-      }
-    },
-    '都市': {
-      icon: '🏙️', desc: '现代都市、超能力、隐藏世界',
-      tags: ['🎲 RPG', '🏙️ 都市', '✨ 异能', '🎭 现代'],
-      suggestedName: '霓虹之城',
-      keyTerms: ['异能', '组织', '都市', '觉醒', '任务', '身份', '秘密', '金钱', '权力', '日常'],
-      sceneKeys: ['战斗', '社交', '调查', '经营', '潜入', '日常', '任务', '觉醒'],
-      coreRule: '异能者隐藏于普通人之中，禁止公开使用能力。异能分级F-SSS，组织监管违规者。维持日常与异常的平衡。',
-      entryHints: {
-        '基础公理': '觉醒者少数，组织维稳，表里世界并存',
-        '核心玩法': '异能觉醒、组织任务、日常经营、身份隐藏',
-        '世界规则': '异能分级、副作用、组织法则、暴露代价',
-        '实体交互': '异能者、组织成员、普通人、商人、情报贩子',
-        '[InitVar]初始变量': '玩家:\n  异能等级: F\n  金钱: 5000\n  声望: 0\n  暴露风险: 低'
-      }
-    },
-    '科幻': {
-      icon: '🚀', desc: '星际航行、科技文明、未知探索',
-      tags: ['🎲 RPG', '🚀 科幻', '🛸 星际', '🤖 科技'],
-      suggestedName: '银河纪元',
-      keyTerms: ['飞船', '星系', '文明', '科技', '能源', '殖民', '人工智能', '虫洞', '异星', '联盟'],
-      sceneKeys: ['战斗', '探索', '交易', '科研', '殖民', '航行', '外交', '挖掘'],
-      coreRule: '光速不可超越，虫洞为唯一超光速通道。文明等级按卡尔达肖夫指数划分。AI受三大法则约束。',
-      entryHints: {
-        '基础公理': '物理法则不可违背，能量守恒，文明分级',
-        '核心玩法': '星际航行、文明接触、科技研发、资源采集',
-        '世界规则': '物理定律、科技等级、文明分类、AI法则',
-        '实体交互': '舰长、AI、异星生物、殖民者、联盟官员',
-        '[InitVar]初始变量': '玩家:\n  飞船等级: 1\n  信用点: 1000\n  探索度: 0\n  科技等级: 1'
-      }
-    },
-    '校园': {
-      icon: '🎓', desc: '青春校园、社团活动、成长故事',
-      tags: ['🎲 RPG', '🎓 校园', '🌸 青春', '📚 日常'],
-      suggestedName: '樱丘学园',
-      keyTerms: ['社团', '课程', '考试', '朋友', '老师', '活动', '恋爱', '打工', '校园', '文化祭'],
-      sceneKeys: ['日常', '学习', '社团', '社交', '活动', '考试', '打工', '旅行'],
-      coreRule: '校园生活平衡学业与社团，人际关系影响剧情。考试期间压力增大，文化祭是高潮事件。',
-      entryHints: {
-        '基础公理': '学园生活，成长为主，友情与恋爱并重',
-        '核心玩法': '课程学习、社团活动、人际社交、事件参与',
-        '世界规则': '学期制度、社团规则、人际关系、事件触发',
-        '实体交互': '同学、前辈、老师、社团成员、青梅竹马',
-        '[InitVar]初始变量': '玩家:\n  年级: 高一\n  学力: 中等\n  人气: 普通\n  社团: 未加入'
-      }
-    }
-  };
 
   function getEntryTemplate(comment) {
     if (!comment) return null;
@@ -1552,7 +1453,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '**步骤7：配变量系统**（MVU变量系统，进阶可选）\n' +
     '- 确定是否需要MVU变量系统（如需复杂状态管理、好感度系统等）\n' +
     '- 设计变量结构（按角色/物品/状态分层嵌套）\n' +
-    '- 编写[InitVar]初始变量JSON\n' +
+    '- 编写[InitVar]初始变量YAML\n' +
     '- 编写变量更新规则条目\n' +
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
     '- ⚠️【重中之重】生成正则6（美化状态栏）：必须根据用户需求生成匹配主题的状态栏HTML，放入regex_scripts中\n' +
@@ -1612,9 +1513,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] 常驻条目group冲突检测\n' +
     '- [ ] Outlet限制检查（如有）\n\n' +
     '**MVU变量系统检查（7项，进阶可选）：**\n' +
-    '- [ ] 初始变量：[InitVar]条目存在，JSON格式合法\n' +
+    '- [ ] 初始变量：[InitVar]条目存在，YAML格式合法（缩进表示层级）\n' +
     '- [ ] InitVar禁用：[InitVar]条目enabled=false（MVU只读禁用条目做初始化）\n' +
-    '- [ ] 变量格式：每个变量都是 [初始值, 更新条件] 数组格式\n' +
+    '- [ ] 变量格式：每个变量有明确初始值，变量名以_/$前缀标注可见性\n' +
     '- [ ] 变量列表：含{{format_message_variable::stat_data}}宏\n' +
     '- [ ] 变量更新规则：<变量更新规则>条目存在，格式说明清晰\n' +
     '- [ ] 变量输出格式：定义<UpdateVariable>段的输出格式\n' +
@@ -1711,22 +1612,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       delete partial.deleted_entries;
     }
     if (partial._delete && Array.isArray(partial._delete)) {
-      var entryDeletes = [];
+      var entryPrefix = 'character_book.entries.';
       var fieldDeletes = [];
       partial._delete.forEach(function(path) {
-        var parts = path.split('.');
-        if (parts[0] === 'character_book' && parts[1] === 'entries' && parts.length >= 3) {
-          entryDeletes.push({ entryKey: parts[2], idx: parseInt(parts[2]) });
+        if (path.indexOf(entryPrefix) === 0) {
+          // 完整 comment 可能含点，不能用 split，必须用前缀截取
+          var entryKey = path.slice(entryPrefix.length);
+          if (cd.character_book && cd.character_book.entries) {
+            var idx = parseInt(entryKey);
+            if (!isNaN(idx) && String(idx) === entryKey) {
+              cd.character_book.entries.splice(idx, 1);
+            } else {
+              cd.character_book.entries = cd.character_book.entries.filter(function(e) { return e.comment !== entryKey; });
+            }
+            modified = true;
+          }
         } else {
           fieldDeletes.push(path);
         }
       });
-      fieldDeletes.forEach(function(p) { var parts = p.split('.'); delete cd[parts[0]]; modified = true; });
-      entryDeletes.sort(function(a, b) { return b.idx - a.idx; });
-      entryDeletes.forEach(function(del) {
-        if (cd.character_book && cd.character_book.entries) {
-          if (!isNaN(del.idx)) { cd.character_book.entries.splice(del.idx, 1); modified = true; }
-          else { cd.character_book.entries = cd.character_book.entries.filter(function(e) { return e.comment !== del.entryKey; }); modified = true; }
+      // 按路径逐级深入到父对象后再 delete，避免误删整个顶层对象
+      fieldDeletes.forEach(function(p) {
+        var parts = p.split('.');
+        var node = cd;
+        for (var i = 0; i < parts.length - 1; i++) {
+          if (!node || typeof node !== 'object' || !(parts[i] in node)) { node = null; break; }
+          node = node[parts[i]];
+        }
+        if (node && typeof node === 'object' && parts[parts.length - 1] in node) {
+          delete node[parts[parts.length - 1]];
+          modified = true;
         }
       });
       delete partial._delete;
@@ -1783,8 +1698,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (ne.constant === undefined) ne.constant = false;
           if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: true };
         }
-        var i = existing.findIndex(function(e) { return e.comment === ne.comment; });
-        if (i >= 0) { existing[i] = ne; modified = true; } else { existing.push(ne); modified = true; }
+        var idx = existing.findIndex(function(e) { return e.comment === ne.comment; });
+        if (idx >= 0) {
+          // 浅合并：保留 AI 未提供的字段（如 keys、secondary_keys、id 等），避免清空触发词
+          existing[idx] = Object.assign({}, existing[idx], ne);
+          modified = true;
+        } else {
+          // 新条目补默认字段，避免 keys 等字段缺失
+          if (!ne.keys) ne.keys = [];
+          if (!ne.secondary_keys) ne.secondary_keys = [];
+          existing.push(ne);
+          modified = true;
+        }
       });
       cd.character_book.entries = existing;
       delete partial.entries;
@@ -1824,7 +1749,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           cd.extensions.depth_prompt.prompt = dp.prompt;
           dpModified = true;
         }
-        if (dp.depth !== undefined && typeof dp.depth === 'number' && dp.depth > 0 && cd.extensions.depth_prompt.depth !== dp.depth) {
+        if (dp.depth !== undefined && typeof dp.depth === 'number' && dp.depth >= 0 && cd.extensions.depth_prompt.depth !== dp.depth) {
           cd.extensions.depth_prompt.depth = dp.depth;
           dpModified = true;
         }
@@ -1864,17 +1789,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
             cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
-            var dp = partial.extensions.depth_prompt;
-            if (typeof dp === 'string') cd.extensions.depth_prompt.prompt = dp;
-            else if (dp && typeof dp === 'object') {
-              if (dp.prompt !== undefined) cd.extensions.depth_prompt.prompt = dp.prompt;
-              if (dp.depth !== undefined) cd.extensions.depth_prompt.depth = dp.depth;
-              if (dp.role !== undefined) cd.extensions.depth_prompt.role = dp.role;
+            var dp2 = partial.extensions.depth_prompt;
+            var beforeDp = JSON.stringify(cd.extensions.depth_prompt);
+            if (typeof dp2 === 'string') cd.extensions.depth_prompt.prompt = dp2;
+            else if (dp2 && typeof dp2 === 'object') {
+              if (dp2.prompt !== undefined) cd.extensions.depth_prompt.prompt = dp2.prompt;
+              if (dp2.depth !== undefined && typeof dp2.depth === 'number' && dp2.depth >= 0) cd.extensions.depth_prompt.depth = dp2.depth;
+              if (dp2.role !== undefined) cd.extensions.depth_prompt.role = dp2.role;
             }
+            if (JSON.stringify(cd.extensions.depth_prompt) !== beforeDp) modified = true;
           } else if (ek === 'regex_scripts') {
-            cd.extensions.regex_scripts = partial.extensions.regex_scripts || [];
+            // 与顶层 partial.regex_scripts 分支一致：过滤掉残缺脚本
+            var rxArr = partial.extensions.regex_scripts;
+            if (Array.isArray(rxArr)) {
+              var validRx = rxArr.filter(function(s) {
+                return s && typeof s === 'object' && s.findRegex && s.findRegex.trim().length > 0 && s.replaceString !== undefined;
+              });
+              if (validRx.length > 0 && JSON.stringify(cd.extensions.regex_scripts || []) !== JSON.stringify(validRx)) {
+                cd.extensions.regex_scripts = validRx;
+                modified = true;
+              }
+            }
           } else {
-            cd.extensions[ek] = partial.extensions[ek];
+            if (JSON.stringify(cd.extensions[ek]) !== JSON.stringify(partial.extensions[ek])) {
+              cd.extensions[ek] = partial.extensions[ek];
+              modified = true;
+            }
           }
         }
       }
@@ -1886,8 +1826,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         partial.character_book.entries.forEach(function(ne) {
           if (!ne.comment || !ne.comment.trim()) return;
           if (!ne.content || ne.content.trim().length < 20) return;
-          var i = e2.findIndex(function(e) { return e.comment === ne.comment; });
-          if (i >= 0) { e2[i] = ne; modified = true; } else { e2.push(ne); modified = true; }
+          var j = e2.findIndex(function(e) { return e.comment === ne.comment; });
+          if (j >= 0) {
+            // 浅合并，保留 keys/secondary_keys 等字段
+            e2[j] = Object.assign({}, e2[j], ne);
+            modified = true;
+          } else {
+            if (!ne.keys) ne.keys = [];
+            if (!ne.secondary_keys) ne.secondary_keys = [];
+            e2.push(ne);
+            modified = true;
+          }
         });
         cd.character_book.entries = e2;
       }
@@ -1949,7 +1898,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     if (cd && (cd.name || cd.description || cd.first_mes || (cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0))) {
       var parts = [];
       if (cd.name) parts.push('世界/角色名称：' + cd.name);
-      if (cd.character_book && cd.character_book.name) parts.push('世界书名称：' + cd.character_book.name);
       if (cd.description) parts.push('世界观描述(' + (cd.description||'').length + '字)：' + (cd.description||'').substring(0, 400));
       if (cd.system_prompt) parts.push('系统指令(' + (cd.system_prompt||'').length + '字)：' + (cd.system_prompt||'').substring(0, 100));
       if (cd.first_mes) parts.push('开场白(' + (cd.first_mes||'').length + '字)：' + (cd.first_mes||'').substring(0, 200));
@@ -3424,11 +3372,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 '<div class="wf-item"><div class="wf-icon">💬</div><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">📊</div><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">32项质检</div><div class="wf-desc">8基础+4高价值+6世界书+8世界书高级+6正则+3运行效果+6附加，专业达标</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">🎭</div><div class="wf-title">题材预设</div><div class="wf-desc">修仙/末世/西幻/都市等一键套用最优参数</div></div>' +
+                '<div class="wf-item"><div class="wf-icon">🔧</div><div class="wf-title">AI优化</div><div class="wf-desc">质检未达标项一键AI优化，字段级对比</div></div>' +
               '</div>' +
               '<button class="start-btn" id="startBtn">开始创作</button>' +
               '<div class="welcome-actions">' +
-                '<button class="btn btn-ghost" id="genreBtn">🎭 题材预设</button>' +
                 '<button class="btn btn-ghost" id="importBtn">📥 导入现有卡</button>' +
                 '<button class="btn btn-ghost" id="continueBtn" style="display:none">📂 继续上次</button>' +
               '</div>' +
@@ -3439,16 +3386,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
         doc.getElementById('startBtn').addEventListener('click', function() {
           renderChatUI();
-          addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以选择「🎭 题材预设」快速开始（修仙/末世/西幻/都市/科幻/校园），或直接告诉我你的构想！\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+          addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
         });
         doc.getElementById('importBtn').addEventListener('click', showImportModal);
-        var genreBtn = doc.getElementById('genreBtn');
-        if (genreBtn) {
-          genreBtn.addEventListener('click', function() {
-            renderChatUI();
-            showGenrePresets();
-          });
-        }
         var contBtn = doc.getElementById('continueBtn');
         if (contBtn && hasSavedData()) {
           contBtn.style.display = 'inline-block';
@@ -3489,14 +3429,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 '</div>' +
                 '<div class="chat-messages" id="chatMessages"></div>' +
                 '<div class="scroll-btns" id="scrollBtns"><button id="scrollBottomBtn" title="到底部">↓</button></div>' +
-                '<div class="quick-actions" id="quickActions">' +
-                  '<button class="quick-btn" data-action="next">💡 下一步该做什么</button>' +
-                  '<button class="quick-btn" data-action="summary">📊 查看当前进度</button>' +
-                  '<button class="quick-btn" data-action="opening">🎬 生成开场白</button>' +
-                  '<button class="quick-btn" data-action="qc">✅ 质检</button>' +
-                  '<button class="quick-btn" data-action="optimize">🔧 优化</button>' +
-                  '<button class="quick-btn" data-action="generate">✨ 生成角色卡</button>' +
-                '</div>' +
+                '<div class="quick-actions" id="quickActions"></div>' +
                 '<div class="chat-input-area">' +
                   '<textarea class="chat-input" id="chatInput" placeholder="描述你想要的世界..." rows="1"></textarea>' +
                   '<div class="chat-input-char-count" id="charCount">0 / 2000</div>' +
@@ -3724,6 +3657,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         };
         cardData.group_only_greetings = cd.group_only_greetings || [];
 
+        // 导入时无论原卡是否含 character_book 都重置，避免残留旧卡条目
+        cardData.character_book = { entries: [] };
         if (cd.character_book) {
           cardData.character_book = {
             entries: (cd.character_book.entries || []).map(function(e, i) {
@@ -3833,6 +3768,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var state = JSON.parse(raw);
           if (state.cardData) {
             cardData = state.cardData;
+            // 防御性恢复结构：避免旧版/损坏数据导致后续访问崩溃
+            if (!cardData.character_book) cardData.character_book = { entries: [] };
+            if (!cardData.character_book.entries) cardData.character_book.entries = [];
+            if (!cardData.extensions) cardData.extensions = {};
+            if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+            if (!cardData.tags) cardData.tags = [];
+            if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
             messages = state.messages || [];
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
@@ -3859,6 +3801,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       function continueFromSave() {
         if (loadFromStorage()) {
           renderChatUI();
+          // 恢复历史消息到对话区（renderChatUI 只搭建骨架，不渲染 messages）
+          var savedMessages = messages.slice();
+          messages = [];
+          var chatC = doc.getElementById('chatMessages');
+          if (chatC) chatC.innerHTML = '';
+          savedMessages.forEach(function(m) {
+            messages.push(m);
+            appendMsg(m.role, m.content);
+          });
+          updateProgress();
+          updateQuickActions();
+          updateModFocus();
+          renderPreview();
           renderModDash();
           showToast('已恢复上次创作进度', 'success');
         } else {
@@ -3867,24 +3822,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
 
       function handleModFocus(mod) {
-        var modNames = {
-          axiom: '基础公理',
-          soft_rules: '交互软规则',
-          core_rules: '核心铁则',
-          near_constraint: '近场强约束',
-          scene_mechanics: '场景机制',
-          entity_interact: '实体交互',
-          narrative_bg: '叙事背景',
-          dynamic_adapt: '动态适配',
-          init_var: 'MVU变量系统（初始变量）',
-          var_update_rule: 'MVU变量系统（变量更新规则）'
-        };
-        var modName = modNames[mod] || '该模块';
-        var input = doc.getElementById('chatInput');
-        if (input) {
-          input.value = '请帮我深入完善' + modName + '部分，给我一些建议和灵感';
-          handleSend();
-        }
+        // 复用 handleQuickAction 的精细提示词，保证点击仪表盘/模块按钮都能给出体系化指令
+        handleQuickAction(mod);
       }
 
       function updateModFocus() {
@@ -3915,8 +3854,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var actions = [];
         // 引导流程7步（规范4.5）：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配→配变量系统
         if (p < 20) {
-          actions.push({ action: 'genre', label: '🎭 题材预设' });
           actions.push({ action: 'core_rules', label: '🔐 定核心铁则', hl: true });
+          actions.push({ action: 'axiom', label: '🏛️ 搭世界基底' });
         } else if (p < 40) {
           actions.push({ action: 'axiom', label: '🏛️ 搭世界基底', hl: true });
           actions.push({ action: 'soft_rules', label: '🤝 交互软规则' });
@@ -3933,12 +3872,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           actions.push({ action: 'generate', label: '✨ 生成角色卡', hl: true });
           actions.push({ action: 'optimize', label: '🔧 优化' });
         }
+        // 常驻快捷动作
         actions.push({ action: 'next', label: '💡 下一步' });
+        actions.push({ action: 'summary', label: '📊 当前进度' });
+        if (!hasFirst && p >= 20) actions.push({ action: 'opening', label: '🎬 生成开场白' });
         actions.push({ action: 'qc', label: '✅ 质检' });
+        actions.push({ action: 'optimize', label: '🔧 优化' });
         if (hasEntries) {
           actions.push({ action: 'weight', label: '📊 权重可视化' });
           actions.push({ action: 'group', label: '🗂️ 分组管理' });
         }
+        actions.push({ action: 'generate', label: '✨ 生成角色卡' });
         var h = '';
         actions.forEach(function(a) {
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + a.label + '</button>';
@@ -3958,33 +3902,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (action === 'qc') { showQualityCheck(); return; }
         if (action === 'optimize') { showOptimizeModal(); return; }
         if (action === 'weight') { showWeightVisual(); return; }
-        if (action === 'genre') { showGenrePresets(); return; }
         if (action === 'group') { showGroupMgr(); return; }
-        if (action === 'next') {
-          if (input) { input.value = '下一步我该做什么？请给我一些建议'; handleSend(); }
-          return;
-        }
-        if (action === 'summary') {
-          if (input) { input.value = '帮我梳理一下当前已收集的信息和进度'; handleSend(); }
-          return;
-        }
-        if (action === 'situation') {
-          if (input) { input.value = '请帮我完善当前局势和主要势力关系'; handleSend(); }
+        if (action === 'generate') {
+          if (input) { input.value = '生成完整角色卡'; handleSend(); }
           return;
         }
         var prompts = {
-          axiom: '请帮我完善基础公理和世界元数据，构建世界底层骨架',
-          soft_rules: '请帮我设计交互软规则和叙事风格引导',
-          core_rules: '请帮我完善核心铁则和输出格式要求',
-          near_constraint: '请帮我设计近场强约束和当前局势',
-          scene_mechanics: '请帮我完善场景机制和核心玩法',
-          entity_interact: '请帮我设计实体交互和重要角色',
-          narrative_bg: '请帮我完善叙事背景和故事发展',
-          dynamic_adapt: '请帮我设计动态适配和引导机制',
-          init_var: '请帮我设计MVU变量系统的[InitVar]初始变量和变量更新规则，包括正则脚本配置',
-          var_update_rule: '请帮我完善变量更新规则和状态变量输出条目',
-          opening: '请根据已有设定生成开场白',
-          generate: '生成完整角色卡'
+          next: '下一步我该做什么？请根据当前完成度和未达标项，给出2-3条具体可执行的建议，并说明每条建议会改善哪个体系。',
+          summary: '帮我梳理一下当前已收集的信息和进度：1) 已完成的核心设定 2) 各体系完成情况 3) 还缺什么 4) 推荐的下一步。用简洁列表呈现。',
+          opening: '请根据现有世界观设定生成一段500-800字的开场白（first_mes）。要求：场景描写→主角出场→冲突/悬念→结尾留钩。必须是完整文本，禁止占位符。',
+          situation: '请帮我完善当前局势和主要势力关系，输出到```json代码块的 entries 字段中（近场强约束+实体交互类条目）。',
+          axiom: '请帮我完善【基础公理】体系：世界元数据、世界观公理、力量体系骨架。输出到```json代码块的 entries 字段，使用<基础公理>前缀，constant=true，position=0，每条content≥250字。',
+          soft_rules: '请帮我设计【交互软规则】体系：互动选项规则、叙事风格引导、剧情节奏控制。输出到```json代码块，使用<交互软规则>前缀。',
+          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。核心规则放post_history_instructions（≤100字分号分隔），详细规则放<核心铁则>条目。',
+          near_constraint: '请帮我设计【近场强约束】体系：当前局势、即时状态、临时任务。输出到```json代码块，使用<近场强约束>前缀，触发式条目depth=2。',
+          scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。输出到```json代码块，使用<场景机制>前缀。',
+          entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。输出到```json代码块，使用<实体交互>前缀，prevent_recursion=true。',
+          narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。输出到```json代码块，使用<叙事背景>前缀，delay_until_recursion=true。',
+          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、状态栏、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。',
+          init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段。',
+          var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。'
         };
         if (prompts[action] && input) { input.value = prompts[action]; handleSend(); }
       }
@@ -4100,17 +4037,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           { key: 'init_var', icon: '📊', name: '初始变量', group: '变量' },
           { key: 'var_update_rule', icon: '📝', name: '变量更新规则', group: '变量' }
         ];
-        var h = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #21262d">';
+        // 计算总进度（用于仪表盘头部展示）
+        var totalPct = 0;
+        var doneCount = 0;
+        labels.forEach(function(l) {
+          var v = mp[l.key] || 0;
+          totalPct += v;
+          if (v >= 100) doneCount++;
+        });
+        var avgPct = Math.round(totalPct / labels.length);
         var groups = { '常驻': '#3fb950', '触发': '#d2a8ff', '动态': '#f78166', '变量': '#58a6ff' };
+        var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #21262d">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:4px">';
         Object.keys(groups).forEach(function(g) {
           h += '<span style="font-size:.62em;color:' + groups[g] + ';background:rgba(255,255,255,.03);padding:1px 6px;border-radius:3px">' + g + '体系</span>';
         });
-        h += '</div>';
+        h += '</div>' +
+          '<span style="font-size:.65em;color:' + (avgPct >= 100 ? '#3fb950' : avgPct >= 50 ? '#d2a8ff' : '#8b949e') + '">' + doneCount + '/' + labels.length + ' 完成 · 均' + avgPct + '%</span>' +
+          '</div>';
         labels.forEach(function(l) {
           var val = mp[l.key] || 0;
           var cls = val >= 100 ? 'done' : val > 0 ? 'prog' : 'empty';
           var groupColor = groups[l.group] || '#8b949e';
-          h += '<div class="mod-dash-item" data-mod="' + l.key + '" title="' + l.group + '体系">' +
+          h += '<div class="mod-dash-item" data-mod="' + l.key + '" title="' + l.group + '体系 · 点击让AI完善此模块">' +
             '<span class="m-icon">' + l.icon + '</span>' +
             '<span class="m-name" style="color:' + groupColor + '">' + l.name + '</span>' +
             '<span class="m-bar-wrap"><span class="m-bar ' + cls + '" style="width:' + val + '%"></span></span>' +
@@ -4119,6 +4068,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
         var body = dash.querySelector('.md-body');
         if (body) body.innerHTML = h;
+        // 仪表盘条目点击：让AI完善对应模块
         var items = dash.querySelectorAll('.mod-dash-item');
         for (var i = 0; i < items.length; i++) {
           items[i].addEventListener('click', function() {
@@ -4126,13 +4076,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (mod) handleModFocus(mod);
           });
         }
+        // 头部：折叠/展开 + AI分析按钮（避免重复绑定）
         var header = dash.querySelector('.md-header');
         if (header) {
-          header.removeEventListener('click', toggleDash);
+          if (!header.getAttribute('data-bound')) {
+            header.setAttribute('data-bound', '1');
+            header.addEventListener('click', function(e) {
+              // 点击 AI分析按钮不触发挥折叠
+              if (e.target.closest('.md-analyze-btn')) return;
+              toggleDash();
+            });
+          }
           var btn = header.querySelector('.md-analyze-btn');
           if (!btn) {
             btn = doc.createElement('button');
             btn.className = 'md-analyze-btn';
+            btn.type = 'button';
             btn.textContent = '🔍 AI分析';
             btn.addEventListener('click', function(e) {
               e.stopPropagation();
@@ -4140,7 +4099,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             });
             header.appendChild(btn);
           }
-          header.addEventListener('click', toggleDash);
         }
       }
       async function handleAnalyzeProgress() {
@@ -4156,16 +4114,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         try {
           var analyzePrompt = SYS_PROMPT +
             '\n\n=== AI分析指令 ===\n' +
-            '请全面分析当前角色卡的内容，完成以下任务：\n' +
-            '1. 评估每个体系的完成度，输出到```json代码块中\n' +
-            '2. JSON格式：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
-            '3. 在回复中给出每个体系的改进建议和下一步行动方向\n' +
-            '4. 最后给出一条适合用户输入的建议指令（放在<suggestion>标签中）\n\n' +
-            '当前内容：\n' +
+            '请全面分析当前角色卡内容，完成以下任务：\n' +
+            '1. 评估每个体系的完成度（0-100），输出到```json代码块\n' +
+            '2. JSON格式（严格）：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
+            '   评分标准：0=无内容，30=有1条短内容，60=有1条≥250字，80=有1条≥500字，100=≥2条且总长≥500字\n' +
+            '3. 用自然语言给出每个体系的改进建议和下一步行动方向\n' +
+            '4. 最后给出一条适合用户直接输入的建议指令（放在<suggestion>标签中，标签内是纯指令文本，不含解释）\n\n' +
+            '=== 当前角色卡内容 ===\n' +
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述：' + cardData.description.substring(0, 500) + '\n' : '') +
-            '- 条目数：' + entries.length + '条\n' +
-            (entries.length > 0 ? '- 条目摘要：' + entries.map(function(e) { return e.comment + '(' + (e.content||'').length + '字)'; }).join(', ') : '');
+            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 500) + '\n' : '') +
+            (cardData.first_mes ? '- 开场白(' + (cardData.first_mes||'').length + '字)\n' : '') +
+            (cardData.post_history_instructions ? '- 核心铁则(' + (cardData.post_history_instructions||'').length + '字)\n' : '') +
+            '- 世界书条目：' + entries.length + '条\n' +
+            (entries.length > 0 ? '- 条目清单：\n' + entries.map(function(e) { return '  · [' + (e.comment||'未命名') + '] ' + (e.content||'').length + '字' + (e.enabled === false ? ' (禁用)' : ''); }).join('\n') : '');
           var aiResponse = await callAI(analyzePrompt);
           removeTyping();
           var parsed = extractJSON(aiResponse);
@@ -4220,7 +4181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件', '主线剧情'],
           dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt'],
           init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
-          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable']
+          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable', 'mvu_update']
         };
         Object.keys(modKeywords).forEach(function(mod) {
           var kws = modKeywords[mod];
@@ -4236,8 +4197,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               totalLen += (e.content || '').length;
             }
           });
+          // 完成度计算：1条+长度≥250 → 60%；1条+长度≥500 → 80%；≥2条+长度≥500 → 100%
           if (count >= 2 && totalLen >= 500) result[mod] = 100;
-          else if (count >= 1) result[mod] = Math.min(50 + count * 15 + Math.floor(totalLen / 100), 95);
+          else if (count >= 1 && totalLen >= 500) result[mod] = 80;
+          else if (count >= 1 && totalLen >= 250) result[mod] = 60;
+          else if (count >= 1) result[mod] = Math.min(30 + Math.floor(totalLen / 25), 55);
           else result[mod] = 0;
         });
         if (cardData.post_history_instructions && cardData.post_history_instructions.length > 0) {
@@ -4351,16 +4315,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (m) {
             var jsonContent = m[1].trim();
             try { return JSON.parse(jsonContent); } catch(e) {}
-            try {
-              var fixed = jsonContent
-                .replace(/\\\\n/g, '\\n')
-                .replace(/\\\\r/g, '\\r')
-                .replace(/(['"])?([a-zA-Z_][a-zA-Z0-9_]*)(['"])?\s*:/g, '"$2":')
-                .replace(/:\s*'([^']*?)'/g, ':"$1"')
-                .replace(/,\s*}/g, '}')
-                .replace(/,\s*]/g, ']');
-              return JSON.parse(fixed);
-            } catch(e) {}
+            var fixed = repairJSON(jsonContent);
+            if (fixed) return fixed;
           }
         }
         var braceStart = text.indexOf('{');
@@ -4368,18 +4324,89 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (braceStart >= 0 && braceEnd > braceStart) {
           var candidate = text.substring(braceStart, braceEnd + 1);
           try { return JSON.parse(candidate.trim()); } catch(e) {}
-          try {
-            var fixed = candidate
-              .replace(/\\\\n/g, '\\n')
-              .replace(/\\\\r/g, '\\r')
-              .replace(/(['"])?([a-zA-Z_][a-zA-Z0-9_]*)(['"])?\s*:/g, '"$2":')
-              .replace(/:\s*'([^']*?)'/g, ':"$1"')
-              .replace(/,\s*}/g, '}')
-              .replace(/,\s*]/g, ']');
-            return JSON.parse(fixed);
-          } catch(e) {}
+          var fixed2 = repairJSON(candidate);
+          if (fixed2) return fixed2;
         }
         return null;
+      }
+
+      // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
+      // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
+      function repairJSON(str) {
+        if (!str) return null;
+        // 1) 先尝试直接解析
+        try { return JSON.parse(str); } catch(e) {}
+        // 2) 反转义多余转义、修复尾逗号
+        var s = str
+          .replace(/\\\\n/g, '\\n')
+          .replace(/\\\\r/g, '\\r')
+          .replace(/,\s*}/g, '}')
+          .replace(/,\s*]/g, ']');
+        try { return JSON.parse(s); } catch(e) {}
+        // 3) 状态机：单引号字符串转双引号 + 裸键补引号（不触碰字符串内部）
+        var out = [];
+        var i = 0;
+        var len = s.length;
+        // state: 0=期望键或值, 1=字符串内, 2=键已结束待冒号, 3=值已结束待逗号/括号
+        var afterColon = false; // 上一非空白token是否是冒号（值上下文）
+        while (i < len) {
+          var ch = s[i];
+          if (ch === '"') {
+            // 双引号字符串：原样复制到匹配的结束引号（处理转义）
+            out.push(ch);
+            i++;
+            while (i < len) {
+              var c = s[i];
+              out.push(c);
+              if (c === '\\' && i + 1 < len) { out.push(s[i+1]); i += 2; continue; }
+              i++;
+              if (c === '"') break;
+            }
+            afterColon = false;
+            continue;
+          }
+          if (ch === "'") {
+            // 单引号字符串：转成双引号
+            out.push('"');
+            i++;
+            while (i < len) {
+              var c2 = s[i];
+              if (c2 === '\\' && i + 1 < len) {
+                // 转义字符原样保留
+                out.push(c2, s[i+1]);
+                i += 2;
+                continue;
+              }
+              if (c2 === "'") { out.push('"'); i++; break; }
+              if (c2 === '"') { out.push('\\'); } // 字符串内的双引号需转义
+              out.push(c2);
+              i++;
+            }
+            afterColon = false;
+            continue;
+          }
+          // 裸键检测：在键上下文（非值，紧跟标识符 + 冒号）
+          if (!afterColon && /[a-zA-Z_$]/.test(ch)) {
+            var j = i;
+            while (j < len && /[a-zA-Z0-9_$]/.test(s[j])) j++;
+            // 跳过空白看是否跟冒号
+            var k = j;
+            while (k < len && /\s/.test(s[k])) k++;
+            if (k < len && s[k] === ':') {
+              // 是裸键，补引号
+              out.push('"', s.substring(i, j), '"');
+              i = j;
+              continue;
+            }
+          }
+          if (ch === ':') afterColon = true;
+          else if (ch === ',' || ch === '{' || ch === '[') afterColon = false;
+          else if (ch === '}' || ch === ']') afterColon = false;
+          out.push(ch);
+          i++;
+        }
+        var repaired = out.join('');
+        try { return JSON.parse(repaired); } catch(e) { return null; }
       }
 
       // ===== AI对话调用 =====
@@ -4427,19 +4454,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               '初始变量': 'init_var',
               '变量更新规则': 'var_update_rule'
             };
-            Object.keys(modMap).forEach(function(kw) {
-              var key = modMap[kw];
-              if (modProg[key] === 100) {
-                var count = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
-                if (count === 0) modProg[key] = 0;
-                else if (count === 1) modProg[key] = 50;
-              }
-              if (modProg[key] === 50) {
-                var cnt = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
-                if (cnt === 0) modProg[key] = 0;
-              }
-            });
-            moduleProgress = modProg;
+            // 仅当 AI 回复中确实识别到模块状态符号时才更新，
+            // 否则 parseModProgress 返回全 0 会清空真实进度
+            var hasAnySignal = Object.keys(modProg).some(function(k) { return modProg[k] > 0; });
+            if (hasAnySignal) {
+              Object.keys(modMap).forEach(function(kw) {
+                var key = modMap[kw];
+                if (modProg[key] === 100) {
+                  var count = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
+                  if (count === 0) modProg[key] = 0;
+                  else if (count === 1) modProg[key] = 50;
+                }
+                if (modProg[key] === 50) {
+                  var cnt = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
+                  if (cnt === 0) modProg[key] = 0;
+                }
+              });
+              // 合并而非覆盖：仅更新 AI 明确给出的模块，保留其余模块的原有进度
+              Object.keys(modProg).forEach(function(k) {
+                if (modProg[k] > 0) moduleProgress[k] = modProg[k];
+              });
+            }
           }
           var dialogue = aiResponse.replace(/```[\s\S]*?```/g, '').trim();
           if (dialogue) {
@@ -4485,22 +4520,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
           var genPrompt = SYS_PROMPT +
             '\n\n=== 生成指令 ===\n' +
-            '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。\n' +
-            '使用标准格式，输出到```json代码块中。\n' +
-            'description至少400字，first_mes至少500字，世界书条目至少8条（覆盖六大模块）。\n' +
-            '自动生成合适的世界书名称、系统指令、标签。\n\n' +
-            '已有内容：\n' +
+            '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
+            '=== 必须达到的字段标准 ===\n' +
+            '- name：简洁有力的世界/角色名称（≤15字）\n' +
+            '- description：≥400字，覆盖世界核心设定、地理、历史、文化、社会结构\n' +
+            '- first_mes：500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
+            '- system_prompt：≤50字，仅AI身份定位一句话\n' +
+            '- post_history_instructions：≤100字，分号分隔的核心铁则（最高权重位）\n' +
+            '- personality/scenario：必须留空（世界模式规范）\n' +
+            '- tags：2-12个精准标签\n' +
+            '- mes_example：1-2组对话示例（Few-shot）\n' +
+            '- alternate_greetings：≥3个差异化备用开局\n' +
+            '- extensions.depth_prompt：新手引导（depth=0）\n' +
+            '- extensions.regex_scripts：3-5条状态同步正则\n' +
+            '- character_book.entries：≥12条，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条content≥250字\n' +
+            '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
+            '=== 已有内容（参考，不要丢失） ===\n' +
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述：' + cardData.description.substring(0, 300) + '\n' : '') +
+            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
-            (cardData.tags && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '');
+            (cardData.tags && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
+            '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。';
           var aiResponse = await callAI(genPrompt);
           removeTyping();
           var parsed = extractJSON(aiResponse);
           if (parsed) {
             try {
               if (parsed.spec === 'chara_card_v3' && parsed.data) {
-                for (var k in parsed.data) { if (parsed.data.hasOwnProperty(k)) cardData[k] = parsed.data[k]; }
+                // v3 格式：解包 data 字段后走 mergePartial，保证模板默认值和 keys 保留逻辑生效
+                mergePartial(parsed.data, cardData);
               } else {
                 mergePartial(parsed, cardData);
               }
@@ -4528,11 +4576,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function setEnabled(enabled) {
         var sendBtn = doc.getElementById('sendBtn');
+        var saveBtn = doc.getElementById('saveBtn');
         var input = doc.getElementById('chatInput');
         if (sendBtn) sendBtn.disabled = !enabled;
-        if (input) { input.disabled = !enabled; if (enabled) input.focus(); }
-        var qb = doc.querySelectorAll('.quick-btn');
-        for (var i = 0; i < qb.length; i++) qb[i].disabled = !enabled;
+        if (saveBtn) saveBtn.disabled = !enabled;
+        if (input) { input.disabled = !enabled; if (enabled) { try { input.focus(); } catch(e){} } }
+        // 快捷按钮、模块聚焦按钮、仪表盘条目统一禁用/启用，避免生成中误触
+        var sels = ['.quick-btn', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
+        for (var s = 0; s < sels.length; s++) {
+          var nodes = doc.querySelectorAll(sels[s]);
+          for (var i = 0; i < nodes.length; i++) {
+            nodes[i].disabled = !enabled;
+            nodes[i].style.pointerEvents = enabled ? '' : 'none';
+            nodes[i].style.opacity = enabled ? '' : '0.5';
+          }
+        }
         updateSendBtnPulse();
       }
 
@@ -4767,91 +4825,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
         doc.getElementById('wvCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-      }
-
-      // ===== 题材预设模板（规范4.4） =====
-      function showGenrePresets() {
-        var h = '<div class="modal" id="genreModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🎭 题材预设模板</h3>' +
-            '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">选择题材一键套用最优参数：标签、关键词、核心规则、条目建议</p>' +
-            '<div class="genre-preset-grid">';
-        Object.keys(GENRE_PRESETS).forEach(function(key) {
-          var g = GENRE_PRESETS[key];
-          h += '<div class="genre-preset-card" data-genre="' + key + '">' +
-            '<div class="gp-icon">' + g.icon + '</div>' +
-            '<div class="gp-name">' + key + '</div>' +
-            '<div class="gp-desc">' + escHtml(g.desc) + '</div>' +
-          '</div>';
-        });
-        h += '</div>' +
-          '<div id="genreDetail" style="display:none;margin-top:8px"></div>' +
-          '<div class="modal-actions">' +
-            '<button class="btn btn-ghost" id="genreCloseBtn">关闭</button>' +
-          '</div>' +
-        '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
-        doc.body.appendChild(modalEl);
-        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
-        doc.getElementById('genreCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-        var cards = modalEl.querySelectorAll('.genre-preset-card');
-        for (var i = 0; i < cards.length; i++) {
-          cards[i].addEventListener('click', function() {
-            var genre = this.getAttribute('data-genre');
-            applyGenrePreset(genre, modalEl);
-          });
-        }
-      }
-
-      function applyGenrePreset(genre, modalEl) {
-        var g = GENRE_PRESETS[genre];
-        if (!g) return;
-        var detail = modalEl.querySelector('#genreDetail');
-        if (detail) {
-          detail.style.display = 'block';
-          detail.innerHTML = '<div class="pv-section" style="margin-top:6px">' +
-            '<h3 style="color:#f78166;font-size:.8em;margin-bottom:6px">' + g.icon + ' ' + genre + ' · 详细参数</h3>' +
-            '<div style="font-size:.7em;color:#8b949e;line-height:1.6">' +
-              '<div style="margin-bottom:4px"><b style="color:#d2a8ff">建议名称：</b>' + escHtml(g.suggestedName) + '</div>' +
-              '<div style="margin-bottom:4px"><b style="color:#d2a8ff">标签：</b>' + g.tags.map(escHtml).join(' · ') + '</div>' +
-              '<div style="margin-bottom:4px"><b style="color:#d2a8ff">核心铁则：</b>' + escHtml(g.coreRule) + '</div>' +
-              '<div style="margin-bottom:4px"><b style="color:#d2a8ff">场景触发词：</b>' + g.sceneKeys.map(escHtml).join('、') + '</div>' +
-              '<div style="margin-bottom:8px"><b style="color:#d2a8ff">关键术语：</b>' + g.keyTerms.map(escHtml).join('、') + '</div>' +
-              '<div style="display:flex;gap:6px;justify-content:center;margin-top:8px">' +
-                '<button class="btn btn-success" id="genreApplyBtn" style="font-size:.8em">✅ 套用此预设</button>' +
-                '<button class="btn btn-primary" id="genreAIBtn" style="font-size:.8em">🤖 用此题材开始创作</button>' +
-              '</div>' +
-            '</div></div>';
-          var applyBtn = doc.getElementById('genreApplyBtn');
-          if (applyBtn) applyBtn.addEventListener('click', function() {
-            // 套用预设参数
-            if (!cardData.name) cardData.name = g.suggestedName;
-            cardData.tags = (cardData.tags && cardData.tags.length) ? cardData.tags : g.tags.slice();
-            if (!cardData.post_history_instructions) cardData.post_history_instructions = g.coreRule;
-            cardData.system_prompt = cardData.system_prompt || ('你是「' + g.suggestedName + '」的叙事AI。');
-            progress = calcProgress();
-            updateProgress();
-            renderPreview();
-            renderModDash();
-            updateModFocus();
-            saveToStorage();
-            modalEl.remove();
-            showToast('已套用「' + genre + '」预设参数', 'success');
-          });
-          var aiBtn = doc.getElementById('genreAIBtn');
-          if (aiBtn) aiBtn.addEventListener('click', function() {
-            modalEl.remove();
-            if (!cardData.name) cardData.name = g.suggestedName;
-            cardData.tags = (cardData.tags && cardData.tags.length) ? cardData.tags : g.tags.slice();
-            var input = doc.getElementById('chatInput');
-            if (input) {
-              input.value = '我想创作一个【' + genre + '】题材的世界，参考预设：' + g.desc + '。\n核心规则：' + g.coreRule + '\n请帮我基于这个题材开始构建世界设定，先从核心铁则和基础公理开始。';
-              handleSend();
-            }
-          });
-        }
       }
 
       // ===== 分组管理（规范4.4：分组自动适配） =====
@@ -5153,8 +5126,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             'MVU 四大核心条目必须成套存在，缺一不可：\n' +
             '1. [InitVar]初始变量（comment 以 [InitVar] 开头）\n' +
             '   - enabled 必须 false（MVU 只读取禁用的 initvar 条目进行初始化，true 会失效）\n' +
-            '   - content 为合法 JSON，格式 { "分类名": { "变量名": [初始值, "更新条件"], ... } }\n' +
-            '   - 示例：{ "主角": { "体力值": [100, "0-100，活动消耗，休息恢复"] }, "同桌": { "好感度": [0, "0-100，互动良好时增加"] } }\n' +
+            '   - content 为 YAML 格式，缩进表示层级，定义所有变量的初始值\n' +
+            '   - 示例：\n     世界:\n       当前时间: 开局\n       当前地点: 待定\n     主角:\n       体力值: 100\n       状态: 进行中\n     同桌:\n       好感度: 0\n' +
             '2. 变量列表（comment 含"变量列表"）\n' +
             '   - content 必须包含宏 {{format_message_variable::stat_data}}（否则 LLM 无法读取当前变量值）\n' +
             '   - 固定格式：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
@@ -5269,12 +5242,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
       }
 
-      // ===== 世界书名称编辑 =====
-      function editBookName() {
-        // 参考文件中 character_book 不含 name 字段，此功能已停用
-        showToast('当前模板不支持修改世界书名称', 'info');
-      }
-
       // ===== 预览渲染 =====
       function renderPreview() {
         var body = doc.getElementById('previewBody');
@@ -5295,7 +5262,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         // 模块进度
         var mp = getModuleProgress();
-        var modLabels = { axiom: '🏛️ 公理', soft_rules: '🤝 软规则', core_rules: '🔐 铁则', near_constraint: '🎯 近场', scene_mechanics: '⚔️ 机制', entity_interact: '👥 实体', narrative_bg: '📖 叙事', dynamic_adapt: '🔄 动态' };
+        var modLabels = { axiom: '🏛️ 公理', soft_rules: '🤝 软规则', core_rules: '🔐 铁则', near_constraint: '🎯 近场', scene_mechanics: '⚔️ 机制', entity_interact: '👥 实体', narrative_bg: '📖 叙事', dynamic_adapt: '🔄 动态', init_var: '📊 变量', var_update_rule: '📝 更新' };
         var modH = '<div class="module-progress">';
         Object.keys(modLabels).forEach(function(k) {
           var cls = mp[k] ? 'done' : 'todo';
@@ -5303,8 +5270,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
         modH += '</div>';
 
-        var entries = cardData.character_book.entries || [];
-        var bookName = (cardData.character_book && cardData.character_book.name) || '世界设定集';
+        var entries = (cardData.character_book && cardData.character_book.entries) || [];
+        var bookName = (cardData.name ? cardData.name + ' · 世界设定集' : '世界设定集');
         var bookTokCount = 0;
         entries.forEach(function(e) { bookTokCount += countTokens(e.content || ''); });
 
@@ -5316,9 +5283,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             eH += '<div class="pv-entry"><div class="pv-entry-title">' + escHtml(label) + '</div><div class="pv-entry-content">' + escHtml((e.content||'').substring(0, 100)) + '</div></div>';
           }
           if (entries.length > 6) eH += '<div class="pv-entry"><div class="pv-entry-title" style="color:#484f58">...还有' + (entries.length - 6) + '条</div></div>';
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>📖 <span class="pv-book-name" id="bookNameEdit" title="点击修改世界书名称">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span></h3>' + modH + eH + '</div>';
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>📖 <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span></h3>' + modH + eH + '</div>';
         } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>📖 <span class="pv-book-name" id="bookNameEdit" title="点击修改世界书名称">' + escHtml(bookName) + '</span></span></h3><div class="pv-empty">待生成...</div></div>';
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>📖 <span class="pv-book-name">' + escHtml(bookName) + '</span></span></h3><div class="pv-empty">待生成...</div></div>';
         }
 
         h += sec('🎬', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
@@ -5334,9 +5301,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         h += sec('📝', '创作者备注', cardData.creator_notes);
 
         body.innerHTML = h;
-
-        var bnEdit = doc.getElementById('bookNameEdit');
-        if (bnEdit) bnEdit.addEventListener('click', editBookName);
       }
 
       function saveCharacter() {
