@@ -2556,13 +2556,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //            上装: 深蓝色校服
   //   2. JSON 元组格式（value+描述）：
   //        { "主角": { "体力值": [100, "0-100 描述"] } }
-  // 生成 zod 时遵循规范：
+  // 生成 zod 时遵循参考文件 ur 函数的简单递归逻辑：
   //   - 数值统一用 z.coerce.number()（防 AI 把 0 写成 "0"）
-  //   - 范围限制用 .transform(_.clamp) 而非 .min/.max（钳制而非拒绝越界值）
+  //   - 好感度类字段加 .transform(value => _.clamp(value, 0, 100))（钳制 0~100）
   //   - 默认值用 .prefault()（MVU 扩展，缺失时自动补默认值）
-  //   - 集合类字段（物品栏/NPC/羁绊等动态键名）用 z.record(z.string().describe('xx名'), z.object({...}))
-  //     而非 z.object({...})，因为键名是动态的（物品名/NPC名），取首项结构作为值模板
-  //   - 整数计数字段加 .int()（数量/次数/等级等）
+  //   - 对象用 z.object({...}).prefault({ inline默认值 })，递归生成嵌套结构
+  //   - 字符串用 z.string().prefault('值')，布尔用 z.boolean().prefault(值)
   function generateMvuSchemaScript(initVarContent) {
     var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
     var FOOTER = "});\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
@@ -2678,151 +2677,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
 
     function isAffinityLike(name) {
-      return /好感|依存|信任|忠诚|友好|亲密|心情|活跃度|体力值|生命值|魔法值|血量|san值|理智值|情绪|心情值|好感度/.test(name);
-    }
-
-    function isCollectionLike(name) {
-      return /物品栏|背包|仓库|道具栏|装备栏|npc|NPC|角色列表|羁绊|能力面板|技能列表|商店|商品|任务列表|称号|称号列表|头衔|关系|人际|队伍|成员|卡牌|联系人|好友|敌人|收集|图鉴|收藏|图鉴|配置|列表|清单|角色池|图鉴集/.test(name);
-    }
-
-    function isEnumLike(name) {
-      return /状态|类型|阶段|阵营|属性|元素|品质|等级|稀有度|身份|职业|流派|性别|倾向|立场|阵营|形态|阶段|形态|行为|行动|战斗|模式|种族|民族|宗教|职业|职级|职位|类别|分类|性质|规格|品级|段位|阶级|流派|派系|派系|阵营/.test(name);
-    }
-
-    function isEnumRecordLike(name) {
-      return /能力面板|属性面板|属性值|属性列表|羁绊|天赋|天赋列表|技能栏|属性/.test(name);
-    }
-
-    function isTemplateLiteralLike(name, val) {
-      var nameHit = /章节|事件|进度|进度条|章节号|章节编号|当前事件|当前章节|当前进度|体重|身高|体温|体温|温度|带单位|单位|规格|尺寸|体积|时间戳|时间字符串|版本号|版本|编号|ID|编号|编码|代码|代号|坐标|位置码/.test(name);
-      if (nameHit) return true;
-      if (typeof val === 'string') {
-        if (/^-?\d+(\.\d+)?\s*(kg|g|mg|m|cm|mm|L|ml|°C|℃|F|kg\/m|mph|kmh|Hz|MHz|GHz|%|岁|年|月|日|小时|分钟|秒|米|寸|尺|斤|两|升|加仑)$/i.test(val)) return true;
-        if (/^[A-Za-z]\d+(\.[A-Za-z]?\d+)*$/i.test(val)) return true;
-        if (/^D\d+\.C\d+(\.E\d+)?(\.S\d+)?(\.P\d+)?$/i.test(val)) return true;
-      }
-      return false;
-    }
-
-    function inferEnumValues(name) {
-      if (/状态|阶段/.test(name)) return ['进行中', '已暂停', '已完成', '已失败'];
-      if (/品质|稀有度|品级|段位/.test(name)) return ['普通', '优秀', '稀有', '史诗', '传说'];
-      if (/性别/.test(name)) return ['男', '女', '其他'];
-      if (/阵营|立场|派系|倾向/.test(name)) return ['中立', '友善', '敌对', '同盟'];
-      if (/属性|元素/.test(name)) return ['火', '水', '风', '土', '光', '暗', '雷', '冰'];
-      if (/职业|身份|职位/.test(name)) return ['战士', '法师', '刺客', '牧师', '游侠'];
-      if (/类型|类别|分类/.test(name)) return ['普通', '特殊', '稀有', '史诗'];
-      if (/形态|形式/.test(name)) return ['人型', '兽型', '机械', '灵体'];
-      if (/行为|行动|模式/.test(name)) return ['主动', '被动', '待机', '休眠'];
-      return null;
-    }
-
-    function inferEnumRecordKeys(name) {
-      if (/能力面板|属性面板/.test(name)) return ['力量', '敏捷', '体质', '智力', '感知', '魅力'];
-      if (/羁绊/.test(name)) return ['主角'];
-      if (/天赋|技能/.test(name)) return ['力量', '敏捷', '智力', '感知', '魅力'];
-      if (/属性值|属性列表/.test(name)) return ['火', '水', '风', '土'];
-      return null;
-    }
-
-    function inferChapterPattern() {
-      return [
-        { type: 'literal', value: 'D' }, { type: 'number' },
-        { type: 'literal', value: '.C' }, { type: 'number' },
-        { type: 'literal', value: '.E' }, { type: 'number' },
-        { type: 'literal', value: '.S' }, { type: 'number' }
-      ];
-    }
-
-    function inferWeightUnit(name) {
-      if (/体重|重量/.test(name)) return { unit: 'kg', precision: 0 };
-      if (/身高|身长/.test(name)) return { unit: 'cm', precision: 0 };
-      if (/体温|温度/.test(name)) return { unit: '℃', precision: 1 };
-      if (/比例|百分比|概率/.test(name)) return { unit: '%', precision: 1 };
-      if (/时长|时间/.test(name)) return { unit: 's', precision: 0 };
-      return null;
-    }
-
-    function getRecordKeyDesc(name) {
-      if (/物品栏|背包|仓库|道具栏|装备栏/.test(name)) return '物品名';
-      if (/npc|NPC|角色列表|成员|队伍|人际|关系|联系人|好友|敌人/.test(name)) return '名称';
-      if (/技能列表/.test(name)) return '技能名';
-      if (/商店|商品/.test(name)) return '商品名';
-      if (/任务列表/.test(name)) return '任务名';
-      if (/称号列表/.test(name)) return '称号名';
-      if (/羁绊/.test(name)) return '角色名';
-      if (/能力面板/.test(name)) return '能力名';
-      if (/卡牌/.test(name)) return '卡牌名';
-      if (/收集|图鉴|收藏/.test(name)) return '条目名';
-      return '名称';
-    }
-
-    function isCountLike(name) {
-      return /次数|数量|等级|层数|阶数|个数|条数|件数|人数|天数|年数|回合|点数|积分|金币|银两|经验|年龄|寿命|时长|深度|身高|体重|长度|宽度|高度/.test(name);
-    }
-
-    function isFloatLike(name) {
-      return /体温|体温|温度|比例|百分比|概率|精度|速率|速度|浓度|密度/.test(name);
-    }
-
-    function getKeyPrefixRole(key) {
-      if (/^_/.test(key)) return 'readonly';
-      if (/^\$/.test(key)) return 'hidden';
-      return 'normal';
-    }
-
-    function genValueZod(key, val) {
-      var role = getKeyPrefixRole(key);
-      var keyBase = key.replace(/^[_$]/, '');
-      var prefix = '';
-      if (role === 'readonly') prefix = '// AI不可更新（_前缀）\n    ';
-      else if (role === 'hidden') prefix = '// AI不可见（$前缀）\n    ';
-
-      if (val !== null && val !== undefined && typeof val === 'number') {
-        if (isAffinityLike(keyBase)) {
-          return prefix + 'z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100))';
-        } else if (isFloatLike(keyBase)) {
-          return prefix + 'z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100))';
-        } else if (Number.isInteger(val) && isCountLike(keyBase)) {
-          return prefix + 'z.coerce.number().int().prefault(' + val + ')';
-        }
-        return prefix + 'z.coerce.number().prefault(' + val + ')';
-      }
-      if (val !== null && val !== undefined && typeof val === 'boolean') {
-        return prefix + 'z.boolean().prefault(' + val + ')';
-      }
-      if (val !== null && val !== undefined && typeof val === 'string') {
-        if (isTemplateLiteralLike(keyBase, val)) {
-          if (/章节|事件|进度|进度条|章节号|当前事件|当前章节|当前进度/.test(keyBase) || /^D\d+\.C\d+/i.test(val)) {
-            var ch = inferChapterPattern();
-            var chParts = ch.map(function(p) {
-              if (p.type === 'literal') return "z.literal('" + p.value + "')";
-              return 'z.coerce.number()';
-            });
-            return prefix + 'z.templateLiteral([' + chParts.join(', ') + "]).prefault('" + String(val).replace(/'/g, "\\'") + "')";
-          }
-          var wu = inferWeightUnit(keyBase);
-          if (wu) {
-            var wuPrec = wu.precision || 0;
-            var numPart = wuPrec > 0 ? 'z.coerce.number()' : 'z.coerce.number().int()';
-            return prefix + 'z.templateLiteral([' + numPart + ", z.literal('" + wu.unit + "')]).prefault('" + String(val).replace(/'/g, "\\'") + "')";
-          }
-        }
-        if (isEnumLike(keyBase)) {
-          var enumVals = inferEnumValues(keyBase);
-          if (enumVals && enumVals.length) {
-            var strVal = String(val);
-            if (enumVals.indexOf(strVal) < 0) {
-              enumVals = [strVal].concat(enumVals);
-            }
-            var enumList = enumVals.map(function(v) { return "'" + String(v).replace(/'/g, "\\'") + "'"; }).join(', ');
-            return prefix + 'z.enum([' + enumList + "]).prefault('" + strVal.replace(/'/g, "\\'") + "')";
-          }
-        }
-        var esc = String(val).replace(/'/g, "\\'");
-        return prefix + "z.string().prefault('" + esc + "')";
-      }
-      return prefix + "z.string().prefault('')";
+      return /好感|依存|信任|忠诚|友好|亲密/.test(name);
     }
 
     function escapeKey(key) {
@@ -2832,213 +2687,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       return "'" + String(key).replace(/'/g, "\\'") + "'";
     }
 
+    // 转义字符串字面量（用于 z.string().prefault('...')）
+    function escStr(val) {
+      return String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    // 生成值的 zod 表达式（含 .prefault），匹配参考文件 ur 函数的简单类型映射
+    function genValueZod(key, val) {
+      if (val === null || val === undefined) {
+        return "z.string().prefault('')";
+      }
+      if (typeof val === 'boolean') {
+        return 'z.boolean().prefault(' + String(val) + ')';
+      }
+      if (typeof val === 'number') {
+        if (isAffinityLike(key)) {
+          return 'z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100))';
+        }
+        return 'z.coerce.number().prefault(' + val + ')';
+      }
+      if (typeof val === 'string') {
+        return "z.string().prefault('" + escStr(val) + "')";
+      }
+      if (Array.isArray(val)) {
+        var itemSchema = val.length > 0 ? genValueZod(key, val[0]) : 'z.any()';
+        return 'z.array(' + itemSchema + ').prefault(' + JSON.stringify(val) + ')';
+      }
+      // 不应到达此处（对象由 genObjectLines 处理）
+      return "z.string().prefault('')";
+    }
+
+    // 生成默认值字面量（用于 .prefault(...) 和 inline 对象默认值）
     function genDefaultLiteral(val) {
       if (val === null || val === undefined) return "''";
       if (typeof val === 'number') return String(val);
       if (typeof val === 'boolean') return String(val);
-      return "'" + String(val).replace(/'/g, "\\'") + "'";
+      if (typeof val === 'string') return "'" + escStr(val) + "'";
+      if (Array.isArray(val)) return JSON.stringify(val);
+      return genObjectDefaultInline(val);
     }
 
-    function genObjectDefault(obj, indent) {
-      var pad = new Array(indent + 1).join(' ');
-      var innerPad = pad + '  ';
-      var parts = [];
-      Object.keys(obj).forEach(function(key) {
-        var val = obj[key];
-        if (Array.isArray(val)) {
-          parts.push(innerPad + escapeKey(key) + ': ' + JSON.stringify(val));
-        } else if (val && typeof val === 'object') {
-          if (isCollectionLike(key)) {
-            if (Object.keys(val).length > 0) {
-              parts.push(innerPad + escapeKey(key) + ': ' + genObjectDefault(val, indent + 2));
-            } else {
-              parts.push(innerPad + escapeKey(key) + ': {}');
-            }
-          } else {
-            parts.push(innerPad + escapeKey(key) + ': ' + genObjectDefault(val, indent + 2));
-          }
-        } else {
-          parts.push(innerPad + escapeKey(key) + ': ' + genDefaultLiteral(val));
-        }
+    // 生成对象的 inline 默认值（如 { 当前时间: '开局', 当前地点: '待定' }），匹配参考文件格式
+    function genObjectDefaultInline(obj) {
+      var parts = Object.keys(obj).map(function(key) {
+        return escapeKey(key) + ': ' + genDefaultLiteral(obj[key]);
       });
-      return '{\n' + parts.join(',\n') + '\n' + pad + '}';
+      return '{ ' + parts.join(', ') + ' }';
     }
 
-    function genTransformHook(key, parentPath, indent) {
-      var hooks = [];
-      var p = indent || 2;
-      if (/称号|头衔|称号列表/.test(key) && parentPath) {
-        hooks.push(pad(p) + '.transform(data => {');
-        hooks.push(pad(p + 2) + 'var dep_path = "' + parentPath + '.依存度";');
-        hooks.push(pad(p + 2) + 'var dep = _.get(_.get(getAllVariables(), "stat_data"), "' + parentPath + '.依存度", 0);');
-        hooks.push(pad(p + 2) + 'if (dep <= 0) return {};');
-        hooks.push(pad(p + 2) + 'var maxCount = Math.ceil(dep / 10);');
-        hooks.push(pad(p + 2) + 'return _(data).entries().takeRight(maxCount).fromPairs().value();');
-        hooks.push(pad(p) + '})');
-      }
-      if (/物品栏|背包|仓库|道具栏/.test(key)) {
-        hooks.push(pad(p) + '.transform(data => _.pickBy(data, item => (item.数量 || 0) > 0))');
-      }
-      return hooks;
-    }
-
-    var _padCache = {};
-    function pad(n) {
-      if (!_padCache[n]) _padCache[n] = new Array(n + 1).join(' ');
-      return _padCache[n];
-    }
-
-    // 生成单个字段的 Zod 表达式块（不含尾逗号）
-    // 返回该字段的代码行数组，调用方负责在字段间添加逗号
-    function genFieldBlock(key, val, indent, parentPath) {
-      var padStr = pad(indent);
-      var role = getKeyPrefixRole(key);
-      var keyBase = key.replace(/^[_$]/, '');
-      var comment = '';
-      if (role === 'readonly') comment = '  // AI不可更新（_前缀）';
-      else if (role === 'hidden') comment = '  // AI不可见（$前缀）';
-
-      // 数组类型
-      if (Array.isArray(val)) {
-        var itemSchema = 'z.any()';
-        if (val.length > 0) {
-          var firstItem = val[0];
-          if (typeof firstItem === 'string') {
-            itemSchema = 'z.string()';
-          } else if (typeof firstItem === 'number') {
-            itemSchema = 'z.coerce.number()';
-          } else if (typeof firstItem === 'boolean') {
-            itemSchema = 'z.boolean()';
-          } else if (firstItem && typeof firstItem === 'object') {
-            itemSchema = 'z.object({})';
-          }
-        }
-        var defaultArr = JSON.stringify(val);
-        return [padStr + escapeKey(key) + ': z.array(' + itemSchema + ').prefault(' + defaultArr + ')' + comment];
-      }
-
-      // 叶子值（非对象）
-      if (val === null || val === undefined || typeof val !== 'object') {
-        return [padStr + escapeKey(key) + ': ' + genValueZod(key, val)];
-      }
-
-      // 对象类型：集合类（物品栏/NPC等，键名动态）
-      if (isCollectionLike(key)) {
-        var keyDesc = getRecordKeyDesc(key);
-        var subKeys = Object.keys(val);
-        var firstKey = subKeys[0];
-        var firstVal = firstKey ? val[firstKey] : null;
-        var lines = [];
-        var fixedKeys = inferEnumRecordKeys(keyBase);
-
-        if (fixedKeys && fixedKeys.length) {
-          // partialRecord 分支
-          lines.push(padStr + escapeKey(key) + ': z.partialRecord(' + comment);
-          lines.push(padStr + "  z.enum([" + fixedKeys.map(function(k) { return "'" + k + "'"; }).join(', ') + "]),");
-          if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal)) {
-            lines.push(padStr + '  z.object({');
-            lines = lines.concat(genFieldBlockObj(firstVal, indent + 4, parentPath));
-            lines.push(padStr + '  })');
-          } else {
-            lines.push(padStr + '  ' + genValueZod(key, firstVal));
-          }
-          lines.push(padStr + ')');
-        } else {
-          // record 分支
-          lines.push(padStr + escapeKey(key) + ': z.record(' + comment);
-          lines.push(padStr + "  z.string().describe('" + keyDesc + "'),");
-          if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal)) {
-            lines.push(padStr + '  z.object({');
-            lines = lines.concat(genFieldBlockObj(firstVal, indent + 4, parentPath));
-            lines.push(padStr + '  })');
-          } else {
-            lines.push(padStr + '  ' + genValueZod(key, firstVal));
-          }
-          lines.push(padStr + ')');
-        }
-
-        var hooks = genTransformHook(key, parentPath, indent);
-        if (hooks.length > 0) {
-          hooks.forEach(function(h) { lines.push(h); });
-        }
-        var defaultVal = Object.keys(val).length > 0 ? genObjectDefault(val, indent) : '{}';
-        lines.push(padStr + '.prefault(' + defaultVal + ')');
-        return lines;
-      }
-
-      // 对象类型：普通对象（固定键名）
-      var subKeys2 = Object.keys(val);
-      var hasCollection = subKeys2.some(function(sk) { return isCollectionLike(sk); });
-      var normalKeys = subKeys2.filter(function(sk) { return !isCollectionLike(sk); });
-      var collectionKeys = subKeys2.filter(function(sk) { return isCollectionLike(sk); });
-
-      // 如果既有固定字段又有集合类字段 → 用 .and() 合并
-      if (normalKeys.length > 0 && collectionKeys.length > 0) {
-        var out = [padStr + escapeKey(key) + ': z.object({' + comment];
-        out = out.concat(genFieldBlockObj(val, indent + 4, parentPath));
-        out.push(padStr + '})');
-
-        // 动态字段部分（合并所有集合类字段到一个 record）
-        collectionKeys.forEach(function(ck) {
-          var ckDesc = getRecordKeyDesc(ck);
-          var ckFirstKey = Object.keys(val[ck])[0];
-          var ckFirstVal = ckFirstKey ? val[ck][ckFirstKey] : null;
-          out.push(padStr + '.and(z.record(');
-          out.push(padStr + '  z.string().describe("' + ckDesc + '"),');
-          if (ckFirstVal && typeof ckFirstVal === 'object' && !Array.isArray(ckFirstVal)) {
-            out.push(padStr + '  z.object({');
-            out = out.concat(genFieldBlockObj(ckFirstVal, indent + 6, parentPath));
-            out.push(padStr + '  })');
-          } else {
-            out.push(padStr + '  ' + genValueZod(ck, ckFirstVal));
-          }
-          out.push(padStr + '))');
-          var ckPath = parentPath ? parentPath + '.' + keyBase : keyBase;
-          var transformHooks = genTransformHook(ck, ckPath, indent);
-          if (transformHooks.length > 0) {
-            transformHooks.forEach(function(h) { out.push(h); });
-          }
-        });
-        out.push(padStr + '.prefault(' + genObjectDefault(val, indent) + ')');
-        return out;
-      }
-
-      // 纯对象（无集合类字段）
-      var result = [padStr + escapeKey(key) + ': z.object({' + comment];
-      result = result.concat(genFieldBlockObj(val, indent + 2, parentPath));
-      result.push(padStr + '}).prefault(' + genObjectDefault(val, indent) + ')');
-      return result;
-    }
-
-    // 生成对象内所有字段的代码行（字段间用逗号分隔，最后一个字段无尾逗号）
-    function genFieldBlockObj(obj, indent, parentPath) {
-      var padStr = pad(indent);
+    // 递归生成对象字段的 zod 代码行，匹配参考文件 ur 函数的格式
+    function genObjectLines(obj, indent) {
+      var padStr = new Array(indent + 1).join(' ');
+      var lines = [];
       var keys = Object.keys(obj);
-      var blocks = [];
-      keys.forEach(function(key) {
-        blocks.push(genFieldBlock(key, obj[key], indent, parentPath ? parentPath + '.' + key.replace(/^[_$]/, '') : ''));
-      });
-      // 拼接所有块：块之间用逗号分隔
-      var out = [];
-      for (var i = 0; i < blocks.length; i++) {
-        var block = blocks[i];
-        for (var j = 0; j < block.length; j++) {
-          var line = block[j];
-          // 最后一行不加逗号，其他行加逗号（仅当不是最后一个块时）
-          if (j === block.length - 1 && i < blocks.length - 1) {
-            line = line + ',';
-          }
-          out.push(line);
+      keys.forEach(function(key, i) {
+        var val = obj[key];
+        var comma = i < keys.length - 1 ? ',' : '';
+        if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
+          // 嵌套对象：z.object({ ... }).prefault({ inline默认值 })
+          lines.push(padStr + escapeKey(key) + ': z.object({');
+          lines = lines.concat(genObjectLines(val, indent + 2));
+          lines.push(padStr + '}).prefault(' + genObjectDefaultInline(val) + ')' + comma);
+        } else {
+          // 叶子值
+          lines.push(padStr + escapeKey(key) + ': ' + genValueZod(key, val) + comma);
         }
-      }
-      return out;
-    }
-
-    // 后处理：移除所有在 }) 或 ) 前的多余逗号（安全网）
-    function cleanTrailingCommas(code) {
-      code = code.replace(/,(\n[ \t]*\})/g, '$1');
-      code = code.replace(/,(\n[ \t]*\))/g, '$1');
-      return code;
+      });
+      return lines;
     }
 
     var parsed = parseInitVar(initVarContent);
@@ -3046,9 +2761,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       parsed = { '世界': { '当前时间': '开局', '当前地点': '待定' } };
     }
 
-    var lines = genFieldBlockObj(parsed, 2, '');
-    var rawScript = HEADER + '\n' + lines.join('\n') + '\n' + FOOTER;
-    return cleanTrailingCommas(rawScript);
+    var bodyLines = genObjectLines(parsed, 2);
+    return HEADER + '\n' + bodyLines.join('\n') + '\n' + FOOTER;
   }
 
   // ===== 变量列表内容规范化（确保含 {{format_message_variable::stat_data}} 宏） =====
@@ -3178,7 +2892,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   // 生成变量输出格式内容
   // 含 JSON Patch RFC 6902 标准 + Analysis 思维链 + 好感度上限检查
   function generateVarOutputFormat() {
-    return ['---','变量输出格式:','  rule:','    - you must output the update analysis and the actual update commands at once in the end of the next reply','    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects','    - supported ops: replace, delta, insert, remove, move','    - don\'t update field names starts with `_` as they are readonly','  format: |-','    <UpdateVariable>','    <Analysis>$(IN ENGLISH, no more than 80 words)','    - ${calculate time passed: ...}','    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}','    - ${check affection caps: every single interaction may increase at most +1, and the same in-story day may increase at most +5}','    - ${analyze every variable based on its corresponding check, according only to current reply: ...}','    </Analysis>','    <JSONPatch>','    [','      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },','      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },','      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },','      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },','      { "op": "remove", "path": "${/path/to/object/key}" },','      { "op": "remove", "path": "${/path/to/array/0}" },','      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }','    ]','    </JSONPatch>','    </UpdateVariable>'].join('\n');
+    return ['---','变量输出格式:','  rule:','    - you must output the update analysis and the actual update commands at once in the end of the next reply','    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects','    - supported ops: replace, delta, insert, remove, move','    - don\'t update field names starts with `_` as they are readonly','  format: |-','    <UpdateVariable>','    <Analysis>$(IN ENGLISH, no more than 80 words)','    - ${calculate time passed: ...}','    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}','    - ${check affection caps: every single interaction may increase at most +1, and the same in-story day may increase at most +5}','    - ${analyze every variable based on its corresponding check, according only to current reply: ...}','    </Analysis>','    <JSONPatch>','    [','      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },','      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },','      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },','      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },','      { "op": "remove", "path": "${/path/to/object/key}" },','      { "op": "remove", "path": "${/path/to/array/0}" },','      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }','    ]','    </JSONPatch>','    </UpdateVariable>'].join('\n');
   }
 
   // 生成变量输出格式强调内容
