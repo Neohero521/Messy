@@ -3218,7 +3218,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var rawExtensions = cd.extensions || v3Data.extensions || {};
     // 从角色卡数据提取角色名列表，用于 MVU 条目内容自动生成
     var charNames = extractCharNames(cd, rawEntries);
-    var entries = rawEntries.map(function(e, i) {
+    // ===== 预填充：自动填充 MVU 条目空内容（独立步骤，确保检测和schema生成使用填充后的数据）=====
+    var filledEntries = rawEntries.map(function(e, i) {
+      var comment = e.comment || ('条目' + (i + 1));
+      var commentLower = comment.toLowerCase();
+      var isInitVar = commentLower.indexOf('[initvar]') >= 0;
+      var isVarList = comment.indexOf('变量列表') >= 0;
+      var isVarSegmented = comment.indexOf('变量分段') >= 0 || comment.indexOf('分段提示') >= 0 || comment.indexOf('EJS') >= 0;
+      var isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
+      var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
+      var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
+      var outContent = e.content || '';
+      if (!outContent || outContent.trim() === '') {
+        if (isInitVar) outContent = generateInitVarYaml(charNames);
+        else if (isVarList) outContent = generateVarListContent();
+        else if (isVarSegmented) outContent = generateVarSegmentedPrompt(charNames);
+        else if (isVarRule) outContent = generateVarUpdateRule(charNames);
+        else if (isVarFormat) outContent = generateVarOutputFormat();
+        else if (isVarFormatEmphasis) outContent = generateVarOutputEmphasis();
+      } else if (isVarList) {
+        outContent = normalizeVarListContent(outContent);
+      }
+      return {
+        id: e.id || (i + 1),
+        keys: e.keys || [],
+        secondary_keys: e.secondary_keys || [],
+        comment: comment,
+        content: outContent,
+        constant: e.constant,
+        selective: e.selective,
+        insertion_order: e.insertion_order,
+        enabled: e.enabled,
+        position: e.position,
+        use_regex: e.use_regex,
+        extensions: e.extensions || {}
+      };
+    });
+    // ===== 预填充结束 =====
+    var entries = filledEntries.map(function(e, i) {
       var comment = e.comment || ('条目' + (i + 1));
       var tmpl = getEntryTemplate(comment);
       var isConst = tmpl ? tmpl.constant : false;
@@ -3251,8 +3288,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
       var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
-      // MVU 安全网 + 自动生成：[initvar] 条目必须 enabled=false；变量输出格式强调 默认 enabled=false
-      // 空内容的 MVU 条目自动填充默认内容
+      // MVU 安全网：[initvar] 条目必须 enabled=false；变量输出格式强调 默认 enabled=false
+      // 注意：空内容填充已移至预填充步骤，此处仅保留类型检测用于 enabled 逻辑
       var commentLower = comment.toLowerCase();
       var isInitVar = commentLower.indexOf('[initvar]') >= 0;
       var isVarList = comment.indexOf('变量列表') >= 0;
@@ -3261,18 +3298,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
       var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
       var outContent = e.content || '';
-      // 自动生成空内容的 MVU 条目
-      if (!outContent || outContent.trim() === '') {
-        if (isInitVar) outContent = generateInitVarYaml(charNames);
-        else if (isVarList) outContent = generateVarListContent();
-        else if (isVarSegmented) outContent = generateVarSegmentedPrompt(charNames);
-        else if (isVarRule) outContent = generateVarUpdateRule(charNames);
-        else if (isVarFormat) outContent = generateVarOutputFormat();
-        else if (isVarFormatEmphasis) outContent = generateVarOutputEmphasis();
-      } else if (isVarList) {
-        // 变量列表内容非空时规范化（确保含宏）
-        outContent = normalizeVarListContent(outContent);
-      }
       return {
         id: e.id || (i + 1),
         keys: e.keys || [],
@@ -3329,15 +3354,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardName = cd.name || '未命名世界';
     var cardDesc = cd.description || '';
     // 检测是否包含MVU核心条目（至少 [initvar] + 变量列表/更新规则/输出格式 之一即视为MVU系统）
-    // 同时支持 isMVUEntry 的宽泛匹配（含 变量分段/EJS/状态变量输出 等）
-    var hasInitVar = rawEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-    var hasVarList = rawEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-    var hasVarUpdate = rawEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量更新规则') >= 0; });
-    var hasVarFormat = rawEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
-    var hasVarSegmented = rawEntries.some(function(e) { return (e.comment || '').indexOf('变量分段') >= 0 || (e.comment || '').indexOf('分段提示') >= 0 || (e.comment || '').toLowerCase().indexOf('ejs') >= 0; });
+    // 使用预填充后的 filledEntries 进行检测，确保 InitVar 等条目已含自动生成的内容
+    var hasInitVar = filledEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+    var hasVarList = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+    var hasVarUpdate = filledEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量更新规则') >= 0; });
+    var hasVarFormat = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
+    var hasVarSegmented = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量分段') >= 0 || (e.comment || '').indexOf('分段提示') >= 0 || (e.comment || '').toLowerCase().indexOf('ejs') >= 0; });
     var hasMVUEntries = !!(hasInitVar && (hasVarList || hasVarUpdate || hasVarFormat || hasVarSegmented));
     // 宽泛匹配：只要存在任意 MVU 核心条目（即使无 [InitVar]）也视为 MVU 卡
-    var hasAnyMVU = hasMVUEntries || rawEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
+    var hasAnyMVU = hasMVUEntries || filledEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
     // 最终使用宽泛匹配结果，确保只要有任意 MVU 条目就注入脚本
     hasMVUEntries = hasMVUEntries || hasAnyMVU;
     var rawFirstMes = cd.first_mes || '';
@@ -3417,8 +3442,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
           var hasSchema = mvuScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0; });
           if (!hasSchema) {
-            // 从 [InitVar] 条目中提取初始变量 JSON，据此生成 zod schema
-            var initVarEntry = rawEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
+            // 从预填充后的 [InitVar] 条目中提取初始变量内容，据此生成 zod schema
+            var initVarEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
             var schemaContent = generateMvuSchemaScript(initVarEntry ? (initVarEntry.content || '') : '');
             mvuScripts.push({
               type: 'script',
