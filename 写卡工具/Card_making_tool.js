@@ -349,11 +349,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="mvu-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:2px solid rgba(33,150,243,0.5);box-shadow:0 0 10px rgba(33,150,243,0.25);flex-shrink:0;z-index:3;position:relative;animation:mvu-spin 1.8s linear infinite;background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);font-size:20px">⟳</span>\n      <span style="display:flex;align-items:center;height:32px;margin-left:-10px;padding:0 20px 0 18px;background:linear-gradient(135deg,#e3f2fd 0%,#d0e9fc 50%,#e3f2fd 100%);border:1.5px solid rgba(33,150,243,0.35);border-radius:0 16px 16px 0;position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#1565c0,#1976d2,#1565c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent">变量更新中</span>\n        <span class="mvu-blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(33,150,243,0.1) 50%,transparent 100%);animation:mvu-blue-sweep 2.5s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:22px;margin-top:6px;padding:12px 18px;color:#0d47a1;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(227,242,253,0.7) 0%,rgba(187,222,251,0.4) 100%);border:1.5px solid rgba(33,150,243,0.25);border-radius:12px;font-size:0.9em;max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.mvu-thinking summary::marker{display:none}.mvu-thinking[open]>div{animation:mvu-content-in .4s ease forwards}.mvu-thinking[open] summary .mvu-blue-glow{animation:none!important;opacity:0}@keyframes mvu-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes mvu-blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}@keyframes mvu-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
 
-  // ===== MVU 状态栏 HTML 模板（通用版：渲染所有变量）=====
+  // ===== MVU 状态栏 HTML 模板（通用版：递归渲染所有可见变量）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
   // 配套正则：markdownOnly=true, promptOnly=false, 将占位符替换为此HTML
-  // 设计要点：监听 MVU VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED 事件，动态读取 stat_data 渲染所有变量
-  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #18211f; }\n    .mvu-status-card { width: 100%; box-sizing: border-box; border: 1px solid rgba(31,45,42,.13); border-radius: 8px; background: linear-gradient(135deg, rgba(247,245,239,.96), rgba(230,236,232,.96)); padding: 10px; box-shadow: 0 12px 30px rgba(21,29,27,.12); }\n    .mvu-status-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(31,45,42,.1); }\n    .mvu-status-header h3 { margin: 0; font-size: 15px; font-weight: 700; }\n    .mvu-status-header span { font-size: 11px; color: #66736d; }\n    .mvu-status-section { margin-bottom: 10px; }\n    .mvu-status-section-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; padding-left: 8px; border-left: 3px solid #4eb9e7; }\n    .mvu-status-grid { display: grid; gap: 6px; }\n    .mvu-status-item { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,.5); font-size: 12px; }\n    .mvu-status-label { color: #66736d; }\n    .mvu-status-value { color: #18211f; font-weight: 500; word-break: break-all; }\n    .mvu-status-bar-wrap { height: 6px; border-radius: 3px; background: rgba(31,45,42,.1); overflow: hidden; }\n    .mvu-status-bar { height: 100%; border-radius: 3px; transition: width .4s ease; }\n    .mvu-status-number { font-variant-numeric: tabular-nums; font-weight: 600; }\n    .mvu-status-group { margin-bottom: 12px; }\n    .mvu-status-group-title { font-size: 14px; font-weight: 600; color: #18211f; margin-bottom: 8px; padding: 6px 10px; background: rgba(78,185,231,.1); border-radius: 4px; }\n    .mvu-status-empty { color: #999; font-size: 12px; text-align: center; padding: 12px; }\n  </style>\n</head>\n<body>\n  <div class="mvu-status-card">\n    <div class="mvu-status-header">\n      <h3>变量状态</h3>\n      <span id="mvu-status-count">0 项变量</span>\n    </div>\n    <div id="mvu-status-body"></div>\n  </div>\n  <script>\n    function safe(fn){ return function(){ try { return fn.apply(this, arguments); } catch(e){ console.error("[mvu-status]", e); return ""; } }; }\n    function getStatData(){ try { return Mvu.getVar("stat_data") || {}; } catch(e){ return {}; } }\n    function isNumber(v){ return typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v))); }\n    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, Number(v))); }\n    function numColor(v){ v = Number(v); if(v <= 30) return "#325c9d"; if(v <= 70) return "#4eb9e7"; return "#bd2d3a"; }\n    function renderNumberItem(key, val){\n      var n = Number(val); var pct = clamp(n, 0, 100); var color = numColor(n);\n      return \'<div class="mvu-status-item">\'+\n        \'<span class="mvu-status-label">\' + key + \'</span>\'+\n        \'<div class="mvu-status-bar-wrap"><div class="mvu-status-bar" style="width:\' + pct + \'%;background:\' + color + \'"></div></div>\'+\n        \'<span class="mvu-status-number">\' + val + \'</span>\'+\n      \'</div>\';\n    }\n    function renderStringItem(key, val){\n      return \'<div class="mvu-status-item">\'+\n        \'<span class="mvu-status-label">\' + key + \'</span>\'+\n        \'<span class="mvu-status-value">\' + val + \'</span>\'+\n      \'</div>\';\n    }\n    function renderBoolItem(key, val){\n      var icon = val ? "✅" : "❌"; var cls = val ? "color:#2e7d32" : "color:#c62828";\n      return \'<div class="mvu-status-item">\'+\n        \'<span class="mvu-status-label">\' + key + \'</span>\'+\n        \'<span class="mvu-status-value" style="\' + cls + \'">\' + icon + (val ? " 是" : " 否") + \'</span>\'+\n      \'</div>\';\n    }\n    function renderGroup(name, obj){\n      if(!obj || typeof obj !== "object") return "";\n      var keys = Object.keys(obj);\n      if(keys.length === 0) return "";\n      var html = \'<div class="mvu-status-group">\'+\n        \'<div class="mvu-status-group-title">\' + name + \'</div>\'+\n        \'<div class="mvu-status-grid">\';\n      keys.forEach(function(k){\n        var v = obj[k];\n        if(v === null || v === undefined) html += renderStringItem(k, "-");\n        else if(typeof v === "boolean") html += renderBoolItem(k, v);\n        else if(isNumber(v)) html += renderNumberItem(k, v);\n        else if(typeof v === "object") html += renderGroup(k, v);\n        else html += renderStringItem(k, String(v));\n      });\n      html += "</div></div>";\n      return html;\n    }\n    var _mvuRender = safe(function(){\n      var stat = getStatData();\n      var body = document.getElementById("mvu-status-body");\n      var countEl = document.getElementById("mvu-status-count");\n      if(!body) return;\n      var totalCount = 0;\n      var html = "";\n      Object.keys(stat).forEach(function(topKey){\n        var topVal = stat[topKey];\n        if(topVal && typeof topVal === "object" && !Array.isArray(topVal)){\n          var subKeys = Object.keys(topVal);\n          totalCount += subKeys.length;\n          html += renderGroup(topKey, topVal);\n        } else {\n          totalCount++;\n          if(typeof topVal === "boolean") html += renderBoolItem(topKey, topVal);\n          else if(isNumber(topVal)) html += renderNumberItem(topKey, topVal);\n          else html += renderStringItem(topKey, String(topVal));\n        }\n      });\n      if(totalCount === 0){\n        html = \'<div class="mvu-status-empty">暂无变量数据</div>\';\n      }\n      body.innerHTML = html;\n      if(countEl) countEl.textContent = totalCount + " 项变量";\n    });\n    $(_mvuRender);\n    try {\n      eventOn(Mvu.events.VARIABLE_INITIALIZED, _mvuRender);\n      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, _mvuRender);\n    } catch(e) {}\n  <\\/script>\n</body>\n</html>';
+  // 设计要点（已修复时序/读取/递归/类型检测问题）：
+  //   1. 用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（复用酒馆助手稳定API，避免Mvu.getVar时序失效）
+  //   2. await waitGlobalInitialized('Mvu') 等待 MVU 模块就绪后再绑定事件
+  //   3. $(errorCatched(init)) 全局异常捕获，报错不卡死面板
+  //   4. 递归 renderVarTree 渲染任意深度嵌套对象
+  //   5. 跳过 _ / $ 开头的隐藏变量
+  //   6. 严格 typeof val === "number" 检测数值（避免字符串数字误判）
+  //   7. 心跳速率(60-180❤️)、体温(35-42) 等特殊变量按真实范围算百分比
+  //   8. 布尔仅显示 ✅/❌ 图标
+  //   9. <script type="module"> 支持顶层 async/await
+  // 配色用 CSS 变量（--c-light/--c-main/--c-dark/--bg-soft/--text-gray），AI 改主题只改 :root 即可
+  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n    :root { --c-light: #dde4ec; --c-main: #4a6b8a; --c-dark: #2c4358; --bg-soft: #f7f9fc; --text-gray: #5a6470; }\n    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #333; }\n    .mvu-full-panel { width: 100%; box-sizing: border-box; border: 1px solid var(--c-light); border-radius: 14px; background: linear-gradient(145deg, var(--bg-soft), #eef2f7); padding: 16px; box-shadow: 0 4px 14px rgba(74, 107, 138, 0.15); }\n    .mvu-header { text-align: center; border-bottom: 1.5px dashed var(--c-light); padding-bottom: 10px; margin-bottom: 14px; }\n    .mvu-header h3 { margin: 0; font-size: 14.5px; color: var(--c-main); letter-spacing: 1px; }\n    .mvu-tree-group { margin-bottom: 12px; }\n    .mvu-group-title { font-size: 12.2px; color: var(--c-dark); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; }\n    .mvu-group-title::before { content: "✦"; font-size: 10px; margin-right: 5px; }\n    .mvu-group-inner { padding-left: 8px; }\n    .mvu-item-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 3px 6px; background: rgba(255,255,255,0.65); border-radius: 6px; margin-bottom: 4px; gap: 8px; }\n    .mvu-label { flex: 0 0 40%; color: var(--text-gray); }\n    .mvu-progress-wrap { flex: 1; height: 9px; background: #eef0f3; border-radius: 5px; overflow: hidden; }\n    .mvu-progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #a8c5e0, var(--c-main)); transition: width 0.4s ease-out; }\n    .mvu-num-val { min-width: 26px; text-align: right; font-weight: bold; color: var(--c-main); }\n    .mvu-text-val { flex: 1; text-align: right; font-weight: bold; color: var(--c-main); }\n    .heart-svg { display: inline-block; animation: beat 1s infinite ease-in-out; color: #ff4d70; margin-right: 2px; }\n    @keyframes beat { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }\n    .mvu-empty-tip { text-align: center; color: #9aa3ad; font-size: 12px; padding: 10px 0; }\n  </style>\n  <script type="module">\n    function qzClampNumber(value, min, max) {\n      const number = Number(value);\n      if (!Number.isFinite(number)) return min;\n      return Math.min(max, Math.max(min, number));\n    }\n    function renderVarTree(obj) {\n      if (!obj || Object.keys(obj).length === 0) return `<div class="mvu-empty-tip">暂无状态数据，交互后自动刷新</div>`;\n      let html = "";\n      for (const [key, val] of Object.entries(obj)) {\n        if (key.startsWith("_") || key.startsWith("$")) continue;\n        if (typeof val === "object" && val !== null) {\n          html += `<div class="mvu-tree-group"><div class="mvu-group-title">${key}</div><div class="mvu-group-inner">${renderVarTree(val)}</div></div>`;\n        } else if (typeof val === "number") {\n          let min = 0, max = 100, heartIcon = "";\n          if (key.includes("心跳速率")) { min = 60; max = 180; heartIcon = `<span class="heart-svg">❤️</span>`; }\n          if (key.includes("体温")) { min = 35; max = 42; }\n          const rawPct = ((val - min) / (max - min)) * 100;\n          const pct = qzClampNumber(rawPct, 0, 100);\n          html += `<div class="mvu-item-row"><span class="mvu-label">${key}</span><div class="mvu-progress-wrap"><div class="mvu-progress-fill" style="width:${pct}%"></div></div><span class="mvu-num-val">${heartIcon}${val}</span></div>`;\n        } else {\n          let showText = val === true ? "✅" : val === false ? "❌" : val;\n          html += `<div class="mvu-item-row"><span class="mvu-label">${key}</span><span class="mvu-text-val">${showText}</span></div>`;\n        }\n      }\n      return html;\n    }\n    function refreshMvuPanel() {\n      const container = document.getElementById("mvu-render-box");\n      if (!container) return;\n      const allVars = getAllVariables();\n      const statData = _.get(allVars, "stat_data", {});\n      container.innerHTML = renderVarTree(statData);\n    }\n    async function init() {\n      await waitGlobalInitialized(\'Mvu\');\n      refreshMvuPanel();\n      eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshMvuPanel);\n      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshMvuPanel);\n    }\n    $(errorCatched(init));\n  <\\/script>\n</head>\n<body>\n  <section class="mvu-full-panel">\n    <div class="mvu-header">\n      <h3>状态观测终端</h3>\n    </div>\n    <div id="mvu-render-box"></div>\n  </section>\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -720,10 +730,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤等动态规则\n' +
     '  6. 酒馆助手脚本 API（可选，用于状态栏渲染和事件响应）：\n' +
     '     · 事件：Mvu.events.VARIABLE_INITIALIZED（initvar 加载完成）、Mvu.events.VARIABLE_UPDATE_ENDED（每次更新结束）\n' +
-    '     · 读取：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
+    '     · 读取（状态栏渲染推荐）：getAllVariables() + _.get(allVars,"stat_data",{}) —— 复用酒馆助手稳定API，避免时序失效\n' +
+    '     · 读取（通用）：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
     '     · 写入：Mvu.setVar("stat_data.角色.好感度", 80) / Mvu.patchVar([{op:"replace",...}])\n' +
-    '     · 等待初始化：waitGlobalInitialized("Mvu")\n' +
-    '     · 典型场景：在VARIABLE_UPDATE_ENDED回调中动态刷新状态栏HTML\n' +
+    '     · 等待初始化：waitGlobalInitialized("Mvu") —— 状态栏渲染必须先 await 此函数再绑定事件\n' +
+    '     · 异常捕获：$(errorCatched(fn)) 包裹init函数，报错不卡死面板\n' +
+    '     · 典型场景：在VARIABLE_UPDATE_ENDED回调中递归遍历stat_data渲染状态栏HTML\n' +
     '  7. EJS 动态模板（可选，根据变量值发送不同提示词给AI）：\n' +
     '     · 使用 getvar("stat_data.角色.好感度") 读取变量值，按阈值分段\n' +
     '     · 示例：<% if (getvar("stat_data.白娅.好感度") >= 50) { %>温柔依赖模式<% } %>\n' +
@@ -745,17 +757,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- ⚠️【重中之重】正则6（美化状态栏）必须由AI根据用户需求生成！严格配置要求：\n' +
     '  · findRegex: "/<StatusPlaceHolderImpl\\\\/>/g"\n' +
     '  · replaceString: 必须是完整HTML结构，用 ```html 代码块包裹\n' +
-    '  · 完整HTML结构：<!doctype html> → <html> → <head><style>全局样式</style></head> → <body>页面DOM + <script>渲染逻辑</script></body> → </html>\n' +
-    '  · 包裹格式: "```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...</style>\\n</head>\\n<body>\\n  ...DOM结构...\\n  <script>...渲染逻辑...</script>\\n</body>\\n</html>\\n```"\n' +
+    '  · 完整HTML结构：<!doctype html> → <html> → <head><style>全局样式</style></head> → <body>页面DOM + <script type="module">渲染逻辑</script></body> → </html>\n' +
+    '  · 包裹格式: "```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...</style>\\n</head>\\n<body>\\n  ...DOM结构...\\n  <script type="module">...渲染逻辑...</script>\\n</body>\\n</html>\\n```"\n' +
     '  · placement: [2]（AI输出）\n' +
     '  · markdownOnly: true, promptOnly: false（仅格式显示，不影响发给AI的提示词）\n' +
     '  · runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null\n' +
-    '  · ⚠️必须显示所有变量：通过 Mvu.getVar("stat_data") 获取全部变量，遍历所有键值对动态渲染（支持数值/字符串/布尔/嵌套对象）\n' +
-    '  · 渲染逻辑：监听 Mvu.events.VARIABLE_INITIALIZED 和 VARIABLE_UPDATE_ENDED 事件，遍历 stat_data 所有顶层key和子key，自动检测变量类型并渲染\n' +
-    '  · 数值变量：进度条+数值显示（0-100范围自动适配）\n' +
-    '  · 字符串变量：标签名+文本值\n' +
-    '  · 布尔变量：✅/❌图标\n' +
-    '  · 嵌套对象：分组标题+子变量列表\n' +
+    '  · ⚠️必须用以下稳定API读取变量（不要用Mvu.getVar，有时序失效问题）：\n' +
+    '    const allVars = getAllVariables();\n' +
+    '    const statData = _.get(allVars, "stat_data", {});\n' +
+    '  · ⚠️必须异步等待MVU就绪后再绑定事件，否则首屏空白：\n' +
+    '    async function init() {\n' +
+    '      await waitGlobalInitialized(\'Mvu\');\n' +
+    '      refreshMvuPanel();\n' +
+    '      eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshMvuPanel);\n' +
+    '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshMvuPanel);\n' +
+    '    }\n' +
+    '    $(errorCatched(init));  // 全局异常捕获，报错不卡死面板\n' +
+    '  · ⚠️必须用递归函数 renderVarTree 渲染任意深度嵌套对象（不要只渲染1层）：\n' +
+    '    for (const [key, val] of Object.entries(obj)) {\n' +
+    '      if (key.startsWith("_") || key.startsWith("$")) continue;  // 跳过隐藏变量\n' +
+    '      if (typeof val === "object" && val !== null) → 递归 renderVarTree(val)\n' +
+    '      else if (typeof val === "number") → 进度条+数值（严格typeof，不要把字符串当数字）\n' +
+    '      else → 布尔显示✅/❌，其他显示文本值\n' +
+    '    }\n' +
+    '  · 数值变量百分比：默认0-100范围；心跳速率用60-180并加❤️跳动图标；体温用35-42；其他特殊变量按真实范围\n' +
+    '  · 布尔变量：仅显示✅/❌图标（不要加"是/否"文字）\n' +
+    '  · <script> 必须用 type="module" 以支持顶层 async/await\n' +
+    '  · 配色用 CSS 变量（:root里定义--c-light/--c-main/--c-dark/--bg-soft/--text-gray），AI改主题只改:root即可\n' +
     '  · 根据用户需求（如修仙境界、末世生存、校园好感度等）设计匹配主题的状态栏配色和布局\n' +
     '- 更新铁则：AI不得修改 _ 开头的只读字段；使用 delta 操作进行数值增减；使用 replace 进行文本/对象替换；remove 删除物品；insert 添加新物品/条目\n' +
     '- 条目前缀：[InitVar]初始变量、变量列表、变量分段提示（EJS模板）、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
@@ -1147,12 +1175,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString=""\n' +
     '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
-    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有变量】：\n' +
+    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>全局样式</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script>监听MVU事件+遍历stat_data所有变量渲染</script>\\n</body>\\n</html>\\n```\"\n" +
+    "      replaceString=\"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n</html>\\n```\"\n" +
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
-    '      用途：在渲染阶段将占位符替换为完整HTML状态栏，遍历stat_data所有键值对动态渲染\n' +
-    "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script)），用```html包裹；通过Mvu.getVar(\"stat_data\")获取所有变量，自动检测类型渲染\n\n" +
+    '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
+    "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script type=module)），用```html包裹\n" +
+    '      ⚠️关键实现要求（AI必须严格遵守）：\n' +
+    '        · 读变量：getAllVariables() + _.get(allVars,"stat_data",{}) （不要用Mvu.getVar，有时序失效问题）\n' +
+    '        · 异步等待：await waitGlobalInitialized(\'Mvu\') 后再绑定事件，否则首屏空白\n' +
+    '        · 异常捕获：$(errorCatched(init)) 包裹，报错不卡死面板\n' +
+    '        · 递归渲染：renderVarTree 递归处理任意深度嵌套对象（不要只渲染1层）\n' +
+    '        · 跳过隐藏变量：key以 _ 或 $ 开头的 continue 跳过\n' +
+    '        · 严格类型检测：typeof val === "number" 才画进度条（不要把字符串当数字）\n' +
+    '        · 特殊范围：心跳速率60-180加❤️图标、体温35-42，其他默认0-100\n' +
+    '        · 布尔仅✅/❌：不要加"是/否"文字\n' +
+    '        · script标签：必须 type="module" 支持顶层async/await\n\n' +
     '**高级场景与设计模式**：\n' +
     '- 模式1：管道式处理（多脚本串联）\n' +
     '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
@@ -1205,7 +1243,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      "regex_scripts": [\n' +
     '        {"scriptName":"状态栏格式化","findRegex":"/<status>(.*?)</status>/gi","replaceString":"**状态：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
     '        {"scriptName":"行动标签","findRegex":"/<action>(.*?)</action>/gi","replaceString":"**行动：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
-    '        {"scriptName":"[美化]MVU状态栏","findRegex":"/<StatusPlaceHolderImpl\\\\/>/g","replaceString":"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...</style>\\n</head>\\n<body>\\n  <script>监听MVU事件+遍历stat_data渲染所有变量</script>\\n</body>\\n</html>\\n```","placement":[2],"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null,"disabled":false}\n' +
+    '        {"scriptName":"[美化]MVU状态栏","findRegex":"/<StatusPlaceHolderImpl\\\\/>/g","replaceString":"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...CSS变量配色...</style>\\n</head>\\n<body>\\n  <script type=\\"module\\">await waitGlobalInitialized(\'Mvu\')+getAllVariables()+递归renderVarTree+errorCatched</script>\\n</body>\\n</html>\\n```","placement":[2],"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null,"disabled":false}\n' +
     '      ],\n' +
     '      "xiaobaix-template": {"enabled": false,"template": "","customRegex": "","disableParsers": false,"skipFirstMessage": false,"recentMessageCount": 0,"limitToRecentMessages": false},\n' +
     '      "tavern_helper": {"scripts": [],"variables": {}}\n' +
@@ -1458,10 +1496,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
     '- ⚠️【重中之重】生成正则6（美化状态栏）：必须根据用户需求生成匹配主题的状态栏HTML，放入regex_scripts中\n' +
     '  · 配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true\n' +
-    '  · replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script)），用```html代码块包裹\n' +
-    '  · HTML内监听Mvu.events.VARIABLE_INITIALIZED和VARIABLE_UPDATE_ENDED事件\n' +
-    '  · ⚠️必须显示所有变量：遍历Mvu.getVar("stat_data")所有键值对，自动检测变量类型（数值→进度条、字符串→文本、布尔→图标、嵌套→分组）\n' +
-    '  · 根据题材定制样式（修仙显示境界灵力、末世显示生命物资、校园显示好感度等）\n' +
+    '  · replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script type=module)），用```html代码块包裹\n' +
+    '  · 读变量用 getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
+    '  · 异步等待：await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED 和 VARIABLE_UPDATE_ENDED 事件\n' +
+    '  · 异常捕获：$(errorCatched(init)) 包裹，报错不卡死面板\n' +
+    '  · ⚠️必须递归遍历stat_data所有可见变量（跳过_/$开头隐藏变量），自动检测类型（数值→进度条、字符串→文本、布尔→✅/❌、嵌套→递归分组）\n' +
+    '  · 严格 typeof val === "number" 检测数值；心跳速率60-180❤️、体温35-42特殊范围\n' +
+    '  · 根据题材定制样式（修仙显示境界灵力、末世显示生命物资、校园显示好感度等），配色用CSS变量\n' +
     '- 生成[InitVar]初始变量、变量更新规则、变量输出格式条目\n\n' +
     '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
     '**基础字段检查（8项）：**\n' +
@@ -5140,10 +5181,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
             '⚠️但正则6（美化状态栏）必须由AI生成！严格要求：\n' +
-            '  · 完整HTML结构：<!doctype html>→html→head(style)→body(script)\n' +
+            '  · 完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)\n' +
             '  · 用```html代码块包裹\n' +
             '  · 配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true\n' +
-            '  · ⚠️必须遍历Mvu.getVar("stat_data")所有键值对，显示所有变量（数值→进度条、字符串→文本、布尔→图标、嵌套→分组）\n\n' +
+            '  · 读变量：getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
+            '  · 异步等待：await waitGlobalInitialized(\'Mvu\') 后绑定 VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED 事件\n' +
+            '  · 异常捕获：$(errorCatched(init)) 包裹\n' +
+            '  · 递归遍历stat_data所有可见变量（跳过_/$开头），数值→进度条(严格typeof，心跳60-180❤️/体温35-42)、布尔→✅/❌、嵌套→递归分组\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
             '规则：\n' +
