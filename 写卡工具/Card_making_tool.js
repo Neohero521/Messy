@@ -587,11 +587,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '1. 字段平铺在顶层，**严禁使用 "character" 包装对象**\n' +
     '2. name字段是角色/世界的名称，例如"星陨大陆"，不要加任何前缀后缀\n' +
     '3. 增/改：直接输出字段，如 {"name":"新名称","description":"新描述"}\n' +
-    '4. 世界书条目：用顶层 "entries" 数组，通过 comment 匹配覆盖（相同comment则更新，不同则新增）\n' +
-    '5. 删：用 "_delete" 数组，格式：["字段名"] 或 ["character_book.entries.条目comment"]\n' +
-    '6. 无变化：{"_nochange":true}\n' +
-    '7. JSON前1-2句说明，JSON后不解释\n' +
-    '8. **严禁输出完整 chara_card_v3 JSON**（除非用户说"生成角色卡"）\n\n' +
+    '4. 世界书条目：用顶层 "entries" 数组，通过 comment 智能匹配覆盖（相同comment=精确更新；相同<前缀>且同类型单条=自动更新；内容相似度>35%同前缀=智能更新）\n' +
+    '5. ⚠️【删除铁律 - 最高优先级 - 不遵守则你的修改无效】\n' +
+    '   删除条目**必须使用以下任一方式**，不写删除动作=只加不删=用户骂你！\n' +
+    '   · 方式A：顶层 "_delete" / "delete" / "remove" 数组，值为 ["character_book.entries.<精确comment>"] 或 ["character_book.entries.<关键词包含匹配>"]\n' +
+    '   · 方式B（⭐AI最容易写对⭐）：在 entries 数组内该条目加上 { "_action":"delete" , "comment":"<要删的comment>" }\n' +
+    '   · 方式C："deleted_entries" 数组，值为 comment 列表\n' +
+    '6. ⚠️【修改铁律 - 不遵守则变成叠加】\n' +
+    '   修改条目=**先删旧条目+再加新条目**，或确保新条目comment与旧条目精确完全一致（字符级匹配，空格标点都要相同）\n' +
+    '   用户说"修改/优化/重写XX条目"时，绝不能只加一条新的！必须删除旧条目后再新增，或用完全相同comment覆盖\n' +
+    '7. 无变化：{"_nochange":true}\n' +
+    '8. JSON前1-2句说明，JSON后不解释\n' +
+    '9. **严禁输出完整 chara_card_v3 JSON**（除非用户说"生成角色卡"）\n\n' +
     '**状态栏铁律**：\n' +
     '- 每次回复必须包含 `<statusblock>` 状态栏\n' +
     '- 使用 `<details open>` 标签，8大体系用 ✅⏳❌ 标识\n' +
@@ -1639,42 +1646,128 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '```\n\n' +
     '注意：只填写已确定的内容，未确定的不要输出。每次更新只输出变化的字段。每次更新必须包含至少1-2条对应体系的世界书entries条目。';
 
-  // ===== 增量合并 =====
-  function mergePartial(partial, cd) {
+  // ===== 提取条目的规范前缀（用于智能匹配） =====
+  function extractEntryPrefix(comment) {
+    if (!comment) return '';
+    var m = String(comment).match(/^<([^>]+)>/);
+    if (m) return m[1];
+    var m2 = String(comment).match(/^\[([^\]]+)\]/);
+    if (m2) return '[' + m2[1] + ']';
+    return '';
+  }
+
+  // ===== 智能查找匹配条目：精确匹配 -> 同类型单条匹配 -> 内容相似度匹配 =====
+  function findMatchingEntry(newEntry, existingArr) {
+    if (!newEntry || !existingArr || !existingArr.length) return -1;
+    var neComment = newEntry.comment || '';
+    var neContent = (newEntry.content || '').trim();
+    var nePrefix = extractEntryPrefix(neComment);
+
+    // 第1优先级：精确 comment 匹配（最可靠）
+    var exactIdx = existingArr.findIndex(function(e) { return (e.comment || '') === neComment; });
+    if (exactIdx >= 0) return { index: exactIdx, mode: 'exact' };
+
+    // 第2优先级：同规范前缀下只有1条现有条目（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
+    if (nePrefix) {
+      var samePrefixEntries = existingArr.map(function(e, i) {
+        return { i: i, p: extractEntryPrefix(e.comment), c: (e.content || '').trim() };
+      }).filter(function(x) { return x.p === nePrefix; });
+      if (samePrefixEntries.length === 1) {
+        return { index: samePrefixEntries[0].i, mode: 'prefix-single' };
+      }
+      // 第3优先级：同前缀下内容相似度最高（Jaccard字符集重合度>0.4）
+      if (samePrefixEntries.length > 1 && neContent.length > 20) {
+        var neCharSet = {};
+        for (var ci = 0; ci < neContent.length; ci++) neCharSet[neContent[ci]] = true;
+        var best = null;
+        samePrefixEntries.forEach(function(x) {
+          var inter = 0, uni = 0;
+          var exSet = {};
+          for (var cj = 0; cj < x.c.length; cj++) exSet[x.c[cj]] = true;
+          for (var k in neCharSet) { if (neCharSet.hasOwnProperty(k)) { if (exSet[k]) inter++; uni++; } }
+          for (var k2 in exSet) { if (exSet.hasOwnProperty(k2) && !neCharSet[k2]) uni++; }
+          var sim = uni > 0 ? inter / uni : 0;
+          if (sim > 0.35 && (!best || sim > best.sim)) best = { i: x.i, sim: sim };
+        });
+        if (best) return { index: best.i, mode: 'prefix-similarity' };
+      }
+    }
+    return { index: -1, mode: 'none' };
+  }
+
+  // ===== 增量合并（修复版：智能匹配 + 变更记录 + 删改可追溯） =====
+  function mergePartial(partial, cd, options) {
     if (!partial || typeof partial !== 'object') return false;
+    options = options || {};
     var modified = false;
+    var changeLog = { added: 0, updated: 0, deleted: 0, fieldUpdates: 0 };
+
     if (partial.character && !partial.spec) {
       var ch = partial.character;
       delete partial.character;
       for (var k in ch) { if (ch.hasOwnProperty(k)) partial[k] = ch[k]; }
     }
+
+    // ---- 支持多种删除语法 ----
+    var deletePaths = [];
     if (partial.deleted_entries && Array.isArray(partial.deleted_entries)) {
-      partial._delete = (partial._delete || []).concat(partial.deleted_entries.map(function(c) { return 'character_book.entries.' + c; }));
+      partial.deleted_entries.forEach(function(c) { deletePaths.push('character_book.entries.' + c); });
       delete partial.deleted_entries;
     }
-    if (partial._delete && Array.isArray(partial._delete)) {
+    // 兼容 AI 可能写的其他字段名
+    ['_delete', 'delete', 'deletes', 'remove', 'removes'].forEach(function(dk) {
+      if (partial[dk] && Array.isArray(partial[dk])) {
+        deletePaths = deletePaths.concat(partial[dk]);
+        delete partial[dk];
+      }
+    });
+    // 兼容 entries 内单条的 { ..., "_action":"delete" } 语法（AI最容易写成这样）
+    var inlineEntryDeletes = [];
+    var scanInlineDeletes = function(arr) {
+      if (!arr || !Array.isArray(arr)) return;
+      for (var di = arr.length - 1; di >= 0; di--) {
+        if (arr[di] && (arr[di]._action === 'delete' || arr[di]._action === 'remove' || arr[di].delete === true)) {
+          if (arr[di].comment) inlineEntryDeletes.push(arr[di].comment);
+          arr.splice(di, 1);
+        }
+      }
+    };
+    scanInlineDeletes(partial.entries);
+    if (partial.character_book && partial.character_book.entries) scanInlineDeletes(partial.character_book.entries);
+    inlineEntryDeletes.forEach(function(ic) { deletePaths.push('character_book.entries.' + ic); });
+
+    // ---- 执行删除 ----
+    if (deletePaths.length > 0) {
       var entryPrefix = 'character_book.entries.';
       var fieldDeletes = [];
-      partial._delete.forEach(function(path) {
-        if (path.indexOf(entryPrefix) === 0) {
-          // 完整 comment 可能含点，不能用 split，必须用前缀截取
-          var entryKey = path.slice(entryPrefix.length);
+      deletePaths.forEach(function(path) {
+        if (String(path).indexOf(entryPrefix) === 0) {
+          var entryKey = String(path).slice(entryPrefix.length);
           if (cd.character_book && cd.character_book.entries) {
+            var beforeLen = cd.character_book.entries.length;
             var idx = parseInt(entryKey);
-            if (!isNaN(idx) && String(idx) === entryKey) {
+            if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
               cd.character_book.entries.splice(idx, 1);
             } else {
-              cd.character_book.entries = cd.character_book.entries.filter(function(e) { return e.comment !== entryKey; });
+              // 模糊匹配删除：精确匹配优先，其次前缀匹配
+              cd.character_book.entries = cd.character_book.entries.filter(function(e) {
+                var ec = e.comment || '';
+                if (ec === entryKey) return false;
+                // 允许删除用「条目名包含关键词」的方式（AI说"删掉<基础公理>力量体系那条"）
+                if (entryKey.length > 3 && ec.length > 3 && ec.indexOf(entryKey) >= 0) return false;
+                if (entryKey.length > 3 && ec.length > 3 && entryKey.indexOf(ec) >= 0) return false;
+                return true;
+              });
             }
-            modified = true;
+            var delta = beforeLen - cd.character_book.entries.length;
+            if (delta > 0) { modified = true; changeLog.deleted += delta; }
           }
         } else {
           fieldDeletes.push(path);
         }
       });
-      // 按路径逐级深入到父对象后再 delete，避免误删整个顶层对象
       fieldDeletes.forEach(function(p) {
-        var parts = p.split('.');
+        var parts = String(p).split('.');
         var node = cd;
         for (var i = 0; i < parts.length - 1; i++) {
           if (!node || typeof node !== 'object' || !(parts[i] in node)) { node = null; break; }
@@ -1682,32 +1775,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         if (node && typeof node === 'object' && parts[parts.length - 1] in node) {
           delete node[parts[parts.length - 1]];
-          modified = true;
+          modified = true; changeLog.deleted++;
         }
       });
-      delete partial._delete;
     }
     delete partial._nochange;
 
-    // 世界书名称字段已移除（参考文件中 character_book 不含 name 字段）
+    // 世界书名称字段已移除
     if (partial.character_book) {
       delete partial.character_book.name;
       if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
     }
 
-    if (partial.entries && Array.isArray(partial.entries)) {
+    // ---- 处理 entries（修复：智能匹配+content过短时也允许更新非content字段） ----
+    var processEntriesFn = function(newEntries) {
+      if (!newEntries || !Array.isArray(newEntries)) return;
       cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
-      partial.entries.forEach(function(ne) {
-        if (!ne.comment || !ne.comment.trim()) return;
-        if (!ne.content || ne.content.trim().length < 20) return;
-        var tmpl = getEntryTemplate(ne.comment);
-        // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化），
-        // 其余条目默认开启；优先使用模板里定义的 enabled 默认值
+      newEntries.forEach(function(ne) {
+        if (!ne || typeof ne !== 'object') return;
+        var hasComment = !!(ne.comment && String(ne.comment).trim());
+        var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
+        // 至少要有 comment，或（有 content 且 >20字）—— 两者全无才跳过
+        if (!hasComment && !hasMeaningfulContent) return;
+
+        var tmpl = getEntryTemplate(ne.comment || '');
         ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
-        // 变量列表条目内容必须含 {{format_message_variable::stat_data}} 宏，
-        // AI 常误写成 {{null}} 等，此处实时修正以保证质检通过
-        if (ne.comment && ne.comment.indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
+        if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
         if (tmpl) {
@@ -1739,21 +1833,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (ne.constant === undefined) ne.constant = false;
           if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: true };
         }
-        var idx = existing.findIndex(function(e) { return e.comment === ne.comment; });
-        if (idx >= 0) {
-          // 浅合并：保留 AI 未提供的字段（如 keys、secondary_keys、id 等），避免清空触发词
-          existing[idx] = Object.assign({}, existing[idx], ne);
-          modified = true;
+        if (!ne.keys) ne.keys = [];
+        if (!ne.secondary_keys) ne.secondary_keys = [];
+
+        var match = findMatchingEntry(ne, existing);
+        if (match.index >= 0) {
+          // 更新：深合并content优先（如果新content有内容就覆盖，没内容保留旧content）
+          var oldEntry = existing[match.index];
+          if (ne.content === undefined || String(ne.content).trim().length === 0) {
+            // 新条目没提供content，保留旧的
+            var tmpContent = oldEntry.content;
+            existing[match.index] = Object.assign({}, oldEntry, ne);
+            existing[match.index].content = tmpContent;
+          } else {
+            existing[match.index] = Object.assign({}, oldEntry, ne);
+          }
+          modified = true; changeLog.updated++;
         } else {
-          // 新条目补默认字段，避免 keys 等字段缺失
-          if (!ne.keys) ne.keys = [];
-          if (!ne.secondary_keys) ne.secondary_keys = [];
           existing.push(ne);
-          modified = true;
+          modified = true; changeLog.added++;
         }
       });
       cd.character_book.entries = existing;
+    };
+
+    // 顶层 entries 优先处理
+    if (partial.entries && Array.isArray(partial.entries)) {
+      processEntriesFn(partial.entries);
       delete partial.entries;
+    }
+    // character_book.entries 后处理（避免与顶层重复：如果顶层已处理，此处跳过）
+    if (partial.character_book && partial.character_book.entries && Array.isArray(partial.character_book.entries)) {
+      processEntriesFn(partial.character_book.entries);
+      // 不删除整个 character_book，只删除 entries 字段，避免其他信息丢失
+      delete partial.character_book.entries;
+      if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
     }
     var fields = ['name','description','personality','scenario','first_mes','mes_example','creator_notes','system_prompt','post_history_instructions','tags','creator','character_version','alternate_greetings','group_only_greetings'];
     fields.forEach(function(f) {
@@ -1761,16 +1875,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var val = partial[f];
         var oldVal = cd[f];
         if (f === 'first_mes' || f === 'description') {
-          if (typeof val === 'string' && (val.indexOf('正文已在上方') >= 0 || val.indexOf('占位') >= 0 || val.indexOf('见上方') >= 0 || val.indexOf('参见上文') >= 0)) {
-            return;
+          // 放宽占位符过滤：只有同时满足「文本非常短(<80字)」+「整段内容几乎全是占位词」时才跳过
+          if (typeof val === 'string') {
+            var vTrim = val.trim();
+            if (vTrim.length < 80) {
+              var hasPlaceholder = /正文已在上方|见上方|参见上文|见上文|已在上方|请见上文/.test(vTrim);
+              var isOnlyPlaceholder = vTrim.length < 30 && hasPlaceholder;
+              if (isOnlyPlaceholder) return;
+            }
           }
-          if (typeof val === 'string' && val.trim().length < 50 && (val.indexOf('输出') >= 0 || val.indexOf('上文') >= 0)) {
+          // 极短内容且仅含"输出"提示词时跳过（长度<30字+含「已输出/上文输出/见上文输出」）
+          if (typeof val === 'string' && val.trim().length < 30 && /(已输出|上文输出|见上文.*输出)/.test(val)) {
             return;
           }
         }
         if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
           cd[f] = val;
-          modified = true;
+          modified = true; changeLog.fieldUpdates++;
         }
       }
     });
@@ -1786,9 +1907,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           dpModified = true;
         }
       } else if (dp && typeof dp === 'object') {
-        if (dp.prompt !== undefined && typeof dp.prompt === 'string' && dp.prompt.trim().length > 0 && cd.extensions.depth_prompt.prompt !== dp.prompt) {
-          cd.extensions.depth_prompt.prompt = dp.prompt;
-          dpModified = true;
+        if (dp.prompt !== undefined && typeof dp.prompt === 'string') {
+          // 放宽：允许空字符串（显式清空），只有 undefined 才跳过
+          if (cd.extensions.depth_prompt.prompt !== dp.prompt) {
+            cd.extensions.depth_prompt.prompt = dp.prompt;
+            dpModified = true;
+          }
         }
         if (dp.depth !== undefined && typeof dp.depth === 'number' && dp.depth >= 0 && cd.extensions.depth_prompt.depth !== dp.depth) {
           cd.extensions.depth_prompt.depth = dp.depth;
@@ -1799,23 +1923,57 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           dpModified = true;
         }
       }
-      if (dpModified) modified = true;
+      if (dpModified) { modified = true; changeLog.fieldUpdates++; }
       delete partial.depth_prompt;
     }
 
-    if (partial.regex_scripts !== undefined) {
+    // ---- 智能合并 regex_scripts：支持增量更新、按名替换、_action:delete ----
+    var mergeRegexScripts = function(newRxList) {
+      if (!Array.isArray(newRxList)) return;
       cd.extensions = cd.extensions || {};
-      cd.extensions.regex_scripts = cd.extensions.regex_scripts || [];
-      var newRx = partial.regex_scripts;
-      if (Array.isArray(newRx)) {
-        var validScripts = newRx.filter(function(s) {
-          return s && typeof s === 'object' && s.findRegex && s.findRegex.trim().length > 0 && s.replaceString !== undefined;
-        });
-        if (validScripts.length > 0 && JSON.stringify(cd.extensions.regex_scripts) !== JSON.stringify(validScripts)) {
-          cd.extensions.regex_scripts = validScripts;
-          modified = true;
+      var existingRx = cd.extensions.regex_scripts || [];
+      var beforeSnapshot = JSON.stringify(existingRx);
+      newRxList.forEach(function(s) {
+        if (!s || typeof s !== 'object') return;
+        // 删除：_action:delete 或 delete:true
+        if (s._action === 'delete' || s._action === 'remove' || s.delete === true) {
+          var beforeLen = existingRx.length;
+          existingRx = existingRx.filter(function(es) {
+            if (s.id && es.id === s.id) return false;
+            if (s.scriptName && es.scriptName === s.scriptName) return false;
+            if (s.name && !es.scriptName && es.name === s.name) return false;
+            // 关键词匹配删除
+            if (s.findRegex && es.findRegex === s.findRegex) return false;
+            return true;
+          });
+          if (existingRx.length !== beforeLen) { changeLog.deleted += (beforeLen - existingRx.length); }
+          return;
         }
-      }
+        if (!s.findRegex || !String(s.findRegex).trim()) return;
+        if (s.replaceString === undefined) return;
+        // 更新/新增：按 id 或 scriptName/name 或 findRegex 匹配
+        var idx = existingRx.findIndex(function(es) {
+          if (s.id && es.id === s.id) return true;
+          if (s.scriptName && es.scriptName === s.scriptName) return true;
+          if (s.name && !es.scriptName && es.name === s.name) return true;
+          if (s.findRegex && es.findRegex === s.findRegex) return true;
+          return false;
+        });
+        if (idx >= 0) {
+          existingRx[idx] = Object.assign({}, existingRx[idx], s);
+          delete existingRx[idx]._action;
+          changeLog.updated++;
+        } else {
+          existingRx.push(s);
+          changeLog.added++;
+        }
+      });
+      cd.extensions.regex_scripts = existingRx;
+      if (JSON.stringify(existingRx) !== beforeSnapshot) modified = true;
+    };
+
+    if (partial.regex_scripts !== undefined) {
+      mergeRegexScripts(partial.regex_scripts);
       delete partial.regex_scripts;
     }
 
@@ -1826,81 +1984,101 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     if (partial.extensions) {
       cd.extensions = cd.extensions || {};
+      var extProcessedKeys = {}; // 防止与顶层重复处理
       for (var ek in partial.extensions) {
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
+            // 顶层已处理过 depth_prompt（delete partial.depth_prompt 已执行），这里仅当 partial.extensions 有独立配置时处理
             cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
             var dp2 = partial.extensions.depth_prompt;
             var beforeDp = JSON.stringify(cd.extensions.depth_prompt);
-            if (typeof dp2 === 'string') cd.extensions.depth_prompt.prompt = dp2;
-            else if (dp2 && typeof dp2 === 'object') {
+            if (typeof dp2 === 'string') {
+              if (dp2.trim().length > 0) cd.extensions.depth_prompt.prompt = dp2;
+            } else if (dp2 && typeof dp2 === 'object') {
               if (dp2.prompt !== undefined) cd.extensions.depth_prompt.prompt = dp2.prompt;
               if (dp2.depth !== undefined && typeof dp2.depth === 'number' && dp2.depth >= 0) cd.extensions.depth_prompt.depth = dp2.depth;
               if (dp2.role !== undefined) cd.extensions.depth_prompt.role = dp2.role;
             }
-            if (JSON.stringify(cd.extensions.depth_prompt) !== beforeDp) modified = true;
+            if (JSON.stringify(cd.extensions.depth_prompt) !== beforeDp) { modified = true; changeLog.fieldUpdates++; }
           } else if (ek === 'regex_scripts') {
-            // 与顶层 partial.regex_scripts 分支一致：过滤掉残缺脚本
-            var rxArr = partial.extensions.regex_scripts;
-            if (Array.isArray(rxArr)) {
-              var validRx = rxArr.filter(function(s) {
-                return s && typeof s === 'object' && s.findRegex && s.findRegex.trim().length > 0 && s.replaceString !== undefined;
-              });
-              if (validRx.length > 0 && JSON.stringify(cd.extensions.regex_scripts || []) !== JSON.stringify(validRx)) {
-                cd.extensions.regex_scripts = validRx;
-                modified = true;
-              }
-            }
+            // 顶层已处理，此处仅当顶层未处理（没有顶层 regex_scripts 字段）时处理
+            if (partial['regex_scripts'] === undefined) mergeRegexScripts(partial.extensions.regex_scripts);
           } else if (ek === 'tavern_helper') {
-            // 合并而非覆盖：保留已有 scripts（MVU/变量结构/世界书调用），
-            // 避免 AI 输出 tavern_helper: { scripts: [] } 时清空脚本
+            // 修复版：支持脚本删除 / 按 id/name 替换，不再只追加
             if (partial.extensions[ek] && typeof partial.extensions[ek] === 'object') {
               cd.extensions = cd.extensions || {};
               if (!cd.extensions[ek]) cd.extensions[ek] = { scripts: [], variables: {} };
-              // 合并 scripts：按 id 或 name 去重，仅追加新脚本
-              var newScripts = partial.extensions[ek].scripts || [];
-              var existingScripts = cd.extensions[ek].scripts || [];
-              newScripts.forEach(function(ns) {
-                var exists = existingScripts.some(function(es) { return es.id === ns.id || es.name === ns.name; });
-                if (!exists) existingScripts.push(ns);
+              var thBefore = JSON.stringify(cd.extensions[ek]);
+              // === scripts：支持替换/删除/追加 ===
+              var thScripts = cd.extensions[ek].scripts || [];
+              var newTHScripts = partial.extensions[ek].scripts || [];
+              // 如果 AI 明确输出 _action:reset 或 scripts 显式置空数组，允许清空（用于「重写 tavern_helper」场景）
+              var resetScripts = partial.extensions[ek]._action === 'reset' || partial.extensions[ek].reset_scripts === true;
+              if (resetScripts) { thScripts = []; }
+              newTHScripts.forEach(function(ns) {
+                if (!ns || typeof ns !== 'object') return;
+                if (ns._action === 'delete' || ns._action === 'remove' || ns.delete === true) {
+                  thScripts = thScripts.filter(function(es) {
+                    if (ns.id && es.id === ns.id) return false;
+                    if (ns.name && es.name === ns.name) return false;
+                    return true;
+                  });
+                  return;
+                }
+                var existsIdx = thScripts.findIndex(function(es) {
+                  return (ns.id && es.id === ns.id) || (ns.name && es.name === ns.name);
+                });
+                if (existsIdx >= 0) {
+                  thScripts[existsIdx] = Object.assign({}, thScripts[existsIdx], ns);
+                  delete thScripts[existsIdx]._action;
+                } else {
+                  thScripts.push(ns);
+                }
               });
-              cd.extensions[ek].scripts = existingScripts;
-              // 合并 variables：浅合并，AI 提供的变量覆盖同名键
+              cd.extensions[ek].scripts = thScripts;
+              // === variables：支持删除/替换 ===
               if (partial.extensions[ek].variables) {
-                cd.extensions[ek].variables = Object.assign({}, cd.extensions[ek].variables, partial.extensions[ek].variables);
+                var vars = partial.extensions[ek].variables;
+                if (vars && typeof vars === 'object') {
+                  var curVars = cd.extensions[ek].variables || {};
+                  // 支持 { key: null } 或 { key: {_action:"delete"} } 表示删除
+                  Object.keys(vars).forEach(function(vk) {
+                    if (vars[vk] === null || vars[vk] === undefined || (vars[vk] && typeof vars[vk] === 'object' && (vars[vk]._action === 'delete' || vars[vk].delete === true))) {
+                      if (vk in curVars) delete curVars[vk];
+                    } else {
+                      curVars[vk] = vars[vk];
+                    }
+                  });
+                  cd.extensions[ek].variables = curVars;
+                }
               }
-              modified = true;
+              if (JSON.stringify(cd.extensions[ek]) !== thBefore) { modified = true; changeLog.fieldUpdates++; }
             }
           } else {
             if (JSON.stringify(cd.extensions[ek]) !== JSON.stringify(partial.extensions[ek])) {
               cd.extensions[ek] = partial.extensions[ek];
-              modified = true;
+              modified = true; changeLog.fieldUpdates++;
             }
           }
         }
       }
     }
-    if (partial.character_book) {
+    // 注意：character_book.entries 已在前面的 processEntriesFn 中处理（避免双路径重复合并）
+    // 此处仅处理 character_book 下除 entries 以外的其他字段
+    if (partial.character_book && typeof partial.character_book === 'object') {
       cd.character_book = cd.character_book || { entries: [] };
-      if (partial.character_book.entries) {
-        var e2 = cd.character_book.entries || [];
-        partial.character_book.entries.forEach(function(ne) {
-          if (!ne.comment || !ne.comment.trim()) return;
-          if (!ne.content || ne.content.trim().length < 20) return;
-          var j = e2.findIndex(function(e) { return e.comment === ne.comment; });
-          if (j >= 0) {
-            // 浅合并，保留 keys/secondary_keys 等字段
-            e2[j] = Object.assign({}, e2[j], ne);
-            modified = true;
-          } else {
-            if (!ne.keys) ne.keys = [];
-            if (!ne.secondary_keys) ne.secondary_keys = [];
-            e2.push(ne);
+      for (var cbk in partial.character_book) {
+        if (partial.character_book.hasOwnProperty(cbk) && cbk !== 'entries') {
+          if (JSON.stringify(cd.character_book[cbk]) !== JSON.stringify(partial.character_book[cbk])) {
+            cd.character_book[cbk] = partial.character_book[cbk];
             modified = true;
           }
-        });
-        cd.character_book.entries = e2;
+        }
       }
+    }
+    // 将变更日志挂到返回值（供调用方调试/Toast提示）
+    if (modified && options && options.returnLog) {
+      return { modified: true, log: changeLog };
     }
     return modified;
   }
@@ -1969,6 +2147,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           entryText += '\n  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] keys:' + (e.keys||[]).join(',') + '\n     content(' + (e.content||'').length + '字): ' + (e.content || '').substring(0, 200);
         });
         parts.push(entryText);
+        // ⭐ 额外输出：精确 comment 清单（删改时直接复制，避免 comment 不一致导致只加不删）
+        var commentListText = '⚠️【世界书条目精确 comment 清单 - 删改时务必使用下列精确字符串匹配】\n';
+        commentListText += '删除条目写法：\n';
+        commentListText += '  方式1: { "_delete": ["character_book.entries.<这里粘贴完整comment>"] }\n';
+        commentListText += '  方式2: entries数组里加 { "_action":"delete", "comment":"<这里粘贴完整comment>" }\n';
+        commentListText += '修改条目写法（确保成功覆盖）：comment必须与下面「精确字符串」完全相同，字符级匹配，空格标点都不能变！\n';
+        commentListText += '----------------------------------------\n';
+        entries.forEach(function(e, i) {
+          var comment = e.comment || ('条目'+(i+1));
+          commentListText += (i+1) + '. 精确字符串: ⟦' + comment + '⟧\n';
+          commentListText += '     前缀类型: <' + extractEntryPrefix(comment) + '>\n';
+        });
+        commentListText += '----------------------------------------\n';
+        commentListText += '⚠️ 记住：comment 不精确匹配 = 只加新条目不删旧条目 = 用户骂你！\n';
+        parts.push(commentListText);
       }
       if (cd.tags && cd.tags.length) parts.push('标签：' + cd.tags.join('、'));
       if (parts.length > 0) existingInfo = '\n\n=== 当前角色卡已有内容（不要重复输出，除非增/删/改） ===\n' + parts.join('\n');
@@ -4485,19 +4678,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (parsed) {
             var hasData = Object.keys(parsed).filter(function(k) { return k !== '_nochange'; }).length > 0;
             if (hasData) {
-              var actuallyModified = mergePartial(parsed, cardData);
+              // 传递 returnLog 选项以便获取精确的变更统计（新增/删除/更新数量）
+              var mergeResult = mergePartial(parsed, cardData, { returnLog: true });
+              var actuallyModified = false;
+              var changeLogResult = null;
+              if (typeof mergeResult === 'object' && mergeResult !== null) {
+                actuallyModified = !!mergeResult.modified;
+                changeLogResult = mergeResult.log || null;
+              } else {
+                actuallyModified = !!mergeResult;
+              }
               if (actuallyModified) {
                 if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
                   cardGenerated = true;
                 }
                 progress = calcProgress();
+                // 显示变更统计 Toast，让用户明确知道AI确实执行了删改而不是瞎加
+                try {
+                  if (changeLogResult) {
+                    var cr = changeLogResult;
+                    var parts = [];
+                    if (cr.added) parts.push('➕新增' + cr.added + '条');
+                    if (cr.updated) parts.push('🔄更新' + cr.updated + '条');
+                    if (cr.deleted) parts.push('🗑️删除' + cr.deleted + '条');
+                    if (cr.fieldUpdates) parts.push('📝字段' + cr.fieldUpdates + '项');
+                    if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
+                  }
+                } catch(e) { /* ignore */ }
+              } else if (hasData) {
+                // AI输出了JSON但实际上没修改到任何东西（可能comment不匹配导致只加不删没生效）
+                // 提示用户可能需要调整comment
+                showToast('⚠️ AI返回了修改指令，但未匹配到任何条目（可能comment不精确）。请让AI使用精确comment或在JSON中加_action:delete明确删除', 'warning', 6000);
               }
             }
           }
           if (lastUserInput && (lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0)) {
             if (parsed && parsed.first_mes && typeof parsed.first_mes === 'string' && parsed.first_mes.trim().length > 50) {
-              cardData.first_mes = parsed.first_mes.trim();
-              progress = calcProgress();
+              // 仅当 mergePartial 没修改到 first_mes 时，才用这段兜底赋值（避免与合并逻辑冲突）
+              // 判断方式：如果 cardData.first_mes 与 parsed.first_mes 不同（说明被过滤了）才兜底
+              if (cardData.first_mes !== parsed.first_mes.trim()) {
+                cardData.first_mes = parsed.first_mes.trim();
+                progress = calcProgress();
+              }
             }
           }
           var modProg = parseModProgress(aiResponse);
@@ -4607,11 +4829,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var parsed = extractJSON(aiResponse);
           if (parsed) {
             try {
+              var genMergeOk = false;
               if (parsed.spec === 'chara_card_v3' && parsed.data) {
                 // v3 格式：解包 data 字段后走 mergePartial，保证模板默认值和 keys 保留逻辑生效
-                mergePartial(parsed.data, cardData);
+                var rV3 = mergePartial(parsed.data, cardData, { returnLog: true });
+                genMergeOk = !!(typeof rV3 === 'object' ? rV3.modified : rV3);
               } else {
-                mergePartial(parsed, cardData);
+                var rPlain = mergePartial(parsed, cardData, { returnLog: true });
+                genMergeOk = !!(typeof rPlain === 'object' ? rPlain.modified : rPlain);
               }
               cardGenerated = true;
               setProgress(100);
@@ -5183,6 +5408,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '  * probability：随机事件设为<100\n' +
             '  * secondary_keys+selectiveLogic：复杂条件控制\n' +
             '- 优化策略：优先优化现有条目（用相同comment覆盖），不足则补充新条目\n\n' +
+            '⚠️⚠️⚠️【entries 优化铁律 - 违反则优化失败=旧内容残留=用户骂你】\n' +
+            '1. 优化≠追加！优化=覆盖/替换旧条目，而不是只加新条目！\n' +
+            '2. 修改条目：新条目的 comment 必须与旧条目的 comment「完全相同=字符级匹配」（空格标点都不能变）\n' +
+            '3. 重写条目：必须先删除旧条目（_action:delete），再加新条目；或者确保新条目 comment 完全一致\n' +
+            '4. 精简条目：如果要求"精简N条"，必须明确用 _delete / _action:delete 删除多出的条目\n' +
+            '5. 同前缀条目重复：若优化后同模块（如<核心铁则>）的条目数超标，必须删除旧的、质量较低的条目\n' +
+            '6. 最推荐的写法（AI最容易写对，系统支持最好）：\n' +
+            '   替换条目=先写 _action:delete 条目删旧的，再写新条目（新comment可以与旧的不同）\n' +
+            '   例：\n' +
+            '   "entries": [\n' +
+            '     { "_action":"delete", "comment":"<这里粘贴精确旧comment>" },\n' +
+            '     { "comment":"<新comment或相同comment>", "content":"...新内容...", "keys":[...] }\n' +
+            '   ]\n\n' +
             '【MVU 变量系统条目（仅当优化 entries 且卡内已含 MVU 条目时适用）】\n' +
             'MVU 四大核心条目必须成套存在，缺一不可：\n' +
             '1. [InitVar]初始变量（comment 以 [InitVar] 开头）\n' +
@@ -5215,7 +5453,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '2. depth_prompt和regex_scripts直接放在顶层，不需要嵌套在extensions中\n' +
             '3. 只包含被优化的字段，其他字段不要输出\n' +
             '4. 保持JSON格式正确，使用双引号\n' +
-            '5. [InitVar] 条目的 enabled 必须为 false；变量列表 content 必须含 {{format_message_variable::stat_data}} 宏\n\n' +
+            '5. [InitVar] 条目的 enabled 必须为 false；变量列表 content 必须含 {{format_message_variable::stat_data}} 宏\n' +
+            '6. ⚠️最关键：删除/替换条目必须使用下面「精确comment清单」里的字符串！不要自己编造comment！\n\n' +
+            // 注入精确 comment 清单（仅当优化 entries 时）
+            (selectedOptFields.indexOf('entries') >= 0 ? (function() {
+              var entries = (cardData.character_book || {}).entries || [];
+              if (!entries.length) return '（当前无世界书条目，无需处理删除）\n\n';
+              var t = '=== 🌍 世界书条目精确comment清单（删/改时直接复制使用，字符级精确） ===\n';
+              t += '共 ' + entries.length + ' 条条目，按模块分组：\n';
+              var groups = {};
+              entries.forEach(function(e, i) {
+                var c = e.comment || ('条目'+(i+1));
+                var p = extractEntryPrefix(c) || '其他';
+                if (!groups[p]) groups[p] = [];
+                groups[p].push({ idx: i+1, comment: c, content: e.content || '' });
+              });
+              Object.keys(groups).forEach(function(g) {
+                t += '\n【前缀：<' + g + '>】 共' + groups[g].length + '条：\n';
+                groups[g].forEach(function(x) {
+                  t += '  ' + x.idx + '. ⟦' + x.comment + '⟧  (' + x.content.length + '字)\n';
+                });
+              });
+              t += '\n⚠️ 删除写法示例：\n';
+              t += '  { "_action":"delete", "comment":"' + (entries[0] ? entries[0].comment : '精确comment') + '" }\n';
+              t += '⚠️ 修改写法：保持 comment 完全与上面一致，或先 _action:delete 再新增新comment条目\n\n';
+              return t;
+            })() : '') +
+            (selectedOptFields.indexOf('regex_scripts') >= 0 ? (function() {
+              var rx = ((cardData.extensions || {}).regex_scripts || []);
+              if (!rx.length) return '';
+              var t = '=== 🔧 regex_scripts 精确标识清单 ===\n';
+              rx.forEach(function(r, i) {
+                t += '  ' + (i+1) + '. id=' + (r.id||'(无)') + '  scriptName=' + (r.scriptName||'(无)') + '  findRegex=' + (r.findRegex||'(无)') + '\n';
+              });
+              t += '删除写法：{ "_action":"delete", "id":"..." } 或 { "_action":"delete", "scriptName":"..." }\n\n';
+              return t;
+            })() : '') +
             '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
 
 
@@ -5266,6 +5539,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                       '<div><div class="opt-label after">优化后</div><div class="opt-pane after">' + escHtml(afterV) + '</div></div>' +
                     '</div></div>';
                 });
+                compH += '<div style="margin:10px 0;padding:10px;background:#161b22;border-radius:6px">' +
+                  '<div style="font-weight:600;margin-bottom:6px">📋 应用模式：</div>' +
+                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
+                  '<input type="radio" name="optMode" value="smart" checked> ' +
+                  '<b>智能合并模式（推荐）</b>：按 comment 精确匹配/前缀匹配自动覆盖、支持 _action:delete 删除，保留未被修改的旧条目' +
+                  '</label>' +
+                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
+                  '<input type="radio" name="optMode" value="replace"> ' +
+                  '<b>彻底替换模式</b>：删除当前卡中与优化字段同模块的<b>所有旧条目</b>，再插入优化后的新条目（彻底解决旧内容残留，适合重写/精简）' +
+                  '</label>' +
+                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
+                  '<input type="radio" name="optMode" value="append"> ' +
+                  '<b>纯追加模式</b>：仅追加新条目，不修改不删除任何旧条目（不推荐，易重复）' +
+                  '</label>' +
+                  '</div>';
                 compH += '<div style="text-align:center;margin-top:8px">' +
                   '<button class="btn btn-success" id="applyOptBtn">✅ 应用优化</button>' +
                 '</div>';
@@ -5273,13 +5561,78 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 var applyBtn = doc.getElementById('applyOptBtn');
                 if (applyBtn) {
                   applyBtn.addEventListener('click', function() {
-                    var optModified = mergePartial(optimized, cardData);
+                    var modeRadios = doc.getElementsByName('optMode');
+                    var optMode = 'smart';
+                    for (var ri = 0; ri < modeRadios.length; ri++) {
+                      if (modeRadios[ri].checked) { optMode = modeRadios[ri].value; break; }
+                    }
+                    var optModified = false;
+                    if (optMode === 'replace') {
+                      // 彻底替换模式：先清理，再合并
+                      // entries 清理：删除所有前缀与新条目前缀相同的旧条目
+                      if (Array.isArray(optimized.entries) && optimized.entries.length) {
+                        var newPrefixes = {};
+                        optimized.entries.forEach(function(e) {
+                          var p = extractEntryPrefix(e.comment || '');
+                          if (p) newPrefixes[p] = true;
+                        });
+                        var oldEntries = (cardData.character_book || {}).entries || [];
+                        var keptEntries = oldEntries.filter(function(e) {
+                          var p = extractEntryPrefix(e.comment || '');
+                          // 保留与新条目前缀无关的旧条目；MVU核心条目([InitVar]、变量列表、更新规则、输出格式)始终保留，除非新内容中明确包含对应前缀
+                          var isMvuCore = /\[InitVar\]|变量列表|变量更新规则|变量输出格式|\[mvu_update\]/i.test(e.comment || '');
+                          if (isMvuCore && !(e.comment && optimized.entries.some(function(ne) { return (ne.comment || '') === e.comment; }))) {
+                            return true; // MVU核心条目默认保留，除非新内容精确覆盖
+                          }
+                          if (newPrefixes[p]) return false; // 相同前缀→删除
+                          return true; // 不同前缀→保留
+                        });
+                        if (!cardData.character_book) cardData.character_book = {};
+                        cardData.character_book.entries = keptEntries;
+                        optModified = (keptEntries.length !== oldEntries.length);
+                      }
+                      // regex_scripts 清理：删除后重新插入
+                      if (optimized.regex_scripts) {
+                        if (cardData.extensions) cardData.extensions.regex_scripts = [];
+                        optModified = true;
+                      }
+                      // alternate_greetings 清理
+                      if (optimized.alternate_greetings) {
+                        cardData.alternate_greetings = [];
+                        optModified = true;
+                      }
+                      // 再用 mergePartial 应用优化结果
+                      var r = mergePartial(optimized, cardData);
+                      if (r) optModified = true;
+                    } else if (optMode === 'append') {
+                      // 纯追加模式：只用新增逻辑
+                      if (Array.isArray(optimized.entries) && optimized.entries.length) {
+                        cardData.character_book = cardData.character_book || { entries: [] };
+                        optimized.entries.forEach(function(e) {
+                          if (!e || e._action === 'delete') return; // 追加模式下忽略删除动作
+                          if (!e.comment || !e.content) return;
+                          cardData.character_book.entries.push(Object.assign({ keys: [], secondary_keys: [] }, e));
+                          optModified = true;
+                        });
+                      }
+                      // 其他字段：长度非空时才覆盖
+                      ['description','personality','scenario','first_mes','system_prompt','creator_notes','mes_example','post_history_instructions'].forEach(function(f) {
+                        if (optimized[f] && String(optimized[f]).trim().length > 10) {
+                          if (cardData[f] !== optimized[f]) { cardData[f] = optimized[f]; optModified = true; }
+                        }
+                      });
+                      if (Array.isArray(optimized.alternate_greetings)) { cardData.alternate_greetings = (cardData.alternate_greetings || []).concat(optimized.alternate_greetings); optModified = true; }
+                      if (Array.isArray(optimized.tags)) { cardData.tags = (cardData.tags || []).concat(optimized.tags.filter(function(t) { return (cardData.tags || []).indexOf(t) < 0; })); optModified = true; }
+                    } else {
+                      // 智能合并模式（默认）
+                      optModified = !!mergePartial(optimized, cardData);
+                    }
                     if (optModified) {
                       progress = calcProgress();
                       updateProgress();
                       renderPreview();
                       doc.getElementById('optModal').remove();
-                      showToast('✅ 优化已应用', 'success');
+                      showToast('✅ 优化已应用 (' + (optMode === 'replace' ? '替换模式' : optMode === 'append' ? '追加模式' : '智能合并') + ')', 'success');
                     } else {
                       showToast('⚠️ 未检测到有效修改', 'warning');
                     }
