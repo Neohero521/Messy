@@ -349,21 +349,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="mvu-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:2px solid rgba(33,150,243,0.5);box-shadow:0 0 10px rgba(33,150,243,0.25);flex-shrink:0;z-index:3;position:relative;animation:mvu-spin 1.8s linear infinite;background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);font-size:20px">⟳</span>\n      <span style="display:flex;align-items:center;height:32px;margin-left:-10px;padding:0 20px 0 18px;background:linear-gradient(135deg,#e3f2fd 0%,#d0e9fc 50%,#e3f2fd 100%);border:1.5px solid rgba(33,150,243,0.35);border-radius:0 16px 16px 0;position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#1565c0,#1976d2,#1565c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent">变量更新中</span>\n        <span class="mvu-blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(33,150,243,0.1) 50%,transparent 100%);animation:mvu-blue-sweep 2.5s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:22px;margin-top:6px;padding:12px 18px;color:#0d47a1;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(227,242,253,0.7) 0%,rgba(187,222,251,0.4) 100%);border:1.5px solid rgba(33,150,243,0.25);border-radius:12px;font-size:0.9em;max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.mvu-thinking summary::marker{display:none}.mvu-thinking[open]>div{animation:mvu-content-in .4s ease forwards}.mvu-thinking[open] summary .mvu-blue-glow{animation:none!important;opacity:0}@keyframes mvu-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes mvu-blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}@keyframes mvu-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
 
-  // ===== MVU 状态栏 HTML 模板（通用版：递归渲染所有可见变量）=====
+  // ===== MVU 状态栏 HTML 模板（精美版：低饱和柔灰蓝+毛玻璃+网格布局）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
   // 配套正则：markdownOnly=true, promptOnly=false, 将占位符替换为此HTML
-  // 设计要点（已修复时序/读取/递归/类型检测问题）：
+  // 设计要点（对齐(6)号卡片的美观度标准）：
   //   1. 用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（复用酒馆助手稳定API，避免Mvu.getVar时序失效）
   //   2. await waitGlobalInitialized('Mvu') 等待 MVU 模块就绪后再绑定事件
   //   3. $(errorCatched(init)) 全局异常捕获，报错不卡死面板
-  //   4. 递归 renderVarTree 渲染任意深度嵌套对象
+  //   4. 递归 renderTree(obj, level) 渲染任意深度嵌套对象，按层级缩进
   //   5. 跳过 _ / $ 开头的隐藏变量
-  //   6. 严格 typeof val === "number" 检测数值（避免字符串数字误判）
-  //   7. 心跳速率(60-180❤️)、体温(35-42) 等特殊变量按真实范围算百分比
-  //   8. 布尔仅显示 ✅/❌ 图标
+  //   6. 严格 typeof val === "number" 检测数值，布尔用 ✓/✕，数组元素独立渲染
+  //   7. 分类标题(category-title)带▸图标+底部分隔线，stat-grid自动适应网格布局
+  //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
-  // 配色用 CSS 变量（--c-light/--c-main/--c-dark/--bg-soft/--text-gray），AI 改主题只改 :root 即可
-  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n    :root { --c-light: #dde4ec; --c-main: #4a6b8a; --c-dark: #2c4358; --bg-soft: #f7f9fc; --text-gray: #5a6470; }\n    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #333; }\n    .mvu-full-panel { width: 100%; box-sizing: border-box; border: 1px solid var(--c-light); border-radius: 14px; background: linear-gradient(145deg, var(--bg-soft), #eef2f7); padding: 16px; box-shadow: 0 4px 14px rgba(74, 107, 138, 0.15); }\n    .mvu-header { text-align: center; border-bottom: 1.5px dashed var(--c-light); padding-bottom: 10px; margin-bottom: 14px; }\n    .mvu-header h3 { margin: 0; font-size: 14.5px; color: var(--c-main); letter-spacing: 1px; }\n    .mvu-tree-group { margin-bottom: 12px; }\n    .mvu-group-title { font-size: 12.2px; color: var(--c-dark); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; }\n    .mvu-group-title::before { content: "✦"; font-size: 10px; margin-right: 5px; }\n    .mvu-group-inner { padding-left: 8px; }\n    .mvu-item-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 3px 6px; background: rgba(255,255,255,0.65); border-radius: 6px; margin-bottom: 4px; gap: 8px; }\n    .mvu-label { flex: 0 0 40%; color: var(--text-gray); }\n    .mvu-progress-wrap { flex: 1; height: 9px; background: #eef0f3; border-radius: 5px; overflow: hidden; }\n    .mvu-progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #a8c5e0, var(--c-main)); transition: width 0.4s ease-out; }\n    .mvu-num-val { min-width: 26px; text-align: right; font-weight: bold; color: var(--c-main); }\n    .mvu-text-val { flex: 1; text-align: right; font-weight: bold; color: var(--c-main); }\n    .heart-svg { display: inline-block; animation: beat 1s infinite ease-in-out; color: #ff4d70; margin-right: 2px; }\n    @keyframes beat { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }\n    .mvu-empty-tip { text-align: center; color: #9aa3ad; font-size: 12px; padding: 10px 0; }\n  </style>\n  <script type="module">\n    function qzClampNumber(value, min, max) {\n      const number = Number(value);\n      if (!Number.isFinite(number)) return min;\n      return Math.min(max, Math.max(min, number));\n    }\n    function renderVarTree(obj) {\n      if (!obj || Object.keys(obj).length === 0) return `<div class="mvu-empty-tip">暂无状态数据，交互后自动刷新</div>`;\n      let html = "";\n      for (const [key, val] of Object.entries(obj)) {\n        if (key.startsWith("_") || key.startsWith("$")) continue;\n        if (typeof val === "object" && val !== null) {\n          html += `<div class="mvu-tree-group"><div class="mvu-group-title">${key}</div><div class="mvu-group-inner">${renderVarTree(val)}</div></div>`;\n        } else if (typeof val === "number") {\n          let min = 0, max = 100, heartIcon = "";\n          if (key.includes("心跳速率")) { min = 60; max = 180; heartIcon = `<span class="heart-svg">❤️</span>`; }\n          if (key.includes("体温")) { min = 35; max = 42; }\n          const rawPct = ((val - min) / (max - min)) * 100;\n          const pct = qzClampNumber(rawPct, 0, 100);\n          html += `<div class="mvu-item-row"><span class="mvu-label">${key}</span><div class="mvu-progress-wrap"><div class="mvu-progress-fill" style="width:${pct}%"></div></div><span class="mvu-num-val">${heartIcon}${val}</span></div>`;\n        } else {\n          let showText = val === true ? "✅" : val === false ? "❌" : val;\n          html += `<div class="mvu-item-row"><span class="mvu-label">${key}</span><span class="mvu-text-val">${showText}</span></div>`;\n        }\n      }\n      return html;\n    }\n    function refreshMvuPanel() {\n      const container = document.getElementById("mvu-render-box");\n      if (!container) return;\n      const allVars = getAllVariables();\n      const statData = _.get(allVars, "stat_data", {});\n      container.innerHTML = renderVarTree(statData);\n    }\n    async function init() {\n      await waitGlobalInitialized(\'Mvu\');\n      refreshMvuPanel();\n      eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshMvuPanel);\n      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshMvuPanel);\n    }\n    $(errorCatched(init));\n  <\\/script>\n</head>\n<body>\n  <section class="mvu-full-panel">\n    <div class="mvu-header">\n      <h3>状态观测终端</h3>\n    </div>\n    <div id="mvu-render-box"></div>\n  </section>\n</body>\n</html>';
+  //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
+  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n/* 低饱和柔灰蓝配色 舒适护眼 深色毛玻璃主题 */\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n/* 外层卡片 */\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n/* 内容主体 */\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n/* 分类标题 */\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child {\n    margin-top: 0;\n}\n.category-title::before {\n    content: "▸";\n    font-size: 10px;\n    opacity: 0.8;\n}\n\n/* 表格式网格布局 自动适应列数 增大最小列宽 避免挤压 */\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n/* 单行状态项 顶部对齐 支持换行不重叠 */\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    transition: background 0.2s ease;\n    gap: 8px;\n}\n.stat-item:hover {\n    background: var(--hover-bg);\n}\n\n/* 层级缩进 优化缩进量 避免挤占内容空间 */\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n/* 左侧标签 自动换行 不强制单行 */\n.stat-label {\n    color: var(--text-sub);\n    flex: 1;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n\n/* 右侧数值 右对齐 支持换行 不会被挤压消失 */\n.stat-value {\n    font-weight: 500;\n    text-align: right;\n    flex-shrink: 0;\n    max-width: 58%;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n.value-number {\n    color: var(--accent-blue);\n    white-space: nowrap;\n}\n.value-true {\n    color: var(--accent-green);\n    white-space: nowrap;\n}\n.value-false {\n    color: var(--accent-red);\n    white-space: nowrap;\n}\n.value-text {\n    color: var(--text-main);\n}\n\n/* 加载状态 */\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe {\n    0%, 100% { opacity: 0.5; }\n    50% { opacity: 0.9; }\n}\n\n/* 刷新淡入动画 */\n.flash-update {\n    animation: fadeIn 0.3s ease-out;\n}\n@keyframes fadeIn {\n    from { opacity: 0.6; }\n    to { opacity: 1; }\n}\n  </style>\n  <script type="module">\nasync function init() {\n    await waitGlobalInitialized(\'Mvu\');\n    const rootDom = document.getElementById(\'render-root\');\n\n    function refreshStatus() {\n      const allVars = getAllVariables();\n      const sourceData = _.get(allVars, "stat_data", {});\n      let htmlStr = \'\';\n\n      // 递归渲染：对象→分类标题+缩进网格，数值/布尔/文本→着色显示\n      function renderTree(obj, level) {\n        level = level || 0;\n        const indentClass = \'indent-\' + Math.min(level, 4);\n        let itemsHtml = \'\';\n\n        for (const [key, value] of Object.entries(obj)) {\n          // 过滤私有变量 _ / $ 开头\n          if (key.startsWith(\'_\') || key.startsWith(\'$\')) continue;\n\n          // 嵌套对象：生成子分类标题 递归渲染\n          if (typeof value === \'object\' && value !== null && !Array.isArray(value)) {\n            if (itemsHtml) {\n              htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n              itemsHtml = \'\';\n            }\n            if (level > 0) {\n              htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n            }\n            renderTree(value, level + 1);\n            continue;\n          }\n\n          // 普通属性 加入当前层级网格\n          itemsHtml += \'<div class="stat-item">\';\n          itemsHtml += \'<span class="stat-label">\' + key + \'</span>\';\n          itemsHtml += \'<span class="stat-value">\';\n\n          if (typeof value === \'number\') {\n            itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          } else if (typeof value === \'boolean\') {\n            itemsHtml += value\n              ? \'<span class="value-true">✓</span>\'\n              : \'<span class="value-false">✕</span>\';\n          } else if (Array.isArray(value)) {\n            itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          } else {\n            itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          }\n\n          itemsHtml += \'</span></div>\';\n        }\n\n        if (itemsHtml) {\n          htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n        }\n      }\n\n      renderTree(sourceData, 0);\n      rootDom.innerHTML = htmlStr;\n      rootDom.classList.add(\'flash-update\');\n      setTimeout(function() { rootDom.classList.remove(\'flash-update\'); }, 300);\n    }\n\n    // 初始化 + 变量更新监听（VARIABLE_INITIALIZED首次加载 + VARIABLE_UPDATE_ENDED变更刷新）\n    refreshStatus();\n    eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n    eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n}\n\n$(errorCatched(init));\n  <\\/script>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -1501,15 +1501,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 编写[InitVar]初始变量YAML\n' +
     '- 编写变量更新规则条目\n' +
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
-    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须根据用户需求生成匹配主题的状态栏HTML，放入regex_scripts中\n' +
-    '  · 配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true\n' +
-    '  · replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script type=module)），用```html代码块包裹\n' +
-    '  · 读变量用 getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
-    '  · 异步等待：await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED 和 VARIABLE_UPDATE_ENDED 事件\n' +
-    '  · 异常捕获：$(errorCatched(init)) 包裹，报错不卡死面板\n' +
-    '  · ⚠️必须递归遍历stat_data所有可见变量（跳过_/$开头隐藏变量），自动检测类型（数值→进度条、字符串→文本、布尔→✅/❌、嵌套→递归分组）\n' +
-    '  · 严格 typeof val === "number" 检测数值；心跳速率60-180❤️、体温35-42特殊范围\n' +
-    '  · 根据题材定制样式（修仙显示境界灵力、末世显示生命物资、校园显示好感度等），配色用CSS变量\n' +
+    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
+    '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
+    '  · 【包裹格式】replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script type=module)），用```html代码块包裹\n' +
+    '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
+    '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 两个事件\n' +
+    '  · 【异常捕获】$(errorCatched(init)) 包裹，报错不卡死面板\n' +
+    '  · 【配色主题（核心！必须用CSS变量）】建议用低饱和柔色系（深色毛玻璃/浅色系二选一），:root定义变量便于换主题：\n' +
+    '    - 深色毛玻璃主题（推荐）：--card-bg: rgba(30,35,45,0.82); backdrop-filter: blur(6px); 搭配 --accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
+    '    - 浅色舒适主题：--card-bg: linear-gradient(145deg,#f7f9fc,#eef2f7); 搭配柔和主色蓝/紫/绿色系\n' +
+    '  · 【布局结构（核心！严禁平铺直叙）】：\n' +
+    '    - 必须用 CSS Grid 响应式布局：.stat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 16px; }\n' +
+    '    - 分类标题：.category-title { font-weight:600; 带▸图标 + border-bottom分隔线; 区分不同对象分组 }\n' +
+    '    - 层级缩进：.indent-1/2/3/4 { padding-left: 8px/20px/32px/44px; } 按嵌套深度缩进\n' +
+    '    - 单行项：.stat-item  flex + justify-content: space-between + align-items: flex-start + gap:8px + hover背景高亮(.hover-bg)\n' +
+    '  · 【递归渲染规范（核心！严禁只遍历一层）】：\n' +
+    '    - function renderTree(obj, level) { level = level || 0; }\n' +
+    '    - 过滤 if (key.startsWith(\'_\') || key.startsWith(\'$\')) continue; // 跳过隐藏变量\n' +
+    '    - 嵌套对象：先flush当前itemsHtml为.stat-grid，再输出.category-title（level>0时），然后递归renderTree(value, level+1)\n' +
+    '    - 数值typeof==="number" → .value-number着色（蓝/主题色）\n' +
+    '    - 布尔typeof==="boolean" → value-true ✓ / value-false ✕（绿/红分色，不用emoji✅❌）\n' +
+    '    - 数组Array.isArray(value) → .value-text 显示 [a, b, c]\n' +
+    '    - 其他字符串/null/undefined → .value-text 文本显示\n' +
+    '  · 【动效（点睛）】：\n' +
+    '    - 加载中：.loading-state text-align:center + @keyframes breathe 呼吸动画（opacity 0.5↔0.9）\n' +
+    '    - 刷新：.flash-update + @keyframes fadeIn（opacity 0.6→1） + setTimeout 300ms 移除class\n' +
+    '    - hover过渡：transition: background/color 等加 0.2s ease\n' +
+    '  · 【类型检测】严格 typeof value === "number" 严格检测，禁止字符串数字判断\n' +
+    '  · 【根据题材定制】修仙（修仙→境界灵力条/末世→生命物资条/校园→好感度条/校园恋爱→心形好感度图标，但默认数值着色也行，务必主题风格统一\n' +
+    '  · 【严禁偷工减料检查】输出前自查：有没有 Grid布局✓、分类标题✓、indent缩进类✓、hover✓、Array处理✓、两个事件绑定✓、flash更新动画✓、loading动画✓\n' +
     '- 生成[InitVar]初始变量、变量更新规则、变量输出格式条目\n\n' +
     '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
     '**基础字段检查（8项）：**\n' +
@@ -3445,21 +3465,65 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
           // 自动注入"变量结构"zod schema 脚本
           // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
-          var hasSchema = mvuScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0; });
+          // ===== 完整性检测：不仅检测是否存在，还必须含末尾 registerMvuSchema(Schema) 实际注册调用 =====
+          function isMvuSchemaComplete(content) {
+            if (!content || typeof content !== 'string') return false;
+            // 必须同时满足：①来源URL（zod库或registerMvuSchema定义来源）②Schema定义已闭合 ③末尾有registerMvuSchema(Schema)注册调用
+            var hasImport = content.indexOf('registerMvuSchema') >= 0 && content.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
+            // 允许两种格式：直接调用 registerMvuSchema(Schema) 或 $().registerMvuSchema 包裹
+            var hasRegistrationCall = /registerMvuSchema\s*\(\s*Schema\s*\)/.test(content);
+            var hasSchemaBlock = (content.indexOf('z.object') >= 0 || content.indexOf('Schema =') >= 0);
+            return hasImport && hasSchemaBlock && hasRegistrationCall;
+          }
+          function ensureMvuSchemaComplete(existingScript, initVarContent) {
+            // 如果已有脚本完整，直接返回；否则在末尾补注册调用，或用完整生成脚本替换
+            var c = (existingScript && existingScript.content) ? String(existingScript.content) : '';
+            if (isMvuSchemaComplete(c)) {
+              return c; // 已完整，无需修改
+            }
+            // 情况A：内容已包含Schema定义 + 来源import，但缺少registerMvuSchema(Schema)注册调用 → 在末尾自动追加
+            var hasImport = c.indexOf('registerMvuSchema') >= 0 && c.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
+            var hasSchemaBlock = (c.indexOf('z.object') >= 0 || c.indexOf('Schema =') >= 0);
+            var endsWithBraceAndSemi = /\}\s*;?\s*$/.test(c.trim());
+            if (hasImport && hasSchemaBlock) {
+              // 去掉末尾多余的分号/换行，再追加 $().registerMvuSchema(Schema)
+              var trimmed = c.replace(/\s+$/g, '');
+              if (trimmed.charAt(trimmed.length - 1) === ';') trimmed = trimmed.slice(0, -1);
+              return trimmed + '\n\n$(() => {\n  registerMvuSchema(Schema);\n});\n';
+            }
+            // 情况B：内容完全不存在或结构不对 → 重新生成完整脚本
+            return generateMvuSchemaScript(initVarContent || '');
+          }
+          var schemaScriptIdx = -1;
+          var hasSchema = mvuScripts.some(function(s, i) {
+            var match = s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0;
+            if (match) schemaScriptIdx = i;
+            return match;
+          });
+          var schemaInitEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
+          var schemaInitContent = schemaInitEntry ? (schemaInitEntry.content || '') : '';
           if (!hasSchema) {
-            // 从预填充后的 [InitVar] 条目中提取初始变量内容，据此生成 zod schema
-            var initVarEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
-            var schemaContent = generateMvuSchemaScript(initVarEntry ? (initVarEntry.content || '') : '');
+            // 不存在 → 生成并注入完整脚本
+            var fullSchemaContent = generateMvuSchemaScript(schemaInitContent);
             mvuScripts.push({
               type: 'script',
               enabled: true,
               name: '变量结构',
               id: 'mvu-schema',
-              content: schemaContent,
+              content: fullSchemaContent,
               info: '自动生成的 MVU 变量结构脚本。',
               button: { enabled: true, buttons: [] },
               data: {}
             });
+          } else if (schemaScriptIdx >= 0) {
+            // 脚本存在，但必须校验完整性；若不完整则就地修复
+            var fixedContent = ensureMvuSchemaComplete(mvuScripts[schemaScriptIdx], schemaInitContent);
+            if (fixedContent !== mvuScripts[schemaScriptIdx].content) {
+              mvuScripts[schemaScriptIdx].content = fixedContent;
+              if (!mvuScripts[schemaScriptIdx].info) {
+                mvuScripts[schemaScriptIdx].info = '自动生成的 MVU 变量结构脚本（已自动补全 registerMvuSchema 注册）。';
+              }
+            }
           }
           // 自动注入"世界书调用"(WTC) 脚本
           // 用途：将世界书内容用 <observed_piece class="剧情/设定"> 标签包裹，让 AI 区分剧情推进和设定信息
@@ -5542,14 +5606,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
             '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
-            '⚠️但正则6（美化状态栏）必须由AI生成！严格要求：\n' +
-            '  · 完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)\n' +
-            '  · 用```html代码块包裹\n' +
-            '  · 配置：findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true\n' +
-            '  · 读变量：getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
-            '  · 异步等待：await waitGlobalInitialized(\'Mvu\') 后绑定 VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED 事件\n' +
-            '  · 异常捕获：$(errorCatched(init)) 包裹\n' +
-            '  · 递归遍历stat_data所有可见变量（跳过_/$开头），数值→进度条(严格typeof，心跳60-180❤️/体温35-42)、布尔→✅/❌、嵌套→递归分组\n\n' +
+            '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
+            '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
+            '  · 【包裹格式】完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)，用```html代码块包裹\n' +
+            '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
+            '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后必须绑定两个事件：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED（缺一不可）\n' +
+            '  · 【异常捕获】$(errorCatched(init)) 包裹\n' +
+            '  · 【递归渲染规范（核心！严禁只遍历一层）】function renderTree(obj, level) { level = level || 0; } 跳过 key.startsWith(\'_\')/(\'$\') 隐藏变量\n' +
+            '    - typeof==="number" → .value-number 主题色显示；布尔值 → value-true ✓ / value-false ✕（绿/红分色，不用emoji✅❌）\n' +
+            '    - 嵌套对象 → 先flush为.stat-grid，再输出.category-title（▸图标+分隔线），然后递归 renderTree(value, level+1) 并 .indent-N 缩进\n' +
+            '    - 数组 Array.isArray(value) → .value-text 显示 [a, b, c]；其他 → .value-text\n' +
+            '  · 【配色（核心！必须用CSS变量）】推荐低饱和柔色系：深色毛玻璃主题 --card-bg:rgba(30,35,45,0.82);backdrop-filter:blur(6px); 配--accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
+            '  · 【布局（核心！严禁平铺直叙）】必须用Grid响应式：.stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:4px 16px; }\n' +
+            '    - .category-title 分类标题（font-weight:600 + 分隔线 + ▸）\n' +
+            '    - .indent-1/2/3/4 { padding-left:8/20/32/44px } 按嵌套深度缩进\n' +
+            '    - .stat-item flex+justify-content:space-between + align-items:flex-start + gap:8px + .hover-bg 高亮\n' +
+            '  · 【动效（点睛）】.loading-state 文本居中 + @keyframes breathe呼吸动画(opacity 0.5↔0.9)；.flash-update + @keyframes fadeIn(0.6→1) + setTimeout 300ms 移除；transition: 0.2s ease\n' +
+            '  · 【输出前必查自查清单】Grid布局✓、分类标题✓、indent缩进类✓、hover高亮✓、Array处理✓、两个事件绑定✓、flash更新动画✓、loading动画✓\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
             '规则：\n' +
