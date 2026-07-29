@@ -3421,12 +3421,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
     var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
     // 优先从 data.depth_prompt 读取（v3规范），回退到 extensions.depth_prompt（v2兼容）
-    var depthPrompt = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 0, role: 'system' });
+    var depthPrompt = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 4, role: 'system' });
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
       depthPrompt.role = depthPrompt.role === 1 ? 'user' : (depthPrompt.role === 2 ? 'assistant' : 'system');
     }
-    if (depthPrompt.depth === undefined) depthPrompt.depth = 0;
+    if (depthPrompt.depth === undefined) depthPrompt.depth = 4;
     var cardData = {
       name: cardName,
       description: cardDesc,
@@ -3674,6 +3674,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         };
       })(),
       character_book: {
+        name: cardName,
         entries: entries
       }
     };
@@ -3690,6 +3691,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       talkativeness: '0.5',
       fav: false,
       tags: cd.tags && cd.tags.length ? cd.tags : [],
+      create_date: new Date().toISOString(),
       spec: 'chara_card_v3',
       spec_version: '3.0',
       data: cardData
@@ -3710,7 +3712,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           talkativeness: '0.5',
           fav: false,
           world: '',
-          depth_prompt: { prompt: '', depth: 0, role: 'system' },
+          depth_prompt: { prompt: '', depth: 4, role: 'system' },
           regex_scripts: [],
           'xiaobaix-template': {
             enabled: false,
