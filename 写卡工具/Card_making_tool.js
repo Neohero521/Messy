@@ -4844,15 +4844,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               });
             }
           }
-          // 存入 messages 的对话文本：去掉 JSON 块和 statusblock HTML（防止历史膨胀和AI注意力被状态栏抢占）
-          var dialogue = aiResponse.replace(/```[\s\S]*?```/g, '').replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '').replace(/<details[\s\S]*?<\/details>/gi, '').trim();
-          if (dialogue) {
-            try { addAssistantMsg(dialogue); } catch(e) { console.warn('addAssistantMsg error:', e); }
+          // 对话框显示：用原始 aiResponse（保留JSON代码块和statusblock让用户看到完整输出）
+          // 历史存储：用清理后的文本（去掉JSON块和statusblock HTML，节省token防止历史膨胀）
+          var rawContent = aiResponse;
+          var cleanContent = aiResponse
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
+            .replace(/<details[\s\S]*?<\/details>/gi, '')
+            .trim();
+
+          // 1. 先显示完整内容到对话框（用户需要看到JSON和statusblock）
+          try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
+
+          // 2. 再存储清理后的对话文本到历史
+          if (cleanContent && cleanContent.length > 5) {
+            messages.push({ role: 'assistant', content: cleanContent });
           } else {
-            // 如果去掉JSON和状态栏后什么都没有，说明AI只输出了JSON没有对话文本
-            // 存入一个简短摘要避免历史断裂
-            try { addAssistantMsg('（已应用修改，详见上方变更提示）'); } catch(e) { console.warn('addAssistantMsg error:', e); }
+            // 清理后太短说明AI只输出了JSON没有自然对话，用简短摘要
+            messages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
           }
+          saveToStorage();
           updateProgress();
           updateQuickActions();
           updateModFocus();
