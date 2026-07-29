@@ -1974,11 +1974,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     if (partial.depth_prompt !== undefined) {
       cd.extensions = cd.extensions || {};
       cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
+      cd.depth_prompt = cd.depth_prompt || { prompt: '', depth: 0, role: 'system' };
       var dp = partial.depth_prompt;
       var dpModified = false;
       if (typeof dp === 'string') {
         if (dp.trim().length > 0 && cd.extensions.depth_prompt.prompt !== dp) {
           cd.extensions.depth_prompt.prompt = dp;
+          cd.depth_prompt.prompt = dp;
           dpModified = true;
         }
       } else if (dp && typeof dp === 'object') {
@@ -1986,15 +1988,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 放宽：允许空字符串（显式清空），只有 undefined 才跳过
           if (cd.extensions.depth_prompt.prompt !== dp.prompt) {
             cd.extensions.depth_prompt.prompt = dp.prompt;
+            cd.depth_prompt.prompt = dp.prompt;
             dpModified = true;
           }
         }
         if (dp.depth !== undefined && typeof dp.depth === 'number' && dp.depth >= 0 && cd.extensions.depth_prompt.depth !== dp.depth) {
           cd.extensions.depth_prompt.depth = dp.depth;
+          cd.depth_prompt.depth = dp.depth;
           dpModified = true;
         }
         if (dp.role !== undefined && ['system', 'user', 'assistant', 0, 1, 2].indexOf(dp.role) >= 0 && cd.extensions.depth_prompt.role !== dp.role) {
           cd.extensions.depth_prompt.role = dp.role;
+          cd.depth_prompt.role = dp.role;
           dpModified = true;
         }
       }
@@ -2854,7 +2859,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   - 字符串用 z.string().prefault('值')，布尔用 z.boolean().prefault(值)
   function generateMvuSchemaScript(initVarContent) {
     var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
-    var FOOTER = "});\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
+    var FOOTER = "});";
 
     function parseYamlSimple(text) {
       var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
@@ -3000,8 +3005,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return "z.string().prefault('" + escStr(val) + "')";
       }
       if (Array.isArray(val)) {
-        var itemSchema = val.length > 0 ? genValueZod(key, val[0]) : 'z.any()';
-        return 'z.array(' + itemSchema + ').prefault(' + JSON.stringify(val) + ')';
+        // 数组统一用 z.array(z.string()).prefault([])，不递归生成内层 prefault
+        // 参考(6)的正确格式：物品栏/当前词条/累计死因记录 均为 z.array(z.string()).prefault([])
+        var itemType = 'z.string()';
+        if (val.length > 0) {
+          if (typeof val[0] === 'number') itemType = 'z.coerce.number()';
+          else if (typeof val[0] === 'boolean') itemType = 'z.boolean()';
+        }
+        return 'z.array(' + itemType + ').prefault([])';
       }
       // 不应到达此处（对象由 genObjectLines 处理）
       return "z.string().prefault('')";
@@ -3409,7 +3420,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardPostHist = toCRLF(cd.post_history_instructions || '');
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
     var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
-    var depthPrompt = rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 0, role: 'system' };
+    // 优先从 data.depth_prompt 读取（v3规范），回退到 extensions.depth_prompt（v2兼容）
+    var depthPrompt = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 0, role: 'system' });
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
       depthPrompt.role = depthPrompt.role === 1 ? 'user' : (depthPrompt.role === 2 ? 'assistant' : 'system');
@@ -3430,6 +3442,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       character_version: '',
       alternate_greetings: cardAltGreetings,
       group_only_greetings: [],
+      depth_prompt: depthPrompt,
       extensions: (function() {
         // 检测是否包含MVU变量系统条目（复用前面的检测结果）
         var hasMVU = hasMVUEntries;
@@ -3464,39 +3477,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             });
           }
           // 自动注入"变量结构"zod schema 脚本
-          // 该脚本用 zod 4 定义变量结构并 registerMvuSchema 注册，MVU 据此校验/修复变量更新
-          // ===== 完整性检测：不仅检测是否存在，还必须含末尾 registerMvuSchema(Schema) 实际注册调用 =====
+          // 该脚本用 zod 4 定义变量结构（export const Schema），MVU 自动检测 Schema 导出并据此校验/修复变量更新
+          // ===== 完整性检测：只要有 import + Schema 定义块即为完整，不强制要求 registerMvuSchema 调用 =====
           function isMvuSchemaComplete(content) {
             if (!content || typeof content !== 'string') return false;
-            // 必须同时满足：①来源URL（zod库或registerMvuSchema定义来源）②Schema定义已闭合 ③末尾有registerMvuSchema(Schema)注册调用
-            var hasImport = content.indexOf('registerMvuSchema') >= 0 && content.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
-            // 允许两种格式：直接调用 registerMvuSchema(Schema) 或 $().registerMvuSchema 包裹
-            var hasRegistrationCall = /registerMvuSchema\s*\(\s*Schema\s*\)/.test(content);
-            var hasSchemaBlock = (content.indexOf('z.object') >= 0 || content.indexOf('Schema =') >= 0);
-            return hasImport && hasSchemaBlock && hasRegistrationCall;
-          }
-          function ensureMvuSchemaComplete(existingScript, initVarContent) {
-            // 如果已有脚本完整，直接返回；否则在末尾补注册调用，或用完整生成脚本替换
-            var c = (existingScript && existingScript.content) ? String(existingScript.content) : '';
-            if (isMvuSchemaComplete(c)) {
-              return c; // 已完整，无需修改
-            }
-            // 情况A：内容已包含Schema定义 + 来源import，但缺少registerMvuSchema(Schema)注册调用 → 在末尾自动追加
-            var hasImport = c.indexOf('registerMvuSchema') >= 0 && c.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
-            var hasSchemaBlock = (c.indexOf('z.object') >= 0 || c.indexOf('Schema =') >= 0);
-            var endsWithBraceAndSemi = /\}\s*;?\s*$/.test(c.trim());
-            if (hasImport && hasSchemaBlock) {
-              // 去掉末尾多余的分号/换行，再追加 $().registerMvuSchema(Schema)
-              var trimmed = c.replace(/\s+$/g, '');
-              if (trimmed.charAt(trimmed.length - 1) === ';') trimmed = trimmed.slice(0, -1);
-              return trimmed + '\n\n$(() => {\n  registerMvuSchema(Schema);\n});\n';
-            }
-            // 情况B：内容完全不存在或结构不对 → 重新生成完整脚本
-            return generateMvuSchemaScript(initVarContent || '');
+            var hasImport = content.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
+            var hasSchemaBlock = content.indexOf('z.object') >= 0 && content.indexOf('Schema') >= 0;
+            return hasImport && hasSchemaBlock;
           }
           var schemaScriptIdx = -1;
           var hasSchema = mvuScripts.some(function(s, i) {
-            var match = s.name === '变量结构' || (s.content || '').indexOf('registerMvuSchema') >= 0;
+            var match = s.name === '变量结构' || (s.content || '').indexOf('mvu_zod') >= 0;
             if (match) schemaScriptIdx = i;
             return match;
           });
@@ -3515,15 +3506,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               button: { enabled: true, buttons: [] },
               data: {}
             });
-          } else if (schemaScriptIdx >= 0) {
-            // 脚本存在，但必须校验完整性；若不完整则就地修复
-            var fixedContent = ensureMvuSchemaComplete(mvuScripts[schemaScriptIdx], schemaInitContent);
-            if (fixedContent !== mvuScripts[schemaScriptIdx].content) {
-              mvuScripts[schemaScriptIdx].content = fixedContent;
-              if (!mvuScripts[schemaScriptIdx].info) {
-                mvuScripts[schemaScriptIdx].info = '自动生成的 MVU 变量结构脚本（已自动补全 registerMvuSchema 注册）。';
-              }
-            }
+          } else if (schemaScriptIdx >= 0 && !isMvuSchemaComplete(mvuScripts[schemaScriptIdx].content)) {
+            // 脚本存在但不完整（缺import或Schema定义）→ 重新生成
+            mvuScripts[schemaScriptIdx].content = generateMvuSchemaScript(schemaInitContent);
           }
           // 自动注入"世界书调用"(WTC) 脚本
           // 用途：将世界书内容用 <observed_piece class="剧情/设定"> 标签包裹，让 AI 区分剧情推进和设定信息
