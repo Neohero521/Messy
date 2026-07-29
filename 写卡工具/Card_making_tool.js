@@ -2274,16 +2274,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史 ===\n';
 
-    // 对话历史截断：只保留最近 MAX_HISTORY 条，防止上下文过长导致AI混淆
-    var MAX_HISTORY = 12;
-    var histMessages = messages;
-    if (messages.length > MAX_HISTORY) {
-      histMessages = messages.slice(-MAX_HISTORY);
-      fullPrompt += '（注：仅显示最近' + MAX_HISTORY + '条对话，更早的已省略）\n\n';
-    }
-
-    histMessages.forEach(function(m, idx) {
-      var isLast = (idx === histMessages.length - 1);
+    messages.forEach(function(m, idx) {
+      var isLast = (idx === messages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
       if (isLast && m.role === 'user') {
         // 最新一条用户消息用醒目标记，防止AI回头处理旧指令
@@ -2294,7 +2286,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     });
     fullPrompt += '助手: ';
 
-    // 提醒放在"助手:"之前已经处理过了，这里不再追加
     // 额外追加一句"只回答最新指令"的锚点提示
     fullPrompt += '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
 
@@ -3767,6 +3758,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '<div class="chat-send-row">' +
                     '<button class="btn btn-primary" id="sendBtn" style="flex:1">发送</button>' +
                     '<button class="btn btn-success" id="saveBtn">💾 导出</button>' +
+                    '<button class="btn btn-danger" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">🗑️ 清空对话</button>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
@@ -3800,6 +3792,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           updateSendBtnPulse();
         });
         doc.getElementById('saveBtn').addEventListener('click', saveCharacter);
+        var clearChatBtn = doc.getElementById('clearChatBtn');
+        if (clearChatBtn) {
+          clearChatBtn.addEventListener('click', function() {
+            if (isGenerating) { showToast('⚠️ AI正在生成中，请稍后再清除', 'warning'); return; }
+            if (messages.length === 0) { showToast('对话已经是空的', 'info'); return; }
+            if (!confirm('确定清空所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除聊天对话历史')) return;
+            messages = [];
+            var chatC = doc.getElementById('chatMessages');
+            if (chatC) chatC.innerHTML = '';
+            saveToStorage();
+            showToast('✅ 对话已清空（角色卡内容不受影响）', 'success');
+          });
+        }
         var qBtns = doc.querySelectorAll('.quick-btn');
         for (var i = 0; i < qBtns.length; i++) {
           qBtns[i].addEventListener('click', function() {
