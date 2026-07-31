@@ -1244,7 +1244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step + 最后Step 8拼接\n' +
     '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step + Step 8拼接\n' +
     '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
-    '      ⚠️无论如何修改，最终必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
+    '      ⚠️各Step代码块用 /* === Step N: 标题 === */ 标记，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
     '\n' +
     '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
     '        产出：表格 | 路径 | 类型 | 分组 | 显示名 |\n' +
@@ -1326,49 +1326,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        规则：仅入口，禁止Mvu.watch等不存在接口；errorCatched包裹；$(() => {})加载\n' +
     '        交付：展示入口，问"事件绑定OK吗？"\n' +
     '\n' +
-    '      ▶ Step 8：拼接合并+自查（最后一步，把Step 2-7拼成完整HTML）\n' +
-    '        产出：```html 包裹的完整 <!doctype html> 文档\n' +
-    '        ⚠️拼接模板（严格按此顺序，不要重写各模块内容，只做组装）：\n' +
-    '          <!doctype html>\n' +
-    '          <html lang="zh-CN">\n' +
-    '          <head>\n' +
-    '            <meta charset="UTF-8">\n' +
-    '            <style>\n' +
-    '              [Step 2 的 :root 块原样粘贴]\n' +
-    '              [Step 4 的样式规则原样粘贴]\n' +
-    '            </style>\n' +
-    '            <script type="module">\n' +
-    '              [Step 5 的 loadVars 函数原样粘贴]\n' +
-    '              [Step 6 的 renderVars/renderVarTree 函数原样粘贴]\n' +
-    '              [Step 7 的 init + $(errorCatched(init)) 原样粘贴]\n' +
-    '            </script>\n' +
-    '          </head>\n' +
-    '          <body>\n' +
-    '            [Step 3 的 HTML骨架原样粘贴]\n' +
-    '          </body>\n' +
-    '          </html>\n' +
-    '        自查（逐项检查，发现问题立即修正后再交付）：\n' +
-    '          ① HTML结构完整：<!doctype html>+<html>+<head>+<style>+<body>+<script type="module">\n' +
-    '          ② 注释规范：全文无 // 注释，仅 /* */\n' +
-    '          ③ DOM规范：无原生DOM，全部jquery\n' +
-    '          ④ 变量路径：所有_.get路径以 stat_data 开头，与Step 1表一致\n' +
-    '          ⑤ 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
-    '          ⑥ 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
-    '          ⑦ 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
-    '          ⑧ 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
-    '          ⑨ 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
-    '        交付：输出最终完整代码 + 自查通过确认 + 引导用户写入正则\n' +
+    '      ▶ Step 8：拼接合并+自查（最后一步）\n' +
+    '        ⚠️重要：拼接由写卡器自动完成，AI不需要重新输出完整HTML！\n' +
+    '        AI只需确认各Step模块已就绪，写卡器会自动提取各Step代码块并拼接成完整HTML保存。\n' +
+    '        这样各模块可以任意大，拼接不受AI单次输出长度限制。\n' +
+    '        AI在Step 8需要做的：\n' +
+    '          ① 确认 Step 2-7 的代码块都已输出（每个Step用 /* === Step N: 标题 === */ 标记+代码块）\n' +
+    '          ② 逐项自查（发现问题回到对应Step修正后重新输出该Step代码块）：\n' +
+    '            a. HTML结构：Step 3骨架是合法HTML片段\n' +
+    '            b. 注释规范：全文无 // 注释，仅 /* */\n' +
+    '            c. DOM规范：无原生DOM，全部jquery\n' +
+    '            d. 变量路径：所有_.get路径以 stat_data 开头，与Step 1表一致\n' +
+    '            e. 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
+    '            f. 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
+    '            g. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
+    '            h. 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
+    '            i. 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
+    '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
+    '        ⚠️禁止在Step 8重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
     '\n' +
     '      【机制2：按语义精准修改】（核心！避免整体重写）\n' +
     '      当用户要求修改时，AI先识别涉及哪些Step（按用户语义，可涉及多个），只重写涉及的Step：\n' +
     '        · 用户说"改配色" → 只重写 Step 2，其他不变\n' +
-    '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，Step 8重新拼接\n' +
+    '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，写卡器自动拼接\n' +
     '        · 用户说"换UI风格" → 重写 Step 2+3+4（结构+样式相关），Step 5/6/7不变\n' +
     '        · 用户说"渲染逻辑有bug" → 只改 Step 6\n' +
     '        · 用户说"事件没触发" → 只改 Step 7\n' +
-    '        · 用户说"再加一个进度条模块/技能栏/装备栏" → 改 Step 1+3+5+6（加新模块涉及多Step），Step 8重新拼接\n' +
+    '        · 用户说"再加一个进度条模块/技能栏/装备栏" → 改 Step 1+3+5+6（加新模块涉及多Step），写卡器自动拼接\n' +
     '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
-    '      ⚠️修改后必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
+    '      ⚠️修改后只需重新输出涉及的Step代码块，写卡器会自动拼接保存（不需要AI输出完整HTML）\n' +
     '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
     '      ⚠️但若用户明确要"大改/重做/换风格"涉及多Step时，必须一次做完所有涉及的Step，不要挤牙膏\n' +
     '\n' +
@@ -1378,7 +1364,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
     '        · 用户要"多模块一起生成"时，可一次做完多个涉及的Step，但禁止一次做完全部8步\n' +
     '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
-    '        · Step 8是机械拼接，不需要创造力，弱模型也能可靠完成\n' +
+    '        · Step 8由写卡器自动拼接，AI不需要重新输出代码，避免输出长度限制\n' +
     '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
     '\n' +
     '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
@@ -5019,6 +5005,115 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return true;
       }
 
+      // ===== 模块拼接：从AI回答中提取各Step代码块，由写卡器JS自动拼接成完整HTML =====
+      // 核心思路：AI分步生成各模块（每步用 /* === Step N: 标题 === */ 标记+代码块），
+      //          写卡器收集各模块代码，在JS层面机械拼接，不受AI单次输出长度限制
+      // 全局存储各Step最新代码（跨多轮对话累积）
+      var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+
+      function tryExtractAndAssembleStatusBar(aiText) {
+        if (!aiText) return false;
+        // 提取所有 /* === Step N: 标题 === */ 标记后的代码块
+        var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
+        var m;
+        var foundAny = false;
+        while ((m = stepRe.exec(aiText)) !== null) {
+          var stepNum = parseInt(m[1], 10);
+          var code = m[2];
+          if (stepNum >= 2 && stepNum <= 7) {
+            statusBarModules['step' + stepNum] = code;
+            foundAny = true;
+          }
+        }
+        // 也匹配无 ``` 包裹但紧跟标记的代码（AI可能直接写代码不包代码块）
+        if (!foundAny) {
+          var stepRe2 = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*([^*=]*?)===\s*\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/gi;
+          while ((m = stepRe2.exec(aiText)) !== null) {
+            var sn = parseInt(m[1], 10);
+            var raw = m[3].trim();
+            // 去掉可能的 ``` 包裹
+            raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+            if (sn >= 2 && sn <= 7 && raw.length > 10) {
+              statusBarModules['step' + sn] = raw;
+              foundAny = true;
+            }
+          }
+        }
+        if (!foundAny) return false;
+
+        // 检查是否有足够的模块来拼接（至少需要 step3 骨架 + step5/6/7 之一 的脚本）
+        var hasSkeleton = !!statusBarModules.step3;
+        var hasScript = !!(statusBarModules.step5 || statusBarModules.step6 || statusBarModules.step7);
+        if (!hasSkeleton && !hasScript) return false;
+
+        // JS层面机械拼接成完整HTML（不受AI输出长度限制）
+        var cssParts = [];
+        if (statusBarModules.step2) cssParts.push('/* === Step 2: 配色方案 === */\n' + statusBarModules.step2);
+        if (statusBarModules.step4) cssParts.push('/* === Step 4: CSS样式 === */\n' + statusBarModules.step4);
+        var jsParts = [];
+        if (statusBarModules.step5) jsParts.push('/* === Step 5: 变量读取 === */\n' + statusBarModules.step5);
+        if (statusBarModules.step6) jsParts.push('/* === Step 6: 渲染函数 === */\n' + statusBarModules.step6);
+        if (statusBarModules.step7) jsParts.push('/* === Step 7: 事件绑定+入口 === */\n' + statusBarModules.step7);
+
+        var assembledHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n';
+        if (cssParts.length) {
+          assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
+        }
+        if (jsParts.length) {
+          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n'
+            + jsParts.join('\n\n')
+            + '\n})();\n  <\/script>\n';
+        }
+        assembledHtml += '</head>\n<body>\n';
+        if (statusBarModules.step3) {
+          assembledHtml += statusBarModules.step3 + '\n';
+        } else {
+          // 无骨架时补一个默认容器
+          assembledHtml += '<div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>\n';
+        }
+        assembledHtml += '</body>\n</html>';
+
+        // 保存到 cardData.extensions.regex_scripts
+        cardData.extensions = cardData.extensions || {};
+        var rxList = cardData.extensions.regex_scripts || [];
+        var foundIdx = -1;
+        for (var j = 0; j < rxList.length; j++) {
+          var r = rxList[j];
+          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+            foundIdx = j;
+            break;
+          }
+        }
+        var wrappedHtml = '```html\n' + assembledHtml + '\n```';
+        if (foundIdx >= 0) {
+          rxList[foundIdx].replaceString = wrappedHtml;
+          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || '/<StatusPlaceHolder\\/>/g';
+          rxList[foundIdx].markdownOnly = true;
+          rxList[foundIdx].promptOnly = false;
+          rxList[foundIdx].placement = [2];
+          rxList[foundIdx].runOnEdit = true;
+          rxList[foundIdx].disabled = false;
+        } else {
+          rxList.push({
+            id: 'mvu-status-bar',
+            scriptName: '[美化]MVU状态栏',
+            findRegex: '/<StatusPlaceHolder\\/>/g',
+            replaceString: wrappedHtml,
+            trimStrings: [],
+            placement: [2],
+            disabled: false,
+            markdownOnly: true,
+            promptOnly: false,
+            runOnEdit: true,
+            substituteRegex: 0,
+            minDepth: null,
+            maxDepth: null
+          });
+        }
+        cardData.extensions.regex_scripts = rxList;
+        return true;
+      }
+
       // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
       // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
       function repairJSON(str) {
@@ -5165,14 +5260,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           }
-          // 兜底：如果AI回答中包含 ```html 代码块（状态栏HTML），但JSON里没带regex_scripts，
-          // 自动提取并保存到 cardData.extensions.regex_scripts，确保预览/导出能读到最新版本
+          // 状态栏模块提取+自动拼接（优先）+ 完整HTML兜底（次选）
           try {
-            var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
-            if (statusBarSaved) {
-              showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+            // 优先：尝试从AI回答中提取各Step模块代码，由写卡器JS自动拼接成完整HTML
+            var modulesAssembled = tryExtractAndAssembleStatusBar(aiResponse);
+            if (modulesAssembled) {
+              showToast('✅ 已从AI回答中提取状态栏模块并自动拼接保存', 'success');
               progress = calcProgress();
               renderPreview();
+            } else {
+              // 次选：AI可能直接输出了完整HTML代码块（非分模块），直接提取保存
+              var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
+              if (statusBarSaved) {
+                showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+                progress = calcProgress();
+                renderPreview();
+              }
             }
           } catch(e) { /* ignore */ }
           var modProg = parseModProgress(aiResponse);
@@ -5571,21 +5674,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         /* 构建预览弹窗：顶部说明+数据来源标识，主体为iframe沙箱渲染 */
         var h = '<div class="modal" id="mvuPreviewModal">' +
           '<div class="modal-content" style="max-width:720px">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
-            '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">在沙箱中渲染状态栏HTML，预览实际显示效果。数据来自[InitVar]初始变量条目（静态快照，不监听运行时事件）</p>' +
-            /* 顶部不显示任何变量数值统计，让状态栏渲染区直接呈现给用户观看 */
+            '<h3 style="color:#d2a8ff;margin-bottom:8px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
+            /* 顶部只有标题，然后直接是iframe渲染区，不显示任何变量信息 */
             '';
-        /* 如果没有InitVar数据，仅在状态栏下方折叠区提示，不影响顶部视觉 */
+        /* InitVar 缺失提示放到 details 里，不显示在顶部 */
         var dataHintHtml = '';
         if (!initVarEntry) {
-          dataHintHtml = '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-top:8px">⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据预览。请先让AI生成初始变量YAML以查看真实数据渲染效果。</div>';
+          dataHintHtml = '⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据。';
         } else if (usingSampleData) {
-          dataHintHtml = '<div style="background:#3a2c1a;border:1px solid #d2992250;color:#e3b341;padding:8px 12px;border-radius:6px;font-size:.8em;margin-top:8px">ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据预览。请让AI生成初始变量YAML。</div>';
+          dataHintHtml = 'ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据。';
         }
         h += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">' +
           '<iframe id="mvuPreviewFrame" style="width:100%;height:420px;border:0;background:transparent" sandbox="allow-scripts"></iframe>' +
-          '</div>' + dataHintHtml +
-          '<details style="margin-bottom:8px;margin-top:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">📋 预览元数据（HTML来源：' + escHtml(statusBarSource) + ' · InitVar条目：' + (initVarEntry ? '✓' : '✕') + ' · 顶级变量数：' + (Object.keys(statData).length) + '）</summary>' +
+          '</div>' +
+          '<details style="margin-bottom:8px;margin-top:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">📋 预览元数据' + (dataHintHtml ? '（' + dataHintHtml + '）' : '') + '（HTML来源：' + escHtml(statusBarSource) + ' · InitVar条目：' + (initVarEntry ? '✓' : '✕') + ' · 顶级变量数：' + (Object.keys(statData).length) + '）</summary>' +
             '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:.7em;color:#c9d1d9;white-space:pre-wrap;word-break:break-all;margin-top:6px">' + escHtml(JSON.stringify(statData, null, 2)) + '</pre>' +
           '</details>' +
           '<div class="modal-actions">' +
