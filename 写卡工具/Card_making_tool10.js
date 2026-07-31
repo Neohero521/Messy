@@ -390,7 +390,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n/* 低饱和柔灰蓝配色 舒适护眼 深色毛玻璃主题 */\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n/* 外层卡片 */\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n/* 内容主体 */\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n/* 分类标题 */\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child {\n    margin-top: 0;\n}\n.category-title::before {\n    content: "▸";\n    font-size: 10px;\n    opacity: 0.8;\n}\n\n/* 表格式网格布局 自动适应列数 增大最小列宽 避免挤压 */\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n/* 单行状态项 顶部对齐 支持换行不重叠 */\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    transition: background 0.2s ease;\n    gap: 8px;\n}\n.stat-item:hover {\n    background: var(--hover-bg);\n}\n\n/* 层级缩进 优化缩进量 避免挤占内容空间 */\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n/* 左侧标签 自动换行 不强制单行 */\n.stat-label {\n    color: var(--text-sub);\n    flex: 1;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n\n/* 右侧数值 右对齐 支持换行 不会被挤压消失 */\n.stat-value {\n    font-weight: 500;\n    text-align: right;\n    flex-shrink: 0;\n    max-width: 58%;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n.value-number {\n    color: var(--accent-blue);\n    white-space: nowrap;\n}\n.value-true {\n    color: var(--accent-green);\n    white-space: nowrap;\n}\n.value-false {\n    color: var(--accent-red);\n    white-space: nowrap;\n}\n.value-text {\n    color: var(--text-main);\n}\n\n/* 加载状态 */\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe {\n    0%, 100% { opacity: 0.5; }\n    50% { opacity: 0.9; }\n}\n\n/* 刷新淡入动画 */\n.flash-update {\n    animation: fadeIn 0.3s ease-out;\n}\n@keyframes fadeIn {\n    from { opacity: 0.6; }\n    to { opacity: 1; }\n}\n  </style>\n  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === \'complete\' || document.readyState === \'interactive\') {\n      setTimeout(fn, 0);\n    } else if (document.addEventListener) {\n      document.addEventListener(\'DOMContentLoaded\', fn);\n    } else {\n      document.attachEvent(\'onreadystatechange\', function() {\n        if (document.readyState === \'complete\') fn();\n      });\n    }\n  };\n  var ec = function(fn) {\n    return function() {\n      try {\n        var r = fn.apply(this, arguments);\n        if (r && r.catch) r.catch(function(e) { console.warn(\'[statusbar] async err:\', e); });\n        return r;\n      } catch(e) { console.warn(\'[statusbar] sync err:\', e); }\n    };\n  };\n  ready(ec(async function init() {\n    if (typeof waitGlobalInitialized === \'function\') { try { await waitGlobalInitialized(\'Mvu\'); } catch(_) {} }\n\n    function refreshStatus() {\n      var allVars = (typeof getAllVariables === \'function\') ? getAllVariables() : {};\n      var sourceData;\n      if (typeof _ !== \'undefined\' && _.get) {\n        sourceData = _.get(allVars, "stat_data", {});\n      } else {\n        sourceData = (allVars && allVars.stat_data) ? allVars.stat_data : {};\n      }\n      if (!sourceData || typeof sourceData !== \'object\') sourceData = {};\n      var htmlStr = \'\';\n\n      function renderTree(obj, level) {\n        level = level || 0;\n        var indentClass = \'indent-\' + Math.min(level, 4);\n        var itemsHtml = \'\';\n        var keys = Object.keys(obj || {});\n        for (var k = 0; k < keys.length; k++) {\n          var key = keys[k];\n          var value = obj[key];\n          if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n          var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n            && Object.prototype.toString.call(value) === \'[object Object]\';\n          if (isPlainObj) {\n            if (itemsHtml) {\n              htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n              itemsHtml = \'\';\n            }\n            if (level > 0) {\n              htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n            }\n            renderTree(value, level + 1);\n            continue;\n          }\n          itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n          if (typeof value === \'number\') {\n            itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          } else if (typeof value === \'boolean\') {\n            itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n          } else if (Array.isArray(value)) {\n            itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          } else {\n            itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          }\n          itemsHtml += \'</span></div>\';\n        }\n        if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n      }\n\n      renderTree(sourceData, 0);\n\n      var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n      if (root) {\n        root.innerHTML = htmlStr;\n        try { root.classList.add(\'flash-update\'); } catch(_) {}\n        setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n      }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n      try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n      try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n  }));\n})();\n  <\\/script>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n</body>\n</html>';
+  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n/* 低饱和柔灰蓝配色 舒适护眼 深色毛玻璃主题 */\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n/* 外层卡片 */\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n/* 内容主体 */\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n/* 分类标题 */\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child {\n    margin-top: 0;\n}\n.category-title::before {\n    content: "▸";\n    font-size: 10px;\n    opacity: 0.8;\n}\n\n/* 表格式网格布局 自动适应列数 增大最小列宽 避免挤压 */\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n/* 单行状态项 顶部对齐 支持换行不重叠 */\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    transition: background 0.2s ease;\n    gap: 8px;\n}\n.stat-item:hover {\n    background: var(--hover-bg);\n}\n\n/* 层级缩进 优化缩进量 避免挤占内容空间 */\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n/* 左侧标签 自动换行 不强制单行 */\n.stat-label {\n    color: var(--text-sub);\n    flex: 1;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n\n/* 右侧数值 右对齐 支持换行 不会被挤压消失 */\n.stat-value {\n    font-weight: 500;\n    text-align: right;\n    flex-shrink: 0;\n    max-width: 58%;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n.value-number {\n    color: var(--accent-blue);\n    white-space: nowrap;\n}\n.value-true {\n    color: var(--accent-green);\n    white-space: nowrap;\n}\n.value-false {\n    color: var(--accent-red);\n    white-space: nowrap;\n}\n.value-text {\n    color: var(--text-main);\n}\n\n/* 加载状态 */\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe {\n    0%, 100% { opacity: 0.5; }\n    50% { opacity: 0.9; }\n}\n\n/* 刷新淡入动画 */\n.flash-update {\n    animation: fadeIn 0.3s ease-out;\n}\n@keyframes fadeIn {\n    from { opacity: 0.6; }\n    to { opacity: 1; }\n}\n  </style>\n  <script type="module">\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === \'complete\' || document.readyState === \'interactive\') {\n      setTimeout(fn, 0);\n    } else if (document.addEventListener) {\n      document.addEventListener(\'DOMContentLoaded\', fn);\n    } else {\n      document.attachEvent(\'onreadystatechange\', function() {\n        if (document.readyState === \'complete\') fn();\n      });\n    }\n  };\n  var ec = function(fn) {\n    return function() {\n      try {\n        var r = fn.apply(this, arguments);\n        if (r && r.catch) r.catch(function(e) { console.warn(\'[statusbar] async err:\', e); });\n        return r;\n      } catch(e) { console.warn(\'[statusbar] sync err:\', e); }\n    };\n  };\n  ready(ec(async function init() {\n    if (typeof waitGlobalInitialized === \'function\') { try { await waitGlobalInitialized(\'Mvu\'); } catch(_) {} }\n\n    function refreshStatus() {\n      var allVars = (typeof getAllVariables === \'function\') ? getAllVariables() : {};\n      var sourceData;\n      if (typeof _ !== \'undefined\' && _.get) {\n        sourceData = _.get(allVars, "stat_data", {});\n      } else {\n        sourceData = (allVars && allVars.stat_data) ? allVars.stat_data : {};\n      }\n      if (!sourceData || typeof sourceData !== \'object\') sourceData = {};\n      var htmlStr = \'\';\n\n      function renderTree(obj, level) {\n        level = level || 0;\n        var indentClass = \'indent-\' + Math.min(level, 4);\n        var itemsHtml = \'\';\n        var keys = Object.keys(obj || {});\n        for (var k = 0; k < keys.length; k++) {\n          var key = keys[k];\n          var value = obj[key];\n          if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n          var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n            && Object.prototype.toString.call(value) === \'[object Object]\';\n          if (isPlainObj) {\n            if (itemsHtml) {\n              htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n              itemsHtml = \'\';\n            }\n            if (level > 0) {\n              htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n            }\n            renderTree(value, level + 1);\n            continue;\n          }\n          itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n          if (typeof value === \'number\') {\n            itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          } else if (typeof value === \'boolean\') {\n            itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n          } else if (Array.isArray(value)) {\n            itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          } else {\n            itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          }\n          itemsHtml += \'</span></div>\';\n        }\n        if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n      }\n\n      renderTree(sourceData, 0);\n\n      var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n      if (root) {\n        root.innerHTML = htmlStr;\n        try { root.classList.add(\'flash-update\'); } catch(_) {}\n        setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n      }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n      try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n      try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n  }));\n})();\n  <\\/script>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -780,7 +780,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · AI不可更新字段用 _ 前缀（如_当前回合），schema中添加注释；AI不可见字段用 $ 前缀\n' +
     '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤等动态规则\n' +
     '     · 完整示例：\n' +
-    '       import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
+    '       import { registerMvuSchema, z } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '       export const Schema = z.object({\n' +
     '         世界: z.object({\n' +
     '           当前时间: z.string(),\n' +
@@ -812,7 +812,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 典型场景：根据好感度/剧情日切换角色语气、称呼、行为\n' +
     '  8. 正则脚本：6个必备正则\n' +
     '     · 正则1：仅格式思维链 - 从提示词移除<Analysis>段（AI思维链无需重复发送）【写卡器自动注入】\n' +
-    '     · 正则2：[不发送]只发送最新2楼的变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth=4保留最近2楼）【写卡器自动注入】\n' +
+    '     · 正则2：[不发送]只发送最新2楼的变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth=2保留最近2楼）【写卡器自动注入】\n' +
     '     · 正则3：[美化]变量完成 - 美化已完成的<UpdateVariable>显示（仅格式显示，折叠样式）【写卡器自动注入】\n' +
     '     · 正则4：[美化]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示，流式动画）【写卡器自动注入】\n' +
     '     · 正则5：[不发送]隐藏状态栏标记 - 从提示词移除<StatusPlaceHolderImpl/>占位符（AI不需要看到它）【写卡器自动注入】\n' +
@@ -1229,11 +1229,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString="ACTION_MATCH_FOUND"\n' +
     '      disabled=true（默认禁用，通过STscript按需触发）\n' +
     '      用途：在STscript中判断是否匹配成功，执行条件分支\n' +
-    '  15. MVU-移除旧变量更新(提示词)（AI输出，仅格式提示词，minDepth=4）：\n' +
+    '  15. MVU-移除旧变量更新(提示词)（AI输出，仅格式提示词，minDepth=2）：\n' +
     '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
     '      replaceString=""\n' +
-    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true, minDepth=4\n' +
-    '      用途：只从depth>=4的旧消息提示词中移除<UpdateVariable>段，保留最近2楼让AI看到变量更新历史\n' +
+    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true, minDepth=2\n' +
+    '      用途：只从depth>=2的旧消息提示词中移除<UpdateVariable>段，保留最近2楼（depth 0/1）让AI看到变量更新历史\n' +
     '  16. MVU-移除变量更新(显示)（AI输出，仅格式显示）：\n' +
     '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
     '      replaceString=""\n' +
@@ -3272,8 +3272,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     function parseScalar(str) {
       if (str === '') return {};
+      if (str === 'null' || str === '~') return null;
       if (str === 'true' || str === 'false') return str === 'true';
       if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+      // 识别内联 JSON 数组/对象（[]/{}/["a","b"]/[1,2,3]/{k:v} 等），YAML 中的 [] 不再被当成字符串
+      var first = str.charAt(0);
+      var last = str.charAt(str.length - 1);
+      if ((first === '[' && last === ']') || (first === '{' && last === '}')) {
+        try { return JSON.parse(str); } catch(e) {}
+      }
       return str.replace(/^['"]|['"]$/g, '');
     }
 
@@ -3321,7 +3328,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   function generateMvuSchemaScript(initVarContent) {
-    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    // 显式导入 z，避免依赖 mvu_zod.js 全局副作用（z 未定义会 ReferenceError）
+    var HEADER = "import { registerMvuSchema, z } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
     var FOOTER = "});";
 
     function isAffinityLike(name) {
@@ -3699,8 +3707,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
         comment: comment,
         content: outContent,
-        constant: e.constant !== undefined ? e.constant : isConst,
-        selective: e.selective !== undefined ? e.selective : isSel,
+        // Bug #12 修复：常驻类条目（基础公理/核心铁则/世界元数据/交互软规则，tmpl.constant===true）
+        // 强制 constant=true, selective=false，无视 AI 误设（防止常驻条目被错误改为关键词触发式）
+        constant: (tmpl && tmpl.constant === true) ? true : (e.constant !== undefined ? e.constant : isConst),
+        selective: (tmpl && tmpl.constant === true) ? false : (e.selective !== undefined ? e.selective : isSel),
         insertion_order: e.insertion_order || order,
         enabled: isInitVar ? false : (isVarFormatEmphasis ? (e.enabled !== undefined ? e.enabled : false) : (e.enabled !== undefined ? e.enabled : defaultEnabled)),
         position: topPosStr,
@@ -3889,7 +3899,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               maxDepth: null
             });
           }
-          // 正则2：只发送最新2楼的变量更新 - 从提示词移除旧UpdateVariable段（minDepth=4保留最近2楼）
+          // 正则2：只发送最新2楼的变量更新 - 从提示词移除旧UpdateVariable段（minDepth=2保留最近2楼，即不动 depth 0/1）
           var hasUpdateVarPromptRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly;
           });
@@ -3906,7 +3916,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               promptOnly: true,
               runOnEdit: true,
               substituteRegex: 0,
-              minDepth: 4,
+              minDepth: 2,
               maxDepth: null
             });
           }
@@ -5457,10 +5467,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
           case 4: // Step4：CSS样式 —— 必须含CSS选择器{规则}，排除纯JSON对象
             return /\{[\s\S]*\}/.test(code) && /[.#][\w-]+\s*\{/.test(code);
-          case 5: // Step5：变量读取 —— 必须含函数定义或变量读取API
-            return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
-          case 6: // Step6：渲染函数 —— 必须含函数定义或DOM操作API
-            return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
+          case 5: // Step5：变量读取 —— 必须含函数定义 + return + 变量读取API（getAllVariables 或 _.get）
+            return (code.indexOf('function') >= 0 || code.indexOf('=>') >= 0) &&
+                   code.indexOf('return') >= 0 &&
+                   (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0);
+          case 6: // Step6：渲染函数 —— 必须含函数定义 + DOM操作API + data. 引用（否则 renderVars 接收不到数据）
+            return (code.indexOf('function') >= 0 || code.indexOf('=>') >= 0) &&
+                   (code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0) &&
+                   code.indexOf('data.') >= 0;
           case 7: // Step7：事件入口 —— 必须含运行时API调用（waitGlobalInitialized/eventOn/errorCatched/init()）
             return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || /(^|[^a-zA-Z])init\s*\(/.test(code);
         }
@@ -5473,6 +5487,92 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var requiredSteps = ['step2', 'step3', 'step4', 'step5', 'step6', 'step7'];
         for (var ri = 0; ri < requiredSteps.length; ri++) {
           if (!statusBarModules[requiredSteps[ri]]) return '';
+        }
+
+        // === 跨 Step 一致性校验（Bug #1/#2/#3 修复）===
+        // 1) CSS 变量交叉校验：Step6 JS 中 var(--xxx) 必须在 Step2/Step4 中定义；未定义的自动补齐到 Step2
+        function extractCssVarsDefined(cssText) {
+          var set = {};
+          var re = /--([A-Za-z_][\w-]*)\s*:/g;
+          var m;
+          while ((m = re.exec(cssText)) !== null) set[m[1]] = true;
+          return set;
+        }
+        function extractVarRefs(jsText) {
+          var set = {};
+          var re = /var\(\s*--([A-Za-z_][\w-]*)/g;
+          var m;
+          while ((m = re.exec(jsText)) !== null) set[m[1]] = true;
+          return set;
+        }
+        function defaultColorForVar(name) {
+          var n = String(name).toLowerCase();
+          if (/danger|critical|error|alert|red/.test(n)) return '#e74c3c';
+          if (/warn|warning|yellow|caution/.test(n)) return '#f39c12';
+          if (/accent|ether|blue|info|primary|link/.test(n)) return '#3498db';
+          if (/success|green|safe|health|hp|ok\b/.test(n)) return '#2ecc71';
+          if (/bg|background|card|panel|surface/.test(n)) return '#1a1a1a';
+          if (/text|fg|main|sub|title/.test(n)) return '#cccccc';
+          return '#888888';
+        }
+        var definedVars = {};
+        var s2v = extractCssVarsDefined(statusBarModules.step2);
+        var s4v = extractCssVarsDefined(statusBarModules.step4);
+        for (var k in s2v) definedVars[k] = true;
+        for (var k in s4v) definedVars[k] = true;
+        var s6refs = extractVarRefs(statusBarModules.step6);
+        var missingVars = [];
+        for (var refName in s6refs) {
+          if (!definedVars[refName]) missingVars.push(refName);
+        }
+        if (missingVars.length) {
+          var cssPatch = '\n/* === 自动补齐：Step6 引用但 Step2/Step4 未定义的 CSS 变量 === */\n:root {\n';
+          for (var mi = 0; mi < missingVars.length; mi++) {
+            cssPatch += '  --' + missingVars[mi] + ': ' + defaultColorForVar(missingVars[mi]) + ';\n';
+          }
+          cssPatch += '}\n';
+          statusBarModules.step2 = statusBarModules.step2 + '\n' + cssPatch;
+          try { showToast('已自动补齐 ' + missingVars.length + ' 个未定义CSS变量：' + missingVars.join(', '), 'info'); } catch(_) {}
+        }
+
+        // 2) Step5 字段名 vs Step6 data.xxx 引用 交叉校验（仅警告，不阻断拼接）
+        function extractStep5ReturnKeys(step5Code) {
+          var keys = {};
+          // 匹配 return { ... } 块，取顶层 key（容忍单行 / 多行 / 嵌套）
+          var returnMatch = step5Code.match(/return\s+(?:async\s*)?\{([\s\S]*?)\n\s*\}\s*;?\s*$/);
+          if (!returnMatch) {
+            returnMatch = step5Code.match(/return\s+(?:async\s*)?\{([\s\S]*?)\}/);
+          }
+          if (!returnMatch) return keys;
+          var body = returnMatch[1];
+          var keyRe = /([a-zA-Z_$][\w$]*)\s*:/g;
+          var m;
+          while ((m = keyRe.exec(body)) !== null) {
+            keys[m[1]] = true;
+          }
+          return keys;
+        }
+        function extractStep6DataRefs(step6Code) {
+          var refs = {};
+          // 匹配 data.xxx（含链式 data.xxx.yyy），取第一段
+          var re = /\bdata\.([a-zA-Z_$][\w$]*)/g;
+          var m;
+          while ((m = re.exec(step6Code)) !== null) {
+            refs[m[1]] = true;
+          }
+          return refs;
+        }
+        var s5keys = extractStep5ReturnKeys(statusBarModules.step5);
+        var s6refs2 = extractStep6DataRefs(statusBarModules.step6);
+        var mismatchedKeys = [];
+        for (var ref in s6refs2) {
+          if (!s5keys[ref]) mismatchedKeys.push(ref);
+        }
+        if (mismatchedKeys.length >= 3) {
+          // 多于3个不匹配才提示，避免误报（个别可选字段不算 bug）
+          try {
+            showToast('⚠️ Step5 与 Step6 字段名不一致：' + mismatchedKeys.join(', ') + ' —— 状态栏可能渲染异常，建议AI重生成 Step5/Step6', 'warning');
+          } catch(_) {}
         }
 
         var cssParts = [];
@@ -5502,7 +5602,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
         }
         if (jsParts.length) {
-          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n  /* 酒馆助手运行时兼容（预览环境兜底） */\n  if (typeof waitGlobalInitialized === "undefined") { window.waitGlobalInitialized = function(n) { return new Promise(function(r) { if (window[n]) { r(); return; } var c = setInterval(function() { if (window[n]) { clearInterval(c); r(); } }, 100); setTimeout(function() { clearInterval(c); r(); }, 3000); }); }; }\n  if (typeof errorCatched === "undefined") { window.errorCatched = function(fn) { return function() { try { return fn.apply(this, arguments); } catch(e) { console.warn("[statusbar]", e); } }; }; }\n  if (typeof eventOn === "undefined") { window.eventOn = function() {}; }\n  if (typeof Mvu === "undefined") { window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } }; }\n'
+          // 用 type="module"（系统提示词强制要求）：默认 defer、支持顶层 await、隔离作用域
+          // 内置运行时 polyfill：waitGlobalInitialized / errorCatched / eventOn / Mvu / _ / $ —— 缺一会让 AI 生成的状态栏代码在导出后黑屏
+          assembledHtml += '  <script type="module">\n' +
+            '(function() {\n' +
+            '  var ready = function(fn) {\n' +
+            '    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n' +
+            '    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n' +
+            '  };\n' +
+            '  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n' +
+            '  /* 酒馆助手运行时兼容兜底（仅在未注入时补齐，不覆盖真实实现） */\n' +
+            '  if (typeof waitGlobalInitialized === "undefined") { window.waitGlobalInitialized = function(n) { return new Promise(function(r) { if (window[n]) { r(); return; } var c = setInterval(function() { if (window[n]) { clearInterval(c); r(); } }, 100); setTimeout(function() { clearInterval(c); r(); }, 3000); }); }; }\n' +
+            '  if (typeof errorCatched === "undefined") { window.errorCatched = function(fn) { return function() { try { return fn.apply(this, arguments); } catch(e) { console.warn("[statusbar]", e); } }; }; }\n' +
+            '  if (typeof eventOn === "undefined") { window.eventOn = function() {}; }\n' +
+            '  if (typeof Mvu === "undefined") { window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } }; }\n' +
+            '  if (typeof _ === "undefined") {\n' +
+            '    window._ = {\n' +
+            '      get: function(obj, path, def) {\n' +
+            '        if (obj == null) return def;\n' +
+            '        var keys = String(path).split(".");\n' +
+            '        var cur = obj;\n' +
+            '        for (var i = 0; i < keys.length; i++) {\n' +
+            '          if (cur == null) return def;\n' +
+            '          cur = cur[keys[i]];\n' +
+            '        }\n' +
+            '        return cur === undefined ? def : cur;\n' +
+            '      }\n' +
+            '    };\n' +
+            '  }\n' +
+            '  if (typeof $ === "undefined") {\n' +
+            '    function _wrap(el) {\n' +
+            '      return {\n' +
+            '        0: el, length: el ? 1 : 0,\n' +
+            '        text: function(s) { if (el) el.textContent = (s == null ? "" : String(s)); return this; },\n' +
+            '        html: function(s) { if (el) el.innerHTML = (s == null ? (el.innerHTML || "") : String(s)); return this; },\n' +
+            '        addClass: function(c) { if (el) el.classList.add(c); return this; },\n' +
+            '        removeClass: function(c) { if (el) el.classList.remove(c); return this; },\n' +
+            '        css: function(p, v) { if (el) el.style[p] = v; return this; },\n' +
+            '        empty: function() { if (el) el.innerHTML = ""; return this; },\n' +
+            '        append: function(child) {\n' +
+            '          if (el) {\n' +
+            '            if (child && child[0]) el.appendChild(child[0]);\n' +
+            '            else if (typeof child === "string") el.insertAdjacentHTML("beforeend", child);\n' +
+            '          }\n' +
+            '          return this;\n' +
+            '        },\n' +
+            '        stop: function() { return this; },\n' +
+            '        ready: function(fn) { try { fn(); } catch(e) {} return this; }\n' +
+            '      };\n' +
+            '    }\n' +
+            '    function _miniJQ(sel) {\n' +
+            '      if (typeof sel === "function") {\n' +
+            '        try {\n' +
+            '          if (document.readyState === "complete" || document.readyState === "interactive") { sel(); }\n' +
+            '          else { document.addEventListener("DOMContentLoaded", sel); }\n' +
+            '        } catch(e) { console.warn("[statusbar] $(fn):", e); }\n' +
+            '        return { ready: function(fn) { try { fn(); } catch(e) {} return this; } };\n' +
+            '      }\n' +
+            '      if (typeof sel === "string" && sel.charAt(0) === "<") {\n' +
+            '        var div = document.createElement("div");\n' +
+            '        div.innerHTML = sel;\n' +
+            '        return _wrap(div.firstChild);\n' +
+            '      }\n' +
+            '      var el = (typeof sel === "string") ? document.querySelector(sel) : sel;\n' +
+            '      return _wrap(el);\n' +
+            '    }\n' +
+            '    window.$ = window.jQuery = _miniJQ;\n' +
+            '  }\n'
             + jsParts.join('\n\n')
             + '\n})();\n  <\/script>\n';
         }
