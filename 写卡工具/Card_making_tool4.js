@@ -51,11 +51,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
-.chat-msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.chat-msg .avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .chat-msg.assistant .avatar{background:rgba(210,168,255,.15)}
 .chat-msg.user .avatar{background:rgba(247,129,102,.15)}
 .chat-msg .bubble{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.85em;line-height:1.6;word-break:break-word}
-.chat-msg.assistant .bubble{background:transparent;border:none;color:#c9d1d9;font-size:1em;padding:2px 4px;max-width:96%}
+.chat-msg.assistant .bubble{background:transparent;border:none;color:#c9d1d9;font-size:1em;padding:2px 0;max-width:100%;width:100%}
 .chat-msg.user .bubble{background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border-bottom-right-radius:4px}
 .chat-msg .bubble b{color:#d2a8ff}
 .chat-msg .bubble code{background:rgba(110,118,129,.2);padding:1px 4px;border-radius:3px;font-size:.82em}
@@ -4537,26 +4537,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!c) return;
         var div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
-        var avatarHtml;
-        if (role === 'user') {
-          var savedAvatar = localStorage.getItem('userAvatar');
-          if (savedAvatar) {
-            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer;background-image:url(' + savedAvatar + ');background-size:cover;background-position:center"></div>';
-          } else {
-            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer">👤</div>';
-          }
-        } else {
-          avatarHtml = '<div class="avatar">🤖</div>';
-        }
+        var avatarHtml = buildAvatarHtml(role);
         div.innerHTML = avatarHtml + '<div class="bubble">' + fmtBubble(content) + '</div>';
         c.appendChild(div);
-        if (role === 'user') {
-          var avEl = div.querySelector('.avatar-user');
-          if (avEl) avEl.addEventListener('click', triggerAvatarUpload);
-        }
+        var avEl = div.querySelector('.avatar-clickable');
+        if (avEl) avEl.addEventListener('click', function() { triggerAvatarUpload(role); });
         scrollChat();
       }
-      function triggerAvatarUpload() {
+      function buildAvatarHtml(role) {
+        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
+        var cls = 'avatar avatar-clickable';
+        var title = role === 'user' ? '点击更换用户头像' : '点击更换AI头像';
+        var saved = localStorage.getItem(key);
+        if (saved) {
+          return '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
+        }
+        var icon = role === 'user' ? '👤' : '🤖';
+        return '<div class="' + cls + '" title="' + title + '" style="cursor:pointer">' + icon + '</div>';
+      }
+      function triggerAvatarUpload(role) {
+        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
         var input = doc.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -4576,9 +4576,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               var sx = (img.width - size) / 2, sy = (img.height - size) / 2;
               ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
               var dataUrl = canvas.toDataURL('image/png');
-              localStorage.setItem('userAvatar', dataUrl);
-              refreshAllUserAvatars();
-              showToast('头像已更新', 'success');
+              localStorage.setItem(key, dataUrl);
+              refreshAllAvatars(role);
+              showToast((role === 'user' ? '用户' : 'AI') + '头像已更新', 'success');
             };
             img.src = ev.target.result;
           };
@@ -4587,13 +4587,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
         input.click();
       }
-      function refreshAllUserAvatars() {
-        var savedAvatar = localStorage.getItem('userAvatar');
-        if (!savedAvatar) return;
-        var avatars = doc.querySelectorAll('.avatar-user');
+      function refreshAllAvatars(role) {
+        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
+        var saved = localStorage.getItem(key);
+        if (!saved) return;
+        var avatars = doc.querySelectorAll('.chat-msg.' + role + ' .avatar-clickable');
         for (var i = 0; i < avatars.length; i++) {
           avatars[i].innerHTML = '';
-          avatars[i].style.backgroundImage = 'url(' + savedAvatar + ')';
+          avatars[i].style.backgroundImage = 'url(' + saved + ')';
           avatars[i].style.backgroundSize = 'cover';
           avatars[i].style.backgroundPosition = 'center';
         }
@@ -4638,24 +4639,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
           } else {
             var h = p.content;
-            /* 渲染 ```html 代码块为 iframe（状态栏等完整HTML直接渲染） */
+            var iframes = [];
+            /* 渲染 ```html 代码块为 iframe（用占位符避免被后续转义） */
             h = h.replace(/```html\s*\n([\s\S]*?)```/gi, function(_, code) {
-              var htmlCode = code.replace(/\\n/g, '\n');
-              /* 尝试注入变量数据 */
-              var varData = getStatDataForRender();
-              if (varData && Object.keys(varData).length > 0) {
-                var varJson = JSON.stringify(varData).replace(/<\/script/gi, '<\\/script');
-                var mockScript = '<script>var statData=' + varJson + ';window.getAllVariables=function(){return{stat_data:statData}};</script>';
-                if (htmlCode.indexOf('<head') >= 0) {
-                  htmlCode = htmlCode.replace(/<head([^>]*)>/i, '<head$1>' + mockScript);
-                } else if (htmlCode.indexOf('<html') >= 0) {
-                  htmlCode = htmlCode.replace(/<html([^>]*)>/i, '<html$1><head>' + mockScript + '</head>');
-                } else {
-                  htmlCode = mockScript + htmlCode;
-                }
-              }
-              var escHtml = htmlCode.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-              return '<iframe class="html-render-frame" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:80px;border:1px solid #30363d;border-radius:6px;background:transparent"></iframe>';
+              iframes.push(renderHtmlToIframe(code.replace(/\\n/g, '\n')));
+              return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
+            });
+            /* 检测消息中直接包含的完整HTML文档（非代码块格式） */
+            h = h.replace(/(?:html\s*[\n\\n]+)?(<!doctype html>[\s\S]*?<\/html>)/gi, function(_, htmlCode) {
+              var code = htmlCode.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+              iframes.push(renderHtmlToIframe(code));
+              return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
             });
             h = h.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
@@ -4664,10 +4658,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
             h = h.replace(/\n{3,}/g, '\n\n');
             h = h.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+            // 还原iframe占位符
+            for (var ii = 0; ii < iframes.length; ii++) {
+              h = h.replace('__HTML_IFRAME_' + ii + '__', iframes[ii]);
+            }
             out += h;
           }
         });
         return out;
+      }
+      function renderHtmlToIframe(htmlCode) {
+        if (!htmlCode || htmlCode.length < 50) return '';
+        /* 尝试注入变量数据 */
+        var varData = getStatDataForRender();
+        if (varData && Object.keys(varData).length > 0) {
+          var varJson = JSON.stringify(varData).replace(/<\/script/gi, '<\\/script');
+          var mockScript = '<script>var statData=' + varJson + ';window.getAllVariables=function(){return{stat_data:statData}};</script>';
+          if (htmlCode.indexOf('<head') >= 0) {
+            htmlCode = htmlCode.replace(/<head([^>]*)>/i, '<head$1>' + mockScript);
+          } else if (htmlCode.indexOf('<html') >= 0) {
+            htmlCode = htmlCode.replace(/<html([^>]*)>/i, '<html$1><head>' + mockScript + '</head>');
+          } else {
+            htmlCode = mockScript + htmlCode;
+          }
+        }
+        var escHtml = htmlCode.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        return '<iframe class="html-render-frame" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:120px;border:1px solid #30363d;border-radius:6px;background:transparent"></iframe>';
       }
       function getStatDataForRender() {
         var statData = {};
