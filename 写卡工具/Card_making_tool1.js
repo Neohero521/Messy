@@ -1223,11 +1223,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
     '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
     "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script type=module)），用```html包裹\n" +
-    '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成/一次出全部"时可跳过询问）：\n' +
+    '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成"时可跳过询问）：\n' +
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；用户要"一次出全部"时8步连做不停顿，最后输出完整HTML）\n' +
+    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；可按用户语义一次生成多个模块，但禁止一次生成全部8步）\n' +
     '\n' +
     '      ╔══════════════════════════════════════════════════════════════╗\n' +
     '      ║  ⚠️核心机制：8步分模块生成 + 拼接合并 + 按语义精准修改        ║\n' +
@@ -1236,12 +1236,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
     '      【机制1：8步分模块生成】每步独立成块，AI用 `/* === Step N: 标题 === */` 作为分隔标记（标记写在代码块外，用于人类可读）\n' +
-    '      灵活交付原则（按用户语义决定生成节奏，不强制一步步）：\n' +
-    '        · 用户要"完整生成"或"一次出全部" → 8步全做完，最后一次输出拼接好的完整HTML\n' +
-    '        · 用户要"超大型/复杂/豪华状态栏" → 不限制单步代码量，可任意复杂，8步全做完\n' +
+    '      灵活交付原则（按用户语义决定生成哪些模块，不强制按顺序，但禁止一次生成全部8步）：\n' +
+    '        · 可以一次生成/修改多个模块（按用户语义涉及的Step），不需要一步一步来\n' +
+    '        · ⚠️禁止一次生成全部8个Step——至少分2批以上交付，避免上下文过长导致质量下降\n' +
+    '        · 用户要"超大型/复杂/豪华状态栏" → 不限制单步代码量，可任意复杂，但仍需分批交付\n' +
     '        · 用户要"分步骤看"或"我先确认变量表" → 只做当前Step，停下问"OK吗？"\n' +
     '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step + 最后Step 8拼接\n' +
     '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step + Step 8拼接\n' +
+    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
     '      ⚠️无论如何修改，最终必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
     '\n' +
     '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
@@ -1374,7 +1376,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
     '        · 每个Step职责单一，代码量按需决定（简单状态栏每个Step可≤30行；超大型/复杂状态栏单个Step可上百行，不设上限）\n' +
     '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
-    '        · 用户要"一次出全部"时，8步连续做完不停顿，最后统一拼接\n' +
+    '        · 用户要"多模块一起生成"时，可一次做完多个涉及的Step，但禁止一次做完全部8步\n' +
     '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
     '        · Step 8是机械拼接，不需要创造力，弱模型也能可靠完成\n' +
     '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
@@ -4929,6 +4931,94 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return null;
       }
 
+      // ===== 兜底：从AI回复中提取状态栏HTML（当AI只输出```html而非JSON时）=====
+      // 场景：用户让AI"改状态栏"，AI直接输出了```html代码块而非JSON的regex_scripts
+      // 此时extractJSON提取不到，需要这个兜底机制把HTML保存到cardData.extensions.regex_scripts
+      function tryExtractStatusBarHtml(aiText) {
+        if (!aiText) return false;
+        // 匹配所有 ```html 代码块
+        var htmlBlocks = [];
+        var htmlRe = /```html\s*\n([\s\S]*?)\n```/gi;
+        var m;
+        while ((m = htmlRe.exec(aiText)) !== null) {
+          htmlBlocks.push(m[1]);
+        }
+        // 也匹配无语言标记的 ``` 代码块（可能含HTML）
+        if (htmlBlocks.length === 0) {
+          var genericRe = /```\s*\n([\s\S]*?)\n```/g;
+          while ((m = genericRe.exec(aiText)) !== null) {
+            if (m[1].indexOf('<html') >= 0 || m[1].indexOf('<!doctype') >= 0 || m[1].indexOf('<head') >= 0) {
+              htmlBlocks.push(m[1]);
+            }
+          }
+        }
+        if (htmlBlocks.length === 0) return false;
+
+        // 检测哪个代码块是状态栏HTML（含特征关键词）
+        var statusBarKeywords = ['StatusPlaceHolderImpl', 'render-root', 'stat_data', 'waitGlobalInitialized',
+                                 'getAllVariables', 'mvu-status', 'card-body', 'refreshStatus', 'renderTree',
+                                 'eventOn', 'Mvu', 'statusbar'];
+        var statusBarHtml = null;
+        for (var i = 0; i < htmlBlocks.length; i++) {
+          var block = htmlBlocks[i];
+          var matchCount = 0;
+          for (var k = 0; k < statusBarKeywords.length; k++) {
+            if (block.indexOf(statusBarKeywords[k]) >= 0) matchCount++;
+          }
+          // 至少匹配2个特征词才认为是状态栏HTML
+          if (matchCount >= 2) {
+            statusBarHtml = block;
+            break;
+          }
+        }
+        if (!statusBarHtml) return false;
+
+        // 保存到 cardData.extensions.regex_scripts
+        cardData.extensions = cardData.extensions || {};
+        var rxList = cardData.extensions.regex_scripts || [];
+        var findRegex = '/<StatusPlaceHolder\\/>/g';
+        // 查找已有的状态栏正则（按 findRegex 含 StatusPlaceHolderImpl + markdownOnly + !promptOnly 匹配）
+        var foundIdx = -1;
+        for (var j = 0; j < rxList.length; j++) {
+          var r = rxList[j];
+          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+            foundIdx = j;
+            break;
+          }
+        }
+        var wrappedHtml = '```html\n' + statusBarHtml + '\n```';
+        if (foundIdx >= 0) {
+          // 覆盖更新
+          rxList[foundIdx].replaceString = wrappedHtml;
+          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || findRegex;
+          rxList[foundIdx].markdownOnly = true;
+          rxList[foundIdx].promptOnly = false;
+          rxList[foundIdx].placement = [2];
+          rxList[foundIdx].runOnEdit = true;
+          rxList[foundIdx].substituteRegex = rxList[foundIdx].substituteRegex || 0;
+          rxList[foundIdx].disabled = false;
+        } else {
+          // 新增
+          rxList.push({
+            id: 'mvu-status-bar',
+            scriptName: '[美化]MVU状态栏',
+            findRegex: findRegex,
+            replaceString: wrappedHtml,
+            trimStrings: [],
+            placement: [2],
+            disabled: false,
+            markdownOnly: true,
+            promptOnly: false,
+            runOnEdit: true,
+            substituteRegex: 0,
+            minDepth: null,
+            maxDepth: null
+          });
+        }
+        cardData.extensions.regex_scripts = rxList;
+        return true;
+      }
+
       // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
       // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
       function repairJSON(str) {
@@ -5075,6 +5165,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           }
+          // 兜底：如果AI回答中包含 ```html 代码块（状态栏HTML），但JSON里没带regex_scripts，
+          // 自动提取并保存到 cardData.extensions.regex_scripts，确保预览/导出能读到最新版本
+          try {
+            var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
+            if (statusBarSaved) {
+              showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+              progress = calcProgress();
+              renderPreview();
+            }
+          } catch(e) { /* ignore */ }
           var modProg = parseModProgress(aiResponse);
           if (modProg) {
             var entries = (cardData.character_book || {}).entries || [];
@@ -5216,7 +5316,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               addAssistantMsg('⚠️ 解析失败，请重试。\n\n错误：' + e.message);
             }
           } else {
-            addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
+            // 兜底：JSON解析失败时，尝试从 ```html 代码块提取状态栏HTML
+            try {
+              var sbSaved = tryExtractStatusBarHtml(aiResponse);
+              if (sbSaved) {
+                showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+                renderPreview();
+                addAssistantMsg('✅ 已从AI回答中提取状态栏HTML并保存。点击「🔍 预览状态栏」查看效果。');
+              } else {
+                addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
+              }
+            } catch(e) {
+              addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
+            }
           }
         } catch(err) {
           removeTyping();
