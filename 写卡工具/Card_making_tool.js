@@ -363,7 +363,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n/* 低饱和柔灰蓝配色 舒适护眼 深色毛玻璃主题 */\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n/* 外层卡片 */\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n/* 内容主体 */\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n/* 分类标题 */\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child {\n    margin-top: 0;\n}\n.category-title::before {\n    content: "▸";\n    font-size: 10px;\n    opacity: 0.8;\n}\n\n/* 表格式网格布局 自动适应列数 增大最小列宽 避免挤压 */\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n/* 单行状态项 顶部对齐 支持换行不重叠 */\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    transition: background 0.2s ease;\n    gap: 8px;\n}\n.stat-item:hover {\n    background: var(--hover-bg);\n}\n\n/* 层级缩进 优化缩进量 避免挤占内容空间 */\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n/* 左侧标签 自动换行 不强制单行 */\n.stat-label {\n    color: var(--text-sub);\n    flex: 1;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n\n/* 右侧数值 右对齐 支持换行 不会被挤压消失 */\n.stat-value {\n    font-weight: 500;\n    text-align: right;\n    flex-shrink: 0;\n    max-width: 58%;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n.value-number {\n    color: var(--accent-blue);\n    white-space: nowrap;\n}\n.value-true {\n    color: var(--accent-green);\n    white-space: nowrap;\n}\n.value-false {\n    color: var(--accent-red);\n    white-space: nowrap;\n}\n.value-text {\n    color: var(--text-main);\n}\n\n/* 加载状态 */\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe {\n    0%, 100% { opacity: 0.5; }\n    50% { opacity: 0.9; }\n}\n\n/* 刷新淡入动画 */\n.flash-update {\n    animation: fadeIn 0.3s ease-out;\n}\n@keyframes fadeIn {\n    from { opacity: 0.6; }\n    to { opacity: 1; }\n}\n  </style>\n  <script type="module">\nasync function init() {\n    await waitGlobalInitialized(\'Mvu\');\n\n    function refreshStatus() {\n      const allVars = getAllVariables();\n      const sourceData = _.get(allVars, "stat_data", {});\n      let htmlStr = \'\';\n\n      /* 递归渲染：对象→分类标题+缩进网格，数值/布尔/文本→着色显示 */\n      function renderTree(obj, level) {\n        level = level || 0;\n        const indentClass = \'indent-\' + Math.min(level, 4);\n        let itemsHtml = \'\';\n\n        for (const [key, value] of Object.entries(obj)) {\n          /* 过滤私有变量 _ / $ 开头 */\n          if (key.startsWith(\'_\') || key.startsWith(\'$\')) continue;\n\n          /* 嵌套对象：生成子分类标题 递归渲染 */\n          if (typeof value === \'object\' && value !== null && !Array.isArray(value)) {\n            if (itemsHtml) {\n              htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n              itemsHtml = \'\';\n            }\n            if (level > 0) {\n              htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n            }\n            renderTree(value, level + 1);\n            continue;\n          }\n\n          /* 普通属性 加入当前层级网格 */\n          itemsHtml += \'<div class="stat-item">\';\n          itemsHtml += \'<span class="stat-label">\' + key + \'</span>\';\n          itemsHtml += \'<span class="stat-value">\';\n\n          if (typeof value === \'number\') {\n            itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          } else if (typeof value === \'boolean\') {\n            itemsHtml += value\n              ? \'<span class="value-true">✓</span>\'\n              : \'<span class="value-false">✕</span>\';\n          } else if (Array.isArray(value)) {\n            itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          } else {\n            itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          }\n\n          itemsHtml += \'</span></div>\';\n        }\n\n        if (itemsHtml) {\n          htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n        }\n      }\n\n      renderTree(sourceData, 0);\n      $(\'#render-root\').html(htmlStr);\n      $(\'#render-root\').addClass(\'flash-update\');\n      setTimeout(function() { $(\'#render-root\').removeClass(\'flash-update\'); }, 300);\n    }\n\n    /* 初始化 + 变量更新监听（VARIABLE_INITIALIZED首次加载 + VARIABLE_UPDATE_ENDED变更刷新） */\n    refreshStatus();\n    eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n    eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n}\n\n$(errorCatched(init));\n  <\\/script>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n</body>\n</html>';
+  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n/* 低饱和柔灰蓝配色 舒适护眼 深色毛玻璃主题 */\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n/* 外层卡片 */\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n/* 内容主体 */\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n/* 分类标题 */\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child {\n    margin-top: 0;\n}\n.category-title::before {\n    content: "▸";\n    font-size: 10px;\n    opacity: 0.8;\n}\n\n/* 表格式网格布局 自动适应列数 增大最小列宽 避免挤压 */\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n/* 单行状态项 顶部对齐 支持换行不重叠 */\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    transition: background 0.2s ease;\n    gap: 8px;\n}\n.stat-item:hover {\n    background: var(--hover-bg);\n}\n\n/* 层级缩进 优化缩进量 避免挤占内容空间 */\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n/* 左侧标签 自动换行 不强制单行 */\n.stat-label {\n    color: var(--text-sub);\n    flex: 1;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n\n/* 右侧数值 右对齐 支持换行 不会被挤压消失 */\n.stat-value {\n    font-weight: 500;\n    text-align: right;\n    flex-shrink: 0;\n    max-width: 58%;\n    word-break: break-word;\n    overflow-wrap: break-word;\n}\n.value-number {\n    color: var(--accent-blue);\n    white-space: nowrap;\n}\n.value-true {\n    color: var(--accent-green);\n    white-space: nowrap;\n}\n.value-false {\n    color: var(--accent-red);\n    white-space: nowrap;\n}\n.value-text {\n    color: var(--text-main);\n}\n\n/* 加载状态 */\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe {\n    0%, 100% { opacity: 0.5; }\n    50% { opacity: 0.9; }\n}\n\n/* 刷新淡入动画 */\n.flash-update {\n    animation: fadeIn 0.3s ease-out;\n}\n@keyframes fadeIn {\n    from { opacity: 0.6; }\n    to { opacity: 1; }\n}\n  </style>\n  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === \'complete\' || document.readyState === \'interactive\') {\n      setTimeout(fn, 0);\n    } else if (document.addEventListener) {\n      document.addEventListener(\'DOMContentLoaded\', fn);\n    } else {\n      document.attachEvent(\'onreadystatechange\', function() {\n        if (document.readyState === \'complete\') fn();\n      });\n    }\n  };\n  var ec = function(fn) {\n    return function() {\n      try {\n        var r = fn.apply(this, arguments);\n        if (r && r.catch) r.catch(function(e) { console.warn(\'[statusbar] async err:\', e); });\n        return r;\n      } catch(e) { console.warn(\'[statusbar] sync err:\', e); }\n    };\n  };\n  ready(ec(async function init() {\n    if (typeof waitGlobalInitialized === \'function\') { try { await waitGlobalInitialized(\'Mvu\'); } catch(_) {} }\n\n    function refreshStatus() {\n      var allVars = (typeof getAllVariables === \'function\') ? getAllVariables() : {};\n      var sourceData;\n      if (typeof _ !== \'undefined\' && _.get) {\n        sourceData = _.get(allVars, "stat_data", {});\n      } else {\n        sourceData = (allVars && allVars.stat_data) ? allVars.stat_data : {};\n      }\n      if (!sourceData || typeof sourceData !== \'object\') sourceData = {};\n      var htmlStr = \'\';\n\n      function renderTree(obj, level) {\n        level = level || 0;\n        var indentClass = \'indent-\' + Math.min(level, 4);\n        var itemsHtml = \'\';\n        var keys = Object.keys(obj || {});\n        for (var k = 0; k < keys.length; k++) {\n          var key = keys[k];\n          var value = obj[key];\n          if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n          var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n            && Object.prototype.toString.call(value) === \'[object Object]\';\n          if (isPlainObj) {\n            if (itemsHtml) {\n              htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n              itemsHtml = \'\';\n            }\n            if (level > 0) {\n              htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n            }\n            renderTree(value, level + 1);\n            continue;\n          }\n          itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n          if (typeof value === \'number\') {\n            itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          } else if (typeof value === \'boolean\') {\n            itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n          } else if (Array.isArray(value)) {\n            itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          } else {\n            itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          }\n          itemsHtml += \'</span></div>\';\n        }\n        if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n      }\n\n      renderTree(sourceData, 0);\n\n      var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n      if (root) {\n        root.innerHTML = htmlStr;\n        try { root.classList.add(\'flash-update\'); } catch(_) {}\n        setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n      }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n      try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n      try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n  }));\n})();\n  <\\/script>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -5419,6 +5419,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             break;
           }
         }
+        /* ====== HTML 鲁棒性包装：如果 AI 生成的只是 <body> 片段或独立片段，自动补全为完整 HTML 文档 ====== */
+        (function() {
+          var hasDocType = /<!doctype\s/i.test(statusBarHtml);
+          var hasHtmlTag = /<html[\s>]/i.test(statusBarHtml);
+          var hasHeadTag = /<head[\s>]/i.test(statusBarHtml);
+          var hasBodyTag = /<body[\s>]/i.test(statusBarHtml);
+          /* 默认模板本身是完整的，不用包；AI 生成的片段没 doctype/head/body 时需要包 */
+          if (!hasDocType && !hasHtmlTag) {
+            statusBarHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <title>MVU StatusBar</title>\n</head>\n<body>\n' + statusBarHtml + '\n</body>\n</html>';
+            statusBarSource += '（已补全HTML骨架）';
+          } else if (hasHtmlTag && !hasHeadTag) {
+            /* 有 <html> 但缺 <head>：插入空 head 标签供 mock 注入 */
+            statusBarHtml = statusBarHtml.replace(/<html([^>]*)>/i, '<html$1>\n<head></head>');
+          }
+          /* 如果最终仍缺 render-root，自动补一个（放在 body 开头），否则渲染没地方写 */
+          if (statusBarHtml.indexOf('id="render-root"') < 0 && statusBarHtml.indexOf("id='render-root'") < 0) {
+            if (/<body([^>]*)>/i.test(statusBarHtml)) {
+              statusBarHtml = statusBarHtml.replace(/(<body[^>]*>)/i,
+                '$1\n<div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>');
+              statusBarSource += '（已补render-root）';
+            }
+          }
+        })();
         /* 序列化假数据，注入到 iframe 内部作为 mock getAllVariables 的返回值 */
         /* 转义 </script> 防止破坏外层 script 标签 */
         var statDataJson = JSON.stringify(statData).replace(/<\/script/gi, '<\\/script');
@@ -5457,50 +5480,131 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         function loadFrame() {
           var mockScript =
             '<script>\n' +
-            '/* === 写卡器预览用 mock API（模拟酒馆运行时）=== */\n' +
-            'window.getAllVariables = function() {\n' +
-            '  return { stat_data: ' + statDataJson + ' };\n' +
-            '};\n' +
-            'window.waitGlobalInitialized = function(name) { return Promise.resolve(); };\n' +
-            'window.eventOn = function(evt, cb) { /* 预览不监听运行时事件 */ };\n' +
-            'window.errorCatched = function(fn) { return function() { try { return fn.apply(this, arguments); } catch(e) { console.warn("[预览]渲染异常:", e); } }; };\n' +
-            'window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } };\n' +
-            '/* === 轻量级 lodash 子集（仅 _.get，状态栏渲染所需）=== */\n' +
-            'window._ = { get: function(obj, path, def) {\n' +
-            '  if (obj == null) return def;\n' +
-            '  var keys = String(path).split(".");\n' +
-            '  var cur = obj;\n' +
-            '  for (var i = 0; i < keys.length; i++) {\n' +
-            '    if (cur == null) return def;\n' +
-            '    cur = cur[keys[i]];\n' +
-            '  }\n' +
-            '  return cur === undefined ? def : cur;\n' +
-            '}};\n' +
-            '/* === 轻量级 jquery 子集（状态栏用到的 .html/.text/.addClass/.removeClass + DOMReady回调）=== */\n' +
-            'function _miniJQ(sel) {\n' +
-            '  /* $(fn) 形式：作为 DOMReady 回调，立即执行（预览场景DOM已就绪） */\n' +
-            '  if (typeof sel === "function") { try { sel(); } catch(e) { console.warn(e); } return { ready: function() { return this; } }; }\n' +
-            '  var el = (typeof sel === "string") ? document.querySelector(sel) : sel;\n' +
-            '  return {\n' +
-            '    0: el, length: el ? 1 : 0,\n' +
-            '    html: function(s) { if (el) el.innerHTML = s; return this; },\n' +
-            '    text: function(s) { if (el) el.textContent = s; return this; },\n' +
-            '    addClass: function(c) { if (el) el.classList.add(c); return this; },\n' +
-            '    removeClass: function(c) { if (el) el.classList.remove(c); return this; },\n' +
-            '    ready: function(fn) { try { fn(); } catch(e) { console.warn(e); } return this; }\n' +
+            '/* === 写卡器预览用 mock API（模拟酒馆运行时）【HEAD 第一个脚本，确保 API 先于 module/defer script 执行 === */\n' +
+            '(function() {\n' +
+            '  var statData = ' + statDataJson + ';\n' +
+            '  window.__PREVIEW_MOCK_STAT_DATA__ = statData;\n' +
+            '  window.getAllVariables = function() { return { stat_data: statData }; };\n' +
+            '  window.waitGlobalInitialized = function(name) { return Promise.resolve(); };\n' +
+            '  window.eventOn = function(evt, cb) { /* 预览不监听运行时事件，空实现即可，避免报错 */ };\n' +
+            '  /* 【修复：支持 async/Promise 拒绝捕获】errorCatched 会吞掉 Promise.reject，这里加一个强捕获 */\n' +
+            '  window.errorCatched = function(fn) {\n' +
+            '    return function() {\n' +
+            '      try {\n' +
+            '        var r = fn.apply(this, arguments);\n' +
+            '        if (r && typeof r.catch === "function") {\n' +
+            '          r.catch(function(e) { console.warn("[预览 mock] statusbar async error:", e && e.message, e && e.stack); });\n' +
+            '        }\n' +
+            '        return r;\n' +
+            '      } catch(e) { console.warn("[预览 mock] statusbar sync error:", e && e.message, e && e.stack); }\n' +
+            '    };\n' +
             '  };\n' +
-            '}\n' +
-            'window.$ = window.jQuery = _miniJQ;\n' +
+            '  window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } };\n' +
+            '  /* === 轻量级 lodash 子集（仅 _.get，状态栏渲染所需）=== */\n' +
+            '  window._ = { get: function(obj, path, def) {\n' +
+            '    if (obj == null) return def;\n' +
+            '    var keys = String(path).split(".");\n' +
+            '    var cur = obj;\n' +
+            '    for (var i = 0; i < keys.length; i++) {\n' +
+            '      if (cur == null) return def;\n' +
+            '      cur = cur[keys[i]];\n' +
+            '    }\n' +
+            '    return cur === undefined ? def : cur;\n' +
+            '  }};\n' +
+            '  /* === 轻量级 jquery 子集（状态栏用到的 .html/.text/.addClass/.removeClass + DOMReady 回调）=== */\n' +
+            '  function _miniJQ(sel) {\n' +
+            '    /* $(fn) 形式：作为 DOMReady 回调 */\n' +
+            '    if (typeof sel === "function") {\n' +
+            '      try {\n' +
+            '        /* 预览场景：如果 DOM 已就绪 立即执行；否则排队等 DOMContentLoaded */\n' +
+            '        if (document.readyState === "complete" || document.readyState === "interactive") {\n' +
+            '          sel();\n' +
+            '        } else {\n' +
+            '          document.addEventListener("DOMContentLoaded", sel);\n' +
+            '        }\n' +
+            '      } catch(e) { console.warn("[预览 mock] $(fn):", e); }\n' +
+            '      return { ready: function(fn) { try { fn(); } catch(e) {} return this; } };\n' +
+            '    }\n' +
+            '    var el = (typeof sel === "string") ? document.querySelector(sel) : sel;\n' +
+            '    return {\n' +
+            '      0: el, length: el ? 1 : 0,\n' +
+            '      html: function(s) { if (el) el.innerHTML = (s == null ? (el.innerHTML || "") : String(s)); return this; },\n' +
+            '      text: function(s) { if (el) el.textContent = s; return this; },\n' +
+            '      addClass: function(c) { if (el) el.classList.add(c); return this; },\n' +
+            '      removeClass: function(c) { if (el) el.classList.remove(c); return this; },\n' +
+            '      ready: function(fn) { try { fn(); } catch(e) {} return this; }\n' +
+            '    };\n' +
+            '  }\n' +
+            '  window.$ = window.jQuery = _miniJQ;\n' +
+            '  /* ========== 【预览强制兜底渲染】如果状态栏自己的脚本没启动（API时序/async await卡住）3s 后自动 fallback 渲染 stat_data ========== */\n' +
+            '  function fallbackRender() {\n' +
+            '    var root = document.getElementById("render-root") || document.querySelector(".card-body") || document.body;\n' +
+            '    if (!root) return;\n' +
+            '    /* 仍然在 loading 状态才 fallback 渲染（若用户脚本已渲染就不要再覆盖）*/\n' +
+            '    var stillLoading = root.querySelector(".loading-state");\n' +
+            '    if (!stillLoading) return;\n' +
+            '    console.warn("[预览 mock] 原脚本未启动，强制 fallback 渲染 stat_data");\n' +
+            '    var htmlStr = "";\n' +
+            '    var data = statData || {};\n' +
+            '    function rt(obj, level) {\n' +
+            '      level = level || 0;\n' +
+            '      var indentClass = "indent-" + Math.min(level, 4);\n' +
+            '      var itemsHtml = "";\n' +
+            '      var keys = Object.keys(obj || {});\n' +
+            '      for (var k = 0; k < keys.length; k++) {\n' +
+            '        var key = keys[k];\n' +
+            '        var value = obj[key];\n' +
+            '        if (key.indexOf("_") === 0 || key.indexOf("$") === 0) continue;\n' +
+            '        var isPlainObj = value !== null && typeof value === "object" && !Array.isArray(value);\n' +
+            '        if (isPlainObj) {\n' +
+            '          if (itemsHtml) { htmlStr += "<div class=\\"stat-grid " + indentClass + "\\">" + itemsHtml + "</div>"; itemsHtml = ""; }\n' +
+            '          if (level > 0) { htmlStr += "<div class=\\"category-title " + indentClass + "\\">" + key + "</div>"; }\n' +
+            '          rt(value, level + 1);\n' +
+            '          continue;\n' +
+            '        }\n' +
+            '        itemsHtml += "<div class=\\"stat-item\\"><span class=\\"stat-label\\">" + key + "</span><span class=\\"stat-value\\">";\n' +
+            '        if (typeof value === "number") itemsHtml += "<span class=\\"value-number\\">" + value + "</span>";\n' +
+            '        else if (typeof value === "boolean") itemsHtml += value ? "<span class=\\"value-true\\">✓</span>" : "<span class=\\"value-false\\">✕</span>";\n' +
+            '        else if (Array.isArray(value)) itemsHtml += "<span class=\\"value-text\\">[" + value.join(", ") + "]</span>";\n' +
+            '        else itemsHtml += "<span class=\\"value-text\\">" + String(value == null ? "" : value) + "</span>";\n' +
+            '        itemsHtml += "</span></div>";\n' +
+            '      }\n' +
+            '      if (itemsHtml) htmlStr += "<div class=\\"stat-grid " + indentClass + "\\">" + itemsHtml + "</div>";\n' +
+            '    }\n' +
+            '    rt(data, 0);\n' +
+            '    try {\n' +
+            '      root.innerHTML = htmlStr;\n' +
+            '      root.classList.add("flash-update");\n' +
+            '      setTimeout(function() { try { root.classList.remove("flash-update"); } catch(_) {} }, 300);\n' +
+            '    } catch(_) {}\n' +
+            '  }\n' +
+            '  /* 三次兜底检查 500ms / 1500ms / 3000ms，保证任一次原脚本没启动就 fallback */\n' +
+            '  setTimeout(fallbackRender, 500);\n' +
+            '  setTimeout(fallbackRender, 1500);\n' +
+            '  setTimeout(fallbackRender, 3500);\n' +
+            '})();\n' +
             '<\/script>\n';
           var fullDoc = statusBarHtml;
-          /* 将 mock 脚本插入到 </head> 之前；若无 head 则插入到 <body> 前 */
-          if (fullDoc.indexOf('</head>') >= 0) {
-            fullDoc = fullDoc.replace('</head>', mockScript + '</head>');
+          /* ======【插入位置：将 mock 脚本放在 <head> 的最开始，保证 mock API 先于状态栏原有 script 执行 ======
+             （相比插在 </head> 前，这样即使原状态栏用了 defer/module 也能拿到 $、_、getAllVariables） */
+          var headStartMatch = fullDoc.match(/<head[^>]*>/i);
+          if (headStartMatch) {
+            /* 插入到 <head ...> 标签紧后面（紧跟 headStartMatch[0] 的后面）
+               同时把默认模板的 <style> 保留（否则 mock 脚本在 style 前也没关系，因为 script 是顺序执行的，style 仍会生效 */
+            var idx = fullDoc.indexOf(headStartMatch[0]);
+            fullDoc = fullDoc.substring(0, idx + headStartMatch[0].length)
+              + '\n' + mockScript + '\n'
+              + fullDoc.substring(idx + headStartMatch[0].length);
           } else if (fullDoc.indexOf('<body') >= 0) {
-            fullDoc = fullDoc.replace(/<body/, mockScript + '<body');
+            fullDoc = fullDoc.replace(/<body/i, mockScript + '<body');
           } else {
             fullDoc = mockScript + fullDoc;
           }
+          /* ✅ 修复：不要在最后把所有 </script> 替换成 <\\/script>！
+             - </script> 作为 HTML 闭合标签是合法且必须的（脚本 tag 需要正常闭合）
+             - 只有在 <script> 标签 *文本内容内部* 出现 </script> 才会截断
+             - 已在 statDataJson 阶段单独转义：JSON.stringify(statData).replace(/<\/script/gi, '<\\/script')
+             - 这里再次全量替换会把 </script> tag 本身变成非法的 \</script>，让浏览器无法解析，导致整页空白！ */
           frame.srcdoc = fullDoc;
         }
         loadFrame();
