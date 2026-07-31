@@ -49,13 +49,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:#0d1117}
 .chat-header{flex-shrink:0;padding:6px 12px;background:#161b22;border-bottom:1px solid #21262d;font-size:.78em;color:#d2a8ff;display:flex;align-items:center;gap:5px}
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
-.chat-msg{display:flex;gap:8px;margin-bottom:12px;align-items:flex-start}
-.chat-msg.user{flex-direction:row-reverse}
-.chat-msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
+.chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;align-items:flex-start}
+.chat-msg.user{align-items:flex-end}
+.chat-msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .chat-msg.assistant .avatar{background:rgba(210,168,255,.15)}
 .chat-msg.user .avatar{background:rgba(247,129,102,.15)}
 .chat-msg .bubble{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.85em;line-height:1.6;word-break:break-word}
-.chat-msg.assistant .bubble{background:#161b22;border:1px solid #30363d;border-bottom-left-radius:4px;color:#c9d1d9}
+.chat-msg.assistant .bubble{background:transparent;border:none;color:#c9d1d9;font-size:1em;padding:2px 4px;max-width:96%}
 .chat-msg.user .bubble{background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border-bottom-right-radius:4px}
 .chat-msg .bubble b{color:#d2a8ff}
 .chat-msg .bubble code{background:rgba(110,118,129,.2);padding:1px 4px;border-radius:3px;font-size:.82em}
@@ -144,10 +144,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .opt-field-tag{padding:3px 8px;background:rgba(110,118,129,.08);border:1px solid #30363d;border-radius:4px;font-size:.7em;cursor:pointer;transition:all .2s}
 .opt-field-tag.selected{background:rgba(247,129,102,.2);border-color:#f78166;color:#f78166}
 .modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid #21262d;flex-shrink:0}
-.sb-wrap{display:block;margin-top:8px;padding:10px;background:#0d1117;border-radius:6px;font-size:.78em;line-height:1.55;border:1px solid #30363d}
-.sb-wrap .sb-header{font-size:.85em;color:#facc15;margin-bottom:8px;font-weight:600;text-align:center}
+.sb-wrap{display:block;margin-top:8px;padding:10px;background:#0d1117;border-radius:6px;font-size:.92em;line-height:1.55;border:1px solid #30363d}
+.sb-wrap .sb-header{font-size:1em;color:#facc15;margin-bottom:8px;font-weight:600;text-align:center}
 .sb-wrap .sb-section{margin-bottom:4px}
-.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:.95em;padding:3px 0;user-select:none}
+.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:1.05em;padding:3px 0;user-select:none}
 .sb-wrap .sb-summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
 .sb-wrap .sb-section:not(.open) .sb-summary::before{transform:rotate(-90deg)}
 .sb-wrap .sb-content{padding:3px 0 3px 8px;color:#8b949e}
@@ -163,9 +163,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .sb-wrap details:not([open]) summary::before{transform:rotate(-90deg)}
 .sb-wrap ul{margin:4px 0 4px 18px;padding:0}
 .sb-wrap ol{margin:4px 0 4px 20px;padding:0}
-.sb-wrap li{margin:2px 0;color:#8b949e;font-size:.92em;line-height:1.5}
+.sb-wrap li{margin:2px 0;color:#8b949e;font-size:1em;line-height:1.5}
 .sb-wrap li b{color:#c9d1d9}
-.sb-wrap p{margin:3px 0;color:#8b949e;font-size:.92em}
+.sb-wrap p{margin:3px 0;color:#8b949e;font-size:1em}
 .sb-wrap p b{color:#d2a8ff}
 .sb-wrap .sb-btn{display:inline-block;padding:4px 10px;margin:2px 3px;background:#21262d;border:1px solid #30363d;border-radius:12px;font-size:.88em;color:#c9d1d9;cursor:pointer;transition:all .15s}
 .sb-wrap .sb-btn:active{background:#f78166;color:#fff;border-color:#f78166}
