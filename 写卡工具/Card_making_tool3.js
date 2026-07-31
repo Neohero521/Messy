@@ -60,6 +60,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-msg .bubble b{color:#d2a8ff}
 .chat-msg .bubble code{background:rgba(110,118,129,.2);padding:1px 4px;border-radius:3px;font-size:.82em}
 .chat-msg .bubble pre{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;overflow-x:auto;font-size:1em;margin:6px 0;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
+.html-render-frame{display:block;margin:6px 0}
 .typing{color:#8b949e;font-style:italic;font-size:.8em;padding:4px 8px}
 .typing span{display:inline-block;animation:blink 1.4s infinite;color:#f78166}
 .typing span:nth-child(2){animation-delay:.2s}
@@ -144,10 +145,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .opt-field-tag{padding:3px 8px;background:rgba(110,118,129,.08);border:1px solid #30363d;border-radius:4px;font-size:.7em;cursor:pointer;transition:all .2s}
 .opt-field-tag.selected{background:rgba(247,129,102,.2);border-color:#f78166;color:#f78166}
 .modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid #21262d;flex-shrink:0}
-.sb-wrap{display:block;margin-top:8px;padding:10px;background:#0d1117;border-radius:6px;font-size:.92em;line-height:1.55;border:1px solid #30363d}
-.sb-wrap .sb-header{font-size:1em;color:#facc15;margin-bottom:8px;font-weight:600;text-align:center}
+.sb-wrap{display:block;margin-top:8px;padding:10px;background:#0d1117;border-radius:6px;font-size:.88em;line-height:1.55;border:1px solid #30363d}
+.sb-wrap .sb-header{font-size:.95em;color:#facc15;margin-bottom:8px;font-weight:600;text-align:center}
 .sb-wrap .sb-section{margin-bottom:4px}
-.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:1.05em;padding:3px 0;user-select:none}
+.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:1em;padding:3px 0;user-select:none}
 .sb-wrap .sb-summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
 .sb-wrap .sb-section:not(.open) .sb-summary::before{transform:rotate(-90deg)}
 .sb-wrap .sb-content{padding:3px 0 3px 8px;color:#8b949e}
@@ -163,9 +164,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .sb-wrap details:not([open]) summary::before{transform:rotate(-90deg)}
 .sb-wrap ul{margin:4px 0 4px 18px;padding:0}
 .sb-wrap ol{margin:4px 0 4px 20px;padding:0}
-.sb-wrap li{margin:2px 0;color:#8b949e;font-size:1em;line-height:1.5}
+.sb-wrap li{margin:2px 0;color:#8b949e;font-size:.95em;line-height:1.5}
 .sb-wrap li b{color:#c9d1d9}
-.sb-wrap p{margin:3px 0;color:#8b949e;font-size:1em}
+.sb-wrap p{margin:3px 0;color:#8b949e;font-size:.95em}
 .sb-wrap p b{color:#d2a8ff}
 .sb-wrap .sb-btn{display:inline-block;padding:4px 10px;margin:2px 3px;background:#21262d;border:1px solid #30363d;border-radius:12px;font-size:.88em;color:#c9d1d9;cursor:pointer;transition:all .15s}
 .sb-wrap .sb-btn:active{background:#f78166;color:#fff;border-color:#f78166}
@@ -4536,9 +4537,66 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!c) return;
         var div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
-        div.innerHTML = '<div class="avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="bubble">' + fmtBubble(content) + '</div>';
+        var avatarHtml;
+        if (role === 'user') {
+          var savedAvatar = localStorage.getItem('userAvatar');
+          if (savedAvatar) {
+            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer;background-image:url(' + savedAvatar + ');background-size:cover;background-position:center"></div>';
+          } else {
+            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer">👤</div>';
+          }
+        } else {
+          avatarHtml = '<div class="avatar">🤖</div>';
+        }
+        div.innerHTML = avatarHtml + '<div class="bubble">' + fmtBubble(content) + '</div>';
         c.appendChild(div);
+        if (role === 'user') {
+          var avEl = div.querySelector('.avatar-user');
+          if (avEl) avEl.addEventListener('click', triggerAvatarUpload);
+        }
         scrollChat();
+      }
+      function triggerAvatarUpload() {
+        var input = doc.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        doc.body.appendChild(input);
+        input.addEventListener('change', function(e) {
+          var file = e.target.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            var img = new Image();
+            img.onload = function() {
+              var size = Math.min(img.width, img.height);
+              var canvas = doc.createElement('canvas');
+              canvas.width = 128; canvas.height = 128;
+              var ctx = canvas.getContext('2d');
+              var sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+              ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
+              var dataUrl = canvas.toDataURL('image/png');
+              localStorage.setItem('userAvatar', dataUrl);
+              refreshAllUserAvatars();
+              showToast('头像已更新', 'success');
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+          doc.body.removeChild(input);
+        });
+        input.click();
+      }
+      function refreshAllUserAvatars() {
+        var savedAvatar = localStorage.getItem('userAvatar');
+        if (!savedAvatar) return;
+        var avatars = doc.querySelectorAll('.avatar-user');
+        for (var i = 0; i < avatars.length; i++) {
+          avatars[i].innerHTML = '';
+          avatars[i].style.backgroundImage = 'url(' + savedAvatar + ')';
+          avatars[i].style.backgroundSize = 'cover';
+          avatars[i].style.backgroundPosition = 'center';
+        }
       }
       function addTyping() {
         removeTyping();
@@ -4579,7 +4637,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (p.type === 'status') {
             out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
           } else {
-            var h = p.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            var h = p.content;
+            /* 渲染 ```html 代码块为 iframe（状态栏等完整HTML直接渲染） */
+            h = h.replace(/```html\s*\n([\s\S]*?)```/gi, function(_, code) {
+              var htmlCode = code.replace(/\\n/g, '\n');
+              /* 尝试注入变量数据 */
+              var varData = getStatDataForRender();
+              if (varData && Object.keys(varData).length > 0) {
+                var varJson = JSON.stringify(varData).replace(/<\/script/gi, '<\\/script');
+                var mockScript = '<script>var statData=' + varJson + ';window.getAllVariables=function(){return{stat_data:statData}};</script>';
+                if (htmlCode.indexOf('<head') >= 0) {
+                  htmlCode = htmlCode.replace(/<head([^>]*)>/i, '<head$1>' + mockScript);
+                } else if (htmlCode.indexOf('<html') >= 0) {
+                  htmlCode = htmlCode.replace(/<html([^>]*)>/i, '<html$1><head>' + mockScript + '</head>');
+                } else {
+                  htmlCode = mockScript + htmlCode;
+                }
+              }
+              var escHtml = htmlCode.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+              return '<iframe class="html-render-frame" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:80px;border:1px solid #30363d;border-radius:6px;background:transparent"></iframe>';
+            });
+            h = h.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
             h = h.replace(/```\w*\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
             h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -4590,6 +4668,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
         });
         return out;
+      }
+      function getStatDataForRender() {
+        var statData = {};
+        var entries = cardData.entries || [];
+        var initVarEntry = null;
+        for (var i = 0; i < entries.length; i++) {
+          if ((entries[i].comment || '').indexOf('[InitVar]') >= 0) { initVarEntry = entries[i]; break; }
+        }
+        if (initVarEntry && initVarEntry.content) {
+          var parsed = parseInitVar(initVarEntry.content);
+          if (parsed) statData = parsed;
+        }
+        return statData;
       }
       function parseStatusblock(inner) {
         var h = inner.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -5351,7 +5442,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var rawContent = aiResponse;
           var cleanContent = aiResponse
             .replace(/```[\s\S]*?```/g, '')
-            .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
             .replace(/<details[\s\S]*?<\/details>/gi, '')
             .trim();
 
