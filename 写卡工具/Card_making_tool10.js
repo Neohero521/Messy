@@ -1269,6 +1269,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      ║  ⚠️铁律：修改模块时先清空对应槽位再重新填入                   ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
+    '      ╔══════════════════════════════════════════════════════════════╗\n' +
+    '      ║  🚫 绝对禁止（写卡器会直接拦截丢弃，写入也会被自动清理）       ║\n' +
+    '      ║  · 禁止生成任何含「状态栏」「美化样式」「占位符」「StatusPlaceHolder」 ║\n' +
+    '      ║    字样的 character_book.entries / 世界书条目                  ║\n' +
+    '      ║  · 禁止输出 JSON 条目：状态栏是写卡器用 regex_scripts 正则     ║\n' +
+    '      ║    注入到开场白里的，不需要/不允许 写入角色卡的 entries 数组   ║\n' +
+    '      ║  · 禁止在回复中要求AI"在底部输出<StatusPlaceHolderImpl/>"：    ║\n' +
+    '      ║    写卡器已自动注入占位符，不需要额外规则条目                  ║\n' +
+    '      ╚══════════════════════════════════════════════════════════════╝\n' +
+    '\n' +
     '      【机制1：后台填入式收集（像角色卡一样在后台写入）】\n' +
     '      写卡器后台维护一个HTML模板框架，有6个空槽位（Step 2-7）。\n' +
     '      写卡器知道当前在生成哪个Step，会通过提示词告诉AI"当前Step: N - XXX"。\n' +
@@ -2130,21 +2140,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 这些代码应只保存到extensions.regex_scripts，不能进入character_book.entries，
       // 否则会污染世界书、浪费上下文token、与regex_scripts版本不一致。
       // 此处识别并丢弃这类条目，从源头阻断误写入。
-      var SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+      // 更严格的拦截：除状态栏Step代码外，还拦截任何「以状态栏为主题」的世界书条目
+      // （因为状态栏功能靠 regex_scripts 的 mvu-status-bar 正则实现，不需要也不允许创建写世界书条目）
+      var SB_ENTRY_BLOCK_CMT_RE = /状态栏|StatusPlaceHolder|<占位符>|美化样式|状态栏美化|status.?bar/i;
+      var SB_ENTRY_BLOCK_CONTENT_RE = /StatusPlaceHolderImpl|必须.*<StatusPlaceHolderImpl|必须输出.*状态栏|状态栏.*占位符/;
+      var SB_ENTRY_STEP_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
       newEntries = newEntries.filter(function(ne) {
         if (!ne || typeof ne !== 'object') return true;
         var cmt = String(ne.comment || '');
-        if (SB_ENTRY_BLOCK_RE.test(cmt)) {
-          console.warn('[statusbar] 拦截状态栏模块条目，不写入世界书:', cmt);
+        var cnt = String(ne.content || '');
+        // Step代码拦截（原逻辑）
+        if (SB_ENTRY_STEP_RE.test(cmt)) {
+          console.warn('[statusbar] 拦截状态栏Step模块条目，不写入世界书:', cmt);
+          return false;
+        }
+        // 新增：只要comment里出现「状态栏」相关字样就拦截（写世界书条目不需要谈论状态栏，状态栏是写卡器自动注入的正则/脚本功能，不是世界观设定）
+        if (SB_ENTRY_BLOCK_CMT_RE.test(cmt)) {
+          console.warn('[statusbar] 拦截状态栏主题条目（comment含状态栏关键字），不写入世界书:', cmt);
+          return false;
+        }
+        // 内容侧兜底：内容是关于StatusPlaceHolderImpl占位符的"AI输出规则"（比如让AI必须在底部写占位符）
+        // 这类规则不是世界观设定，且写卡器已自动在开场白/变量输出格式中注入占位符，不需要额外条目
+        if (cnt.length > 0 && SB_ENTRY_BLOCK_CONTENT_RE.test(cnt)) {
+          console.warn('[statusbar] 拦截占位符输出规则条目，不写入世界书:', cmt);
           return false;
         }
         // 内容侧兜底：comment无标记但content是状态栏代码片段（:root+--xxx变量 / StatusPlaceHolderImpl / waitGlobalInitialized+eventOn 等）
-        var cnt = String(ne.content || '');
         if (cnt.length > 50) {
           var hasSbCodeMarker = (cnt.indexOf('StatusPlaceHolderImpl') >= 0) ||
                                 (cnt.indexOf('waitGlobalInitialized') >= 0 && cnt.indexOf('eventOn') >= 0) ||
                                 (cnt.indexOf('/* === Step') >= 0 && cnt.indexOf('===') >= 0 && /Step\s*[2-7]/.test(cnt));
-          if (hasSbCodeMarker && /状态栏|statusbar/i.test(cmt)) {
+          if (hasSbCodeMarker) {
             console.warn('[statusbar] 拦截状态栏代码内容条目，不写入世界书:', cmt);
             return false;
           }
@@ -5571,8 +5597,133 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (mismatchedKeys.length >= 3) {
           // 多于3个不匹配才提示，避免误报（个别可选字段不算 bug）
           try {
-            showToast('⚠️ Step5 与 Step6 字段名不一致：' + mismatchedKeys.join(', ') + ' —— 状态栏可能渲染异常，建议AI重生成 Step5/Step6', 'warning');
+            showToast('⚠️ Step5 与 Step6 字段名不一致：' + mismatchedKeys.join(', ') + ' —— 已自动启用 data 结构拉平兜底', 'warning');
           } catch(_) {}
+        }
+
+        // === 修复 2a: Step3 HTML id vs Step6 $('#...') 选择器 id 双向校验 ===
+        function extractHtmlIds(html) {
+          var set = {};
+          var re = /\sid\s*=\s*["']([^"']+)["']/gi;
+          var m;
+          while ((m = re.exec(html)) !== null) set[m[1]] = true;
+          return set;
+        }
+        function extractStep6JqueryIds(js) {
+          var set = {};
+          var re = /\$\(\s*["']#([^"'\\)]+)["']\s*\)/g;
+          var m;
+          while ((m = re.exec(js)) !== null) set[m[1]] = true;
+          return set;
+        }
+        var htmlIds = extractHtmlIds(statusBarModules.step3);
+        var jqIds = extractStep6JqueryIds(statusBarModules.step6);
+        var missingHtmlIds = []; // Step6 $('#X') 但 Step3 HTML 中没有 id="X"
+        for (var jid in jqIds) {
+          if (!htmlIds[jid]) missingHtmlIds.push(jid);
+        }
+        var unusedHtmlIds = []; // Step3 HTML 有 id="Y" 但 Step6 从未 $('#Y')
+        for (var hid in htmlIds) {
+          if (!jqIds[hid]) unusedHtmlIds.push(hid);
+        }
+        if (missingHtmlIds.length >= 2) {
+          try {
+            showToast('⚠️ Step6 引用的 DOM id(' + missingHtmlIds.slice(0, 8).join(', ') + ')在 Step3 HTML 中未找到，渲染时 text()/addClass() 会失效，请让AI同步重生成 Step3/Step6', 'warning');
+          } catch(_) {}
+        } else if (unusedHtmlIds.length >= 3) {
+          try {
+            showToast('💡 Step3 HTML 有 ' + unusedHtmlIds.length + ' 个 id(' + unusedHtmlIds.slice(0, 6).join(', ') + ')Step6 未使用，确认是否字段遗漏', 'info');
+          } catch(_) {}
+        }
+
+        // === 修复 2c: Step4 CSS class 定义 vs Step6 class 操作/选择器 双向校验 ===
+        function extractCssClassSelectors(css) {
+          var set = {};
+          // 匹配 .foo 或 .foo.bar 中的所有class token（排除 :hover/::before 等伪类，排除数字开头）
+          var re = /(?:^|[\s,\{\}\+>\~])\.([a-zA-Z_][\w-]*)/g;
+          var m;
+          while ((m = re.exec(css)) !== null) {
+            if (!/^hover|focus|active|before|after|visited|link|checked|disabled|selected|root|empty|not|first|last|nth/.test(m[1])) {
+              set[m[1]] = true;
+            }
+          }
+          return set;
+        }
+        function extractStep6ClassOps(js) {
+          var set = {};
+          // addClass('foo') / removeClass('foo') / toggleClass('foo')
+          var re1 = /\.(?:addClass|removeClass|toggleClass|hasClass)\s*\(\s*["']([^"']+)["']/g;
+          var m;
+          while ((m = re1.exec(js)) !== null) {
+            // 支持空格分隔的多class
+            m[1].split(/\s+/).filter(Boolean).forEach(function(c) { set[c] = true; });
+          }
+          // $('.foo-bar') 选择器
+          var re2 = /\$\(\s*["']\.([^"'\\,\s>]+)["']/g;
+          while ((m = re2.exec(js)) !== null) set[m[1]] = true;
+          return set;
+        }
+        var cssClasses = extractCssClassSelectors(statusBarModules.step4);
+        var jsClasses = extractStep6ClassOps(statusBarModules.step6);
+        var missingCssClasses = [];
+        for (var jc in jsClasses) {
+          if (!cssClasses[jc]) missingCssClasses.push(jc);
+        }
+        if (missingCssClasses.length >= 2) {
+          try {
+            showToast('⚠️ Step6 使用的 class(' + missingCssClasses.slice(0, 8).join(', ') + ')在 Step4 CSS 中未定义样式，将无视觉效果，建议AI补 Step4', 'warning');
+          } catch(_) {}
+        }
+
+        // === 修复 2b: Step5 返回值结构拉平兜底（核心：data.core.hp / data.core_hp / data['core.hp'] 三种写法都能用）===
+        // 注入到 step7 中 renderVars(loadVars()) 的 data 参数，保证任何 Step6 的字段访问路径都至少命中一种
+        var FLATTEN_HELPER = '/* 自动注入：Step5返回值拉平兜底（兼容 data.core.hp / data.core_hp / data["core.hp"] 三种写法）*/\n' +
+          'function __sbfd(src){\n' +
+          '  if(!src || typeof src!=="object" || Array.isArray(src)) return src || {};\n' +
+          '  var out = Object.assign({}, src);\n' +
+          '  function walk(cur, dotPfx, usPfx, lvl){\n' +
+          '    if(!cur || typeof cur!=="object" || Array.isArray(cur) || lvl>6) return;\n' +
+          '    Object.keys(cur).forEach(function(k){\n' +
+          '      var v = cur[k];\n' +
+          '      var dk = dotPfx ? dotPfx+"."+k : k;\n' +
+          '      var uk = usPfx ? usPfx+"_"+k : k;\n' +
+          '      if(v && typeof v==="object" && !Array.isArray(v)){\n' +
+          '        if(!(dk in out)) out[dk] = v;\n' +
+          '        if(!(uk in out)) out[uk] = v;\n' +
+          '        walk(v, dk, uk, lvl+1);\n' +
+          '      } else {\n' +
+          '        if(!(dk in out)) out[dk] = v;\n' +
+          '        if(!(uk in out)) out[uk] = v;\n' +
+          '      }\n' +
+          '    });\n' +
+          '  }\n' +
+          '  walk(src, "", "", 0);\n' +
+          '  return out;\n' +
+          '}\n';
+        // 只在 Step7 中 把 renderVars(x) 这种调用（未用 __sbfd 包过的）包成 renderVars(__sbfd(x))
+        var step7Raw = statusBarModules.step7;
+        if (step7Raw.indexOf('__sbfd') < 0) {
+          // 精确替换：renderVars(   xxx   )  →  renderVars(__sbfd( xxx ))
+          // 限制：只对 "renderVars(" + 后面不包含 "function" / 复合表达式太多行的情况 —— 对 loadVars()/data/d/result 这种单参数简单变量做包裹
+          var wrapRe = /\brenderVars\s*\(\s*(?!__sbfd)([A-Za-z_$][\w$]*\s*(?:\([^)]*\))?)\s*\)/g;
+          var wrapped = step7Raw.replace(wrapRe, function(match, inner) {
+            return 'renderVars(__sbfd(' + inner + '))';
+          });
+          // 只在成功包到至少1处时注入 helper（避免把所有 Step7 都加噪声）
+          if (wrapped !== step7Raw) {
+            statusBarModules.step7 = FLATTEN_HELPER + wrapped;
+          } else {
+            // 兜底：如果正则没匹配到，直接在 Step7 开头注入全局包装 —— 重写 window.renderVars 的包一层逻辑
+            var fallbackWrap = FLATTEN_HELPER +
+              '(function(){\n' +
+              '  var _origRV;\n' +
+              '  try { _origRV = renderVars; } catch(e) { return; }\n' +
+              '  if (typeof _origRV === "function") {\n' +
+              '    window.renderVars = function(d) { return _origRV(__sbfd(d)); };\n' +
+              '  }\n' +
+              '})();\n';
+            statusBarModules.step7 = fallbackWrap + step7Raw;
+          }
         }
 
         var cssParts = [];
@@ -5744,7 +5895,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         // 代码（Step2-7）误写入了character_book.entries。此处保存regex后主动清理，
         // 避免条目里的陈旧状态栏代码污染世界书上下文、与regex_scripts版本不一致。
         if (cardData.character_book && Array.isArray(cardData.character_book.entries)) {
-          var sbCleanupRe = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+          var sbCleanupRe = /状态栏|StatusPlaceHolder|<占位符>|美化样式|statusbar/i;
           var beforeLen = cardData.character_book.entries.length;
           cardData.character_book.entries = cardData.character_book.entries.filter(function(e) {
             var c = String((e && e.comment) || '');
@@ -5983,6 +6134,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
                 // 提取代码并填入当前Step槽位
                 var stepNum = statusBarCurrentStep;
+                // === 修复 #3：同回合刚清空的槽位不填入，避免"说了清空但AI又输出了旧代码 → 看起来清空失败"的体感bug ===
+                if (clearedSteps && clearedSteps.indexOf(stepNum) >= 0) {
+                  addAssistantMsg('ℹ️ Step ' + stepNum + ' 刚才已在同一回复中被清空，本轮将不自动填入代码。\n' +
+                    '  请说"继续"后，我会在下一轮重新生成并填入 Step ' + stepNum + ' 的新代码。');
+                } else {
                 var code = extractFirstCodeBlock(aiResponse);
 
                 if (code && validateStepCode(stepNum, code)) {
@@ -6007,6 +6163,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     '  ⚠️禁止：只用文字说"已设计配色/已编写函数"但不输出代码。禁止输出空<statusblock>标签。');
                   // 不推进step，让AI重新生成当前Step
                 }
+                } // 闭合修复#3的 if(justCleared){}else{} 外层
                 showSBProgress();
               } else if (statusBarCurrentStep === 1) {
                 // Step 1是变量表（纯文本），不参与拼接，直接推进到第一个空缺
