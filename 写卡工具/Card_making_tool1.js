@@ -1223,20 +1223,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
     '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
     "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script type=module)），用```html包裹\n" +
-    '      ⚠️生成前引导流程（必须按顺序询问用户，禁止跳过直接生成）：\n' +
+    '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成/一次出全部"时可跳过询问）：\n' +
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程，禁止一次性吐完整代码）\n' +
+    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；用户要"一次出全部"时8步连做不停顿，最后输出完整HTML）\n' +
     '\n' +
     '      ╔══════════════════════════════════════════════════════════════╗\n' +
-    '      ║  ⚠️核心机制：8步分模块生成 + 拼接合并 + 按号精准修改          ║\n' +
+    '      ║  ⚠️核心机制：8步分模块生成 + 拼接合并 + 按语义精准修改        ║\n' +
     '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
-    '      ║  核心原则：每个Step职责单一、代码量小、有明确示例            ║\n' +
+    '      ║  核心原则：每个Step职责单一、有明确示例、按需伸缩            ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
     '      【机制1：8步分模块生成】每步独立成块，AI用 `/* === Step N: 标题 === */` 作为分隔标记（标记写在代码块外，用于人类可读）\n' +
-    '      每完成一步就停下，请用户确认后再生下一步。禁止一次生成多步。\n' +
+    '      灵活交付原则（按用户语义决定生成节奏，不强制一步步）：\n' +
+    '        · 用户要"完整生成"或"一次出全部" → 8步全做完，最后一次输出拼接好的完整HTML\n' +
+    '        · 用户要"超大型/复杂/豪华状态栏" → 不限制单步代码量，可任意复杂，8步全做完\n' +
+    '        · 用户要"分步骤看"或"我先确认变量表" → 只做当前Step，停下问"OK吗？"\n' +
+    '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step + 最后Step 8拼接\n' +
+    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step + Step 8拼接\n' +
+    '      ⚠️无论如何修改，最终必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
     '\n' +
     '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
     '        产出：表格 | 路径 | 类型 | 分组 | 显示名 |\n' +
@@ -1351,22 +1357,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          ⑨ 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
     '        交付：输出最终完整代码 + 自查通过确认 + 引导用户写入正则\n' +
     '\n' +
-    '      【机制2：按号精准修改】（核心！避免整体重写）\n' +
-    '      当用户要求修改时，AI必须先识别是哪个Step的问题，只重写该Step的代码块：\n' +
+    '      【机制2：按语义精准修改】（核心！避免整体重写）\n' +
+    '      当用户要求修改时，AI先识别涉及哪些Step（按用户语义，可涉及多个），只重写涉及的Step：\n' +
     '        · 用户说"改配色" → 只重写 Step 2，其他不变\n' +
     '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，Step 8重新拼接\n' +
     '        · 用户说"换UI风格" → 重写 Step 2+3+4（结构+样式相关），Step 5/6/7不变\n' +
     '        · 用户说"渲染逻辑有bug" → 只改 Step 6\n' +
     '        · 用户说"事件没触发" → 只改 Step 7\n' +
+    '        · 用户说"再加一个进度条模块/技能栏/装备栏" → 改 Step 1+3+5+6（加新模块涉及多Step），Step 8重新拼接\n' +
+    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
     '      ⚠️修改后必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
     '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
+    '      ⚠️但若用户明确要"大改/重做/换风格"涉及多Step时，必须一次做完所有涉及的Step，不要挤牙膏\n' +
     '\n' +
     '      【机制3：弱模型友好设计】\n' +
     '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
-    '        · 每个Step职责单一，代码量≤30行，降低出错率\n' +
-    '        · 每步交付后停下等用户确认，避免长上下文丢失\n' +
+    '        · 每个Step职责单一，代码量按需决定（简单状态栏每个Step可≤30行；超大型/复杂状态栏单个Step可上百行，不设上限）\n' +
+    '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
+    '        · 用户要"一次出全部"时，8步连续做完不停顿，最后统一拼接\n' +
     '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
     '        · Step 8是机械拼接，不需要创造力，弱模型也能可靠完成\n' +
+    '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
     '\n' +
     '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
     '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
@@ -1379,7 +1390,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · 跳过隐藏变量：key以 _ 或 $ 开头的 continue 跳过\n' +
     '        · 严格类型检测：typeof val === "number" 才画进度条（不要把字符串当数字）\n' +
     '        · 布尔仅✅/❌：不要加"是/否"文字\n' +
-    '        · script标签：必须 type="module" 支持顶层async/await\n' +
+    '        · script标签：推荐 type="module" 支持顶层async/await；也可用 <script defer> 包IIFE兼容更老环境\n' +
     '      ⚠️CSS/布局约束（避免渲染异常）：\n' +
     '        · 禁用vh等受宿主高度影响的单位，用width+aspect-ratio让高度随宽度自适应\n' +
     '        · 避免 min-height、overflow:auto 等会强制撑高父容器的元素\n' +
@@ -5450,22 +5461,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '<div class="modal-content" style="max-width:720px">' +
             '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
             '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">在沙箱中渲染状态栏HTML，预览实际显示效果。数据来自[InitVar]初始变量条目（静态快照，不监听运行时事件）</p>' +
-            '<div class="wv-summary" style="margin-bottom:8px">' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#3fb950;font-size:.9em">' + escHtml(statusBarSource) + '</span><span class="wv-stat-lbl">HTML来源</span></div>' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d2a8ff;font-size:.9em">' + (initVarEntry ? '✓' : '✕') + '</span><span class="wv-stat-lbl">InitVar条目</span></div>' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d29922;font-size:.9em">' + (Object.keys(statData).length) + '</span><span class="wv-stat-lbl">顶级变量数</span></div>' +
-            '</div>';
-        /* 如果没有InitVar数据，提示用户 */
+            /* 顶部不显示任何变量数值统计，让状态栏渲染区直接呈现给用户观看 */
+            '';
+        /* 如果没有InitVar数据，仅在状态栏下方折叠区提示，不影响顶部视觉 */
+        var dataHintHtml = '';
         if (!initVarEntry) {
-          h += '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据预览。请先让AI生成初始变量YAML以查看真实数据渲染效果。</div>';
+          dataHintHtml = '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-top:8px">⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据预览。请先让AI生成初始变量YAML以查看真实数据渲染效果。</div>';
         } else if (usingSampleData) {
-          h += '<div style="background:#3a2c1a;border:1px solid #d2992250;color:#e3b341;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据预览。请让AI生成初始变量YAML。</div>';
+          dataHintHtml = '<div style="background:#3a2c1a;border:1px solid #d2992250;color:#e3b341;padding:8px 12px;border-radius:6px;font-size:.8em;margin-top:8px">ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据预览。请让AI生成初始变量YAML。</div>';
         }
         h += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">' +
           '<iframe id="mvuPreviewFrame" style="width:100%;height:420px;border:0;background:transparent" sandbox="allow-scripts"></iframe>' +
-          '</div>' +
-          '<details style="margin-bottom:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">查看预览数据（stat_data JSON）</summary>' +
-            '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:.7em;color:#c9d1d9;white-space:pre-wrap;word-break:break-all">' + escHtml(JSON.stringify(statData, null, 2)) + '</pre>' +
+          '</div>' + dataHintHtml +
+          '<details style="margin-bottom:8px;margin-top:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">📋 预览元数据（HTML来源：' + escHtml(statusBarSource) + ' · InitVar条目：' + (initVarEntry ? '✓' : '✕') + ' · 顶级变量数：' + (Object.keys(statData).length) + '）</summary>' +
+            '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:.7em;color:#c9d1d9;white-space:pre-wrap;word-break:break-all;margin-top:6px">' + escHtml(JSON.stringify(statData, null, 2)) + '</pre>' +
           '</details>' +
           '<div class="modal-actions">' +
             '<button class="btn btn-ghost" id="mvuPreviewCloseBtn">关闭</button>' +
