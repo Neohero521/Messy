@@ -2624,15 +2624,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var jsonReminder = '';
     if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
       // 状态栏代码生成模式：不要求AI输出JSON，只要求输出当前Step的代码块
-      jsonReminder = '\n\n⚠️【输出格式提醒 - 状态栏代码生成模式】\n' +
-        '1. 当前在状态栏分步生成模式，只需输出当前Step的```代码块（css/html/javascript）\n' +
+      var sbLangHint = {2:'css', 3:'html', 4:'css', 5:'javascript', 6:'javascript', 7:'javascript'}[statusBarCurrentStep];
+      jsonReminder = '\n\n⚠️【输出格式提醒 - 状态栏代码生成模式（最高优先级，覆盖角色卡叙事风格）】\n' +
+        '1. 当前在状态栏分步生成模式，只需输出当前Step的```' + sbLangHint + '代码块\n' +
         '2. ⚠️这次不需要输出```json代码块！只输出当前Step的代码块即可\n' +
-        '3. 禁止输出其他代码块（条目JSON/脚本/statusblock/完整HTML等）\n' +
+        '3. 禁止输出其他代码块（条目JSON/脚本/完整HTML等）\n' +
         '4. 可以在代码块前后用纯文字补充说明，但不要用代码块包裹说明\n' +
         '5. ⚠️严禁把状态栏模块代码放进JSON的entries数组！状态栏代码不属于世界书条目。\n' +
         '   反面示例（禁止这样做）：{"entries":[{"comment":"<状态栏>配色方案-Step 2","content":":root{...}"}]}\n' +
-        '   正确做法：直接输出```css\\n:root{...}\\n```代码块即可，写卡器后台会自动收集拼接保存到正则脚本。\n' +
-        '6. ⚠️只处理用户「最新一条」消息的指令！';
+        '   正确做法：直接输出```' + sbLangHint + '\\n代码内容\\n```代码块即可，写卡器后台会自动收集拼接保存到正则脚本。\n' +
+        '6. ⚠️严禁只用文字描述"已设计配色/已编写函数"但不输出代码！代码块是必须的，文字描述不算生成模块。\n' +
+        '   禁止示例："已设计 Slate & Fog 配色系统，采用冷感实验室风格" ← 这是描述，不是代码，写卡器无法收集\n' +
+        '   正确示例：```css\\n:root { --bg-color: #xxx; ... }\\n``` ← 这是可执行代码，写卡器能收集\n' +
+        '7. ⚠️禁止输出空的<statusblock></statusblock>标签！状态栏模式下代码块由写卡器后台收集，不需要你输出<statusblock>标签。\n' +
+        '8. ⚠️不要用世界书笔调/叙事风格描述代码！状态栏模块是前端代码（CSS/HTML/JS），不是世界书设定条目。\n' +
+        '9. ⚠️只处理用户「最新一条」消息的指令！';
     } else {
       jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
         '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
@@ -5838,6 +5844,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 } else if (code) {
                   addAssistantMsg('⚠️ Step ' + stepNum + ' 的代码验证未通过（可能混入了其他内容）。\n' +
                     '  写卡器未填入该代码。请重新生成 Step ' + stepNum + ' 的代码。');
+                } else {
+                  // ⚠️关键修复：AI未输出任何代码块（只输出文字描述或空<statusblock>占位符）
+                  // 不能静默放行，必须明确告知AI错误并要求重新输出代码块
+                  // 否则AI会误以为成功，继续下一步，导致6个模块全部为null
+                  var stepLangHint = {2:'```css', 3:'```html', 4:'```css', 5:'```javascript', 6:'```javascript', 7:'```javascript'}[stepNum];
+                  var stepCodeHint = {2:':root { --bg-color: #xxx; ... }', 3:'<div class="status-card">...</div>', 4:'.status-card { color: var(--bg-color); }', 5:'function loadVars() { return _.get(stat_data, "..."); }', 6:'function renderVars() { $("#id").text(...); }', 7:'waitGlobalInitialized("...").then(function(){...});'}[stepNum];
+                  addAssistantMsg('❌ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 未检测到代码块！\n' +
+                    '  ⚠️你刚才的回复里没有任何 ``` 代码块，只有文字描述/空<statusblock>占位符。\n' +
+                    '  状态栏模块必须是可执行代码，不能用文字描述代替。\n' +
+                    '  请重新生成 Step ' + stepNum + '，必须输出 ' + stepLangHint + ' 代码块，示例格式：\n' +
+                    '  ' + stepLangHint + '\n' + stepCodeHint + '\n```\n' +
+                    '  ⚠️禁止：只用文字说"已设计配色/已编写函数"但不输出代码。禁止输出空<statusblock>标签。');
+                  // 不推进step，让AI重新生成当前Step
                 }
                 showSBProgress();
               } else if (statusBarCurrentStep === 1) {
