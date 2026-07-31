@@ -1192,53 +1192,149 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的分步模块化流程，禁止一次性吐完整代码）\n' +
-    '      ⚠️分步模块化生成流程（⚠️核心！必须拆成三步逐一生成，每步产出给用户确认后再进下一步）：\n' +
+    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程，禁止一次性吐完整代码）\n' +
     '\n' +
-    '      --- Step 1：结构+样式（HTML骨架 + CSS，不含任何JS）---\n' +
-    '      目标：用户先看到UI长什么样，确认后再填数据逻辑\n' +
-    '      产出：仅包含 <style>...</style> + <body>...</body> 的HTML骨架\n' +
-    '      内容：\n' +
-    '        · 根据用户选定的UI风格，搭建完整的HTML结构和CSS样式\n' +
-    '        · 每个需要绑定变量的DOM节点必须预留唯一id（如 <span id="stat-hp"></span>）\n' +
-    '        · 用静态假数据填充，让用户能直观看到最终视觉效果\n' +
-    '        · CSS必须包含：:root变量、卡片容器、网格布局、分类标题、数值着色、加载动画\n' +
-    '        · 布局约束：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片形状不加背景色\n' +
-    '      交付：将Step 1产出展示给用户，问"结构和样式OK吗？确认后我填JS逻辑"\n' +
-    '      如果用户确认 → 进入Step 2；如果用户提修改 → 在Step 1基础上迭代调整\n' +
+    '      ╔══════════════════════════════════════════════════════════════╗\n' +
+    '      ║  ⚠️核心机制：8步分模块生成 + 拼接合并 + 按号精准修改          ║\n' +
+    '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
+    '      ║  核心原则：每个Step职责单一、代码量小、有明确示例            ║\n' +
+    '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
-    '      --- Step 2：逻辑+行为（JS脚本，基于Step 1结构）---\n' +
-    '      目标：在已确认的UI骨架上，绑定MVU变量数据和交互行为\n' +
-    '      产出：<script type="module">...</script> 完整脚本\n' +
-    '      内容：\n' +
-    '        · 入口：await waitGlobalInitialized(\'Mvu\') + $(errorCatched(init))\n' +
-    '        · 读变量：_.get(getAllVariables(), "stat_data", {}) （禁止Mvu.getVar）\n' +
-    '        · 渲染：renderVarTree递归处理任意深度嵌套对象\n' +
-    '        · 事件：eventOn(Mvu.events.VARIABLE_INITIALIZED) + eventOn(Mvu.events.VARIABLE_UPDATE_ENDED)\n' +
-    '        · DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById/innerHTML/classList\n' +
-    '        · 跳过隐藏变量：key以_或$开头的continue跳过\n' +
-    '        · 类型检测：typeof val === "number" 才画进度条；布尔用✓/✕；数组用join\n' +
-    '        · 注释：只能用 /* 注释 */，禁止 // 注释\n' +
-    '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
-    '      交付：将Step 2的JS脚本展示给用户，简要说明绑定了哪些变量\n' +
+    '      【机制1：8步分模块生成】每步独立成块，AI用 `/* === Step N: 标题 === */` 作为分隔标记（标记写在代码块外，用于人类可读）\n' +
+    '      每完成一步就停下，请用户确认后再生下一步。禁止一次生成多步。\n' +
     '\n' +
-    '      --- Step 3：组装+自查（合并为完整HTML + 代码审查）---\n' +
-    '      目标：将Step 1的结构样式和Step 2的脚本合并为完整可运行的状态栏\n' +
-    '      产出：```html 包裹的完整 <!doctype html> 文档\n' +
-    '      内容：\n' +
-    '        · 合并：Step 1的<style>+<body> 与 Step 2的<script> 合并为完整HTML\n' +
-    '        · 自查（逐项检查，发现问题立即修正后再交付）：\n' +
-    '          ① HTML结构完整性：<!doctype html> + <html> + <head> + <style> + <body> + <script type="module">\n' +
-    '          ② 注释规范：全文无 // 注释，仅用 /* */\n' +
-    '          ③ DOM规范：无原生DOM操作，全部使用jquery\n' +
-    '          ④ 变量路径：所有_.get路径以 stat_data 开头\n' +
+    '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
+    '        产出：表格 | 路径 | 类型 | 分组 | 显示名 |\n' +
+    '        范围：从用户zod schema提取所有要显示的变量，跳过_/$开头的\n' +
+    '        类型识别：number/boolean/string/array/object\n' +
+    '        示例：\n' +
+    '          | stat_data.角色.好感度 | number | 核心状态 | 好感度 |\n' +
+    '          | stat_data.世界.时间 | string | 世界状态 | 时间 |\n' +
+    '          | stat_data.背包 | array | 物品栏 | 背包 |\n' +
+    '        用途：后续Step全部基于此表，路径和类型不得偏离\n' +
+    '        交付：展示表格，问"这些变量都显示吗？要加/减/改分组的告诉我"\n' +
+    '\n' +
+    '      ▶ Step 2：配色方案（仅CSS :root变量块）\n' +
+    '        产出：仅一段 `:root { --xxx: 颜色; }`，不含任何选择器规则\n' +
+    '        内容：根据UI风格定主色/辅色/背景/文字/边框/成功/警告/危险等变量\n' +
+    '        示例：\n' +
+    '          :root {\n' +
+    '            --card-bg: rgba(20,20,30,0.85);\n' +
+    '            --accent-blue: #93c5fd;\n' +
+    '            --text-main: #e2e8f0;\n' +
+    '          }\n' +
+    '        交付：展示配色，问"配色OK吗？"\n' +
+    '\n' +
+    '      ▶ Step 3：HTML结构骨架（仅<body>内DOM，含静态假数据，无CSS无JS）\n' +
+    '        产出：纯DOM结构，每个变量节点预留唯一id\n' +
+    '        规则：\n' +
+    '          · id命名：stat-<分组>-<字段>（如 id="stat-core-hp"）\n' +
+    '          · 用Step 1表格的假数据填充，让用户直观看效果\n' +
+    '          · 不写style属性、不写script\n' +
+    '        示例片段：\n' +
+    '          <div class="card" id="card-core">\n' +
+    '            <div class="cat-title">核心状态</div>\n' +
+    '            <div class="stat-row"><span class="label">好感度</span><span class="value" id="stat-core-hp">35</span></div>\n' +
+    '          </div>\n' +
+    '        交付：展示骨架，问"结构和分组OK吗？"\n' +
+    '\n' +
+    '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
+    '        产出：基于Step 3结构写所有选择器规则，引用Step 2的CSS变量\n' +
+    '        必含：卡片容器、分类标题、stat-row布局、数值着色、加载动画、刷新淡入\n' +
+    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片形状不加背景色\n' +
+    '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
+    '\n' +
+    '      ▶ Step 5：变量读取函数（仅JS function，纯函数无副作用）\n' +
+    '        产出：`function loadVars() { ... return data; }` 单个函数\n' +
+    '        规则：\n' +
+    '          · 用 _.get(getAllVariables(), "stat_data.xxx", 默认值)\n' +
+    '          · 每个Step 1表格的路径都要读取\n' +
+    '          · 禁止Mvu.getVar，禁止在此函数操作DOM\n' +
+    '        示例：\n' +
+    '          function loadVars() {\n' +
+    '            const all = getAllVariables();\n' +
+    '            return {\n' +
+    '              hp: _.get(all, "stat_data.角色.好感度", 0),\n' +
+    '              time: _.get(all, "stat_data.世界.时间", "未知"),\n' +
+    '              bag: _.get(all, "stat_data.背包", [])\n' +
+    '            };\n' +
+    '          }\n' +
+    '        交付：展示函数，简要说明读取了哪些路径\n' +
+    '\n' +
+    '      ▶ Step 6：渲染函数（仅JS function，处理类型+写DOM）\n' +
+    '        产出：`function renderVars(data) { ... }` 单个函数\n' +
+    '        规则：\n' +
+    '          · 遍历Step 1表格，按类型分支处理：number→进度条/数值、boolean→✓/✕、string→文本、array→列表、object→递归\n' +
+    '          · DOM必须用jquery（$("#id").text/html/addClass），禁止原生DOM\n' +
+    '          · 嵌套对象用renderVarTree递归\n' +
+    '          · 跳过key以_/$开头的\n' +
+    '          · 注释只能用 /* */，禁止 //\n' +
+    '        交付：展示函数，问"渲染逻辑OK吗？"\n' +
+    '\n' +
+    '      ▶ Step 7：事件绑定+入口（仅JS入口代码，无函数定义）\n' +
+    '        产出：\n' +
+    '          async function init() {\n' +
+    '            await waitGlobalInitialized(\'Mvu\');\n' +
+    '            renderVars(loadVars());\n' +
+    '            eventOn(Mvu.events.VARIABLE_INITIALIZED, () => renderVars(loadVars()));\n' +
+    '            eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => renderVars(loadVars()));\n' +
+    '          }\n' +
+    '          $(errorCatched(init));\n' +
+    '        规则：仅入口，禁止Mvu.watch等不存在接口；errorCatched包裹；$(() => {})加载\n' +
+    '        交付：展示入口，问"事件绑定OK吗？"\n' +
+    '\n' +
+    '      ▶ Step 8：拼接合并+自查（最后一步，把Step 2-7拼成完整HTML）\n' +
+    '        产出：```html 包裹的完整 <!doctype html> 文档\n' +
+    '        ⚠️拼接模板（严格按此顺序，不要重写各模块内容，只做组装）：\n' +
+    '          <!doctype html>\n' +
+    '          <html lang="zh-CN">\n' +
+    '          <head>\n' +
+    '            <meta charset="UTF-8">\n' +
+    '            <style>\n' +
+    '              [Step 2 的 :root 块原样粘贴]\n' +
+    '              [Step 4 的样式规则原样粘贴]\n' +
+    '            </style>\n' +
+    '            <script type="module">\n' +
+    '              [Step 5 的 loadVars 函数原样粘贴]\n' +
+    '              [Step 6 的 renderVars/renderVarTree 函数原样粘贴]\n' +
+    '              [Step 7 的 init + $(errorCatched(init)) 原样粘贴]\n' +
+    '            </script>\n' +
+    '          </head>\n' +
+    '          <body>\n' +
+    '            [Step 3 的 HTML骨架原样粘贴]\n' +
+    '          </body>\n' +
+    '          </html>\n' +
+    '        自查（逐项检查，发现问题立即修正后再交付）：\n' +
+    '          ① HTML结构完整：<!doctype html>+<html>+<head>+<style>+<body>+<script type="module">\n' +
+    '          ② 注释规范：全文无 // 注释，仅 /* */\n' +
+    '          ③ DOM规范：无原生DOM，全部jquery\n' +
+    '          ④ 变量路径：所有_.get路径以 stat_data 开头，与Step 1表一致\n' +
     '          ⑤ 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
     '          ⑥ 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
     '          ⑦ 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
     '          ⑧ 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
     '          ⑨ 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
-    '      交付：输出最终完整代码 + 自查通过确认，引导用户将代码写入正则\n' +
-    '      ⚠️关键实现要求（AI必须严格遵守）：\n' +
+    '        交付：输出最终完整代码 + 自查通过确认 + 引导用户写入正则\n' +
+    '\n' +
+    '      【机制2：按号精准修改】（核心！避免整体重写）\n' +
+    '      当用户要求修改时，AI必须先识别是哪个Step的问题，只重写该Step的代码块：\n' +
+    '        · 用户说"改配色" → 只重写 Step 2，其他不变\n' +
+    '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，Step 8重新拼接\n' +
+    '        · 用户说"换UI风格" → 重写 Step 2+3+4（结构+样式相关），Step 5/6/7不变\n' +
+    '        · 用户说"渲染逻辑有bug" → 只改 Step 6\n' +
+    '        · 用户说"事件没触发" → 只改 Step 7\n' +
+    '      ⚠️修改后必须重新执行 Step 8 拼接，输出新的完整HTML\n' +
+    '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
+    '\n' +
+    '      【机制3：弱模型友好设计】\n' +
+    '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
+    '        · 每个Step职责单一，代码量≤30行，降低出错率\n' +
+    '        · 每步交付后停下等用户确认，避免长上下文丢失\n' +
+    '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
+    '        · Step 8是机械拼接，不需要创造力，弱模型也能可靠完成\n' +
+    '\n' +
+    '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
+    '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
     '        · 读变量：_.get(getAllVariables(), "stat_data", {}) （不要用Mvu.getVar，有时序失效问题）\n' +
     '        · 异步等待：await waitGlobalInitialized(\'Mvu\') 仅入口调用，此外禁止使用Mvu.watch等不存在的接口\n' +
     '        · DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById/innerHTML/classList\n' +
