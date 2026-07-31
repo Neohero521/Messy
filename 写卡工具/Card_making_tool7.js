@@ -5213,6 +5213,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 此时extractJSON提取不到，需要这个兜底机制把HTML保存到cardData.extensions.regex_scripts
       function tryExtractStatusBarHtml(aiText) {
         if (!aiText) return false;
+        // ⚠️ 若AI回复中已存在 Step 模块标记，则Step拼接逻辑(tryExtractAndAssembleStatusBar)优先级更高，不走此兜底
+        if (/\/\*\s*===\s*Step\s*\d/.test(aiText)) return false;
         // 匹配所有 ```html 代码块
         var htmlBlocks = [];
         var htmlRe = /```html\s*\n([\s\S]*?)\n```/gi;
@@ -5231,19 +5233,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         if (htmlBlocks.length === 0) return false;
 
-        // 检测哪个代码块是状态栏HTML（含特征关键词）
+        // 强负面关键词：含这些内容一定不是状态栏HTML（是写卡器进度块/世界书条目碎片等）
+        var blockBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
+                              '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
+                              'Step 1：', 'Step 2：', 'Step 3：', 'Step 4：', 'Step 5：',
+                              'Step 6：', 'Step 7：', 'Step 8：', '/* === Step',
+                              '📊 变量系统', '🏛️ 基础公理', '🤝 交互软规则', '🔐 核心铁则',
+                              'character_book', 'entries', 'comment', 'insertion_order'];
+        // 状态栏HTML专属特征：必须出现HTML结构 + 多个渲染相关特征词才认定
+        var mustHaveStructure = ['<!doctype', '<html', '<style', '<script'];
         var statusBarKeywords = ['StatusPlaceHolderImpl', 'render-root', 'stat_data', 'waitGlobalInitialized',
                                  'getAllVariables', 'mvu-status', 'card-body', 'refreshStatus', 'renderTree',
-                                 'eventOn', 'Mvu', 'statusbar'];
+                                 'matrix-card', 'matrix-grid', 'm-bar-wrap', '.m-label', '.m-value',
+                                 'renderVars', 'loadVars', 'mvu-matrix-ui', 'mvu-status-card'];
         var statusBarHtml = null;
         for (var i = 0; i < htmlBlocks.length; i++) {
           var block = htmlBlocks[i];
+          // 黑名单过滤：直接跳过含进度块/世界书/Step碎片的代码块
+          var hitBlack = false;
+          for (var b = 0; b < blockBlacklist.length; b++) {
+            if (block.indexOf(blockBlacklist[b]) >= 0) { hitBlack = true; break; }
+          }
+          if (hitBlack) continue;
+          // 结构验证：至少出现2个HTML结构标签（非单纯CSS/JS碎片）
+          var structCount = 0;
+          for (var s = 0; s < mustHaveStructure.length; s++) {
+            if (block.indexOf(mustHaveStructure[s]) >= 0) structCount++;
+          }
+          if (structCount < 2) continue;
+          // 特征关键词：至少4个才认为是状态栏HTML（避免误匹配MVU schema等内容）
           var matchCount = 0;
           for (var k = 0; k < statusBarKeywords.length; k++) {
             if (block.indexOf(statusBarKeywords[k]) >= 0) matchCount++;
           }
-          // 至少匹配2个特征词才认为是状态栏HTML
-          if (matchCount >= 2) {
+          if (matchCount >= 4) {
             // 清理字面量转义字符
             var cleaned = block;
             if (cleaned.indexOf('\\n') >= 0) cleaned = cleaned.replace(/\\n/g, '\n');
@@ -5344,8 +5367,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function tryExtractAndAssembleStatusBar(aiText) {
         if (!aiText) return false;
+        // 强负面关键词：含这些内容的代码块是无效内容（写卡器进度块/世界书碎片等），直接丢弃
+        var codeBlacklist = ['<statusblock>', '信息完整度', '需要您补充的信息',
+                             '基础公理', '交互软规则', '核心铁则', '近场强约束',
+                             'character_book', '"entries"', '"comment"', '"insertion_order"',
+                             '角色卡', '体系完成度', '待补充', '进行中', '⏳', '❌', '✅',
+                             '```json', '```yaml', '"enabled"', '"constant"', '"position"',
+                             '📊 变量系统', '🏛️ 基础公理', '🤝 交互软规则', '🔐 核心铁则'];
+        function isBadCode(code) {
+          for (var bi = 0; bi < codeBlacklist.length; bi++) {
+            if (code.indexOf(codeBlacklist[bi]) >= 0) return true;
+          }
+          return false;
+        }
+        // Step语义校验：根据Step号验证代码内容是否匹配预期类型
+        function validateStepContent(stepNum, code) {
+          if (!code || code.length < 8) return false;
+          if (isBadCode(code)) return false;
+          switch (stepNum) {
+            case 2: // Step2：配色方案 —— 必须含 :root { 或 CSS变量定义
+              return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
+            case 3: // Step3：HTML骨架 —— 必须含HTML标签
+              return /<\w+[\s>]/g.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
+            case 4: // Step4：CSS样式 —— 必须含选择器{规则}
+              return code.indexOf('{') >= 0 && (code.indexOf('.') >= 0 || code.indexOf('#') >= 0);
+            case 5: // Step5：变量读取 —— 必须含 function 或 _.get 或 getAllVariables
+              return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
+            case 6: // Step6：渲染函数 —— 必须含 function 或 .text( 或 .html( 或 jquery 操作
+              return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
+            case 7: // Step7：事件入口 —— 必须含 waitGlobalInitialized 或 eventOn 或 $(errorCatched 或 init()
+              return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || code.indexOf('init') >= 0;
+          }
+          return true;
+        }
         // 提取所有 /* === Step N: 标题 === */ 标记后的代码块
-        var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
+        // 兼容写法：允许 */ 与 ``` 之间有任意空白（换行/空格），以及 ``` 后语言标记可选
+        var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*(?:\s*\n)?\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
         var m;
         var foundAny = false;
         // 清理代码中的字面量转义：将 \n（两个字符）转为真实换行，\" 转为 "，\\ 转为 \
@@ -5365,20 +5422,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         while ((m = stepRe.exec(aiText)) !== null) {
           var stepNum = parseInt(m[1], 10);
           var code = cleanCode(m[2]);
-          if (stepNum >= 2 && stepNum <= 7) {
+          if (stepNum >= 2 && stepNum <= 7 && validateStepContent(stepNum, code)) {
             statusBarModules['step' + stepNum] = code;
             foundAny = true;
           }
         }
         // 也匹配无 ``` 包裹但紧跟标记的代码（AI可能直接写代码不包代码块）
-        if (!foundAny) {
-          var stepRe2 = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*([^*=]*?)===\s*\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/gi;
-          while ((m = stepRe2.exec(aiText)) !== null) {
-            var sn = parseInt(m[1], 10);
-            var raw = cleanCode(m[3].trim());
-            // 去掉可能的 ``` 包裹
-            raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-            if (sn >= 2 && sn <= 7 && raw.length > 10) {
+        // 兼容：修正正则的中括号，避免 [^*=] 过度匹配导致捕获范围错误
+        var stepRe2 = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*([\s\S]*?)===\s*\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/gi;
+        while ((m = stepRe2.exec(aiText)) !== null) {
+          var sn = parseInt(m[1], 10);
+          var raw = cleanCode(m[3].trim());
+          // 去掉可能的 ``` 包裹
+          raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+          if (sn >= 2 && sn <= 7 && raw.length > 10 && validateStepContent(sn, raw)) {
+            // 仅当前Step还没有被stepRe的代码块匹配时，才用fallback填充（代码块版优先级更高）
+            if (!statusBarModules['step' + sn]) {
               statusBarModules['step' + sn] = raw;
               foundAny = true;
             }
@@ -5386,10 +5445,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         if (!foundAny) return false;
 
-        // 检查是否有足够的模块来拼接（至少需要 step3 骨架 + step5/6/7 之一 的脚本）
+        // 检查是否有足够的模块来拼接（至少需要 step3 骨架 + step5/6/7 之一 的脚本，或 CSS+骨架 组合）
         var hasSkeleton = !!statusBarModules.step3;
         var hasScript = !!(statusBarModules.step5 || statusBarModules.step6 || statusBarModules.step7);
+        var hasCss = !!(statusBarModules.step2 || statusBarModules.step4);
         if (!hasSkeleton && !hasScript) return false;
+        if (!hasSkeleton && !hasCss) return false;
 
         var assembledHtml = assembleStatusBarFromModules();
         if (!assembledHtml) return false;
