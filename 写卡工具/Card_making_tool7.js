@@ -1254,25 +1254,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；可按用户语义一次生成多个模块，但禁止一次生成全部8步）\n' +
+    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；⚠️严格每次只生成一个模块，禁止一次生成多个模块，禁止一口气生成完整状态栏）\n' +
     '\n' +
     '      ╔══════════════════════════════════════════════════════════════╗\n' +
-    '      ║  ⚠️核心机制：8步分模块生成 + 拼接合并 + 按语义精准修改        ║\n' +
+    '      ║  ⚠️核心机制：8步分模块生成 + 严格单模块交付 + 拼接合并       ║\n' +
     '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
     '      ║  核心原则：每个Step职责单一、有明确示例、按需伸缩            ║\n' +
+    '      ║  ⚠️铁律：一次回答只能生成/修改一个模块，禁止生成多个模块     ║\n' +
+    '      ║  ⚠️铁律：生成模块前必须与已有模块对照，相互印证确保可行       ║\n' +
+    '      ║  ⚠️铁律：生成模块时禁止输出其他代码块，只输出该模块本身       ║\n' +
+    '      ║  ⚠️铁律：每次输出模块后结尾必须提醒用户接下来该干什么         ║\n' +
+    '      ║  ⚠️铁律：禁止AI一口气生成完整状态栏                          ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
-    '      【机制1：渐进式分模块收集（像角色卡一样一点一点收集，最后拼在一起）】\n' +
-    '      写卡器会跨多轮对话逐步收集各Step代码模块，用户每说一次"继续"你就生成下一批模块。\n' +
+    '      【机制1：渐进式分模块收集（严格单模块交付，像角色卡一样一点一点收集，最后拼在一起）】\n' +
+    '      写卡器会跨多轮对话逐步收集各Step代码模块，用户每说一次"继续"你就生成下一个模块。\n' +
     '      每个模块用 `/* === Step N: 标题 === */` 标记+代码块输出，写卡器自动提取并累积保存。\n' +
-    '      渐进式交付原则（按用户语义决定生成哪些模块，不强制按顺序，但禁止一次生成全部）：\n' +
-    '        · 可以一次生成/修改多个模块（按用户语义涉及的Step），不需要一步一步来\n' +
-    '        · ⚠️禁止一次生成全部8个Step——至少分2批以上交付，避免上下文过长导致质量下降\n' +
-    '        · 用户要"超大型/复杂/豪华状态栏" → 不限制单步代码量，可任意复杂，但仍需分批交付\n' +
+    '      ⚠️严格单模块交付原则（核心铁律，不可违反）：\n' +
+    '        · ⛔一次回答只能生成或修改一个模块（一个Step），绝对禁止在同一个回答中输出多个Step的代码块\n' +
+    '        · ⛔禁止AI一口气生成完整状态栏——必须分7次以上交付（Step 1到Step 7各一次），Step 8仅确认不输出代码\n' +
+    '        · ⛔生成模块时禁止输出其他代码块——回答中只能有当前这一个Step的代码块，不能附带其他Step的代码、完整HTML、JSON等\n' +
+    '        · ✅生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
+    '          - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点\n' +
+    '          - 生成Step 4样式前，对照Step 3骨架的class/id命名，确保选择器一一对应\n' +
+    '          - 生成Step 5读取前，对照Step 1变量表的路径，确保_.get路径完全一致\n' +
+    '          - 生成Step 6渲染前，对照Step 3的id命名和Step 5的返回值结构，确保DOM操作目标存在\n' +
+    '          - 生成Step 7入口前，对照Step 6的函数名和Step 5的函数名，确保调用正确\n' +
+    '        · ✅每次输出模块后，结尾必须提醒用户接下来该干什么（如"下一步是Step N: XXX，请说继续"）\n' +
     '        · 用户要"分步骤看"或"我先确认变量表" → 只做当前Step，停下问"OK吗？"\n' +
-    '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step\n' +
-    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step\n' +
-    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
+    '        · 用户只说"改配色/改样式/改渲染逻辑" → 只做涉及的那个Step，其他不动\n' +
+    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ ⚠️仍然一次只做一个Step，先做Step 2，然后提醒"接下来需要改Step 3骨架和Step 4样式，请说继续"\n' +
+    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认，然后逐个生成\n' +
     '      ⚠️各Step代码块用 /* === Step N: 标题 === */ 标记，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
     '      ⚠️写卡器会在每轮对话后显示收集进度（✅已收集/⬜还缺），并自动用已收集的模块拼接保存，可随时预览\n' +
     '\n' +
@@ -1286,6 +1298,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          | stat_data.背包 | array | 物品栏 | 背包 |\n' +
     '        用途：后续Step全部基于此表，路径和类型不得偏离\n' +
     '        交付：展示表格，问"这些变量都显示吗？要加/减/改分组的告诉我"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 2: 配色方案，请说继续"\n' +
     '\n' +
     '      ▶ Step 2：配色方案（仅CSS :root变量块）\n' +
     '        产出：仅一段 `:root { --xxx: 颜色; }`，不含任何选择器规则\n' +
@@ -1297,6 +1310,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            --text-main: #e2e8f0;\n' +
     '          }\n' +
     '        交付：展示配色，问"配色OK吗？"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 3: HTML结构骨架，请说继续"\n' +
     '\n' +
     '      ▶ Step 3：HTML结构骨架（仅<body>内DOM，含静态假数据，无CSS无JS）\n' +
     '        产出：纯DOM结构，每个变量节点预留唯一id\n' +
@@ -1310,12 +1324,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            <div class="stat-row"><span class="label">好感度</span><span class="value" id="stat-core-hp">35</span></div>\n' +
     '          </div>\n' +
     '        交付：展示骨架，问"结构和分组OK吗？"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 4: CSS样式表，请说继续"\n' +
     '\n' +
     '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
     '        产出：基于Step 3结构写所有选择器规则，引用Step 2的CSS变量\n' +
     '        必含：卡片容器、分类标题、stat-row布局、数值着色、加载动画、刷新淡入\n' +
     '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片形状不加背景色\n' +
     '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 5: 变量读取函数，请说继续"\n' +
     '\n' +
     '      ▶ Step 5：变量读取函数（仅JS function，纯函数无副作用）\n' +
     '        产出：`function loadVars() { ... return data; }` 单个函数\n' +
@@ -1333,6 +1349,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            };\n' +
     '          }\n' +
     '        交付：展示函数，简要说明读取了哪些路径\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 渲染函数，请说继续"\n' +
     '\n' +
     '      ▶ Step 6：渲染函数（仅JS function，处理类型+写DOM）\n' +
     '        产出：`function renderVars(data) { ... }` 单个函数\n' +
@@ -1343,6 +1360,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          · 跳过key以_/$开头的\n' +
     '          · 注释只能用 /* */，禁止 //\n' +
     '        交付：展示函数，问"渲染逻辑OK吗？"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 7: 事件绑定+入口，请说继续"\n' +
     '\n' +
     '      ▶ Step 7：事件绑定+入口（仅JS入口代码，无函数定义）\n' +
     '        产出：\n' +
@@ -1355,14 +1373,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          $(errorCatched(init));\n' +
     '        规则：仅入口，禁止Mvu.watch等不存在接口；errorCatched包裹；$(() => {})加载\n' +
     '        交付：展示入口，问"事件绑定OK吗？"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 8: 拼接合并+自查，请说继续"\n' +
     '\n' +
-    '      ▶ Step 8：拼接合并+自查（最后一步）\n' +
+    '      ▶ Step 8：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
     '        ⚠️重要：拼接由写卡器自动完成，AI不需要重新输出完整HTML！\n' +
     '        AI只需确认各Step模块已就绪，写卡器会自动提取各Step代码块并拼接成完整HTML保存。\n' +
     '        这样各模块可以任意大，拼接不受AI单次输出长度限制。\n' +
     '        AI在Step 8需要做的：\n' +
     '          ① 确认 Step 2-7 的代码块都已输出（每个Step用 /* === Step N: 标题 === */ 标记+代码块）\n' +
-    '          ② 逐项自查（发现问题回到对应Step修正后重新输出该Step代码块）：\n' +
+    '          ② 模块间交叉对照自查（发现问题回到对应Step修正——但每次只能重新输出一个Step）：\n' +
     '            a. HTML结构：Step 3骨架是合法HTML片段\n' +
     '            b. 注释规范：全文无 // 注释，仅 /* */\n' +
     '            c. DOM规范：无原生DOM，全部jquery\n' +
@@ -1372,8 +1391,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            g. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
     '            h. 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
     '            i. 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
+    '            j. ⚠️模块间一致性对照（核心）：\n' +
+    '               - Step 3的id命名 vs Step 6的DOM操作目标 → 必须一一对应\n' +
+    '               - Step 5的return字段名 vs Step 6的data.xxx引用 → 必须完全一致\n' +
+    '               - Step 2的CSS变量名 vs Step 4的var(--xxx)引用 → 必须完全一致\n' +
+    '               - Step 3的class命名 vs Step 4的选择器 → 必须一一对应\n' +
+    '               - Step 1的变量路径 vs Step 5的_.get路径 → 必须完全一致\n' +
     '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
     '        ⚠️禁止在Step 8重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
+    '        ⚠️Step 8不输出任何代码块，仅做文字确认和自查报告\n' +
     '\n' +
     '      【机制3：AI触发状态栏预览命令】\n' +
     '        当AI需要向用户展示当前已收集的状态栏效果时，在消息中输出 `<preview_statusbar>` 标记。\n' +
@@ -1381,27 +1407,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        这样AI不需要在消息中输出冗长的HTML代码，用户也能实时看到效果。\n' +
     '        使用时机：模块收集完成后、用户说"让我看看""预览一下""效果如何"时。\n' +
     '\n' +
-    '      【机制4：按语义精准修改】（核心！避免整体重写）\n' +
-    '      当用户要求修改时，AI先识别涉及哪些Step（按用户语义，可涉及多个），只重写涉及的Step：\n' +
+    '      【机制4：按语义精准修改】（核心！避免整体重写，严格单模块修改）\n' +
+    '      当用户要求修改时，AI先识别涉及哪些Step，⚠️但每次回答只重写一个Step：\n' +
     '        · 用户说"改配色" → 只重写 Step 2，其他不变\n' +
-    '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，写卡器自动拼接\n' +
-    '        · 用户说"换UI风格" → 重写 Step 2+3+4（结构+样式相关），Step 5/6/7不变\n' +
     '        · 用户说"渲染逻辑有bug" → 只改 Step 6\n' +
     '        · 用户说"事件没触发" → 只改 Step 7\n' +
-    '        · 用户说"再加一个进度条模块/技能栏/装备栏" → 改 Step 1+3+5+6（加新模块涉及多Step），写卡器自动拼接\n' +
-    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
-    '      ⚠️修改后只需重新输出涉及的Step代码块，写卡器会自动拼接保存（不需要AI输出完整HTML）\n' +
+    '        · 用户说"加个新变量" → 涉及 Step 1+3+5+6，但⚠️一次只改一个：先改Step 1，提醒"接下来需改Step 3/5/6，请说继续"\n' +
+    '        · 用户说"换UI风格" → 涉及 Step 2+3+4，但⚠️一次只改一个：先改Step 2，提醒"接下来需改Step 3和4，请说继续"\n' +
+    '        · 用户说"再加一个进度条模块/技能栏/装备栏" → 涉及 Step 1+3+5+6，但⚠️一次只改一个，逐个提醒\n' +
+    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认，然后逐个生成\n' +
+    '      ⚠️修改后只需重新输出涉及的当前这一个Step代码块，写卡器会自动拼接保存（不需要AI输出完整HTML）\n' +
     '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
-    '      ⚠️但若用户明确要"大改/重做/换风格"涉及多Step时，必须一次做完所有涉及的Step，不要挤牙膏\n' +
+    '      ⚠️禁止一次修改多个Step——即使涉及多个Step，也必须逐个输出，每次一个\n' +
+    '      ⚠️修改模块前同样必须与已有模块对照、相互印证，确保修改后的模块与其他模块兼容\n' +
+    '      ⚠️修改模块时同样禁止输出其他代码块，回答中只能有当前修改的那一个Step的代码块\n' +
+    '      ⚠️修改模块后结尾同样必须提醒用户接下来该干什么\n' +
     '\n' +
-    '      【机制3：弱模型友好设计】\n' +
+    '      【机制5：弱模型友好设计】\n' +
     '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
     '        · 每个Step职责单一，代码量按需决定（简单状态栏每个Step可≤30行；超大型/复杂状态栏单个Step可上百行，不设上限）\n' +
     '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
-    '        · 用户要"多模块一起生成"时，可一次做完多个涉及的Step，但禁止一次做完全部8步\n' +
+    '        · ⚠️每次只做一个Step，禁止一次做多个——弱模型上下文短，单模块输出质量更高\n' +
     '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
     '        · Step 8由写卡器自动拼接，AI不需要重新输出代码，避免输出长度限制\n' +
     '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
+    '        · ⚠️每个Step生成前，AI需在文字中简述"我将对照Step X的XXX来确保一致"，然后再输出代码块\n' +
     '\n' +
     '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
     '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
@@ -5405,6 +5435,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*(?:\s*\n)?\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
         var m;
         var foundAny = false;
+        var stepsFoundInThisRound = []; // 记录本次提取到的Step号（用于多模块检测）
         // 清理代码中的字面量转义：将 \n（两个字符）转为真实换行，\" 转为 "，\\ 转为 \
         function cleanCode(code) {
           // 仅当代码中存在字面量 \n 时才处理（避免破坏正常的正则表达式中的 \n）
@@ -5423,7 +5454,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var stepNum = parseInt(m[1], 10);
           var code = cleanCode(m[2]);
           if (stepNum >= 2 && stepNum <= 7 && validateStepContent(stepNum, code)) {
+            // ⚠️严格单模块限制：如果本次已经提取到一个有效Step，跳过后续的（仅取第一个）
+            if (stepsFoundInThisRound.length >= 1) {
+              console.warn('[statusbar] ⚠️AI一次输出了多个Step代码块，仅提取第一个(Step ' + stepsFoundInThisRound[0] + ')，忽略Step ' + stepNum);
+              continue;
+            }
             statusBarModules['step' + stepNum] = code;
+            stepsFoundInThisRound.push(stepNum);
             foundAny = true;
           }
         }
@@ -5436,9 +5473,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 去掉可能的 ``` 包裹
           raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
           if (sn >= 2 && sn <= 7 && raw.length > 10 && validateStepContent(sn, raw)) {
+            // ⚠️严格单模块限制：如果本次已经提取到一个有效Step（无论来自stepRe还是stepRe2），跳过后续的
+            if (stepsFoundInThisRound.length >= 1) {
+              if (stepsFoundInThisRound.indexOf(sn) < 0) {
+                console.warn('[statusbar] ⚠️AI一次输出了多个Step代码块，仅提取第一个(Step ' + stepsFoundInThisRound[0] + ')，忽略Step ' + sn);
+              }
+              continue;
+            }
             // 仅当前Step还没有被stepRe的代码块匹配时，才用fallback填充（代码块版优先级更高）
             if (!statusBarModules['step' + sn]) {
               statusBarModules['step' + sn] = raw;
+              stepsFoundInThisRound.push(sn);
               foundAny = true;
             }
           }
@@ -5650,6 +5695,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             // 优先：尝试从AI回答中提取各Step模块代码，由写卡器JS自动拼接成完整HTML
             var modulesAssembled = tryExtractAndAssembleStatusBar(aiResponse);
             if (modulesAssembled) {
+              // 检测AI是否一次输出了多个Step代码块（违规）
+              var multiStepMatches = aiResponse.match(/\/\*\s*===\s*Step\s*\d\s*[:：]/gi) || [];
+              if (multiStepMatches.length > 1) {
+                addAssistantMsg('⚠️ 检测到AI一次输出了 ' + multiStepMatches.length + ' 个Step代码块（违反单模块规则）。\n' +
+                  '  写卡器仅提取了第一个有效模块，其余已被忽略。\n' +
+                  '  💡 这是正常的安全机制，无需担心。如需生成其他模块，请对AI说"继续"。');
+              }
               // 显示收集进度（像角色卡那样一点一点收集）
               var stepNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
               var collected = [];
@@ -5667,11 +5719,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               renderPreview();
               // 渐进式引导：提示用户还缺哪些模块，引导继续
               if (missing.length > 0) {
+                // 按Step顺序找出下一个该做的模块
+                var stepOrder = ['step2', 'step3', 'step4', 'step5', 'step6', 'step7'];
+                var nextStep = null;
+                for (var si = 0; si < stepOrder.length; si++) {
+                  if (!statusBarModules[stepOrder[si]]) {
+                    nextStep = stepNames[stepOrder[si]];
+                    break;
+                  }
+                }
                 addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/6）\n' +
                   '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
                   '  ⬜ 还缺：' + missing.join('、') + '\n' +
+                  '  ⏭️ 下一步：请生成 Step ' + (si + 2) + ': ' + nextStep + '（对我说"继续"即可）\n' +
                   '  💡 写卡器已用当前已收集的模块自动拼接保存，可点「🔍 预览状态栏」查看效果。\n' +
-                  '  继续生成缺失的模块吗？直接告诉我"继续"或指定模块名。');
+                  '  ⚠️提醒：每次只能生成一个模块，生成前请与已收集的模块对照确保一致。');
               } else {
                 addAssistantMsg('🎉 状态栏全部6个模块已收集完成！\n' +
                   '  ✅ ' + collected.join(' · ') + '\n' +
