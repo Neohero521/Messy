@@ -1235,16 +1235,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      ║  核心原则：每个Step职责单一、有明确示例、按需伸缩            ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
-    '      【机制1：8步分模块生成】每步独立成块，AI用 `/* === Step N: 标题 === */` 作为分隔标记（标记写在代码块外，用于人类可读）\n' +
-    '      灵活交付原则（按用户语义决定生成哪些模块，不强制按顺序，但禁止一次生成全部8步）：\n' +
+    '      【机制1：渐进式分模块收集（像角色卡一样一点一点收集，最后拼在一起）】\n' +
+    '      写卡器会跨多轮对话逐步收集各Step代码模块，用户每说一次"继续"你就生成下一批模块。\n' +
+    '      每个模块用 `/* === Step N: 标题 === */` 标记+代码块输出，写卡器自动提取并累积保存。\n' +
+    '      渐进式交付原则（按用户语义决定生成哪些模块，不强制按顺序，但禁止一次生成全部）：\n' +
     '        · 可以一次生成/修改多个模块（按用户语义涉及的Step），不需要一步一步来\n' +
     '        · ⚠️禁止一次生成全部8个Step——至少分2批以上交付，避免上下文过长导致质量下降\n' +
     '        · 用户要"超大型/复杂/豪华状态栏" → 不限制单步代码量，可任意复杂，但仍需分批交付\n' +
     '        · 用户要"分步骤看"或"我先确认变量表" → 只做当前Step，停下问"OK吗？"\n' +
-    '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step + 最后Step 8拼接\n' +
-    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step + Step 8拼接\n' +
+    '        · 用户只说"改配色/改样式/改渲染逻辑" → 跳过无关Step，只做涉及的Step\n' +
+    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ 一次做完所有涉及的Step\n' +
     '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认\n' +
     '      ⚠️各Step代码块用 /* === Step N: 标题 === */ 标记，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
+    '      ⚠️写卡器会在每轮对话后显示收集进度（✅已收集/⬜还缺），并自动用已收集的模块拼接保存，可随时预览\n' +
     '\n' +
     '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
     '        产出：表格 | 路径 | 类型 | 分组 | 显示名 |\n' +
@@ -4332,6 +4335,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             cardGenerated: cardGenerated,
             progress: progress,
             moduleProgress: moduleProgress,
+            statusBarModules: statusBarModules,
             timestamp: Date.now()
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -4360,6 +4364,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
             moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
+            if (state.statusBarModules) {
+              statusBarModules = state.statusBarModules;
+            }
             return true;
           }
         } catch(e) {}
@@ -5265,9 +5272,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             // 优先：尝试从AI回答中提取各Step模块代码，由写卡器JS自动拼接成完整HTML
             var modulesAssembled = tryExtractAndAssembleStatusBar(aiResponse);
             if (modulesAssembled) {
-              showToast('✅ 已从AI回答中提取状态栏模块并自动拼接保存', 'success');
+              // 显示收集进度（像角色卡那样一点一点收集）
+              var stepNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
+              var collected = [];
+              var missing = [];
+              for (var sk in stepNames) {
+                if (statusBarModules[sk]) collected.push(stepNames[sk]);
+                else missing.push(stepNames[sk]);
+              }
+              var progressBar = '';
+              for (var pk in stepNames) {
+                progressBar += statusBarModules[pk] ? '✅' : '⬜';
+              }
+              showToast('✅ 状态栏模块收集 ' + collected.length + '/6 ' + progressBar, 'success');
               progress = calcProgress();
               renderPreview();
+              // 渐进式引导：提示用户还缺哪些模块，引导继续
+              if (missing.length > 0) {
+                addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/6）\n' +
+                  '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
+                  '  ⬜ 还缺：' + missing.join('、') + '\n' +
+                  '  💡 写卡器已用当前已收集的模块自动拼接保存，可点「🔍 预览状态栏」查看效果。\n' +
+                  '  继续生成缺失的模块吗？直接告诉我"继续"或指定模块名。');
+              } else {
+                addAssistantMsg('🎉 状态栏全部6个模块已收集完成！\n' +
+                  '  ✅ ' + collected.join(' · ') + '\n' +
+                  '  写卡器已自动拼接保存完整HTML，可点「🔍 预览状态栏」查看最终效果。');
+              }
             } else {
               // 次选：AI可能直接输出了完整HTML代码块（非分模块），直接提取保存
               var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
