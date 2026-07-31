@@ -710,10 +710,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
     '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
     '  3. [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
-    '     · YAML格式，沿用变量结构层级，每变量含 type/range/check 三字段\n' +
-    '     · check 是核心，用自然语言说明何时更新、更新成什么值\n' +
+    '     · YAML格式，沿用变量结构层级，每变量含以下字段（按需选用）：\n' +
+    '       - type: 变量类型（string类型可省略此字段；number/boolean直接写；复杂类型用 |- 多行TypeScript类型块）\n' +
+    '       - range: 数值范围（如 0~100）\n' +
+    '       - format: 字符串格式要求（如 ${xx历}-${YYYY/MM/DD}-${HH:MM}）\n' +
+    '       - category: 数值分段语义（如 20~40: 普通人 / 40~70: 冒险者）\n' +
+    '       - check: 更新规则（核心字段，用自然语言说明何时更新、更新成什么值）\n' +
+    '     · ⚠️注意：变量结构脚本(zod)是对变量的硬性要求，更新规则中的type/range/format/category是对AI的希望建议\n' +
+    '     · 同类型合并：固定键用 ${力量|敏捷|体质|感知} 写法，动态键放进type的index signature\n' +
+    '     · 同对象字段嵌套以减少token；_前缀字段是只读，AI不可更新\n' +
     '     · 示例：\n' +
-    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      range: 0~100\\n      check:\\n        - 根据白娅对<user>行为的感知调整 ±(3~6)\\n        - 单次互动最多+1，同一剧情日累计最多+5\n' +
+    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      range: 0~100\\n      category:\\n        0~20: 陌生\\n        80~100: 深爱\\n      check:\\n        - 单次互动最多+1，同一剧情日累计最多+5\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进后更新\n' +
     '  4. [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
     '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
@@ -723,18 +730,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
     '  5. 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
-    '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）\n' +
-    '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值）\n' +
-    '     · 默认值用.prefault(默认值)（AI漏写字段时自动填充）\n' +
-    '     · 字段不固定对象用z.record(键类型, 值类型)\n' +
-    '     · 固定键集合用z.partialRecord(z.enum([...]), 值类型)（可选键，如能力面板、羁绊）\n' +
-    '     · 既有固定字段又有动态字段用z.intersection(z.object({...}), z.record(...))\n' +
+    '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）；但布尔直接用z.boolean()，不要用z.coerce.boolean()\n' +
+    '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值，用户期望部分更新而非整体丢弃）\n' +
+    '     · 默认值用.prefault(默认值)（非z.default；AI漏写字段时自动填充）；复合类型若用prefault，其所有子字段也必须prefault\n' +
+    '     · 幂等性要求（核心）：Schema.parse(Schema.parse(input)) 必须等于 Schema.parse(input)；z.transform需谨慎，不可破坏幂等性\n' +
+    '     · z.transform限制：fn只能接收解析后的output，绝不可以用context；例 z.object({好感度:z.coerce.number()}).transform(d=>({好感度:_.clamp(d.好感度,0,100)}))\n' +
+    '     · z.prefault限制：value必须是该schema自身的合法input；可以是值或函数（如 .prefault(()=>Date.now())）\n' +
+    '     · z.extend限制：只有z.object/z.looseObject/z.strictObject能被extend；z.object(...).prefault({})不能再extend\n' +
+    '     · ⚠️禁止使用z.passthrough/z.strict（不存在，永远不要用）\n' +
+    '     · 5种对象场景（按需选用）：\n' +
+    '       (a) 固定必填键+同类型值：z.record(z.enum([\'上装\',\'下装\']), z.string())\n' +
+    '       (b) 固定可选键+同类型值：z.partialRecord(z.enum([...]), 值类型)\n' +
+    '       (c) 动态可选键+同类型值：z.record(z.string(), 值类型)\n' +
+    '       (d) 固定必填键+不同类型值：z.object({ key1: 类型1, key2: 类型2 })\n' +
+    '       (e) 部分必填+动态同类型：z.intersection(z.object({必填字段}), z.record(z.string(), 值类型))\n' +
+    '     · 可清除对象（会被remove op删除的）：用 z.object({字段:类型.prefault(...)}).prefault({}) 而非 z.object({...}).optional()\n' +
     '     · 枚举限制用z.enum([\'值1\',\'值2\',...])（如状态/品质/属性/阵营）\n' +
     '     · 联合类型用z.union([z.literal(\'待初始化\'), z.coerce.number()])（允许"待初始化"或数值）\n' +
-    '     · 格式化字符串用z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...])（如D1.C1章节、75kg体重）\n' +
-    '     · 字段含义用.describe(\'描述\')\n' +
+    '     · 格式化字符串优先用z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...])（优于正则或手动解析）\n' +
+    '     · 字段含义用.describe(\'描述\')（仅当字段名无法自解释时用，如z.record的key类型；字段名已说明用途时不要画蛇添足）\n' +
+    '     · 插入顺序：若需按插入时间管理key，用_(data).entries()（按插入序列出）；配合 $time: z.coerce.number().prefault(()=>Date.now()) 自动时间戳\n' +
     '     · AI不可更新字段用 _ 前缀（如_当前回合），schema中添加注释；AI不可见字段用 $ 前缀\n' +
     '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤等动态规则\n' +
+    '     · 完整示例：\n' +
+    '       import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
+    '       export const Schema = z.object({\n' +
+    '         世界: z.object({\n' +
+    '           当前时间: z.string(),\n' +
+    '           近期事务: z.record(z.string().describe(\'事务名\'), z.string().describe(\'事务描述\')),\n' +
+    '         }),\n' +
+    '         白娅: z.object({\n' +
+    '           依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
+    '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\']), z.string().describe(\'服装描述\')),\n' +
+    '         }),\n' +
+    '         主角: z.object({\n' +
+    '           物品栏: z.record(z.string().describe(\'物品名\'), z.object({\n' +
+    '             描述: z.string(), 数量: z.coerce.number(),\n' +
+    '           })).transform(d => _.pickBy(d, ({数量}) => 数量 > 0)),\n' +
+    '         }),\n' +
+    '       });\n' +
+    '       $(() => { registerMvuSchema(Schema); })\n' +
     '  6. 酒馆助手脚本 API（可选，用于状态栏渲染和事件响应）：\n' +
     '     · 事件：Mvu.events.VARIABLE_INITIALIZED（initvar 加载完成）、Mvu.events.VARIABLE_UPDATE_ENDED（每次更新结束）\n' +
     '     · 读取（状态栏渲染推荐）：getAllVariables() + _.get(allVars,"stat_data",{}) —— 复用酒馆助手稳定API，避免时序失效\n' +
@@ -3010,119 +3045,120 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   - 默认值用 .prefault()（MVU 扩展，缺失时自动补默认值）
   //   - 对象用 z.object({...}).prefault({ inline默认值 })，递归生成嵌套结构
   //   - 字符串用 z.string().prefault('值')，布尔用 z.boolean().prefault(值)
-  function generateMvuSchemaScript(initVarContent) {
-    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
-    var FOOTER = "});";
+  /* === 顶层 YAML/InitVar 解析函数（供 generateMvuSchemaScript 和 showMvuStatusBarPreview 共用）=== */
+  function parseYamlSimple(text) {
+    var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    if (!cleaned) return null;
+    var lines = cleaned.split('\n');
+    var root = {};
+    var stack = [{ indent: -1, node: root, parentNode: null, key: null }];
 
-    function parseYamlSimple(text) {
-      var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
-      if (!cleaned) return null;
-      var lines = cleaned.split('\n');
-      var root = {};
-      var stack = [{ indent: -1, node: root, parentNode: null, key: null }];
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
+      var indent = 0;
+      while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
+        indent += raw[indent] === '\t' ? 2 : 1;
+      }
+      var content = raw.slice(indent).trim();
 
-      for (var i = 0; i < lines.length; i++) {
-        var raw = lines[i];
-        if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
-        var indent = 0;
-        while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
-          indent += raw[indent] === '\t' ? 2 : 1;
-        }
-        var content = raw.slice(indent).trim();
+      while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
 
-        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
-          stack.pop();
-        }
+      var top = stack[stack.length - 1];
 
-        var top = stack[stack.length - 1];
-
-        if (content.charAt(0) === '-') {
-          var itemStr = content.slice(1).trim();
-          var itemVal = parseInlineObj(itemStr);
-          if (top.key !== null && top.parentNode) {
-            if (!Array.isArray(top.parentNode[top.key])) {
-              top.parentNode[top.key] = [];
-            }
-            top.parentNode[top.key].push(itemVal);
-            if (itemVal && typeof itemVal === 'object' && !Array.isArray(itemVal)) {
-              stack.push({
-                indent: indent,
-                node: itemVal,
-                parentNode: top.parentNode[top.key],
-                key: top.parentNode[top.key].length - 1
-              });
-            }
+      if (content.charAt(0) === '-') {
+        var itemStr = content.slice(1).trim();
+        var itemVal = parseInlineObj(itemStr);
+        if (top.key !== null && top.parentNode) {
+          if (!Array.isArray(top.parentNode[top.key])) {
+            top.parentNode[top.key] = [];
           }
-          continue;
+          top.parentNode[top.key].push(itemVal);
+          if (itemVal && typeof itemVal === 'object' && !Array.isArray(itemVal)) {
+            stack.push({
+              indent: indent,
+              node: itemVal,
+              parentNode: top.parentNode[top.key],
+              key: top.parentNode[top.key].length - 1
+            });
+          }
         }
-
-        var colonIdx = content.indexOf(':');
-        if (colonIdx < 0) continue;
-        var key = content.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
-        var valStr = content.slice(colonIdx + 1).trim();
-
-        if (valStr === '') {
-          top.node[key] = {};
-          stack.push({
-            indent: indent,
-            node: top.node[key],
-            parentNode: top.node,
-            key: key
-          });
-        } else {
-          top.node[key] = parseScalar(valStr);
-        }
+        continue;
       }
 
-      function parseScalar(str) {
-        if (str === '') return {};
-        if (str === 'true' || str === 'false') return str === 'true';
-        if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
-        return str.replace(/^['"]|['"]$/g, '');
-      }
+      var colonIdx = content.indexOf(':');
+      if (colonIdx < 0) continue;
+      var key = content.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
+      var valStr = content.slice(colonIdx + 1).trim();
 
-      function parseInlineObj(str) {
-        var colonIdx = str.indexOf(':');
-        if (colonIdx < 0 || str.charAt(0) === '"' || str.charAt(0) === "'") {
-          return parseScalar(str);
-        }
-        var key = str.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
-        var valStr = str.slice(colonIdx + 1).trim();
-        var obj = {};
-        obj[key] = parseScalar(valStr);
-        return obj;
+      if (valStr === '') {
+        top.node[key] = {};
+        stack.push({
+          indent: indent,
+          node: top.node[key],
+          parentNode: top.node,
+          key: key
+        });
+      } else {
+        top.node[key] = parseScalar(valStr);
       }
-
-      return root;
     }
 
-    function normalizeTupleValues(obj) {
-      if (Array.isArray(obj)) {
-        if (obj.length >= 1) return normalizeTupleValues(obj[0]);
-        return null;
+    function parseScalar(str) {
+      if (str === '') return {};
+      if (str === 'true' || str === 'false') return str === 'true';
+      if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+      return str.replace(/^['"]|['"]$/g, '');
+    }
+
+    function parseInlineObj(str) {
+      var colonIdx = str.indexOf(':');
+      if (colonIdx < 0 || str.charAt(0) === '"' || str.charAt(0) === "'") {
+        return parseScalar(str);
       }
-      if (obj && typeof obj === 'object') {
-        var result = {};
-        Object.keys(obj).forEach(function(k) {
-          var v = normalizeTupleValues(obj[k]);
-          if (v !== null && v !== undefined) result[k] = v;
-        });
-        return result;
-      }
+      var key = str.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
+      var valStr = str.slice(colonIdx + 1).trim();
+      var obj = {};
+      obj[key] = parseScalar(valStr);
       return obj;
     }
 
-    function parseInitVar(text) {
-      if (!text || !text.trim()) return null;
-      var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
-      if (cleaned.charAt(0) === '{') {
-        try {
-          var jsonObj = JSON.parse(cleaned);
-          return normalizeTupleValues(jsonObj);
-        } catch (e) {}
-      }
-      return parseYamlSimple(text);
+    return root;
+  }
+
+  function normalizeTupleValues(obj) {
+    if (Array.isArray(obj)) {
+      if (obj.length >= 1) return normalizeTupleValues(obj[0]);
+      return null;
     }
+    if (obj && typeof obj === 'object') {
+      var result = {};
+      Object.keys(obj).forEach(function(k) {
+        var v = normalizeTupleValues(obj[k]);
+        if (v !== null && v !== undefined) result[k] = v;
+      });
+      return result;
+    }
+    return obj;
+  }
+
+  function parseInitVar(text) {
+    if (!text || !text.trim()) return null;
+    var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+    if (cleaned.charAt(0) === '{') {
+      try {
+        var jsonObj = JSON.parse(cleaned);
+        return normalizeTupleValues(jsonObj);
+      } catch (e) {}
+    }
+    return parseYamlSimple(text);
+  }
+
+  function generateMvuSchemaScript(initVarContent) {
+    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    var FOOTER = "});";
 
     function isAffinityLike(name) {
       return /好感|依存|信任|忠诚|友好|亲密/.test(name);
@@ -3296,8 +3332,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   // 生成变量更新规则内容（xr 函数）
-  // 含 type/range/check，好感度增幅上限（单次+1，同日累计+5）
-  // 支持 delta 操作语义（增量数值变更）
+  // 含 type/range/format/check/category，好感度增幅上限（单次+1，同日累计+5）
+  // 支持 delta 操作语义（增量数值变更）；参考 -(2).json 的高级字段示例
   function generateVarUpdateRule(charNames) {
     var lines = [
       '---',
@@ -3305,6 +3341,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '  世界:',
       '    当前时间:',
       '      type: string',
+      '      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}',
       '      check:',
       '        - 每次事件推进、休息、等待或场景切换后更新，保持时间流逝合理',
       '        - 用自然语言描述，如"清晨"、"午后"、"夜晚"、"D1 第三天 夜晚"',
@@ -3329,6 +3366,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       lines.push('    好感度:');
       lines.push('      type: number');
       lines.push('      range: 0~100');
+      lines.push('      category:');
+      lines.push('        0~20: 陌生');
+      lines.push('        20~50: 熟识');
+      lines.push('        50~80: 好感');
+      lines.push('        80~100: 深爱');
       lines.push('      check:');
       lines.push('        - 仅当' + name + '直接感知到<user>的行为，且当前回复中有明确情感依据时才更新');
       lines.push('        - 单次互动最多 +1；没有明确正向互动时不得增加');
@@ -5343,10 +5385,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         var statData = {};
         var initVarContent = '';
+        var usingSampleData = false;
         if (initVarEntry && initVarEntry.content) {
           initVarContent = initVarEntry.content;
           var parsed = parseInitVar(initVarContent);
           if (parsed) statData = parsed;
+        }
+        /* 若 InitVar 为空或解析失败，使用示例数据让预览仍有内容可渲染 */
+        if (!statData || Object.keys(statData).length === 0) {
+          statData = {
+            '世界': { '当前时间': 'D1 第一天 清晨', '当前地点': '初始之地', '_当前回合': 1, '_当前剧情日': 1 },
+            '主角': { '好感度': 35, '状态': '进行中', '物品栏': { '薄荷糖': { '描述': '提神用薄荷糖', '数量': 2 } } }
+          };
+          usingSampleData = true;
         }
         /* 读取状态栏HTML：优先AI生成的正则6，回退默认模板 */
         var statusBarHtml = MVU_STATUS_BAR_HTML;
@@ -5383,7 +5434,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '</div>';
         /* 如果没有InitVar数据，提示用户 */
         if (!initVarEntry) {
-          h += '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">⚠️ 未找到 [InitVar]初始变量 条目，预览将显示空状态栏。请先让AI生成初始变量YAML。</div>';
+          h += '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据预览。请先让AI生成初始变量YAML以查看真实数据渲染效果。</div>';
+        } else if (usingSampleData) {
+          h += '<div style="background:#3a2c1a;border:1px solid #d2992250;color:#e3b341;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据预览。请让AI生成初始变量YAML。</div>';
         }
         h += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">' +
           '<iframe id="mvuPreviewFrame" style="width:100%;height:420px;border:0;background:transparent" sandbox="allow-scripts"></iframe>' +
