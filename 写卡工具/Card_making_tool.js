@@ -1192,9 +1192,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：根据变量结构+显示需求+UI风格，生成完整HTML代码\n' +
-    '      ⚠️关键实现要求（AI必须严格遵守）：\n' +
+    '        第4步：进入代码生成（⚠️使用下方的分步模块化流程，禁止一次性吐完整代码）\n' +
+    '      ⚠️分步模块化生成流程（⚠️核心！必须拆成三步逐一生成，每步产出给用户确认后再进下一步）：\n' +
+    '\n' +
+    '      --- Step 1：结构+样式（HTML骨架 + CSS，不含任何JS）---\n' +
+    '      目标：用户先看到UI长什么样，确认后再填数据逻辑\n' +
+    '      产出：仅包含 <style>...</style> + <body>...</body> 的HTML骨架\n' +
+    '      内容：\n' +
+    '        · 根据用户选定的UI风格，搭建完整的HTML结构和CSS样式\n' +
+    '        · 每个需要绑定变量的DOM节点必须预留唯一id（如 <span id="stat-hp"></span>）\n' +
+    '        · 用静态假数据填充，让用户能直观看到最终视觉效果\n' +
+    '        · CSS必须包含：:root变量、卡片容器、网格布局、分类标题、数值着色、加载动画\n' +
+    '        · 布局约束：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片形状不加背景色\n' +
+    '      交付：将Step 1产出展示给用户，问"结构和样式OK吗？确认后我填JS逻辑"\n' +
+    '      如果用户确认 → 进入Step 2；如果用户提修改 → 在Step 1基础上迭代调整\n' +
+    '\n' +
+    '      --- Step 2：逻辑+行为（JS脚本，基于Step 1结构）---\n' +
+    '      目标：在已确认的UI骨架上，绑定MVU变量数据和交互行为\n' +
+    '      产出：<script type="module">...</script> 完整脚本\n' +
+    '      内容：\n' +
+    '        · 入口：await waitGlobalInitialized(\'Mvu\') + $(errorCatched(init))\n' +
+    '        · 读变量：_.get(getAllVariables(), "stat_data", {}) （禁止Mvu.getVar）\n' +
+    '        · 渲染：renderVarTree递归处理任意深度嵌套对象\n' +
+    '        · 事件：eventOn(Mvu.events.VARIABLE_INITIALIZED) + eventOn(Mvu.events.VARIABLE_UPDATE_ENDED)\n' +
+    '        · DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById/innerHTML/classList\n' +
+    '        · 跳过隐藏变量：key以_或$开头的continue跳过\n' +
+    '        · 类型检测：typeof val === "number" 才画进度条；布尔用✓/✕；数组用join\n' +
+    '        · 注释：只能用 /* 注释 */，禁止 // 注释\n' +
     '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
+    '      交付：将Step 2的JS脚本展示给用户，简要说明绑定了哪些变量\n' +
+    '\n' +
+    '      --- Step 3：组装+自查（合并为完整HTML + 代码审查）---\n' +
+    '      目标：将Step 1的结构样式和Step 2的脚本合并为完整可运行的状态栏\n' +
+    '      产出：```html 包裹的完整 <!doctype html> 文档\n' +
+    '      内容：\n' +
+    '        · 合并：Step 1的<style>+<body> 与 Step 2的<script> 合并为完整HTML\n' +
+    '        · 自查（逐项检查，发现问题立即修正后再交付）：\n' +
+    '          ① HTML结构完整性：<!doctype html> + <html> + <head> + <style> + <body> + <script type="module">\n' +
+    '          ② 注释规范：全文无 // 注释，仅用 /* */\n' +
+    '          ③ DOM规范：无原生DOM操作，全部使用jquery\n' +
+    '          ④ 变量路径：所有_.get路径以 stat_data 开头\n' +
+    '          ⑤ 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
+    '          ⑥ 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
+    '          ⑦ 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
+    '          ⑧ 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
+    '          ⑨ 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
+    '      交付：输出最终完整代码 + 自查通过确认，引导用户将代码写入正则\n' +
+    '      ⚠️关键实现要求（AI必须严格遵守）：\n' +
     '        · 读变量：_.get(getAllVariables(), "stat_data", {}) （不要用Mvu.getVar，有时序失效问题）\n' +
     '        · 异步等待：await waitGlobalInitialized(\'Mvu\') 仅入口调用，此外禁止使用Mvu.watch等不存在的接口\n' +
     '        · DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById/innerHTML/classList\n' +
