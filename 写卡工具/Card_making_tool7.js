@@ -1257,45 +1257,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；⚠️严格每次只生成一个模块，禁止一次生成多个模块，禁止一口气生成完整状态栏）\n' +
     '\n' +
     '      ╔══════════════════════════════════════════════════════════════╗\n' +
-    '      ║  ⚠️核心机制：8步分模块生成 + 严格单模块交付 + 拼接合并       ║\n' +
+    '      ║  ⚠️核心机制：写卡器后台管理 + 6个空槽位 + 逐个填入 + 拼接合并  ║\n' +
     '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
-    '      ║  核心原则：每个Step职责单一、有明确示例、按需伸缩            ║\n' +
-    '      ║  ⚠️铁律：一次回答只能生成/修改一个模块，禁止生成多个模块     ║\n' +
-    '      ║  ⚠️铁律：生成模块前必须与已有模块对照，相互印证确保可行       ║\n' +
-    '      ║  ⚠️铁律：生成模块时禁止输出其他代码块，只输出该模块本身       ║\n' +
-    '      ║  ⚠️铁律：每次输出模块后结尾必须提醒用户接下来该干什么         ║\n' +
-    '      ║  ⚠️铁律：禁止AI一口气生成完整状态栏                          ║\n' +
-    '      ║  ⚠️铁律：修改模块前先用<clear_statusbar>清空待改模块         ║\n' +
-    '      ║  ⚠️铁律：6个模块全部齐全才会拼接保存，确保状态栏完整可用     ║\n' +
+    '      ║  核心原理：像角色卡一样在后台写入，写卡器维护HTML模板框架     ║\n' +
+    '      ║  6个槽位（Step 2-7）一开始全是空的，AI生成哪个就填哪个       ║\n' +
+    '      ║  ⚠️铁律：写卡器知道当前在生成哪个Step，AI只需输出代码块       ║\n' +
+    '      ║  ⚠️铁律：不需要输出 /* === Step N === */ 标记，写卡器自动识别 ║\n' +
+    '      ║  ⚠️铁律：一次回答只输出一个代码块（当前Step的代码）           ║\n' +
+    '      ║  ⚠️铁律：禁止输出其他代码块（条目JSON/脚本/statusblock等）    ║\n' +
+    '      ║  ⚠️铁律：6个模块全部填满后才拼接保存，确保状态栏完整可用     ║\n' +
+    '      ║  ⚠️铁律：修改模块时先清空对应槽位再重新填入                   ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
-    '      【机制1：渐进式分模块收集（严格单模块交付，像角色卡一样一点一点收集，最后拼在一起）】\n' +
-    '      写卡器会跨多轮对话逐步收集各Step代码模块，用户每说一次"继续"你就生成下一个模块。\n' +
-    '      每个模块用 `/* === Step N: 标题 === */` 标记+代码块输出，写卡器自动提取并累积保存。\n' +
-    '      ⚠️严格单模块交付原则（核心铁律，不可违反）：\n' +
-    '        · ⛔一次回答只能生成或修改一个模块（一个Step），绝对禁止在同一个回答中输出多个Step的代码块\n' +
-    '        · ⛔禁止AI一口气生成完整状态栏——必须分7次以上交付（Step 1到Step 7各一次），Step 8仅确认不输出代码\n' +
-    '        · ⛔生成模块时禁止输出任何其他代码块——回答中只能有当前这一个Step的 ``` 代码块，绝对不能附带以下任何内容：\n' +
-    '          - 世界书条目代码块（```json格式的条目JSON、character_book片段）\n' +
-    '          - 其他JS脚本代码块（非当前Step的JavaScript/TypeScript代码）\n' +
-    '          - <statusblock>包裹的进度信息块或任何statusblock标签\n' +
-    '          - 完整HTML代码块（<!doctype或<html开头的完整页面）\n' +
-    '          - YAML/TOML配置代码块\n' +
-    '          - 任何非当前Step的 ``` 代码块\n' +
-    '          如果需要补充说明，用纯文字写，不要用代码块包裹\n' +
-    '          ⚠️写卡器会自动截断第一个代码块之后的多余内容，多余的代码块会被丢弃\n' +
-    '        · ✅生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
-    '          - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点\n' +
-    '          - 生成Step 4样式前，对照Step 3骨架的class/id命名，确保选择器一一对应\n' +
-    '          - 生成Step 5读取前，对照Step 1变量表的路径，确保_.get路径完全一致\n' +
-    '          - 生成Step 6渲染前，对照Step 3的id命名和Step 5的返回值结构，确保DOM操作目标存在\n' +
-    '          - 生成Step 7入口前，对照Step 6的函数名和Step 5的函数名，确保调用正确\n' +
-    '        · ✅每次输出模块后，结尾必须提醒用户接下来该干什么（如"下一步是Step N: XXX，请说继续"）\n' +
-    '        · 用户要"分步骤看"或"我先确认变量表" → 只做当前Step，停下问"OK吗？"\n' +
-    '        · 用户只说"改配色/改样式/改渲染逻辑" → 只做涉及的那个Step，其他不动\n' +
-    '        · 用户语义涉及多个Step（如"换UI风格"涉及配色+骨架+样式）→ ⚠️仍然一次只做一个Step，先做Step 2，然后提醒"接下来需要改Step 3骨架和Step 4样式，请说继续"\n' +
-    '        · 用户语义模糊（如"让状态栏更好看"）→ AI先列出打算改的Step清单给用户确认，然后逐个生成\n' +
-    '      ⚠️各Step代码块用 /* === Step N: 标题 === */ 标记，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
+    '      【机制1：后台填入式收集（像角色卡一样在后台写入）】\n' +
+    '      写卡器后台维护一个HTML模板框架，有6个空槽位（Step 2-7）。\n' +
+    '      写卡器知道当前在生成哪个Step，会通过提示词告诉AI"当前Step: N - XXX"。\n' +
+    '      AI只需输出当前Step的代码块（一个```代码块），写卡器自动提取并填入对应槽位。\n' +
+    '      ⚠️不需要输出 `/* === Step N: 标题 === */` 标记——写卡器自己知道当前是哪个Step\n' +
+    '      ⚠️不需要输出多个代码块——写卡器只提取第一个代码块填入当前槽位\n' +
+    '      ⚠️如果模块重复（重新生成同一个Step），直接替换槽位中的旧代码\n' +
+    '      ⚠️生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
+    '        - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点\n' +
+    '        - 生成Step 4样式前，对照Step 3骨架的class/id命名，确保选择器一一对应\n' +
+    '        - 生成Step 5读取前，对照Step 1变量表的路径，确保_.get路径完全一致\n' +
+    '        - 生成Step 6渲染前，对照Step 3的id命名和Step 5的返回值结构，确保DOM操作目标存在\n' +
+    '        - 生成Step 7入口前，对照Step 6的函数名和Step 5的函数名，确保调用正确\n' +
+    '      ⚠️各Step代码块用 ``` 包裹，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
     '      ⚠️写卡器会在每轮对话后显示收集进度（✅已收集/⬜还缺），并提示下一步该生成什么\n' +
     '      ⚠️完整性保障：6个模块（Step 2-7）全部收集完毕后，写卡器才会自动拼接保存到角色卡\n' +
     '         缺任何一个模块都不会保存，避免生成残缺不可用的状态栏\n' +
@@ -1420,24 +1407,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        这样AI不需要在消息中输出冗长的HTML代码，用户也能实时看到效果。\n' +
     '        使用时机：模块收集完成后、用户说"让我看看""预览一下""效果如何"时。\n' +
     '\n' +
-    '      【机制4：按语义精准修改】（核心！清空→逐个重新生成）\n' +
+    '      【机制4：按语义精准修改】（清空→逐个重新填入）\n' +
     '      当用户要求修改时，AI先识别涉及哪些Step，然后：\n' +
     '        ① 先输出清空标记 `<clear_statusbar>N1,N2,N3</clear_statusbar>`（N为Step号，逗号分隔）\n' +
-    '           写卡器会立即清空这些模块，旧状态栏保持不变直到新模块全部完成\n' +
-    '        ② 然后在同一个回答中生成第一个需要修改的模块（⚠️只能一个）\n' +
+    '           写卡器会立即清空这些槽位，旧状态栏保持不变直到新模块全部完成\n' +
+    '        ② 然后在同一个回答中生成第一个需要修改的模块代码块（⚠️只能一个）\n' +
     '        ③ 后续模块等用户说"继续"后逐个生成\n' +
+    '      写卡器会自动将新代码填入对应槽位，不需要AI输出Step标记\n' +
     '      示例：\n' +
-    '        · 用户说"改配色" → 清空Step 2 → 生成新的Step 2\n' +
-    '          AI输出：<clear_statusbar>2</clear_statusbar> + Step 2代码块\n' +
+    '        · 用户说"改配色" → 清空Step 2 → 生成新的Step 2配色代码块\n' +
+    '          AI输出：<clear_statusbar>2</clear_statusbar> + ```css代码块\n' +
     '        · 用户说"换UI风格" → 清空Step 2+3+4 → 先生成Step 2，提醒"接下来需改Step 3和4，请说继续"\n' +
-    '          AI输出：<clear_statusbar>2,3,4</clear_statusbar> + Step 2代码块\n' +
-    '        · 用户说"渲染逻辑有bug" → 清空Step 6 → 生成新的Step 6\n' +
-    '          AI输出：<clear_statusbar>6</clear_statusbar> + Step 6代码块\n' +
-    '        · 用户说"加个新变量" → 清空Step 1+3+5+6 → 先生成Step 1，提醒"接下来需改Step 3/5/6"\n' +
-    '          AI输出：<clear_statusbar>3,5,6</clear_statusbar> + Step 1变量表（Step 1是纯文本表格不需要清空）\n' +
+    '          AI输出：<clear_statusbar>2,3,4</clear_statusbar> + Step 2的```css代码块\n' +
+    '        · 用户说"渲染逻辑有bug" → 清空Step 6 → 生成新的Step 6代码块\n' +
+    '          AI输出：<clear_statusbar>6</clear_statusbar> + Step 6的```javascript代码块\n' +
     '      ⚠️修改前必须与已有模块对照、相互印证，确保修改后的模块与其他模块兼容\n' +
     '      ⚠️修改时同样禁止输出多个代码块，回答中只能有当前修改的那一个Step的代码块\n' +
-    '      ⚠️修改后结尾同样必须提醒用户接下来该干什么\n' +
     '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
     '      ⚠️修改后6个模块重新齐全时，写卡器自动拼接覆盖旧状态栏\n' +
     '\n' +
@@ -2559,7 +2544,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var stateInfo = cardGenerated
       ? '\n\n=== 当前状态：角色卡核心内容已具备 ===\n用户可继续完善细节，或要求优化、质检、生成完整卡。'
       : '\n\n=== 当前状态：创作进行中 ===\n请继续引导用户逐步完善六大模块内容。';
-    var sysPrompt = SYS_PROMPT + stateInfo + existingInfo + qcBlock;
+
+    // 状态栏生成模式：注入当前Step信息，告诉AI当前要生成哪个模块
+    var statusBarStateInfo = '';
+    if (typeof statusBarMode !== 'undefined' && statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
+      var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取函数', 6:'渲染函数', 7:'事件绑定+入口', 8:'拼接合并(完成)' };
+      var sbStepDescs = {
+        1: '输出纯文本表格，列出所有要显示的变量路径/类型/分组/显示名。不输出代码块。',
+        2: '输出```css代码块，包含:root配色变量定义。只输出这一个代码块，禁止输出其他代码块。',
+        3: '输出```html代码块，包含HTML结构骨架（div/span等）。只输出这一个代码块，禁止输出其他代码块。',
+        4: '输出```css代码块，包含CSS样式规则。只输出这一个代码块，禁止输出其他代码块。',
+        5: '输出```javascript代码块，包含变量读取函数（用_.get从stat_data读取）。只输出这一个代码块，禁止输出其他代码块。',
+        6: '输出```javascript代码块，包含渲染函数（用jquery操作DOM）。只输出这一个代码块，禁止输出其他代码块。',
+        7: '输出```javascript代码块，包含事件绑定和入口函数。只输出这一个代码块，禁止输出其他代码块。',
+        8: '状态栏已全部完成，无需再输出代码。'
+      };
+      var curStep = statusBarCurrentStep;
+      if (curStep >= 1 && curStep <= 8) {
+        statusBarStateInfo = '\n\n=== 🔧 状态栏生成模式（写卡器后台管理） ===\n';
+        statusBarStateInfo += '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n';
+        statusBarStateInfo += '要求: ' + sbStepDescs[curStep] + '\n';
+        // 显示已收集的模块
+        var sbCollected = [];
+        var sbMissing = [];
+        var sbModNames = { step2:'配色', step3:'骨架', step4:'样式', step5:'读取', step6:'渲染', step7:'入口' };
+        for (var sbk in sbModNames) {
+          if (statusBarModules[sbk]) sbCollected.push(sbModNames[sbk]);
+          else sbMissing.push(sbModNames[sbk]);
+        }
+        statusBarStateInfo += '已收集: ' + (sbCollected.length ? sbCollected.join('、') : '无') + ' (' + sbCollected.length + '/6)\n';
+        if (sbMissing.length) statusBarStateInfo += '还缺: ' + sbMissing.join('、') + '\n';
+        statusBarStateInfo += '⚠️写卡器会自动提取你回复中的第一个代码块填入当前Step槽位，不需要输出 /* === Step N === */ 标记\n';
+        statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（条目JSON/脚本/statusblock等）\n';
+        if (curStep >= 3 && curStep <= 7) {
+          statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名等）\n';
+        }
+      }
+    }
+
+    var sysPrompt = SYS_PROMPT + stateInfo + existingInfo + qcBlock + statusBarStateInfo;
 
     // jsonReminder 放在对话历史之前（属于系统指令区），不放在"助手:"之后
     var jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
@@ -5378,11 +5401,64 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return true;
       }
 
-      // ===== 模块拼接：从AI回答中提取各Step代码块，由写卡器JS自动拼接成完整HTML =====
-      // 核心思路：AI分步生成各模块（每步用 /* === Step N: 标题 === */ 标记+代码块），
-      //          写卡器收集各模块代码，在JS层面机械拼接，不受AI单次输出长度限制
+      // ===== 模块拼接：写卡器后台维护HTML模板，6个空槽位，AI生成哪个就填哪个 =====
+      // 核心思路（像角色卡一样在后台写入）：
+      //   1. 写卡器后台有一个HTML模板框架（assembleStatusBarFromModules）
+      //   2. 6个模块槽位一开始全是空的（statusBarModules）
+      //   3. 写卡器知道当前在生成哪个模块（statusBarCurrentStep）
+      //   4. AI只需输出代码片段，写卡器直接填入对应槽位
+      //   5. 6个槽位全部填满后自动拼接保存
       // 全局存储各Step最新代码（跨多轮对话累积）
       var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+      // 当前正在生成的Step号（0=未在状态栏模式, 1-7=对应Step, 8=全部完成）
+      var statusBarCurrentStep = 0;
+      // 是否在状态栏生成模式
+      var statusBarMode = false;
+
+      // 从AI回复中提取第一个代码块的内容（去掉```包裹）
+      // 写卡器知道当前在生成哪个Step，所以只需要提取第一个代码块即可
+      function extractFirstCodeBlock(text) {
+        if (!text) return '';
+        // 匹配 ```lang\n ... ``` 格式的代码块，取第一个
+        var re = /```[a-z]*\s*\n([\s\S]*?)\n```/i;
+        var m = re.exec(text);
+        if (m) return m[1].trim();
+        // 兜底：无语言标记的代码块
+        var re2 = /```\s*\n([\s\S]*?)\n```/i;
+        m = re2.exec(text);
+        if (m) return m[1].trim();
+        // 兜底2：无代码块包裹，但有Step标记的代码（AI可能直接写代码不包代码块）
+        var stepMatch = text.match(/\/\*\s*===\s*Step\s*\d[\s\S]*?\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/i);
+        if (stepMatch) {
+          var raw = stepMatch[1].trim();
+          raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+          return raw;
+        }
+        return '';
+      }
+
+      // 验证提取的代码是否符合当前Step的预期类型
+      function validateStepCode(stepNum, code) {
+        if (!code || code.length < 8) return false;
+        // 强负面关键词过滤
+        var blacklist = ['<statusblock>', '信息完整度', '需要您补充的信息',
+                         '基础公理', '交互软规则', '核心铁则', '近场强约束',
+                         'character_book', '"entries"', '"insertion_order"',
+                         '体系完成度', '待补充', '⏳', '❌',
+                         '```json', '```yaml'];
+        for (var i = 0; i < blacklist.length; i++) {
+          if (code.indexOf(blacklist[i]) >= 0) return false;
+        }
+        switch (stepNum) {
+          case 2: return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
+          case 3: return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
+          case 4: return code.indexOf('{') >= 0 && (code.indexOf('.') >= 0 || code.indexOf('#') >= 0);
+          case 5: return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
+          case 6: return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
+          case 7: return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || code.indexOf('init') >= 0;
+        }
+        return true;
+      }
 
       function assembleStatusBarFromModules() {
         // ⚠️完整性校验：6个模块必须全部存在，确保最终状态栏完整可用
@@ -5626,6 +5702,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return true;
       }
 
+      // 保存拼接好的状态栏HTML到角色卡的regex_scripts
+      function saveStatusBarToCard(assembledHtml) {
+        if (!assembledHtml) return false;
+        // 保存到 cardData.extensions.regex_scripts
+        cardData.extensions = cardData.extensions || {};
+        var rxList = cardData.extensions.regex_scripts || [];
+        var foundIdx = -1;
+        for (var j = 0; j < rxList.length; j++) {
+          var r = rxList[j];
+          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
+            foundIdx = j;
+            break;
+          }
+        }
+        var wrappedHtml = '```html\n' + assembledHtml + '\n```';
+        if (foundIdx >= 0) {
+          rxList[foundIdx].replaceString = wrappedHtml;
+          rxList[foundIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
+          rxList[foundIdx].markdownOnly = true;
+          rxList[foundIdx].promptOnly = false;
+          rxList[foundIdx].placement = [2];
+          rxList[foundIdx].runOnEdit = true;
+          rxList[foundIdx].disabled = false;
+          rxList[foundIdx].id = 'mvu-status-bar';
+          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
+        } else {
+          rxList.push({
+            id: 'mvu-status-bar',
+            scriptName: '[美化]MVU状态栏',
+            findRegex: '/<StatusPlaceHolderImpl\\/>/g',
+            replaceString: wrappedHtml,
+            trimStrings: [],
+            placement: [2],
+            disabled: false,
+            markdownOnly: true,
+            promptOnly: false,
+            runOnEdit: true,
+            substituteRegex: 0,
+            minDepth: null,
+            maxDepth: null
+          });
+        }
+        cardData.extensions.regex_scripts = rxList;
+        return true;
+      }
+
       // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
       // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
       function repairJSON(str) {
@@ -5772,71 +5894,90 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           }
-          // 状态栏模块提取+自动拼接（优先）+ 完整HTML兜底（次选）
+          // ===== 状态栏模块处理（写卡器后台主动管理，像角色卡一样填入槽位） =====
+          // 写卡器知道当前在生成哪个Step，直接提取AI回复中的代码填入对应槽位
+          // 不依赖AI输出 /* === Step N === */ 标记，AI只需输出代码块
           try {
-            // 步骤0：检测清空标记 —— AI修改模块前先清空需要重新生成的模块
-            var clearedSteps = processClearStatusModules(aiResponse);
-            if (clearedSteps && clearedSteps.length) {
-              var clearedNames = clearedSteps.map(function(n) {
-                var names = {2:'配色方案',3:'HTML骨架',4:'CSS样式',5:'变量读取',6:'渲染函数',7:'事件绑定+入口'};
-                return 'Step ' + n + ':' + names[n];
-              });
-              addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n' +
-                '  这些模块需要重新生成。请对AI说"继续"逐个生成。');
+            // 检测用户是否要进入状态栏生成模式
+            var userText = (messages.length > 0 && messages[messages.length - 1].role === 'user')
+              ? messages[messages.length - 1].content : '';
+            // 检测状态栏相关关键词
+            var sbKeywords = ['状态栏', 'statusbar', 'status_bar', '状态显示', 'MVU状态', 'mvu状态'];
+            var isSBRequest = sbKeywords.some(function(k) { return userText.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
+
+            // 进入状态栏模式：用户提到状态栏且当前不在模式中
+            if (isSBRequest && !statusBarMode && statusBarCurrentStep === 0) {
+              statusBarMode = true;
+              statusBarCurrentStep = 1; // 从Step 1开始
             }
 
-            // 优先：尝试从AI回答中提取各Step模块代码
-            // ⚠️AI只读取最新回答中的模块，如果模块重复直接替换
-            var modulesAssembled = tryExtractAndAssembleStatusBar(aiResponse);
-            if (modulesAssembled) {
-              // 检测AI是否一次输出了多个Step代码块（违规）
-              var multiStepMatches = aiResponse.match(/\/\*\s*===\s*Step\s*\d\s*[:：]/gi) || [];
-              if (multiStepMatches.length > 1) {
-                addAssistantMsg('⚠️ 检测到AI一次输出了 ' + multiStepMatches.length + ' 个Step代码块（违反单模块规则）。\n' +
-                  '  写卡器仅提取了第一个有效模块，其余已被忽略。\n' +
-                  '  💡 这是正常的安全机制，无需担心。如需生成其他模块，请对AI说"继续"。');
+            // 检测修改请求：用户要修改某个模块
+            if (statusBarMode || isSBRequest) {
+              // 检测 <clear_statusbar>N1,N2</clear_statusbar> 清空标记
+              var clearedSteps = processClearStatusModules(aiResponse);
+              if (clearedSteps && clearedSteps.length) {
+                var clearedNames = clearedSteps.map(function(n) {
+                  var names = {2:'配色方案',3:'HTML骨架',4:'CSS样式',5:'变量读取',6:'渲染函数',7:'事件绑定+入口'};
+                  return 'Step ' + n + ':' + names[n];
+                });
+                addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n' +
+                  '  这些模块需要重新生成。');
+                // 如果只清空了一个模块，直接设置当前Step为该模块
+                if (clearedSteps.length === 1) {
+                  statusBarCurrentStep = clearedSteps[0];
+                }
               }
-              // 检测AI是否在Step代码块外还输出了其他多余代码块（条目JSON、脚本、statusblock等）
-              var extraCodeBlocks = [];
-              if (/<statusblock>/i.test(aiResponse)) extraCodeBlocks.push('<statusblock>进度块');
-              if (/```json/i.test(aiResponse)) extraCodeBlocks.push('JSON代码块');
-              if (/```yaml/i.test(aiResponse)) extraCodeBlocks.push('YAML代码块');
-              // 统计 ``` 代码块总数，超过1个说明有多余代码块
-              var fenceCount = (aiResponse.match(/```/g) || []).length / 2;
-              if (fenceCount > 1) extraCodeBlocks.push('多余的代码块(' + (fenceCount - 1) + '个)');
-              if (extraCodeBlocks.length > 0) {
-                addAssistantMsg('⚠️ 检测到AI在Step代码块外还输出了：' + extraCodeBlocks.join('、') + '\n' +
-                  '  写卡器已自动截断这些多余内容，仅保留当前Step的代码。\n' +
-                  '  💡 提醒AI：生成模块时禁止输出其他代码块，补充说明用纯文字写。');
+            }
+
+            // 状态栏生成模式：写卡器主动管理Step，提取AI回复中的代码填入对应槽位
+            if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
+              var stepNum = statusBarCurrentStep;
+              var code = extractFirstCodeBlock(aiResponse);
+
+              if (code && validateStepCode(stepNum, code)) {
+                // ✅ 代码有效：填入对应槽位（如果模块重复直接替换）
+                statusBarModules['step' + stepNum] = code;
+                var stepNames = { 2:'配色方案', 3:'HTML骨架', 4:'CSS样式', 5:'变量读取', 6:'渲染函数', 7:'事件绑定+入口' };
+                showToast('✅ Step ' + stepNum + ':' + stepNames[stepNum] + ' 已填入槽位', 'success');
+
+                // 推进到下一个Step
+                statusBarCurrentStep++;
+                if (statusBarCurrentStep > 7) {
+                  statusBarCurrentStep = 8; // 全部完成
+                }
+              } else if (code) {
+                // 代码无效：不填入，提醒用户
+                addAssistantMsg('⚠️ Step ' + stepNum + ' 的代码验证未通过（可能混入了其他内容）。\n' +
+                  '  写卡器未填入该代码。请重新生成 Step ' + stepNum + ' 的代码。');
               }
+
               // 显示收集进度
-              var stepNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
+              var stepNamesAll = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
               var collected = [];
               var missing = [];
-              for (var sk in stepNames) {
-                if (statusBarModules[sk]) collected.push(stepNames[sk]);
-                else missing.push(stepNames[sk]);
+              for (var sk in stepNamesAll) {
+                if (statusBarModules[sk]) collected.push(stepNamesAll[sk]);
+                else missing.push(stepNamesAll[sk]);
               }
               var progressBar = '';
-              for (var pk in stepNames) {
+              for (var pk in stepNamesAll) {
                 progressBar += statusBarModules[pk] ? '✅' : '⬜';
               }
-              showToast('✅ 状态栏模块收集 ' + collected.length + '/6 ' + progressBar, 'success');
               progress = calcProgress();
               renderPreview();
 
-              // ⚠️完整性判断：6个模块全部齐全才拼接保存到角色卡
+              // 完整性判断：6个模块全部齐全才拼接保存
               var allComplete = !!(statusBarModules.step2 && statusBarModules.step3 &&
                                    statusBarModules.step4 && statusBarModules.step5 &&
                                    statusBarModules.step6 && statusBarModules.step7);
               if (!allComplete) {
-                // 模块不完整：提示还缺什么，不保存到角色卡
+                // 找出下一个该做的Step
                 var stepOrder = ['step2', 'step3', 'step4', 'step5', 'step6', 'step7'];
                 var nextStepName = null;
                 var nextStepNum = 0;
                 for (var si = 0; si < stepOrder.length; si++) {
                   if (!statusBarModules[stepOrder[si]]) {
-                    nextStepName = stepNames[stepOrder[si]];
+                    nextStepName = stepNamesAll[stepOrder[si]];
                     nextStepNum = si + 2;
                     break;
                   }
@@ -5845,16 +5986,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
                   '  ⬜ 还缺：' + (missing.length ? missing.join('、') : '无') + '\n' +
                   '  ⏭️ 下一步：请生成 Step ' + nextStepNum + ': ' + nextStepName + '（对我说"继续"即可）\n' +
-                  '  ⚠️ 6个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。\n' +
-                  '  💡 生成前请与已收集的模块对照确保一致。');
+                  '  ⚠️ 6个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。');
               } else {
                 // 6个模块全部齐全：拼接保存到角色卡
-                addAssistantMsg('🎉 状态栏全部6个模块已收集完成！\n' +
-                  '  ✅ ' + collected.join(' · ') + '\n' +
-                  '  ✅ 写卡器已自动拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。');
+                var assembledHtml = assembleStatusBarFromModules();
+                if (assembledHtml) {
+                  saveStatusBarToCard(assembledHtml);
+                  statusBarCurrentStep = 8;
+                  addAssistantMsg('🎉 状态栏全部6个模块已收集完成！\n' +
+                    '  ✅ ' + collected.join(' · ') + '\n' +
+                    '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。');
+                }
               }
-            } else if (!clearedSteps) {
-              // 没有提取到模块，也没有清空操作 → 尝试兜底完整HTML提取
+            } else if (statusBarMode && statusBarCurrentStep === 1) {
+              // Step 1是变量表（纯文本），不参与拼接，直接推进
+              statusBarCurrentStep = 2;
+              addAssistantMsg('📋 变量表已确认。接下来请生成 Step 2: 配色方案（对我说"继续"即可）。\n' +
+                '  ⚠️ 只输出Step 2的代码块，不要输出其他代码块。');
+            } else if (!statusBarMode) {
+              // 非状态栏模式：尝试兜底完整HTML提取
               var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
               if (statusBarSaved) {
                 showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
@@ -5862,7 +6012,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 renderPreview();
               }
             }
-          } catch(e) { /* ignore */ }
+          } catch(e) { console.warn('statusbar process error:', e); }
 
           // 检测AI发出的 <preview_statusbar> 命令，自动在聊天中渲染已收集的状态栏
           if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
