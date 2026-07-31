@@ -1275,7 +1275,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      ⚠️严格单模块交付原则（核心铁律，不可违反）：\n' +
     '        · ⛔一次回答只能生成或修改一个模块（一个Step），绝对禁止在同一个回答中输出多个Step的代码块\n' +
     '        · ⛔禁止AI一口气生成完整状态栏——必须分7次以上交付（Step 1到Step 7各一次），Step 8仅确认不输出代码\n' +
-    '        · ⛔生成模块时禁止输出其他代码块——回答中只能有当前这一个Step的代码块，不能附带其他Step的代码、完整HTML、JSON等\n' +
+    '        · ⛔生成模块时禁止输出任何其他代码块——回答中只能有当前这一个Step的 ``` 代码块，绝对不能附带以下任何内容：\n' +
+    '          - 世界书条目代码块（```json格式的条目JSON、character_book片段）\n' +
+    '          - 其他JS脚本代码块（非当前Step的JavaScript/TypeScript代码）\n' +
+    '          - <statusblock>包裹的进度信息块或任何statusblock标签\n' +
+    '          - 完整HTML代码块（<!doctype或<html开头的完整页面）\n' +
+    '          - YAML/TOML配置代码块\n' +
+    '          - 任何非当前Step的 ``` 代码块\n' +
+    '          如果需要补充说明，用纯文字写，不要用代码块包裹\n' +
+    '          ⚠️写卡器会自动截断第一个代码块之后的多余内容，多余的代码块会被丢弃\n' +
     '        · ✅生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
     '          - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点\n' +
     '          - 生成Step 4样式前，对照Step 3骨架的class/id命名，确保选择器一一对应\n' +
@@ -5440,6 +5448,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
           return false;
         }
+        // 截断函数：AI可能在Step代码块后又输出了其他代码块（条目JSON、脚本、<statusblock>等）
+        // 这些多余内容会被stepRe2贪婪匹配进来，需要截断只保留Step本身的代码
+        function truncateAtExtraContent(code) {
+          if (!code) return code;
+          // 截断标记：遇到这些内容说明后面是多余的其他代码块，截断到该位置之前
+          var cutMarkers = [
+            '<statusblock>', '</statusblock>',
+            '```json', '```yaml', '```toml',
+            'character_book', '"entries"', '"insertion_order"',
+            '信息完整度', '需要您补充的信息',
+            '基础公理', '交互软规则', '核心铁则', '近场强约束',
+            '<!doctype', '<html'
+          ];
+          var cutIdx = code.length;
+          for (var ci = 0; ci < cutMarkers.length; ci++) {
+            var idx = code.indexOf(cutMarkers[ci]);
+            if (idx >= 0 && idx < cutIdx) cutIdx = idx;
+          }
+          // 检查是否有第二个 ``` 代码块（说明AI又输出了其他代码块）
+          // 找到第一个 ``` 的结束位置
+          var firstFence = code.indexOf('```');
+          if (firstFence >= 0) {
+            var endFence = code.indexOf('```', firstFence + 3);
+            if (endFence >= 0) {
+              // 检查 endFence+3 之后是否还有其他 ``` 代码块
+              var afterFirst = code.substring(endFence + 3);
+              var nextFence = afterFirst.indexOf('```');
+              if (nextFence >= 0) {
+                var secondFencePos = endFence + 3 + nextFence;
+                if (secondFencePos < cutIdx) cutIdx = secondFencePos;
+              }
+            }
+          }
+          if (cutIdx < code.length) {
+            code = code.substring(0, cutIdx).trim();
+          }
+          return code;
+        }
         // Step语义校验：根据Step号验证代码内容是否匹配预期类型
         function validateStepContent(stepNum, code) {
           if (!code || code.length < 8) return false;
@@ -5502,6 +5548,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var raw = cleanCode(m[3].trim());
           // 去掉可能的 ``` 包裹
           raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+          // ⚠️截断多余内容：AI可能在Step代码后又输出了条目JSON、脚本、<statusblock>等
+          raw = truncateAtExtraContent(raw);
           if (sn >= 2 && sn <= 7 && raw.length > 10 && validateStepContent(sn, raw)) {
             // ⚠️严格单模块限制：如果本次已经提取到一个有效Step（无论来自stepRe还是stepRe2），跳过后续的
             if (stepsFoundInThisRound.length >= 1) {
@@ -5747,6 +5795,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 addAssistantMsg('⚠️ 检测到AI一次输出了 ' + multiStepMatches.length + ' 个Step代码块（违反单模块规则）。\n' +
                   '  写卡器仅提取了第一个有效模块，其余已被忽略。\n' +
                   '  💡 这是正常的安全机制，无需担心。如需生成其他模块，请对AI说"继续"。');
+              }
+              // 检测AI是否在Step代码块外还输出了其他多余代码块（条目JSON、脚本、statusblock等）
+              var extraCodeBlocks = [];
+              if (/<statusblock>/i.test(aiResponse)) extraCodeBlocks.push('<statusblock>进度块');
+              if (/```json/i.test(aiResponse)) extraCodeBlocks.push('JSON代码块');
+              if (/```yaml/i.test(aiResponse)) extraCodeBlocks.push('YAML代码块');
+              // 统计 ``` 代码块总数，超过1个说明有多余代码块
+              var fenceCount = (aiResponse.match(/```/g) || []).length / 2;
+              if (fenceCount > 1) extraCodeBlocks.push('多余的代码块(' + (fenceCount - 1) + '个)');
+              if (extraCodeBlocks.length > 0) {
+                addAssistantMsg('⚠️ 检测到AI在Step代码块外还输出了：' + extraCodeBlocks.join('、') + '\n' +
+                  '  写卡器已自动截断这些多余内容，仅保留当前Step的代码。\n' +
+                  '  💡 提醒AI：生成模块时禁止输出其他代码块，补充说明用纯文字写。');
               }
               // 显示收集进度
               var stepNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
