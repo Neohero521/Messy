@@ -2126,6 +2126,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (!newEntries || !Array.isArray(newEntries)) return;
       cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
+      // ⚠️状态栏模块拦截：AI可能在状态栏分步生成模式下，把Step2-7的代码
+      // 包装成entries条目输出（comment含"<状态栏>...Step N"或"⟦<状态栏>...Step N⟧"）。
+      // 这些代码应只保存到extensions.regex_scripts，不能进入character_book.entries，
+      // 否则会污染世界书、浪费上下文token、与regex_scripts版本不一致。
+      // 此处识别并丢弃这类条目，从源头阻断误写入。
+      var SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+      newEntries = newEntries.filter(function(ne) {
+        if (!ne || typeof ne !== 'object') return true;
+        var cmt = String(ne.comment || '');
+        if (SB_ENTRY_BLOCK_RE.test(cmt)) {
+          console.warn('[statusbar] 拦截状态栏模块条目，不写入世界书:', cmt);
+          return false;
+        }
+        // 内容侧兜底：comment无标记但content是状态栏代码片段（:root+--xxx变量 / StatusPlaceHolderImpl / waitGlobalInitialized+eventOn 等）
+        var cnt = String(ne.content || '');
+        if (cnt.length > 50) {
+          var hasSbCodeMarker = (cnt.indexOf('StatusPlaceHolderImpl') >= 0) ||
+                                (cnt.indexOf('waitGlobalInitialized') >= 0 && cnt.indexOf('eventOn') >= 0) ||
+                                (cnt.indexOf('/* === Step') >= 0 && cnt.indexOf('===') >= 0 && /Step\s*[2-7]/.test(cnt));
+          if (hasSbCodeMarker && /状态栏|statusbar/i.test(cmt)) {
+            console.warn('[statusbar] 拦截状态栏代码内容条目，不写入世界书:', cmt);
+            return false;
+          }
+        }
+        return true;
+      });
       newEntries.forEach(function(ne) {
         if (!ne || typeof ne !== 'object') return;
         var hasComment = !!(ne.comment && String(ne.comment).trim());
@@ -2603,7 +2629,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '2. ⚠️这次不需要输出```json代码块！只输出当前Step的代码块即可\n' +
         '3. 禁止输出其他代码块（条目JSON/脚本/statusblock/完整HTML等）\n' +
         '4. 可以在代码块前后用纯文字补充说明，但不要用代码块包裹说明\n' +
-        '5. ⚠️只处理用户「最新一条」消息的指令！';
+        '5. ⚠️严禁把状态栏模块代码放进JSON的entries数组！状态栏代码不属于世界书条目。\n' +
+        '   反面示例（禁止这样做）：{"entries":[{"comment":"<状态栏>配色方案-Step 2","content":":root{...}"}]}\n' +
+        '   正确做法：直接输出```css\\n:root{...}\\n```代码块即可，写卡器后台会自动收集拼接保存到正则脚本。\n' +
+        '6. ⚠️只处理用户「最新一条」消息的指令！';
     } else {
       jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
         '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
@@ -5555,6 +5584,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           });
         }
         cardData.extensions.regex_scripts = rxList;
+
+        // ⚠️清理世界书条目中的状态栏模块残留：历史版本/旧角色卡可能已把状态栏模块
+        // 代码（Step2-7）误写入了character_book.entries。此处保存regex后主动清理，
+        // 避免条目里的陈旧状态栏代码污染世界书上下文、与regex_scripts版本不一致。
+        if (cardData.character_book && Array.isArray(cardData.character_book.entries)) {
+          var sbCleanupRe = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+          var beforeLen = cardData.character_book.entries.length;
+          cardData.character_book.entries = cardData.character_book.entries.filter(function(e) {
+            var c = String((e && e.comment) || '');
+            if (sbCleanupRe.test(c)) {
+              console.warn('[statusbar] 清理世界书中的状态栏残留条目:', c);
+              return false;
+            }
+            return true;
+          });
+          if (cardData.character_book.entries.length < beforeLen) {
+            console.warn('[statusbar] 共清理 ' + (beforeLen - cardData.character_book.entries.length) + ' 个状态栏残留条目');
+          }
+        }
         return true;
       }
 
