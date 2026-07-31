@@ -51,11 +51,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
-.chat-msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.chat-msg .avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:pointer}
 .chat-msg.assistant .avatar{background:rgba(210,168,255,.15)}
 .chat-msg.user .avatar{background:rgba(247,129,102,.15)}
 .chat-msg .bubble{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.85em;line-height:1.6;word-break:break-word}
-.chat-msg.assistant .bubble{background:transparent;border:none;color:#c9d1d9;font-size:1em;padding:2px 4px;max-width:96%}
+.chat-msg.assistant .bubble{background:transparent;border:none;color:#c9d1d9;font-size:1em;padding:2px 4px;width:100%}
 .chat-msg.user .bubble{background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border-bottom-right-radius:4px}
 .chat-msg .bubble b{color:#d2a8ff}
 .chat-msg .bubble code{background:rgba(110,118,129,.2);padding:1px 4px;border-radius:3px;font-size:.82em}
@@ -799,9 +799,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
     '- ⚠️【重中之重】正则6（美化状态栏）必须由AI根据用户需求生成！严格配置要求：\n' +
     '  · findRegex: "/<StatusPlaceHolderImpl\\\\/>/g"\n' +
-    '  · replaceString: 必须是完整HTML结构，用 ```html 代码块包裹\n' +
-    '  · 完整HTML结构：<!doctype html> → <html> → <head><style>全局样式</style></head> → <body>页面DOM + <script type="module">渲染逻辑</script></body> → </html>\n' +
-    '  · 包裹格式: "```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...</style>\\n</head>\\n<body>\\n  ...DOM结构...\\n  <script type="module">...渲染逻辑...</script>\\n</body>\\n</html>\\n```"\n' +
+    '  · replaceString: 由写卡器自动拼接各Step模块生成完整HTML，AI不需要输出完整HTML！\n' +
+    '  · 拼接后的完整HTML结构：<!doctype html> → <html> → <head><style>全局样式</style></head> → <body>页面DOM + <script type="module">渲染逻辑</script></body> → </html>\n' +
     '  · placement: [2]（AI输出）\n' +
     '  · markdownOnly: true, promptOnly: false（仅格式显示，不影响发给AI的提示词）\n' +
     '  · runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null\n' +
@@ -1220,9 +1219,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
     '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n</html>\\n```\"\n" +
+    '      replaceString="（由写卡器自动拼接Step 2-7模块生成完整HTML，AI不需要输出）"\n' +
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
-    '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
+    '      注意：AI按Step 2-7输出各模块代码块（用 /* === Step N: 标题 === */ 标记），写卡器自动拼接成完整HTML保存到replaceString\n' +
     "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script type=module)），用```html包裹\n" +
     '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成"时可跳过询问）：\n' +
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
@@ -1694,7 +1693,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
     '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
     '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-    '  · 【包裹格式】replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script type=module)），用```html代码块包裹\n' +
+    '  · 【模块收集】replaceString由写卡器自动拼接各Step模块生成，AI不需要输出完整HTML，只需按Step 2-7输出各模块代码块（用 /* === Step N: 标题 === */ 标记）\n' +
     '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
     '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 两个事件\n' +
     '  · 【异常捕获】$(errorCatched(init)) 包裹，报错不卡死面板\n' +
@@ -4537,26 +4536,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!c) return;
         var div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
-        var avatarHtml;
-        if (role === 'user') {
-          var savedAvatar = localStorage.getItem('userAvatar');
-          if (savedAvatar) {
-            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer;background-image:url(' + savedAvatar + ');background-size:cover;background-position:center"></div>';
-          } else {
-            avatarHtml = '<div class="avatar avatar-user" title="点击更换头像" style="cursor:pointer">👤</div>';
-          }
-        } else {
-          avatarHtml = '<div class="avatar">🤖</div>';
-        }
+        var avatarHtml = buildAvatarHtml(role);
         div.innerHTML = avatarHtml + '<div class="bubble">' + fmtBubble(content) + '</div>';
         c.appendChild(div);
-        if (role === 'user') {
-          var avEl = div.querySelector('.avatar-user');
-          if (avEl) avEl.addEventListener('click', triggerAvatarUpload);
-        }
+        var avEl = div.querySelector('.avatar-' + role);
+        if (avEl) avEl.addEventListener('click', function() { triggerAvatarUpload(role); });
         scrollChat();
       }
-      function triggerAvatarUpload() {
+      function buildAvatarHtml(role) {
+        var key = role + 'Avatar';
+        var saved = localStorage.getItem(key);
+        var cls = 'avatar avatar-' + role;
+        if (saved) {
+          return '<div class="' + cls + '" title="点击更换头像" style="background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
+        }
+        return '<div class="' + cls + '" title="点击更换头像">' + (role === 'user' ? '👤' : '🤖') + '</div>';
+      }
+      function triggerAvatarUpload(role) {
         var input = doc.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -4576,8 +4572,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               var sx = (img.width - size) / 2, sy = (img.height - size) / 2;
               ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
               var dataUrl = canvas.toDataURL('image/png');
-              localStorage.setItem('userAvatar', dataUrl);
-              refreshAllUserAvatars();
+              localStorage.setItem(role + 'Avatar', dataUrl);
+              refreshAllAvatars(role);
               showToast('头像已更新', 'success');
             };
             img.src = ev.target.result;
@@ -4587,13 +4583,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
         input.click();
       }
-      function refreshAllUserAvatars() {
-        var savedAvatar = localStorage.getItem('userAvatar');
-        if (!savedAvatar) return;
-        var avatars = doc.querySelectorAll('.avatar-user');
+      function refreshAllAvatars(role) {
+        var saved = localStorage.getItem(role + 'Avatar');
+        if (!saved) return;
+        var avatars = doc.querySelectorAll('.avatar-' + role);
         for (var i = 0; i < avatars.length; i++) {
           avatars[i].innerHTML = '';
-          avatars[i].style.backgroundImage = 'url(' + savedAvatar + ')';
+          avatars[i].style.backgroundImage = 'url(' + saved + ')';
           avatars[i].style.backgroundSize = 'cover';
           avatars[i].style.backgroundPosition = 'center';
         }
@@ -4605,7 +4601,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var div = doc.createElement('div');
         div.className = 'chat-msg assistant';
         div.id = 'typingInd';
-        div.innerHTML = '<div class="avatar">🤖</div><div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
+        div.innerHTML = buildAvatarHtml('assistant') + '<div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
         c.appendChild(div);
         scrollChat();
       }
@@ -6390,7 +6386,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
             '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
             '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-            '  · 【包裹格式】完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)，用```html代码块包裹\n' +
+            '  · 【模块收集】replaceString由写卡器自动拼接各Step模块生成，AI不需要输出完整HTML，只需按Step 2-7输出各模块代码块（用 /* === Step N: 标题 === */ 标记）\n' +
             '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
             '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后必须绑定两个事件：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED（缺一不可）\n' +
             '  · 【异常捕获】$(errorCatched(init)) 包裹\n' +
