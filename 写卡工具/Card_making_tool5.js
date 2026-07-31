@@ -48,7 +48,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-panel{flex:1.4 1 0;display:flex;flex-direction:column;min-width:0;border-right:1px solid #30363d;min-height:0;overflow:hidden}
 .preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:#0d1117}
 .chat-header{flex-shrink:0;padding:6px 12px;background:#161b22;border-bottom:1px solid #21262d;font-size:.78em;color:#d2a8ff;display:flex;align-items:center;gap:5px}
-.chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
+.chat-messages{flex:1 1 0;overflow-y:auto;padding:10px 4px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
 .chat-msg .avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
@@ -1349,7 +1349,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
     '        ⚠️禁止在Step 8重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
     '\n' +
-    '      【机制2：按语义精准修改】（核心！避免整体重写）\n' +
+    '      【机制3：AI触发状态栏预览命令】\n' +
+    '        当AI需要向用户展示当前已收集的状态栏效果时，在消息中输出 `<preview_statusbar>` 标记。\n' +
+    '        写卡器会自动检测此标记，用当前已收集的模块拼接成完整HTML并在聊天界面中直接渲染。\n' +
+    '        这样AI不需要在消息中输出冗长的HTML代码，用户也能实时看到效果。\n' +
+    '        使用时机：模块收集完成后、用户说"让我看看""预览一下""效果如何"时。\n' +
+    '\n' +
+    '      【机制4：按语义精准修改】（核心！避免整体重写）\n' +
     '      当用户要求修改时，AI先识别涉及哪些Step（按用户语义，可涉及多个），只重写涉及的Step：\n' +
     '        · 用户说"改配色" → 只重写 Step 2，其他不变\n' +
     '        · 用户说"加个新变量" → 改 Step 1表格 + Step 3骨架加节点 + Step 5加路径 + Step 6加渲染分支，写卡器自动拼接\n' +
@@ -4606,7 +4612,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var div = doc.createElement('div');
         div.className = 'chat-msg assistant';
         div.id = 'typingInd';
-        div.innerHTML = '<div class="avatar">🤖</div><div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
+        div.innerHTML = buildAvatarHtml('assistant') + '<div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
         c.appendChild(div);
         scrollChat();
       }
@@ -4639,8 +4645,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
           } else {
             var h = p.content;
+            var placeholders = [];
             var iframes = [];
-            /* 渲染 ```html 代码块为 iframe（用占位符避免被后续转义） */
+            // 先保护 ```json 代码块（避免内部HTML被误匹配）
+            h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) {
+              placeholders.push('<pre><code>' + code + '</code></pre>');
+              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
+            });
+            // 保护其他 ```代码块
+            h = h.replace(/```\w*\s*([\s\S]*?)```/g, function(_, code) {
+              placeholders.push('<pre><code>' + code + '</code></pre>');
+              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
+            });
+            /* 渲染 ```html 代码块为 iframe */
             h = h.replace(/```html\s*\n([\s\S]*?)```/gi, function(_, code) {
               iframes.push(renderHtmlToIframe(code.replace(/\\n/g, '\n')));
               return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
@@ -4652,8 +4669,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
             });
             h = h.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
-            h = h.replace(/```\w*\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
             h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
             h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
             h = h.replace(/\n{3,}/g, '\n\n');
@@ -4661,6 +4676,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             // 还原iframe占位符
             for (var ii = 0; ii < iframes.length; ii++) {
               h = h.replace('__HTML_IFRAME_' + ii + '__', iframes[ii]);
+            }
+            // 还原受保护的代码块
+            for (var pi = 0; pi < placeholders.length; pi++) {
+              h = h.replace('__PROTECTED_BLOCK_' + pi + '__', placeholders[pi]);
             }
             out += h;
           }
@@ -4683,7 +4702,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
         }
         var escHtml = htmlCode.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        return '<iframe class="html-render-frame" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:120px;border:1px solid #30363d;border-radius:6px;background:transparent"></iframe>';
+        return '<iframe class="html-render-frame" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:280px;border:1px solid #30363d;border-radius:6px;background:transparent"></iframe>';
       }
       function getStatDataForRender() {
         var statData = {};
@@ -5125,6 +5144,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 全局存储各Step最新代码（跨多轮对话累积）
       var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
 
+      function assembleStatusBarFromModules() {
+        var cssParts = [];
+        if (statusBarModules.step2) cssParts.push('/* === Step 2: 配色方案 === */\n' + statusBarModules.step2);
+        if (statusBarModules.step4) cssParts.push('/* === Step 4: CSS样式 === */\n' + statusBarModules.step4);
+        var jsParts = [];
+        if (statusBarModules.step5) jsParts.push('/* === Step 5: 变量读取 === */\n' + statusBarModules.step5);
+        if (statusBarModules.step6) jsParts.push('/* === Step 6: 渲染函数 === */\n' + statusBarModules.step6);
+        if (statusBarModules.step7) jsParts.push('/* === Step 7: 事件绑定+入口 === */\n' + statusBarModules.step7);
+
+        var hasSkeleton = !!statusBarModules.step3;
+        var hasScript = !!(statusBarModules.step5 || statusBarModules.step6 || statusBarModules.step7);
+        if (!hasSkeleton && !hasScript && cssParts.length === 0) return '';
+
+        var assembledHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n';
+        if (cssParts.length) {
+          assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
+        }
+        if (jsParts.length) {
+          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n'
+            + jsParts.join('\n\n')
+            + '\n})();\n  <\/script>\n';
+        }
+        assembledHtml += '</head>\n<body>\n';
+        if (statusBarModules.step3) {
+          assembledHtml += statusBarModules.step3 + '\n';
+        } else {
+          assembledHtml += '<div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>\n';
+        }
+        assembledHtml += '</body>\n</html>';
+        return assembledHtml;
+      }
+
       function tryExtractAndAssembleStatusBar(aiText) {
         if (!aiText) return false;
         // 提取所有 /* === Step N: 标题 === */ 标记后的代码块
@@ -5160,32 +5211,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var hasScript = !!(statusBarModules.step5 || statusBarModules.step6 || statusBarModules.step7);
         if (!hasSkeleton && !hasScript) return false;
 
-        // JS层面机械拼接成完整HTML（不受AI输出长度限制）
-        var cssParts = [];
-        if (statusBarModules.step2) cssParts.push('/* === Step 2: 配色方案 === */\n' + statusBarModules.step2);
-        if (statusBarModules.step4) cssParts.push('/* === Step 4: CSS样式 === */\n' + statusBarModules.step4);
-        var jsParts = [];
-        if (statusBarModules.step5) jsParts.push('/* === Step 5: 变量读取 === */\n' + statusBarModules.step5);
-        if (statusBarModules.step6) jsParts.push('/* === Step 6: 渲染函数 === */\n' + statusBarModules.step6);
-        if (statusBarModules.step7) jsParts.push('/* === Step 7: 事件绑定+入口 === */\n' + statusBarModules.step7);
-
-        var assembledHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n';
-        if (cssParts.length) {
-          assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
-        }
-        if (jsParts.length) {
-          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n'
-            + jsParts.join('\n\n')
-            + '\n})();\n  <\/script>\n';
-        }
-        assembledHtml += '</head>\n<body>\n';
-        if (statusBarModules.step3) {
-          assembledHtml += statusBarModules.step3 + '\n';
-        } else {
-          // 无骨架时补一个默认容器
-          assembledHtml += '<div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>\n';
-        }
-        assembledHtml += '</body>\n</html>';
+        var assembledHtml = assembleStatusBarFromModules();
+        if (!assembledHtml) return false;
 
         // 保存到 cardData.extensions.regex_scripts
         cardData.extensions = cardData.extensions || {};
@@ -5416,6 +5443,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           } catch(e) { /* ignore */ }
+
+          // 检测AI发出的 <preview_statusbar> 命令，自动在聊天中渲染已收集的状态栏
+          if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
+            var previewHtml = assembleStatusBarFromModules();
+            if (previewHtml && previewHtml.length > 50) {
+              addAssistantMsg('🎛️ 当前已收集的状态栏预览：\n```html\n' + previewHtml + '\n```');
+            } else {
+              addAssistantMsg('⚠️ 暂无足够的状态栏模块可预览。已收集的模块还不足以拼接出完整状态栏，请继续生成缺失的模块。');
+            }
+          }
+
           var modProg = parseModProgress(aiResponse);
           if (modProg) {
             var entries = (cardData.character_book || {}).entries || [];
