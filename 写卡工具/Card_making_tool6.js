@@ -5162,7 +5162,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
         }
         if (jsParts.length) {
-          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n'
+          assembledHtml += '  <script defer>\n(function() {\n  var ready = function(fn) {\n    if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);\n    else if (document.addEventListener) document.addEventListener("DOMContentLoaded", fn);\n  };\n  var ec = function(fn) { return function() { try { var r = fn.apply(this, arguments); if (r && r.catch) r.catch(function(e) { console.warn("[statusbar] async:", e); }); return r; } catch(e) { console.warn("[statusbar] sync:", e); } } }; };\n  /* 酒馆助手运行时兼容（预览环境兜底） */\n  if (typeof waitGlobalInitialized === "undefined") { window.waitGlobalInitialized = function(n) { return new Promise(function(r) { if (window[n]) { r(); return; } var c = setInterval(function() { if (window[n]) { clearInterval(c); r(); } }, 100); setTimeout(function() { clearInterval(c); r(); }, 3000); }); }; }\n  if (typeof errorCatched === "undefined") { window.errorCatched = function(fn) { return function() { try { return fn.apply(this, arguments); } catch(e) { console.warn("[statusbar]", e); } }; }; }\n  if (typeof eventOn === "undefined") { window.eventOn = function() {}; }\n  if (typeof Mvu === "undefined") { window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } }; }\n'
             + jsParts.join('\n\n')
             + '\n})();\n  <\/script>\n';
         }
@@ -5220,7 +5220,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var foundIdx = -1;
         for (var j = 0; j < rxList.length; j++) {
           var r = rxList[j];
-          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+          // 匹配 StatusPlaceHolder（兼容 Impl 后缀和不带 Impl 的版本）
+          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
             foundIdx = j;
             break;
           }
@@ -5228,7 +5229,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var wrappedHtml = '```html\n' + assembledHtml + '\n```';
         if (foundIdx >= 0) {
           rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || '/<StatusPlaceHolder\\/>/g';
+          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || '/<StatusPlaceHolderImpl\\/>/g';
           rxList[foundIdx].markdownOnly = true;
           rxList[foundIdx].promptOnly = false;
           rxList[foundIdx].placement = [2];
@@ -5238,7 +5239,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           rxList.push({
             id: 'mvu-status-bar',
             scriptName: '[美化]MVU状态栏',
-            findRegex: '/<StatusPlaceHolder\\/>/g',
+            findRegex: '/<StatusPlaceHolderImpl\\/>/g',
             replaceString: wrappedHtml,
             trimStrings: [],
             placement: [2],
