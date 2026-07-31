@@ -1708,11 +1708,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  · 参考：MagVarUpdate example_src\n' +
     '- MVU zod安装清单：\n' +
     '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'【写卡器自动注入】\n' +
-    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定【写卡器自动注入】\n' +
-    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【写卡器自动注入】\n' +
-    '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI生成\n' +
-    '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
-    '  6. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
+    '  2. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【写卡器自动注入】\n' +
+    '  3. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI生成\n' +
+    '  4. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
+    '  5. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -3869,22 +3868,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           } else if (schemaScriptIdx >= 0 && !isMvuSchemaComplete(mvuScripts[schemaScriptIdx].content)) {
             // 脚本存在但不完整（缺import或Schema定义）→ 重新生成
             mvuScripts[schemaScriptIdx].content = generateMvuSchemaScript(schemaInitContent);
-          }
-          // 自动注入"世界书调用"(WTC) 脚本
-          // 用途：将世界书内容用 <observed_piece class="剧情/设定"> 标签包裹，让 AI 区分剧情推进和设定信息
-          // 这有助于 AI 在变量更新时正确识别哪些是世界书设定、哪些是当前剧情
-          var hasWTC = mvuScripts.some(function(s) { return (s.content || '').indexOf('LorebookToolCall') >= 0 || (s.content || '').indexOf('wtc') >= 0; });
-          if (!hasWTC) {
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: '世界书调用',
-              id: 'wtc-lorebook-call',
-              content: 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js',
-              info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
           }
           // 自动注入MVU必备正则脚本（6条）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
