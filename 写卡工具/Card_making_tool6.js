@@ -4021,6 +4021,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 '<div class="preview-header">' +
                   '<span>📋 预览</span>' +
                   '<span id="completionLabel" style="font-size:.72em;color:#3fb950">0%</span>' +
+                  '<span id="exportLogBtn" title="导出聊天记录和后台记录" style="margin-left:auto;cursor:pointer;font-size:.7em;color:#484f58;opacity:.6">📋</span>' +
                 '</div>' +
                 '<div class="preview-body" id="previewBody"></div>' +
               '</div>' +
@@ -4047,6 +4048,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           updateSendBtnPulse();
         });
         doc.getElementById('saveBtn').addEventListener('click', saveCharacter);
+        var exportLogBtn = doc.getElementById('exportLogBtn');
+        if (exportLogBtn) {
+          exportLogBtn.addEventListener('click', exportChatLogs);
+        }
         var clearChatBtn = doc.getElementById('clearChatBtn');
         if (clearChatBtn) {
           clearChatBtn.addEventListener('click', function() {
@@ -4537,6 +4542,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         messages.push({ role: 'user', content: content });
         appendMsg('user', content);
         saveToStorage();
+      }
+      /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
+      function exportChatLogs() {
+        var log = {
+          exportTime: new Date().toISOString(),
+          toolVersion: 'Card_making_tool',
+          cardData: cardData,
+          messages: messages,
+          statusBarModules: statusBarModules,
+          progress: progress,
+          moduleProgress: moduleProgress
+        };
+        var blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = doc.createElement('a');
+        a.href = url;
+        a.download = 'chatlog_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+        doc.body.appendChild(a);
+        a.click();
+        doc.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('✅ 已导出聊天记录和后台记录', 'success');
       }
       function appendMsg(role, content) {
         var c = doc.getElementById('chatMessages');
@@ -5086,7 +5113,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
           // 至少匹配2个特征词才认为是状态栏HTML
           if (matchCount >= 2) {
-            statusBarHtml = block;
+            // 清理字面量转义字符
+            var cleaned = block;
+            if (cleaned.indexOf('\\n') >= 0) cleaned = cleaned.replace(/\\n/g, '\n');
+            if (cleaned.indexOf('\\"') >= 0) cleaned = cleaned.replace(/\\"/g, '"');
+            if (cleaned.indexOf('\\\\') >= 0) cleaned = cleaned.replace(/\\\\/g, '\\');
+            statusBarHtml = cleaned;
             break;
           }
         }
@@ -5095,12 +5127,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         // 保存到 cardData.extensions.regex_scripts
         cardData.extensions = cardData.extensions || {};
         var rxList = cardData.extensions.regex_scripts || [];
-        var findRegex = '/<StatusPlaceHolder\\/>/g';
-        // 查找已有的状态栏正则（按 findRegex 含 StatusPlaceHolderImpl + markdownOnly + !promptOnly 匹配）
+        var findRegex = '/<StatusPlaceHolderImpl\\/>/g';
+        // 查找已有的状态栏正则（按 findRegex 含 StatusPlaceHolder + markdownOnly + !promptOnly 匹配）
         var foundIdx = -1;
         for (var j = 0; j < rxList.length; j++) {
           var r = rxList[j];
-          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+          // 匹配 StatusPlaceHolder（兼容带Impl和不带Impl的旧版本）
+          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
             foundIdx = j;
             break;
           }
@@ -5109,13 +5142,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (foundIdx >= 0) {
           // 覆盖更新
           rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || findRegex;
+          rxList[foundIdx].findRegex = findRegex;
           rxList[foundIdx].markdownOnly = true;
           rxList[foundIdx].promptOnly = false;
           rxList[foundIdx].placement = [2];
           rxList[foundIdx].runOnEdit = true;
           rxList[foundIdx].substituteRegex = rxList[foundIdx].substituteRegex || 0;
           rxList[foundIdx].disabled = false;
+          rxList[foundIdx].id = 'mvu-status-bar';
+          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
         } else {
           // 新增
           rxList.push({
@@ -5182,9 +5217,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
         var m;
         var foundAny = false;
+        // 清理代码中的字面量转义：将 \n（两个字符）转为真实换行，\" 转为 "，\\ 转为 \
+        function cleanCode(code) {
+          // 仅当代码中存在字面量 \n 时才处理（避免破坏正常的正则表达式中的 \n）
+          if (code.indexOf('\\n') >= 0) {
+            code = code.replace(/\\n/g, '\n');
+          }
+          if (code.indexOf('\\"') >= 0) {
+            code = code.replace(/\\"/g, '"');
+          }
+          if (code.indexOf('\\\\') >= 0) {
+            code = code.replace(/\\\\/g, '\\');
+          }
+          return code;
+        }
         while ((m = stepRe.exec(aiText)) !== null) {
           var stepNum = parseInt(m[1], 10);
-          var code = m[2];
+          var code = cleanCode(m[2]);
           if (stepNum >= 2 && stepNum <= 7) {
             statusBarModules['step' + stepNum] = code;
             foundAny = true;
@@ -5195,7 +5244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var stepRe2 = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*([^*=]*?)===\s*\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/gi;
           while ((m = stepRe2.exec(aiText)) !== null) {
             var sn = parseInt(m[1], 10);
-            var raw = m[3].trim();
+            var raw = cleanCode(m[3].trim());
             // 去掉可能的 ``` 包裹
             raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
             if (sn >= 2 && sn <= 7 && raw.length > 10) {
@@ -5229,12 +5278,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var wrappedHtml = '```html\n' + assembledHtml + '\n```';
         if (foundIdx >= 0) {
           rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = rxList[foundIdx].findRegex || '/<StatusPlaceHolderImpl\\/>/g';
+          rxList[foundIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
           rxList[foundIdx].markdownOnly = true;
           rxList[foundIdx].promptOnly = false;
           rxList[foundIdx].placement = [2];
           rxList[foundIdx].runOnEdit = true;
           rxList[foundIdx].disabled = false;
+          rxList[foundIdx].id = 'mvu-status-bar';
+          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
         } else {
           rxList.push({
             id: 'mvu-status-bar',
@@ -5807,7 +5858,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var regexScripts = cardData.extensions && cardData.extensions.regex_scripts || [];
         for (var j = 0; j < regexScripts.length; j++) {
           var r = regexScripts[j];
-          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+          /* 匹配 StatusPlaceHolder（兼容带Impl和不带Impl的版本） */
+          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
             var rep = r.replaceString || '';
             /* 去掉 ```html ... ``` 包裹 */
             var m = rep.match(/```html\s*\n([\s\S]*?)\n```/);
@@ -5853,19 +5905,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '<h3 style="color:#d2a8ff;margin-bottom:8px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
             /* 顶部只有标题，然后直接是iframe渲染区，不显示任何变量信息 */
             '';
-        /* InitVar 缺失提示放到 details 里，不显示在顶部 */
-        var dataHintHtml = '';
+        /* InitVar 缺失提示仅用于控制台日志，不在界面显示 */
         if (!initVarEntry) {
-          dataHintHtml = '⚠️ 未找到 [InitVar]初始变量 条目，当前使用示例数据。';
+          console.warn('[预览] 未找到 [InitVar]初始变量 条目，使用示例数据');
         } else if (usingSampleData) {
-          dataHintHtml = 'ℹ️ [InitVar] 条目内容为空或格式异常，当前使用示例数据。';
+          console.warn('[预览] [InitVar] 条目内容为空或格式异常，使用示例数据');
         }
         h += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">' +
           '<iframe id="mvuPreviewFrame" style="width:100%;height:420px;border:0;background:transparent" sandbox="allow-scripts"></iframe>' +
           '</div>' +
-          '<details style="margin-bottom:8px;margin-top:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">📋 预览元数据' + (dataHintHtml ? '（' + dataHintHtml + '）' : '') + '（HTML来源：' + escHtml(statusBarSource) + ' · InitVar条目：' + (initVarEntry ? '✓' : '✕') + ' · 顶级变量数：' + (Object.keys(statData).length) + '）</summary>' +
-            '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:.7em;color:#c9d1d9;white-space:pre-wrap;word-break:break-all;margin-top:6px">' + escHtml(JSON.stringify(statData, null, 2)) + '</pre>' +
-          '</details>' +
           '<div class="modal-actions">' +
             '<button class="btn btn-ghost" id="mvuPreviewCloseBtn">关闭</button>' +
           '</div>' +
