@@ -4421,6 +4421,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (hasEntries) {
           actions.push({ action: 'weight', label: '📊 权重可视化' });
           actions.push({ action: 'group', label: '🗂️ 分组管理' });
+          /* MVU状态栏预览：仅当用户已配置MVU变量系统（存在[InitVar]或核心MVU条目）时显示 */
+          var hasMVU = cardData.character_book.entries.some(function(e) {
+            return isMVUEntry(e.comment || '');
+          });
+          if (hasMVU) actions.push({ action: 'mvuPreview', label: '🎛️ 状态栏预览' });
         }
         actions.push({ action: 'generate', label: '✨ 生成角色卡' });
         var h = '';
@@ -4443,6 +4448,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (action === 'optimize') { showOptimizeModal(); return; }
         if (action === 'weight') { showWeightVisual(); return; }
         if (action === 'group') { showGroupMgr(); return; }
+        if (action === 'mvuPreview') { showMvuStatusBarPreview(); return; }
         if (action === 'generate') {
           if (input) { input.value = '生成完整角色卡'; handleSend(); }
           return;
@@ -5313,6 +5319,141 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             showOptimizeModal(failedNames.join('、'), optInstructions);
           });
         }
+      }
+
+      // ===== MVU状态栏预览（仅当用户已配置MVU变量系统时可用）=====
+      // 用 iframe srcdoc 沙箱渲染状态栏HTML，内部 mock 酒馆运行时API
+      // 数据源：从 [InitVar]初始变量 世界书条目解析YAML作为 stat_data
+      // HTML源：优先用AI生成的正则6 replaceString，回退用 MVU_STATUS_BAR_HTML 默认模板
+      function showMvuStatusBarPreview() {
+        var entries = (cardData.character_book || {}).entries || [];
+        /* 前置检查：必须存在MVU条目 */
+        var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
+        if (!hasMVU) {
+          showToast('请先配置MVU变量系统（[InitVar]初始变量等条目）后再使用状态栏预览', 'warning');
+          return;
+        }
+        /* 读取 [InitVar] 初始变量 YAML 作为预览假数据 */
+        var initVarEntry = null;
+        for (var i = 0; i < entries.length; i++) {
+          if ((entries[i].comment || '').toLowerCase().indexOf('[initvar]') >= 0) {
+            initVarEntry = entries[i];
+            break;
+          }
+        }
+        var statData = {};
+        var initVarContent = '';
+        if (initVarEntry && initVarEntry.content) {
+          initVarContent = initVarEntry.content;
+          var parsed = parseInitVar(initVarContent);
+          if (parsed) statData = parsed;
+        }
+        /* 读取状态栏HTML：优先AI生成的正则6，回退默认模板 */
+        var statusBarHtml = MVU_STATUS_BAR_HTML;
+        var statusBarSource = '默认模板';
+        var regexScripts = cardData.extensions && cardData.extensions.regex_scripts || [];
+        for (var j = 0; j < regexScripts.length; j++) {
+          var r = regexScripts[j];
+          if ((r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) {
+            var rep = r.replaceString || '';
+            /* 去掉 ```html ... ``` 包裹 */
+            var m = rep.match(/```html\s*\n([\s\S]*?)\n```/);
+            if (m) {
+              statusBarHtml = m[1];
+              statusBarSource = 'AI生成正则';
+            } else if (rep.indexOf('<!doctype html') >= 0 || rep.indexOf('<html') >= 0) {
+              statusBarHtml = rep;
+              statusBarSource = 'AI生成正则';
+            }
+            break;
+          }
+        }
+        /* 序列化假数据，注入到 iframe 内部作为 mock getAllVariables 的返回值 */
+        /* 转义 </script> 防止破坏外层 script 标签 */
+        var statDataJson = JSON.stringify(statData).replace(/<\/script/gi, '<\\/script');
+        /* 构建预览弹窗：顶部说明+数据来源标识，主体为iframe沙箱渲染 */
+        var h = '<div class="modal" id="mvuPreviewModal">' +
+          '<div class="modal-content" style="max-width:720px">' +
+            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
+            '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">在沙箱中渲染状态栏HTML，预览实际显示效果。数据来自[InitVar]初始变量条目（静态快照，不监听运行时事件）</p>' +
+            '<div class="wv-summary" style="margin-bottom:8px">' +
+              '<div class="wv-stat"><span class="wv-stat-val" style="color:#3fb950;font-size:.9em">' + escHtml(statusBarSource) + '</span><span class="wv-stat-lbl">HTML来源</span></div>' +
+              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d2a8ff;font-size:.9em">' + (initVarEntry ? '✓' : '✕') + '</span><span class="wv-stat-lbl">InitVar条目</span></div>' +
+              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d29922;font-size:.9em">' + (Object.keys(statData).length) + '</span><span class="wv-stat-lbl">顶级变量数</span></div>' +
+            '</div>';
+        /* 如果没有InitVar数据，提示用户 */
+        if (!initVarEntry) {
+          h += '<div style="background:#3a2828;border:1px solid #f8514950;color:#ffa198;padding:8px 12px;border-radius:6px;font-size:.8em;margin-bottom:8px">⚠️ 未找到 [InitVar]初始变量 条目，预览将显示空状态栏。请先让AI生成初始变量YAML。</div>';
+        }
+        h += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">' +
+          '<iframe id="mvuPreviewFrame" style="width:100%;height:420px;border:0;background:transparent" sandbox="allow-scripts"></iframe>' +
+          '</div>' +
+          '<details style="margin-bottom:8px"><summary style="cursor:pointer;color:#8b949e;font-size:.75em;padding:4px 0">查看预览数据（stat_data JSON）</summary>' +
+            '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:.7em;color:#c9d1d9;white-space:pre-wrap;word-break:break-all">' + escHtml(JSON.stringify(statData, null, 2)) + '</pre>' +
+          '</details>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-ghost" id="mvuPreviewCloseBtn">关闭</button>' +
+          '</div>' +
+        '</div></div>';
+        var tmp = doc.createElement('div');
+        tmp.innerHTML = h;
+        var modalEl = tmp.firstElementChild;
+        doc.body.appendChild(modalEl);
+        /* 注入 iframe 内容：在状态栏HTML前注入 mock API + 轻量级jquery/lodash子集 */
+        var frame = doc.getElementById('mvuPreviewFrame');
+        function loadFrame() {
+          var mockScript =
+            '<script>\n' +
+            '/* === 写卡器预览用 mock API（模拟酒馆运行时）=== */\n' +
+            'window.getAllVariables = function() {\n' +
+            '  return { stat_data: ' + statDataJson + ' };\n' +
+            '};\n' +
+            'window.waitGlobalInitialized = function(name) { return Promise.resolve(); };\n' +
+            'window.eventOn = function(evt, cb) { /* 预览不监听运行时事件 */ };\n' +
+            'window.errorCatched = function(fn) { return function() { try { return fn.apply(this, arguments); } catch(e) { console.warn("[预览]渲染异常:", e); } }; };\n' +
+            'window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } };\n' +
+            '/* === 轻量级 lodash 子集（仅 _.get，状态栏渲染所需）=== */\n' +
+            'window._ = { get: function(obj, path, def) {\n' +
+            '  if (obj == null) return def;\n' +
+            '  var keys = String(path).split(".");\n' +
+            '  var cur = obj;\n' +
+            '  for (var i = 0; i < keys.length; i++) {\n' +
+            '    if (cur == null) return def;\n' +
+            '    cur = cur[keys[i]];\n' +
+            '  }\n' +
+            '  return cur === undefined ? def : cur;\n' +
+            '}};\n' +
+            '/* === 轻量级 jquery 子集（状态栏用到的 .html/.text/.addClass/.removeClass + DOMReady回调）=== */\n' +
+            'function _miniJQ(sel) {\n' +
+            '  /* $(fn) 形式：作为 DOMReady 回调，立即执行（预览场景DOM已就绪） */\n' +
+            '  if (typeof sel === "function") { try { sel(); } catch(e) { console.warn(e); } return { ready: function() { return this; } }; }\n' +
+            '  var el = (typeof sel === "string") ? document.querySelector(sel) : sel;\n' +
+            '  return {\n' +
+            '    0: el, length: el ? 1 : 0,\n' +
+            '    html: function(s) { if (el) el.innerHTML = s; return this; },\n' +
+            '    text: function(s) { if (el) el.textContent = s; return this; },\n' +
+            '    addClass: function(c) { if (el) el.classList.add(c); return this; },\n' +
+            '    removeClass: function(c) { if (el) el.classList.remove(c); return this; },\n' +
+            '    ready: function(fn) { try { fn(); } catch(e) { console.warn(e); } return this; }\n' +
+            '  };\n' +
+            '}\n' +
+            'window.$ = window.jQuery = _miniJQ;\n' +
+            '<\/script>\n';
+          var fullDoc = statusBarHtml;
+          /* 将 mock 脚本插入到 </head> 之前；若无 head 则插入到 <body> 前 */
+          if (fullDoc.indexOf('</head>') >= 0) {
+            fullDoc = fullDoc.replace('</head>', mockScript + '</head>');
+          } else if (fullDoc.indexOf('<body') >= 0) {
+            fullDoc = fullDoc.replace(/<body/, mockScript + '<body');
+          } else {
+            fullDoc = mockScript + fullDoc;
+          }
+          frame.srcdoc = fullDoc;
+        }
+        loadFrame();
+        /* 关闭逻辑 */
+        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
+        doc.getElementById('mvuPreviewCloseBtn').addEventListener('click', function() { modalEl.remove(); });
       }
 
       // ===== 权重可视化预览（规范4.4） =====
