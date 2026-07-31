@@ -2469,6 +2469,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     throw new Error('AI调用失败: ' + errors.join('; '));
   }
 
+  // ===== 状态栏生成模式状态（模块级，buildPrompt和openEditor都能访问） =====
+  var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+  var statusBarCurrentStep = 0;  // 0=未在状态栏模式, 1-7=对应Step, 8=全部完成
+  var statusBarMode = false;     // 是否在状态栏生成模式
+  // Step显示名称（UI展示用，统一常量避免多处重复定义）
+  var SB_STEP_DISPLAY_NAMES = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
+  var SB_STEP_ORDER = [2, 3, 4, 5, 6, 7];
+  // 按Step号(2-7)获取显示名称
+  function sbStepName(stepNum) { return SB_STEP_DISPLAY_NAMES['step' + stepNum]; }
+
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
     var existingInfo = '';
@@ -2585,14 +2595,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var sysPrompt = SYS_PROMPT + stateInfo + existingInfo + qcBlock + statusBarStateInfo;
 
     // jsonReminder 放在对话历史之前（属于系统指令区），不放在"助手:"之后
-    var jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
-      '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
-      '2. JSON格式：字段平铺在顶层，用entries数组表示世界书条目\n' +
-      '3. 状态栏放在<statusblock>标签中，使用HTML的details/summary格式\n' +
-      '4. 先输出自然语言回复，再输出JSON代码块，最后输出状态栏\n' +
-      '5. 没有需要修改的内容就输出{"_nochange":true}\n' +
-      '6. 严禁只聊天不输出JSON！\n' +
-      '7. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
+    var jsonReminder = '';
+    if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
+      // 状态栏代码生成模式：不要求AI输出JSON，只要求输出当前Step的代码块
+      jsonReminder = '\n\n⚠️【输出格式提醒 - 状态栏代码生成模式】\n' +
+        '1. 当前在状态栏分步生成模式，只需输出当前Step的```代码块（css/html/javascript）\n' +
+        '2. ⚠️这次不需要输出```json代码块！只输出当前Step的代码块即可\n' +
+        '3. 禁止输出其他代码块（条目JSON/脚本/statusblock/完整HTML等）\n' +
+        '4. 可以在代码块前后用纯文字补充说明，但不要用代码块包裹说明\n' +
+        '5. ⚠️只处理用户「最新一条」消息的指令！';
+    } else {
+      jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
+        '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
+        '2. JSON格式：字段平铺在顶层，用entries数组表示世界书条目\n' +
+        '3. 状态栏放在<statusblock>标签中，使用HTML的details/summary格式\n' +
+        '4. 先输出自然语言回复，再输出JSON代码块，最后输出状态栏\n' +
+        '5. 没有需要修改的内容就输出{"_nochange":true}\n' +
+        '6. 严禁只聊天不输出JSON！\n' +
+        '7. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
+    }
 
     var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史 ===\n';
 
@@ -4434,6 +4455,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             progress: progress,
             moduleProgress: moduleProgress,
             statusBarModules: statusBarModules,
+            statusBarMode: statusBarMode,
+            statusBarCurrentStep: statusBarCurrentStep,
             timestamp: Date.now()
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -4465,6 +4488,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (state.statusBarModules) {
               statusBarModules = state.statusBarModules;
             }
+            statusBarMode = state.statusBarMode || false;
+            statusBarCurrentStep = state.statusBarCurrentStep || 0;
             return true;
           }
         } catch(e) {}
@@ -5287,7 +5312,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 此时extractJSON提取不到，需要这个兜底机制把HTML保存到cardData.extensions.regex_scripts
       function tryExtractStatusBarHtml(aiText) {
         if (!aiText) return false;
-        // ⚠️ 若AI回复中已存在 Step 模块标记，则Step拼接逻辑(tryExtractAndAssembleStatusBar)优先级更高，不走此兜底
+        // 若AI回复中存在 Step 模块标记，由状态栏分步生成模式处理，不走此兜底
         if (/\/\*\s*===\s*Step\s*\d/.test(aiText)) return false;
         // 匹配所有 ```html 代码块
         var htmlBlocks = [];
@@ -5352,82 +5377,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         if (!statusBarHtml) return false;
 
-        // 保存到 cardData.extensions.regex_scripts
-        cardData.extensions = cardData.extensions || {};
-        var rxList = cardData.extensions.regex_scripts || [];
-        var findRegex = '/<StatusPlaceHolderImpl\\/>/g';
-        // 查找已有的状态栏正则（按 findRegex 含 StatusPlaceHolder + markdownOnly + !promptOnly 匹配）
-        var foundIdx = -1;
-        for (var j = 0; j < rxList.length; j++) {
-          var r = rxList[j];
-          // 匹配 StatusPlaceHolder（兼容带Impl和不带Impl的旧版本）
-          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
-            foundIdx = j;
-            break;
-          }
-        }
-        var wrappedHtml = '```html\n' + statusBarHtml + '\n```';
-        if (foundIdx >= 0) {
-          // 覆盖更新
-          rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = findRegex;
-          rxList[foundIdx].markdownOnly = true;
-          rxList[foundIdx].promptOnly = false;
-          rxList[foundIdx].placement = [2];
-          rxList[foundIdx].runOnEdit = true;
-          rxList[foundIdx].substituteRegex = rxList[foundIdx].substituteRegex || 0;
-          rxList[foundIdx].disabled = false;
-          rxList[foundIdx].id = 'mvu-status-bar';
-          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
-        } else {
-          // 新增
-          rxList.push({
-            id: 'mvu-status-bar',
-            scriptName: '[美化]MVU状态栏',
-            findRegex: findRegex,
-            replaceString: wrappedHtml,
-            trimStrings: [],
-            placement: [2],
-            disabled: false,
-            markdownOnly: true,
-            promptOnly: false,
-            runOnEdit: true,
-            substituteRegex: 0,
-            minDepth: null,
-            maxDepth: null
-          });
-        }
-        cardData.extensions.regex_scripts = rxList;
-        return true;
+        // 复用统一的保存函数，避免重复代码
+        return saveStatusBarToCard(statusBarHtml);
       }
 
       // ===== 模块拼接：写卡器后台维护HTML模板，6个空槽位，AI生成哪个就填哪个 =====
       // 核心思路（像角色卡一样在后台写入）：
       //   1. 写卡器后台有一个HTML模板框架（assembleStatusBarFromModules）
-      //   2. 6个模块槽位一开始全是空的（statusBarModules）
-      //   3. 写卡器知道当前在生成哪个模块（statusBarCurrentStep）
+      //   2. 6个模块槽位一开始全是空的（statusBarModules，模块级变量）
+      //   3. 写卡器知道当前在生成哪个模块（statusBarCurrentStep，模块级变量）
       //   4. AI只需输出代码片段，写卡器直接填入对应槽位
       //   5. 6个槽位全部填满后自动拼接保存
-      // 全局存储各Step最新代码（跨多轮对话累积）
-      var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
-      // 当前正在生成的Step号（0=未在状态栏模式, 1-7=对应Step, 8=全部完成）
-      var statusBarCurrentStep = 0;
-      // 是否在状态栏生成模式
-      var statusBarMode = false;
+      // 注：statusBarModules、statusBarCurrentStep、statusBarMode 已提升到模块顶层，
+      //     以便 buildPrompt 和 openEditor 都能访问
 
-      // 从AI回复中提取第一个代码块的内容（去掉```包裹）
+      // 从AI回复中提取第一个非JSON代码块的内容（去掉```包裹）
       // 写卡器知道当前在生成哪个Step，所以只需要提取第一个代码块即可
+      // ⚠️跳过```json代码块（角色卡JSON），只提取css/html/javascript代码块
       function extractFirstCodeBlock(text) {
         if (!text) return '';
-        // 匹配 ```lang\n ... ``` 格式的代码块，取第一个
-        var re = /```[a-z]*\s*\n([\s\S]*?)\n```/i;
-        var m = re.exec(text);
-        if (m) return m[1].trim();
-        // 兜底：无语言标记的代码块
-        var re2 = /```\s*\n([\s\S]*?)\n```/i;
-        m = re2.exec(text);
-        if (m) return m[1].trim();
-        // 兜底2：无代码块包裹，但有Step标记的代码（AI可能直接写代码不包代码块）
+        // 提取所有代码块，跳过json/yaml代码块
+        var allBlocks = [];
+        var blockRe = /```([a-z]*)\s*\n?([\s\S]*?)```/gi;
+        var bm;
+        while ((bm = blockRe.exec(text)) !== null) {
+          var lang = (bm[1] || '').toLowerCase();
+          var content = bm[2].trim();
+          // 跳过json/yaml代码块（角色卡数据）
+          if (lang === 'json' || lang === 'yaml') continue;
+          // 跳过内容是JSON的代码块（无语言标记但内容是{...}）
+          if (!lang && /^\s*\{[\s\S]*\}\s*$/.test(content)) continue;
+          allBlocks.push(content);
+        }
+        if (allBlocks.length > 0) return allBlocks[0];
+        // 兜底：无代码块包裹，但有Step标记的代码
         var stepMatch = text.match(/\/\*\s*===\s*Step\s*\d[\s\S]*?\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/i);
         if (stepMatch) {
           var raw = stepMatch[1].trim();
@@ -5450,12 +5433,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (code.indexOf(blacklist[i]) >= 0) return false;
         }
         switch (stepNum) {
-          case 2: return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
-          case 3: return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
-          case 4: return code.indexOf('{') >= 0 && (code.indexOf('.') >= 0 || code.indexOf('#') >= 0);
-          case 5: return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
-          case 6: return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
-          case 7: return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || code.indexOf('init') >= 0;
+          case 2: // Step2：配色方案 —— 必须含 :root 或 CSS变量定义
+            return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
+          case 3: // Step3：HTML骨架 —— 必须含HTML标签（div/span等），且不能是纯文本文档
+            return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
+          case 4: // Step4：CSS样式 —— 必须含CSS选择器{规则}，排除纯JSON对象
+            return /\{[\s\S]*\}/.test(code) && /[.#][\w-]+\s*\{/.test(code);
+          case 5: // Step5：变量读取 —— 必须含函数定义或变量读取API
+            return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
+          case 6: // Step6：渲染函数 —— 必须含函数定义或DOM操作API
+            return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
+          case 7: // Step7：事件入口 —— 必须含运行时API调用（waitGlobalInitialized/eventOn/errorCatched/init()）
+            return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || /(^|[^a-zA-Z])init\s*\(/.test(code);
         }
         return true;
       }
@@ -5476,6 +5465,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         jsParts.push('/* === Step 6: 渲染函数 === */\n' + statusBarModules.step6);
         jsParts.push('/* === Step 7: 事件绑定+入口 === */\n' + statusBarModules.step7);
 
+        // 拼接防护：Step3是HTML骨架片段，若AI误输出完整文档结构会导致嵌套标签
+        // 清理掉doctype/html/head/body等文档级标签，只保留body内的结构片段
+        var step3Body = statusBarModules.step3;
+        step3Body = step3Body.replace(/<!doctype[^>]*>/gi, '');
+        step3Body = step3Body.replace(/<\/?html[^>]*>/gi, '');
+        step3Body = step3Body.replace(/<\/?head[^>]*>/gi, '');
+        step3Body = step3Body.replace(/<\/?body[^>]*>/gi, '');
+        step3Body = step3Body.replace(/<meta[^>]*>/gi, '');
+        step3Body = step3Body.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
+        // 清理掉Step3中可能混入的<style>/<script>块（这些应放在head中，由模板统一管理）
+        step3Body = step3Body.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        step3Body = step3Body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        step3Body = step3Body.trim();
+
         var assembledHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n';
         if (cssParts.length) {
           assembledHtml += '  <style>\n' + cssParts.join('\n\n') + '\n  </style>\n';
@@ -5486,7 +5489,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             + '\n})();\n  <\/script>\n';
         }
         assembledHtml += '</head>\n<body>\n';
-        assembledHtml += statusBarModules.step3 + '\n';
+        assembledHtml += step3Body + '\n';
         assembledHtml += '</body>\n</html>';
         return assembledHtml;
       }
@@ -5507,199 +5510,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
         }
         return cleared.length ? cleared : null;
-      }
-
-      function tryExtractAndAssembleStatusBar(aiText) {
-        if (!aiText) return false;
-        // 强负面关键词：含这些内容的代码块是无效内容（写卡器进度块/世界书碎片等），直接丢弃
-        var codeBlacklist = ['<statusblock>', '信息完整度', '需要您补充的信息',
-                             '基础公理', '交互软规则', '核心铁则', '近场强约束',
-                             'character_book', '"entries"', '"comment"', '"insertion_order"',
-                             '角色卡', '体系完成度', '待补充', '进行中', '⏳', '❌', '✅',
-                             '```json', '```yaml', '"enabled"', '"constant"', '"position"',
-                             '📊 变量系统', '🏛️ 基础公理', '🤝 交互软规则', '🔐 核心铁则'];
-        function isBadCode(code) {
-          for (var bi = 0; bi < codeBlacklist.length; bi++) {
-            if (code.indexOf(codeBlacklist[bi]) >= 0) return true;
-          }
-          return false;
-        }
-        // 截断函数：AI可能在Step代码块后又输出了其他代码块（条目JSON、脚本、<statusblock>等）
-        // 这些多余内容会被stepRe2贪婪匹配进来，需要截断只保留Step本身的代码
-        function truncateAtExtraContent(code) {
-          if (!code) return code;
-          // 截断标记：遇到这些内容说明后面是多余的其他代码块，截断到该位置之前
-          var cutMarkers = [
-            '<statusblock>', '</statusblock>',
-            '```json', '```yaml', '```toml',
-            'character_book', '"entries"', '"insertion_order"',
-            '信息完整度', '需要您补充的信息',
-            '基础公理', '交互软规则', '核心铁则', '近场强约束',
-            '<!doctype', '<html'
-          ];
-          var cutIdx = code.length;
-          for (var ci = 0; ci < cutMarkers.length; ci++) {
-            var idx = code.indexOf(cutMarkers[ci]);
-            if (idx >= 0 && idx < cutIdx) cutIdx = idx;
-          }
-          // 检查是否有第二个 ``` 代码块（说明AI又输出了其他代码块）
-          // 找到第一个 ``` 的结束位置
-          var firstFence = code.indexOf('```');
-          if (firstFence >= 0) {
-            var endFence = code.indexOf('```', firstFence + 3);
-            if (endFence >= 0) {
-              // 检查 endFence+3 之后是否还有其他 ``` 代码块
-              var afterFirst = code.substring(endFence + 3);
-              var nextFence = afterFirst.indexOf('```');
-              if (nextFence >= 0) {
-                var secondFencePos = endFence + 3 + nextFence;
-                if (secondFencePos < cutIdx) cutIdx = secondFencePos;
-              }
-            }
-          }
-          if (cutIdx < code.length) {
-            code = code.substring(0, cutIdx).trim();
-          }
-          return code;
-        }
-        // Step语义校验：根据Step号验证代码内容是否匹配预期类型
-        function validateStepContent(stepNum, code) {
-          if (!code || code.length < 8) return false;
-          if (isBadCode(code)) return false;
-          switch (stepNum) {
-            case 2: // Step2：配色方案 —— 必须含 :root { 或 CSS变量定义
-              return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
-            case 3: // Step3：HTML骨架 —— 必须含HTML标签
-              return /<\w+[\s>]/g.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
-            case 4: // Step4：CSS样式 —— 必须含选择器{规则}
-              return code.indexOf('{') >= 0 && (code.indexOf('.') >= 0 || code.indexOf('#') >= 0);
-            case 5: // Step5：变量读取 —— 必须含 function 或 _.get 或 getAllVariables
-              return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
-            case 6: // Step6：渲染函数 —— 必须含 function 或 .text( 或 .html( 或 jquery 操作
-              return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
-            case 7: // Step7：事件入口 —— 必须含 waitGlobalInitialized 或 eventOn 或 $(errorCatched 或 init()
-              return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || code.indexOf('init') >= 0;
-          }
-          return true;
-        }
-        // 提取所有 /* === Step N: 标题 === */ 标记后的代码块
-        // 兼容写法：允许 */ 与 ``` 之间有任意空白（换行/空格），以及 ``` 后语言标记可选
-        var stepRe = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*[^=]*?===\s*\*\/\s*(?:\s*\n)?\s*```[a-z]*\s*\n([\s\S]*?)\n```/gi;
-        var m;
-        var foundAny = false;
-        var stepsFoundInThisRound = []; // 记录本次提取到的Step号（用于多模块检测）
-        // 清理代码中的字面量转义：将 \n（两个字符）转为真实换行，\" 转为 "，\\ 转为 \
-        function cleanCode(code) {
-          // 仅当代码中存在字面量 \n 时才处理（避免破坏正常的正则表达式中的 \n）
-          if (code.indexOf('\\n') >= 0) {
-            code = code.replace(/\\n/g, '\n');
-          }
-          if (code.indexOf('\\"') >= 0) {
-            code = code.replace(/\\"/g, '"');
-          }
-          if (code.indexOf('\\\\') >= 0) {
-            code = code.replace(/\\\\/g, '\\');
-          }
-          return code;
-        }
-        while ((m = stepRe.exec(aiText)) !== null) {
-          var stepNum = parseInt(m[1], 10);
-          var code = cleanCode(m[2]);
-          if (stepNum >= 2 && stepNum <= 7 && validateStepContent(stepNum, code)) {
-            // ⚠️严格单模块限制：如果本次已经提取到一个有效Step，跳过后续的（仅取第一个）
-            if (stepsFoundInThisRound.length >= 1) {
-              console.warn('[statusbar] ⚠️AI一次输出了多个Step代码块，仅提取第一个(Step ' + stepsFoundInThisRound[0] + ')，忽略Step ' + stepNum);
-              continue;
-            }
-            statusBarModules['step' + stepNum] = code;
-            stepsFoundInThisRound.push(stepNum);
-            foundAny = true;
-          }
-        }
-        // 也匹配无 ``` 包裹但紧跟标记的代码（AI可能直接写代码不包代码块）
-        // 兼容：修正正则的中括号，避免 [^*=] 过度匹配导致捕获范围错误
-        var stepRe2 = /\/\*\s*===\s*Step\s*(\d+)\s*[:：]\s*([\s\S]*?)===\s*\*\/\s*([\s\S]*?)(?=\/\*\s*===\s*Step\s*\d|$)/gi;
-        while ((m = stepRe2.exec(aiText)) !== null) {
-          var sn = parseInt(m[1], 10);
-          var raw = cleanCode(m[3].trim());
-          // 去掉可能的 ``` 包裹
-          raw = raw.replace(/^```[a-z]*\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-          // ⚠️截断多余内容：AI可能在Step代码后又输出了条目JSON、脚本、<statusblock>等
-          raw = truncateAtExtraContent(raw);
-          if (sn >= 2 && sn <= 7 && raw.length > 10 && validateStepContent(sn, raw)) {
-            // ⚠️严格单模块限制：如果本次已经提取到一个有效Step（无论来自stepRe还是stepRe2），跳过后续的
-            if (stepsFoundInThisRound.length >= 1) {
-              if (stepsFoundInThisRound.indexOf(sn) < 0) {
-                console.warn('[statusbar] ⚠️AI一次输出了多个Step代码块，仅提取第一个(Step ' + stepsFoundInThisRound[0] + ')，忽略Step ' + sn);
-              }
-              continue;
-            }
-            // 仅当前Step还没有被stepRe的代码块匹配时，才用fallback填充（代码块版优先级更高）
-            if (!statusBarModules['step' + sn]) {
-              statusBarModules['step' + sn] = raw;
-              stepsFoundInThisRound.push(sn);
-              foundAny = true;
-            }
-          }
-        }
-        if (!foundAny) return false;
-
-        // ⚠️完整性校验：只有6个模块全部就绪才拼接保存到角色卡
-        // 缺任何一个模块都不保存，避免生成残缺不可用的状态栏
-        // 修改时：旧状态栏保持不变，直到新模块全部收集完毕才覆盖
-        var allComplete = !!(statusBarModules.step2 && statusBarModules.step3 &&
-                             statusBarModules.step4 && statusBarModules.step5 &&
-                             statusBarModules.step6 && statusBarModules.step7);
-        if (!allComplete) {
-          // 模块尚未收集完整，不拼接保存，仅返回true表示有提取到模块
-          return true;
-        }
-
-        var assembledHtml = assembleStatusBarFromModules();
-        if (!assembledHtml) return false;
-
-        // 保存到 cardData.extensions.regex_scripts
-        cardData.extensions = cardData.extensions || {};
-        var rxList = cardData.extensions.regex_scripts || [];
-        var foundIdx = -1;
-        for (var j = 0; j < rxList.length; j++) {
-          var r = rxList[j];
-          // 匹配 StatusPlaceHolder（兼容 Impl 后缀和不带 Impl 的版本）
-          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
-            foundIdx = j;
-            break;
-          }
-        }
-        var wrappedHtml = '```html\n' + assembledHtml + '\n```';
-        if (foundIdx >= 0) {
-          rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
-          rxList[foundIdx].markdownOnly = true;
-          rxList[foundIdx].promptOnly = false;
-          rxList[foundIdx].placement = [2];
-          rxList[foundIdx].runOnEdit = true;
-          rxList[foundIdx].disabled = false;
-          rxList[foundIdx].id = 'mvu-status-bar';
-          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
-        } else {
-          rxList.push({
-            id: 'mvu-status-bar',
-            scriptName: '[美化]MVU状态栏',
-            findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-            replaceString: wrappedHtml,
-            trimStrings: [],
-            placement: [2],
-            disabled: false,
-            markdownOnly: true,
-            promptOnly: false,
-            runOnEdit: true,
-            substituteRegex: 0,
-            minDepth: null,
-            maxDepth: null
-          });
-        }
-        cardData.extensions.regex_scripts = rxList;
-        return true;
       }
 
       // 保存拼接好的状态栏HTML到角色卡的regex_scripts
@@ -5895,100 +5705,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             }
           }
           // ===== 状态栏模块处理（写卡器后台主动管理，像角色卡一样填入槽位） =====
-          // 写卡器知道当前在生成哪个Step，直接提取AI回复中的代码填入对应槽位
-          // 不依赖AI输出 /* === Step N === */ 标记，AI只需输出代码块
           try {
-            // 检测用户是否要进入状态栏生成模式
-            var userText = (messages.length > 0 && messages[messages.length - 1].role === 'user')
-              ? messages[messages.length - 1].content : '';
-            // 检测状态栏相关关键词
-            var sbKeywords = ['状态栏', 'statusbar', 'status_bar', '状态显示', 'MVU状态', 'mvu状态'];
-            var isSBRequest = sbKeywords.some(function(k) { return userText.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
+            // SB_STEP_NAMES/SB_STEP_ORDER 已提升为模块级常量，sbStepName(n) 按号取名称
 
-            // 进入状态栏模式：用户提到状态栏且当前不在模式中
-            if (isSBRequest && !statusBarMode && statusBarCurrentStep === 0) {
-              statusBarMode = true;
-              statusBarCurrentStep = 1; // 从Step 1开始
+            // 找到第一个空缺的Step号（用于推进和清空后定位）
+            function findNextEmptyStep() {
+              for (var i = 0; i < SB_STEP_ORDER.length; i++) {
+                if (!statusBarModules['step' + SB_STEP_ORDER[i]]) return SB_STEP_ORDER[i];
+              }
+              return 8; // 全满
             }
 
-            // 检测修改请求：用户要修改某个模块
-            if (statusBarMode || isSBRequest) {
-              // 检测 <clear_statusbar>N1,N2</clear_statusbar> 清空标记
-              var clearedSteps = processClearStatusModules(aiResponse);
-              if (clearedSteps && clearedSteps.length) {
-                var clearedNames = clearedSteps.map(function(n) {
-                  var names = {2:'配色方案',3:'HTML骨架',4:'CSS样式',5:'变量读取',6:'渲染函数',7:'事件绑定+入口'};
-                  return 'Step ' + n + ':' + names[n];
-                });
-                addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n' +
-                  '  这些模块需要重新生成。');
-                // 如果只清空了一个模块，直接设置当前Step为该模块
-                if (clearedSteps.length === 1) {
-                  statusBarCurrentStep = clearedSteps[0];
-                }
-              }
-            }
-
-            // 状态栏生成模式：写卡器主动管理Step，提取AI回复中的代码填入对应槽位
-            if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
-              var stepNum = statusBarCurrentStep;
-              var code = extractFirstCodeBlock(aiResponse);
-
-              if (code && validateStepCode(stepNum, code)) {
-                // ✅ 代码有效：填入对应槽位（如果模块重复直接替换）
-                statusBarModules['step' + stepNum] = code;
-                var stepNames = { 2:'配色方案', 3:'HTML骨架', 4:'CSS样式', 5:'变量读取', 6:'渲染函数', 7:'事件绑定+入口' };
-                showToast('✅ Step ' + stepNum + ':' + stepNames[stepNum] + ' 已填入槽位', 'success');
-
-                // 推进到下一个Step
-                statusBarCurrentStep++;
-                if (statusBarCurrentStep > 7) {
-                  statusBarCurrentStep = 8; // 全部完成
-                }
-              } else if (code) {
-                // 代码无效：不填入，提醒用户
-                addAssistantMsg('⚠️ Step ' + stepNum + ' 的代码验证未通过（可能混入了其他内容）。\n' +
-                  '  写卡器未填入该代码。请重新生成 Step ' + stepNum + ' 的代码。');
-              }
-
-              // 显示收集进度
-              var stepNamesAll = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
-              var collected = [];
-              var missing = [];
-              for (var sk in stepNamesAll) {
-                if (statusBarModules[sk]) collected.push(stepNamesAll[sk]);
-                else missing.push(stepNamesAll[sk]);
+            // 显示收集进度
+            function showSBProgress() {
+              var collected = [], missing = [];
+              for (var i = 0; i < SB_STEP_ORDER.length; i++) {
+                var sn = SB_STEP_ORDER[i];
+                if (statusBarModules['step' + sn]) collected.push(sbStepName(sn));
+                else missing.push(sbStepName(sn));
               }
               var progressBar = '';
-              for (var pk in stepNamesAll) {
-                progressBar += statusBarModules[pk] ? '✅' : '⬜';
+              for (var j = 0; j < SB_STEP_ORDER.length; j++) {
+                progressBar += statusBarModules['step' + SB_STEP_ORDER[j]] ? '✅' : '⬜';
               }
-              progress = calcProgress();
-              renderPreview();
-
-              // 完整性判断：6个模块全部齐全才拼接保存
-              var allComplete = !!(statusBarModules.step2 && statusBarModules.step3 &&
-                                   statusBarModules.step4 && statusBarModules.step5 &&
-                                   statusBarModules.step6 && statusBarModules.step7);
+              var allComplete = collected.length === 6;
               if (!allComplete) {
-                // 找出下一个该做的Step
-                var stepOrder = ['step2', 'step3', 'step4', 'step5', 'step6', 'step7'];
-                var nextStepName = null;
-                var nextStepNum = 0;
-                for (var si = 0; si < stepOrder.length; si++) {
-                  if (!statusBarModules[stepOrder[si]]) {
-                    nextStepName = stepNamesAll[stepOrder[si]];
-                    nextStepNum = si + 2;
-                    break;
-                  }
-                }
+                var nextEmpty = findNextEmptyStep();
                 addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/6）\n' +
                   '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
                   '  ⬜ 还缺：' + (missing.length ? missing.join('、') : '无') + '\n' +
-                  '  ⏭️ 下一步：请生成 Step ' + nextStepNum + ': ' + nextStepName + '（对我说"继续"即可）\n' +
+                  '  ⏭️ 下一步：请生成 Step ' + nextEmpty + ': ' + sbStepName(nextEmpty) + '（对我说"继续"即可）\n' +
                   '  ⚠️ 6个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。');
               } else {
-                // 6个模块全部齐全：拼接保存到角色卡
                 var assembledHtml = assembleStatusBarFromModules();
                 if (assembledHtml) {
                   saveStatusBarToCard(assembledHtml);
@@ -5998,15 +5746,80 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。');
                 }
               }
-            } else if (statusBarMode && statusBarCurrentStep === 1) {
-              // Step 1是变量表（纯文本），不参与拼接，直接推进
-              statusBarCurrentStep = 2;
-              addAssistantMsg('📋 变量表已确认。接下来请生成 Step 2: 配色方案（对我说"继续"即可）。\n' +
-                '  ⚠️ 只输出Step 2的代码块，不要输出其他代码块。');
-            } else if (!statusBarMode) {
+              progress = calcProgress();
+              renderPreview();
+            }
+
+            // 检测用户是否要进入状态栏生成模式
+            var userText = (messages.length > 0 && messages[messages.length - 1].role === 'user')
+              ? messages[messages.length - 1].content : '';
+            var sbKeywords = ['状态栏', 'statusbar', 'status_bar', '状态显示', 'MVU状态', 'mvu状态'];
+            var isSBRequest = sbKeywords.some(function(k) { return userText.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
+
+            // 进入状态栏模式：用户提到状态栏且当前不在模式中
+            if (isSBRequest && !statusBarMode) {
+              statusBarMode = true;
+              // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
+              var firstEmpty = findNextEmptyStep();
+              statusBarCurrentStep = (firstEmpty === 8) ? 8 : 1;
+            }
+
+            // 检测清空标记
+            var clearedSteps = processClearStatusModules(aiResponse);
+            if (clearedSteps && clearedSteps.length) {
+              var clearedNames = clearedSteps.map(function(n) { return 'Step ' + n + ':' + sbStepName(n); });
+              addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n' +
+                '  这些模块需要重新生成。');
+              // 清空后：定位到第一个空缺Step
+              statusBarCurrentStep = findNextEmptyStep();
+              // 如果AI在同一回复中还输出了代码，继续走提取逻辑
+            }
+
+            // 状态栏生成模式主逻辑
+            if (statusBarMode) {
+              if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
+                // 提取代码并填入当前Step槽位
+                var stepNum = statusBarCurrentStep;
+                var code = extractFirstCodeBlock(aiResponse);
+
+                if (code && validateStepCode(stepNum, code)) {
+                  statusBarModules['step' + stepNum] = code;
+                  showToast('✅ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 已填入槽位', 'success');
+                  // 推进到下一个空缺Step（跳过已填充的）
+                  statusBarCurrentStep = findNextEmptyStep();
+                } else if (code) {
+                  addAssistantMsg('⚠️ Step ' + stepNum + ' 的代码验证未通过（可能混入了其他内容）。\n' +
+                    '  写卡器未填入该代码。请重新生成 Step ' + stepNum + ' 的代码。');
+                }
+                showSBProgress();
+              } else if (statusBarCurrentStep === 1) {
+                // Step 1是变量表（纯文本），不参与拼接，直接推进到第一个空缺
+                statusBarCurrentStep = findNextEmptyStep();
+                if (statusBarCurrentStep <= 7) {
+                  addAssistantMsg('📋 变量表已确认。接下来请生成 Step ' + statusBarCurrentStep + ': ' + sbStepName(statusBarCurrentStep) + '（对我说"继续"即可）。\n' +
+                    '  ⚠️ 只输出当前Step的代码块，不要输出其他代码块。');
+                } else {
+                  showSBProgress();
+                }
+              } else if (statusBarCurrentStep === 8 || statusBarCurrentStep === 0) {
+                // 已完成或未开始：尝试兜底完整HTML提取（允许用户直接输出完整HTML覆盖）
+                var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
+                if (statusBarSaved) {
+                  showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+                  progress = calcProgress();
+                  renderPreview();
+                }
+                // 如果用户明确说"退出状态栏模式"等，退出模式
+                if (/退出状态栏|结束状态栏|退出状态|取消状态栏/.test(userText)) {
+                  statusBarMode = false;
+                  statusBarCurrentStep = 0;
+                  addAssistantMsg('已退出状态栏生成模式。');
+                }
+              }
+            } else {
               // 非状态栏模式：尝试兜底完整HTML提取
-              var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
-              if (statusBarSaved) {
+              var statusBarSaved2 = tryExtractStatusBarHtml(aiResponse);
+              if (statusBarSaved2) {
                 showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
                 progress = calcProgress();
                 renderPreview();
@@ -6018,9 +5831,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
             var previewHtml = assembleStatusBarFromModules();
             if (previewHtml && previewHtml.length > 50) {
-              addAssistantMsg('🎛️ 当前已收集的状态栏预览：\n```html\n' + previewHtml + '\n```');
+              addAssistantMsg('🎛️ 当前已收集的状态栏预览（6/6完整）：\n```html\n' + previewHtml + '\n```');
             } else {
-              addAssistantMsg('⚠️ 暂无足够的状态栏模块可预览。已收集的模块还不足以拼接出完整状态栏，请继续生成缺失的模块。');
+              // 部分预览：展示已收集的模块代码
+              var sbCollected2 = [];
+              for (var sbpk in SB_STEP_DISPLAY_NAMES) {
+                if (statusBarModules[sbpk]) sbCollected2.push(SB_STEP_DISPLAY_NAMES[sbpk]);
+              }
+              if (sbCollected2.length > 0) {
+                addAssistantMsg('🎛️ 状态栏部分预览（' + sbCollected2.length + '/6 已收集）\n' +
+                  '  ✅ 已收集：' + sbCollected2.join('、') + '\n' +
+                  '  ⚠️ 需6个模块全部完成才能拼接预览完整效果。请继续生成缺失模块。\n' +
+                  '  📦 已收集的模块代码：');
+                for (var sbck in SB_STEP_DISPLAY_NAMES) {
+                  if (statusBarModules[sbck]) {
+                    addAssistantMsg('--- ' + SB_STEP_DISPLAY_NAMES[sbck] + ' ---\n```' +
+                      (sbck === 'step2' || sbck === 'step4' ? 'css' : sbck === 'step3' ? 'html' : 'javascript') +
+                      '\n' + statusBarModules[sbck] + '\n```');
+                  }
+                }
+              } else {
+                addAssistantMsg('⚠️ 暂未收集到任何状态栏模块。请先生成状态栏模块。');
+              }
             }
           }
 
@@ -7279,10 +7111,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var r = rxScripts[i];
           if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) { statusBarRegex = r; break; }
         }
-        // 已收集的状态栏模块（分Step生成时）
-        var stepNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
+        // 已收集的状态栏模块（分Step生成时），使用模块级统一常量 SB_STEP_DISPLAY_NAMES
         var collected = [], missing = [];
-        for (var sk in stepNames) { if (statusBarModules[sk]) collected.push(stepNames[sk]); else missing.push(stepNames[sk]); }
+        for (var sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[sk]) collected.push(SB_STEP_DISPLAY_NAMES[sk]); else missing.push(SB_STEP_DISPLAY_NAMES[sk]); }
         var hasStatusBar = !!statusBarRegex;
 
         var dotCls = hasStatusBar ? 'full' : 'empty';
@@ -7311,7 +7142,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         // 分Step模块收集进度
         if (collected.length > 0 || hasMVU) {
           var progressIcons = '';
-          for (var pk in stepNames) { progressIcons += statusBarModules[pk] ? '✅' : '⬜'; }
+          for (var pk in SB_STEP_DISPLAY_NAMES) { progressIcons += statusBarModules[pk] ? '✅' : '⬜'; }
           sH += '<div class="pv-entry"><div class="pv-entry-title">分Step模块收集 <span class="sec-right">' + collected.length + '/6 ' + progressIcons + '</span></div>';
           sH += '<div class="pv-entry-content">已收集：' + (collected.length ? collected.join('、') : '无') + (missing.length ? '\n还缺：' + missing.join('、') : '') + '</div></div>';
         }
@@ -7378,10 +7209,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 }
               }
               cardData.extensions.regex_scripts = rx;
+              // 清空模块槽位
               for (var sk2 in statusBarModules) { statusBarModules[sk2] = null; }
+              // 同时重置模式状态
+              statusBarMode = false;
+              statusBarCurrentStep = 0;
               saveToStorage();
               renderPreview();
-              showToast('✅ 已清除状态栏正则与分Step模块', 'success');
+              showToast('✅ 已清除状态栏正则与分Step模块，模式已重置', 'success');
             }
           });
         }
