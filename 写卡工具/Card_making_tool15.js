@@ -392,21 +392,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="mvu-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:2px solid rgba(33,150,243,0.5);box-shadow:0 0 10px rgba(33,150,243,0.25);flex-shrink:0;z-index:3;position:relative;animation:mvu-spin 1.8s linear infinite;background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);font-size:20px">⟳</span>\n      <span style="display:flex;align-items:center;height:32px;margin-left:-10px;padding:0 20px 0 18px;background:linear-gradient(135deg,#e3f2fd 0%,#d0e9fc 50%,#e3f2fd 100%);border:1.5px solid rgba(33,150,243,0.35);border-radius:0 16px 16px 0;position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#1565c0,#1976d2,#1565c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent">变量更新中</span>\n        <span class="mvu-blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(33,150,243,0.1) 50%,transparent 100%);animation:mvu-blue-sweep 2.5s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:22px;margin-top:6px;padding:12px 18px;color:#0d47a1;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(227,242,253,0.7) 0%,rgba(187,222,251,0.4) 100%);border:1.5px solid rgba(33,150,243,0.25);border-radius:12px;font-size:0.9em;max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.mvu-thinking summary::marker{display:none}.mvu-thinking[open]>div{animation:mvu-content-in .4s ease forwards}.mvu-thinking[open] summary .mvu-blue-glow{animation:none!important;opacity:0}@keyframes mvu-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes mvu-blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}@keyframes mvu-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
 
-  // ===== MVU 状态栏 HTML 模板（精美版：低饱和柔灰蓝+毛玻璃+网格布局）=====
+  // ===== MVU 状态栏 HTML 模板（StageDog 标准：低饱和柔灰蓝+毛玻璃+2秒轮询同步）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
-  // 配套正则：markdownOnly=true, promptOnly=false, 将占位符替换为此HTML
-  // 设计要点（对齐(6)号卡片的美观度标准）：
-  //   1. 用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（复用酒馆助手稳定API，避免Mvu.getVar时序失效）
-  //   2. await waitGlobalInitialized('Mvu') 等待 MVU 模块就绪后再绑定事件
-  //   3. $(errorCatched(init)) 全局异常捕获，报错不卡死面板
-  //   4. 递归 renderTree(obj, level) 渲染任意深度嵌套对象，按层级缩进
-  //   5. 跳过 _ / $ 开头的隐藏变量
+  // 配套正则：markdownOnly=true, promptOnly=false, runOnEdit=false, 用 ``` 代码块包裹（不指定语言）
+  // 设计要点（完全对齐 StageDog 模板的标准实现）：
+  //   1. 优先用 getVariables({ type: 'message' }) 读当前楼层变量，fallback 到 getAllVariables()（StageDog标准：UI渲染用消息级scope）
+  //   2. await waitGlobalInitialized('Mvu') 等 MVU 就绪后，再等待 stat_data 存在（StageDog waitUntil模式）
+  //   3. $(async () => {...}) 顶层入口（jQuery ready + async，不用errorCatched包裹顶层）
+  //   4. 主同步机制：setInterval 每2000ms轮询同步（StageDog defineMvuDataStore 标准），事件绑定仅作加分兜底
+  //   5. 递归 renderTree(obj, level) 渲染任意深度嵌套对象，跳过 _/$ 开头隐藏变量
   //   6. 严格 typeof val === "number" 检测数值，布尔用 ✓/✕，数组元素独立渲染
   //   7. 分类标题(category-title)带▸图标+底部分隔线，stat-grid自动适应网格布局
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '<html>\n<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\nasync function init() {\n    await waitGlobalInitialized(\'Mvu\');\n\n    function refreshStatus() {\n        var allVars = getAllVariables();\n        var sourceData = _.get(allVars, "stat_data", {});\n        var htmlStr = \'\';\n\n        function renderTree(obj, level) {\n            level = level || 0;\n            var indentClass = \'indent-\' + Math.min(level, 4);\n            var itemsHtml = \'\';\n            var keys = Object.keys(obj || {});\n            for (var k = 0; k < keys.length; k++) {\n                var key = keys[k];\n                var value = obj[key];\n                if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                    && Object.prototype.toString.call(value) === \'[object Object]\';\n                if (isPlainObj) {\n                    if (itemsHtml) {\n                        htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                        itemsHtml = \'\';\n                    }\n                    if (level > 0) {\n                        htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                    }\n                    renderTree(value, level + 1);\n                    continue;\n                }\n                itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                if (typeof value === \'number\') {\n                    itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                } else if (typeof value === \'boolean\') {\n                    itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                } else if (Array.isArray(value)) {\n                    itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                } else {\n                    itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                }\n                itemsHtml += \'</span></div>\';\n            }\n            if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n        }\n\n        renderTree(sourceData, 0);\n\n        var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n        if (root) {\n            root.innerHTML = htmlStr;\n            try { root.classList.add(\'flash-update\'); } catch(_) {}\n            setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n        }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n        try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n        try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n}\n\n$(errorCatched(init));\n</script>\n\n</body>\n</html>';
+  var MVU_STATUS_BAR_HTML = '<html>\n<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n// StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready)\n$(async function() {\n    try {\n        // 1. 等 MVU 框架挂载\n        await waitGlobalInitialized(\'Mvu\');\n\n        // 2. 读变量：StageDog标准用 getVariables({type:\"message\"})，fallback 到 getAllVariables()\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        // 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒）\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        // 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略）\n        refreshStatus();\n        setInterval(refreshStatus, 2000);\n\n        // 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -813,14 +813,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '         }),\n' +
     '       });\n' +
     '       $(() => { registerMvuSchema(Schema); })\n' +
-    '  6. 酒馆助手脚本 API（可选，用于状态栏渲染和事件响应）：\n' +
-    '     · 事件：Mvu.events.VARIABLE_INITIALIZED（initvar 加载完成）、Mvu.events.VARIABLE_UPDATE_ENDED（每次更新结束）\n' +
-    '     · 读取（状态栏渲染推荐）：getAllVariables() + _.get(allVars,"stat_data",{}) —— 复用酒馆助手稳定API，避免时序失效\n' +
+    '  6. 酒馆助手脚本 API（StageDog标准，用于状态栏渲染和事件响应）：\n' +
+    '     · 变量读取（状态栏渲染推荐StageDog标准）：优先getVariables({type:"message", message_id:"latest"})，fallback getAllVariables()；用_.get(res,"stat_data",{})取根。UI渲染用消息级scope，不要直接用Mvu.getVar（有时序失效问题）\n' +
     '     · 读取（通用）：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
     '     · 写入：Mvu.setVar("stat_data.角色.好感度", 80) / Mvu.patchVar([{op:"replace",...}])\n' +
-    '     · 等待初始化：waitGlobalInitialized("Mvu") —— 状态栏渲染必须先 await 此函数再绑定事件\n' +
-    '     · 异常捕获：$(errorCatched(fn)) 包裹init函数，报错不卡死面板\n' +
-    '     · 典型场景：在VARIABLE_UPDATE_ENDED回调中递归遍历stat_data渲染状态栏HTML\n' +
+    '     · 等待就绪（StageDog标准两步走）：先await waitGlobalInitialized("Mvu")，再用while循环+setTimeout每秒检查_.has(getVariables({type:"message"}), "stat_data")（最多等15秒）——此为waitUntil模式\n' +
+    '     · 顶层入口（StageDog标准）：$(async function(){ try { ...逻辑... } catch(e){console.warn(e)} }) —— jQuery ready + async，顶层不用errorCatched包裹（errorCatched仅用于pinia store内部setup）\n' +
+    '     · 主同步机制（StageDog defineMvuDataStore标准）：setInterval(刷新函数, 2000) 每2秒轮询同步；事件（VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED）仅作加分兜底，UI不得依赖事件\n' +
+    '     · 事件API（作兜底而非主机制）：Mvu.events.VARIABLE_INITIALIZED（initvar加载完成）、Mvu.events.VARIABLE_UPDATE_ENDED（每次更新结束）。try/catch包裹eventOn调用避免老版本酒馆抛错\n' +
     '  7. EJS 动态模板（可选，根据变量值发送不同提示词给AI）：\n' +
     '     · 使用 getvar("stat_data.角色.好感度") 读取变量值，按阈值分段\n' +
     '     · 示例：<% if (getvar("stat_data.白娅.好感度") >= 50) { %>温柔依赖模式<% } %>\n' +
@@ -839,7 +839,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  1. [InitVar] 条目定义默认初始值（enabled=false，仅初始化时读取一次）\n' +
     '  2. 若需开局动态设置（根据玩家选择），在alternate_greetings中嵌入<UpdateVariable><initvar>YAML</initvar></UpdateVariable>覆盖\n' +
     '  3. 初始化后变量可在状态栏玩家直接修改（通过酒馆助手UI）\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；<状态栏>占位符提醒条目（constant=true）常驻提醒AI输出占位符；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；<状态栏>占位符提醒条目（constant=true）常驻提醒AI输出占位符；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（每2秒轮询从消息级getVariables读stat_data渲染，事件仅兜底）\n' +
     '- ⚠️【Tab隔离】状态栏生成已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成状态栏正则。\n' +
     '  · 状态栏正则6由MVU Tab的5步分模块流程生成（Step 2-6共5个槽位）\n' +
     '  · 标准实现模式：refreshStatus()+renderTree() 递归渲染，document.getElementById("render-root")，<script type="module">\n' +
@@ -1234,12 +1234,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      replaceString=""\n' +
     '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
-    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】：\n' +
+    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】【StageDog标准】：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```html\\n<html>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n</html>\\n```\"\n" +
-    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
+    "      replaceString=\"```\\n<body>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n  <script src=\\\"https://cdn.jsdelivr.net/npm/...statusbar...\\\"><\\/script>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n```\"\n" +
+    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0, minDepth=null, maxDepth=null\n' +
     '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
-    "      注意：HTML必须是完整结构（html+head(style)+body(script type=module)），用```html包裹（无<!doctype html>，参考卡标准）\n" +
+    "      注意（StageDog标准铁则）：\n" +
+    "      · HTML结构：无<!doctype html>、无<html>根；直接<head>+<body>；<script type=\\\"module\\\">放<head>内\n" +
+    "      · 包裹格式：replaceString用纯```代码块包裹（禁止```html标记）\n" +
+    "      · 加载方式：优先 $('body').load('https://cdn.jsdelivr.net/gh/用户/仓库@分支/状态栏/index.html') 独立文件方案；内嵌HTML仅作fallback\n" +
+    "      · runOnEdit=false（StageDog标准，避免编辑消息时重复执行）\n" +
     '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成"时可跳过询问）：\n' +
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
@@ -1325,16 +1329,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '\n' +
     '      ▶ Step 5：refreshStatus + renderTree（仅JS function，变量读取+递归渲染合并为单槽位）\n' +
     '        产出：`function refreshStatus() { ... }` 单个函数 + 内部 renderTree(obj, level) 递归函数\n' +
-    '        规则（标准实现模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
-    '          · 用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（根路径与InitVar YAML根字段一致）\n' +
+    '        规则（StageDog标准实现模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
+    '          · 定义helper _getVars()：优先getVariables({type:"message",message_id:"latest"})，try/catch fallback到getAllVariables()（StageDog标准：UI用消息级scope）\n' +
+    '          · 用 _.get(_getVars(), "stat_data", {}) 读变量（根路径与InitVar YAML根字段一致）\n' +
     '          · 递归 renderTree 遍历对象生成HTML字符串，过滤 _/$ 开头的键\n' +
     '          · 按类型分支：number→.value-number, boolean→.value-true/.value-false(✓/✕), array→[元素,元素], string→.value-text\n' +
     '          · 用 document.getElementById("render-root").innerHTML = htmlStr 写DOM（非jQuery $("#id")）\n' +
     '          · 禁止Mvu.getVar，禁止为每个变量写id\n' +
-    '        示例：\n' +
+    '        示例（含_getVars helper）：\n' +
+    '          function _getVars() {\n' +
+    '            try { if (typeof getVariables === "function") { var r = getVariables({type:"message",message_id:"latest"}); if (r && typeof r==="object") return r; } }\n' +
+    '            catch(e) {} try { return getAllVariables() || {}; } catch(e) { return {}; }\n' +
+    '          }\n' +
     '          function refreshStatus() {\n' +
-    '            var allVars = getAllVariables();\n' +
-    '            var sourceData = _.get(allVars, "stat_data", {});\n' +
+    '            var sourceData = _.get(_getVars(), "stat_data", {});\n' +
     '            var htmlStr = \'\';\n' +
     '            function renderTree(obj, level) {\n' +
     '              level = level || 0;\n' +
@@ -1361,25 +1369,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            }\n' +
     '            renderTree(sourceData, 0);\n' +
     '            var root = document.getElementById("render-root");\n' +
-    '            if (root) { root.innerHTML = htmlStr; root.classList.add("flash-update"); setTimeout(function() { root.classList.remove("flash-update"); }, 300); }\n' +
+    '            if (root) { root.innerHTML = htmlStr; try { root.classList.add("flash-update"); } catch(e) {} setTimeout(function() { try { root.classList.remove("flash-update"); } catch(e) {} }, 300); }\n' +
     '          }\n' +
-    '        交付：展示函数，简要说明读取路径与渲染策略\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 事件绑定+入口，请说继续"\n' +
+    '        交付：展示函数+helper，简要说明变量读取策略（消息级优先、fallback全局）\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 异步入口+轮询绑定，请说继续"\n' +
     '\n' +
-    '      ▶ Step 6：事件绑定+入口（仅JS入口代码，无函数定义）\n' +
-    '        产出：\n' +
-    '          async function init() {\n' +
-    '            await waitGlobalInitialized(\'Mvu\');\n' +
-    '            refreshStatus();\n' +
-    '            setTimeout(refreshStatus, 1000); setTimeout(refreshStatus, 2500);\n' +
-    '            if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
-    '              try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n' +
-    '              try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n' +
+    '      ▶ Step 6：异步入口+轮询绑定（仅JS入口代码，StageDog标准两步就绪+2秒轮询+事件兜底）\n' +
+    '        产出（完整入口代码块）：\n' +
+    '          $(async function() {\n' +
+    '            try {\n' +
+    '              /* 1. 等MVU框架挂载 */\n' +
+    '              await waitGlobalInitialized(\'Mvu\');\n' +
+    '              /* 2. StageDog waitUntil模式：等stat_data存在（最多15秒） */\n' +
+    '              var _waitCount = 0;\n' +
+    '              while (!_.has(_getVars(), "stat_data") && _waitCount < 15) {\n' +
+    '                await new Promise(function(r) { setTimeout(r, 1000); });\n' +
+    '                _waitCount++;\n' +
+    '              }\n' +
+    '              /* 3. 首次渲染 */\n' +
+    '              refreshStatus();\n' +
+    '              /* 4. StageDog主机制：每2秒轮询同步（与defineMvuDataStore相同策略） */\n' +
+    '              setInterval(refreshStatus, 2000);\n' +
+    '              /* 5. 事件绑定：仅作加分兜底，UI不得依赖事件（StageDog标准） */\n' +
+    '              try {\n' +
+    '                if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
+    '                  eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n' +
+    '                  eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n' +
+    '                }\n' +
+    '              } catch(e) {}\n' +
+    '            } catch(err) {\n' +
+    '              console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n' +
+    '              try { var root = document.getElementById("render-root") || document.body; if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\'; } catch(e) {}\n' +
     '            }\n' +
-    '          }\n' +
-    '          $(errorCatched(init));\n' +
-    '        规则：仅入口，禁止Mvu.watch等不存在接口；errorCatched包裹；$(() => {})加载\n' +
-    '        交付：展示入口，问"事件绑定OK吗？"\n' +
+    '          });\n' +
+    '        规则（StageDog铁则）：\n' +
+    '          · 顶层入口用 $(async function(){ try {...} catch(err){} }) —— jQuery ready + async。顶层禁止用errorCatched包裹（仅pinia store内部setup可用）\n' +
+    '          · 必须有两步就绪：先waitGlobalInitialized("Mvu")，再while+setTimeout轮询stat_data就绪（StageDog waitUntil模式）\n' +
+    '          · 主同步机制：setInterval(refreshStatus, 2000) —— 每2秒轮询，等同于defineMvuDataStore内部useIntervalFn(2000)\n' +
+    '          · 事件仅作加分兜底：try/catch双重包裹调用eventOn；UI不得依赖事件（禁用Mvu.watch等不存在接口）\n' +
+    '        交付：展示完整入口代码，问"2秒轮询+事件兜底OK吗？"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 7: 拼接合并+自查，请说继续"\n' +
     '\n' +
     '      ▶ Step 7：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
@@ -1392,16 +1420,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            a. HTML结构：Step 3骨架是合法HTML片段，含 id="render-root" 根容器\n' +
     '            b. 注释规范：全文无 // 注释，仅 /* */\n' +
     '            c. DOM规范：用 document.getElementById("render-root")，非jQuery $("#stat-xxx")\n' +
-    '            d. 变量路径：_.get 根路径为 "stat_data"，与InitVar YAML根字段一致\n' +
+    '            d. 变量路径：_getVars() helper存在，优先getVariables({type:"message"})，fallback getAllVariables()；_.get 根路径为 "stat_data" 与InitVar一致\n' +
     '            e. 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
-    '            f. 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
-    '            g. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
-    '            h. 事件绑定：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 均已绑定\n' +
-    '            i. 隐藏接口：未使用Mvu.watch等不存在的接口\n' +
+    '            f. StageDog异步就绪：Step 6有两步（waitGlobalInitialized + while轮询stat_data），顶层入口用 $(async function(){try/catch})\n' +
+    '            g. StageDog同步机制：Step 6含 setInterval(refreshStatus, 2000)（主机制）；事件仅为try/catch包裹的兜底\n' +
+    '            h. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
+    '            i. 隐藏接口：未使用Mvu.watch/Mvu.observe等不存在的接口；顶层没调用errorCatched\n' +
     '            j. ⚠️模块间一致性对照（核心）：\n' +
     '               - Step 3的id命名 vs Step 6的DOM操作目标 → 必须一一对应\n' +
-    '               - Step 5的return字段名 vs Step 6的data.xxx引用 → 必须完全一致\n' +
-    '               - Step 2的CSS变量名 vs Step 4的var(--xxx)引用 → 必须完全一致\n' +
+    '               - Step 5的_getVars辅助函数 vs Step 6中while循环的_.has(_getVars(),"stat_data")调用 → 必须命名完全一致\n' +
+    '               - Step 2的CSS变量名 vs Step 5的className引用 → 必须完全一致\n' +
     '               - Step 3的class命名 vs Step 4的选择器 → 必须一一对应\n' +
     '               - Step 1的变量路径 vs Step 5的_.get路径 → 必须完全一致\n' +
     '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
@@ -1446,18 +1474,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · ⚠️5个模块全部齐全后写卡器自动拼接保存，确保最终状态栏结构完整、样式完整、逻辑完整\n' +
     '        · ⚠️大型状态栏的优势：每个Step可以写很多代码（上百行），不受单次输出限制，复杂度由Step内部承担\n' +
     '\n' +
-    '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
+    '      ⚠️通用关键实现要求（每个Step都适用，StageDog标准对齐）：\n' +
     '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
-    '        · 读变量：_.get(getAllVariables(), "stat_data", {}) （不要用Mvu.getVar，有时序失效问题）\n' +
-    '        · 异步等待：await waitGlobalInitialized(\'Mvu\') 仅入口调用，此外禁止使用Mvu.watch等不存在的接口\n' +
-    '        · DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById/innerHTML/classList\n' +
+    '        · 读变量（StageDog标准）：封装_getVars() helper，优先getVariables({type:"message",message_id:"latest"})，try/catch fallback getAllVariables()；_.get(_getVars(),"stat_data",{})；禁止Mvu.getVar（有时序失效问题）\n' +
+    '        · 异步就绪（StageDog标准两步走）：① await waitGlobalInitialized("Mvu") ② while+setTimeout轮询_.has(_getVars(),"stat_data")（最多15秒）= waitUntil模式\n' +
+    '        · DOM操作：必须用原生document.getElementById("render-root").innerHTML/classList（StageDog模板标准），不要用jQuery $("#stat-xxx") 逐变量写id\n' +
+    '        · 主同步机制（StageDog标准）：setInterval(refreshStatus, 2000) 每2秒轮询；Mvu.events事件仅try/catch包裹作加分兜底，UI不得依赖事件；禁止Mvu.watch/observe等不存在的接口\n' +
+    '        · 顶层入口（StageDog标准）：$(async function(){ try {...} catch(err){ 降级UI } })；顶层禁止errorCatched（仅pinia store内部setup可用）\n' +
     '        · 注释：只能用 /* 注释 */，禁止 // 注释（会导致渲染失败）\n' +
-    '        · 异常捕获：函数经errorCatched包装后放入 $(() => {}) 加载，报错不卡死面板\n' +
-    '        · 递归渲染：renderVarTree 递归处理任意深度嵌套对象（不要只渲染1层）\n' +
-    '        · 跳过隐藏变量：key以 _ 或 $ 开头的 continue 跳过\n' +
-    '        · 严格类型检测：typeof val === "number" 才画进度条（不要把字符串当数字）\n' +
-    '        · 布尔仅✅/❌：不要加"是/否"文字\n' +
-    '        · script标签：推荐 type="module" 支持顶层async/await；也可用 <script defer> 包IIFE兼容更老环境\n' +
+    '        · 递归渲染：renderTree(obj,level) 递归处理任意深度嵌套对象（不要只渲染1层）\n' +
+    '        · 跳过隐藏变量：key以 _ 或 $ 开头的跳过\n' +
+    '        · 严格类型检测：typeof val === "number" 才画value-number/进度条（不要把字符串当数字）\n' +
+    '        · 布尔✓/✕：value-true✓ / value-false✕ 分色（不要用✅❌表情）\n' +
+    '        · script标签：type="module" 支持顶层async/await；<head>内放置（StageDog模板标准）\n' +
     '      ⚠️CSS/布局约束（避免渲染异常）：\n' +
     '        · 禁用vh等受宿主高度影响的单位，用width+aspect-ratio让高度随宽度自适应\n' +
     '        · 避免 min-height、overflow:auto 等会强制撑高父容器的元素\n' +
@@ -1768,12 +1797,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 编写[InitVar]初始变量YAML\n' +
     '- 编写变量更新规则条目\n' +
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）和<状态栏>占位符提醒条目由写卡器自动注入，无需生成\n' +
-    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
-    '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-    '  · 【包裹格式】replaceString必须是完整HTML结构（html→head(style)→body(script type=module)），用```html代码块包裹（无<!doctype html>，参考卡标准）\n' +
-    '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
-    '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 两个事件\n' +
-    '  · 【异常捕获】$(errorCatched(init)) 包裹，报错不卡死面板\n' +
+    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范+StageDog标准生成，美观度对齐参考卡片，严禁敷衍：\n' +
+    '  · 【配置固定StageDog标准】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0\n' +
+    "  · 【包裹格式StageDog标准】replaceString用纯```代码块包裹（禁止```html标记）；HTML无<!doctype html>、无<html>根；<head>(style+script type=module)+<body>结构\n" +
+    '  · 【读变量StageDog标准】优先getVariables({type:"message",message_id:"latest"}) + try/catch fallback getAllVariables()；_getVars() helper封装；用_.get(res,"stat_data",{})取根（禁止Mvu.getVar有时序失效）\n' +
+    '  · 【异步等待StageDog标准两步走】①await waitGlobalInitialized("Mvu")；②while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒，StageDog waitUntil模式）\n' +
+    "  · 【顶层入口StageDog标准】$(async function(){ try { ... } catch(err){ fallbackUI } }) —— jQuery ready + async；顶层禁止errorCatched（仅pinia内部setup可用）\n" +
+    '  · 【主同步机制StageDog标准】setInterval(refreshStatus, 2000) 每2秒轮询；Mvu.events.VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件仅作加分兜底，UI不得依赖事件\n' +
     '  · 【配色主题（核心！必须用CSS变量）】建议用低饱和柔色系（深色毛玻璃/浅色系二选一），:root定义变量便于换主题：\n' +
     '    - 深色毛玻璃主题（推荐）：--card-bg: rgba(30,35,45,0.82); backdrop-filter: blur(6px); 搭配 --accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
     '    - 浅色舒适主题：--card-bg: linear-gradient(145deg,#f7f9fc,#eef2f7); 搭配柔和主色蓝/紫/绿色系\n' +
@@ -3128,21 +3158,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var statusBarStateInfo = '';
     if (statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
       var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取与渲染函数', 6:'事件绑定+入口', 7:'拼接合并(完成)', 8:'拼接合并(完成)' };
-      // ⚠️ 标准实现模式（对齐参考卡"无限读档：轮回观测者"）：
-      //   - 单一 refreshStatus() 函数（不拆 loadVars/renderVars 两函数）
-      //   - getAllVariables() + _.get(allVars,"stat_data",{}) 读变量
+      // ⚠️ StageDog标准实现模式（对齐tavern_helper_template）：
+      //   - 单一 refreshStatus() 函数（不拆 loadVars/renderVars 两函数）+ _getVars() helper
+      //   - _getVars() 优先 getVariables({type:'message',message_id:'latest'})，fallback getAllVariables()
       //   - document.getElementById('render-root') 操作DOM（非jQuery $('#stat-xxx')）
       //   - 递归 renderTree(obj, level) 自动渲染任意深度嵌套（不为每个变量写id）
-      //   - eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus) 监听变量更新
-      //   - await waitGlobalInitialized('Mvu') 等模块就绪
-      //   - $(errorCatched(init)) 全局异常捕获入口
+      //   - 主同步：setInterval(refreshStatus, 2000) 每2秒轮询
+      //   - 事件：VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED 仅try/catch包裹作加分兜底（UI不得依赖）
+      //   - 就绪两步走：await waitGlobalInitialized('Mvu') → while+setTimeout轮询stat_data（15秒上限）
+      //   - 入口：$(async function(){ try {...} catch(err){} }) —— 顶层不用errorCatched
       var sbStepDescs = {
         1: '输出纯文本表格，列出所有要显示的变量路径/类型/分组/显示名。不输出代码块。',
         2: '输出```css代码块，仅包含:root配色变量定义（--card-bg/--text-main/--accent-blue等CSS变量）。只输出这一个代码块。',
-        3: '输出```html代码块，仅包含外层结构骨架：.mvu-status-card > .card-body[id=render-root] > .loading-state（加载占位）。不要为每个变量写id，递归渲染会自动生成。只输出这一个代码块。',
+        3: '输出```代码块（纯```无语言标记，不要```html），仅包含外层结构骨架：<head>放style和<script type="module">,<body>放.mvu-status-card > .card-body[id=render-root] > .loading-state（加载占位）。不要为每个变量写id，递归渲染会自动生成。只输出这一个代码块。',
         4: '输出```css代码块，包含完整CSS样式规则（.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4）。只输出这一个代码块。',
-        5: '输出```javascript代码块，包含 refreshStatus() 函数 + 内部 renderTree(obj, level) 递归渲染函数。核心实现：var allVars=getAllVariables(); var sourceData=_.get(allVars,"stat_data",{}); 然后递归 renderTree 遍历对象生成HTML字符串，过滤 _/$ 开头的键，number→.value-number, boolean→.value-true/.value-false(✓/✕), array→[元素,元素], string→.value-text。最后 document.getElementById(\'render-root\').innerHTML = htmlStr。只输出这一个代码块。',
-        6: '输出```javascript代码块，包含 init() 入口函数：await waitGlobalInitialized(\'Mvu\') 等模块就绪 → 调用 refreshStatus() → eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus) 监听变量更新。用 $(errorCatched(init)) 包装入口。可加 setTimeout(refreshStatus,1000/2500) 兜底重试。只输出这一个代码块。',
+        5: '输出```javascript代码块，包含 _getVars() helper + refreshStatus() 函数 + 内部 renderTree(obj, level) 递归。核心：封装_getVars()双源读取（消息级优先→全局fallback）；_.get(_getVars(),"stat_data",{})；递归renderTree过滤_/$键；number→.value-number,boolean→✓/✕,array→[a,b],string→.value-text；最后document.getElementById("render-root").innerHTML写DOM。只输出这一个代码块。',
+        6: '输出```javascript代码块，StageDog标准入口：$(async function(){try{ 1)await waitGlobalInitialized("Mvu"); 2)while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒）; 3)refreshStatus(); 4)setInterval(refreshStatus,2000)（主同步2秒轮询）; 5)事件try/catch绑定两个Mvu.events作兜底 } catch(err){降级UI显示错误}}）。注意：顶层不用errorCatched，不用async function init()+$(errorCatched(init))的旧写法。只输出这一个代码块。',
         7: '状态栏已全部完成，无需再输出代码。只做文字确认。',
         8: '状态栏已全部完成，无需再输出代码。只做文字确认。'
       };
@@ -3218,12 +3249,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       'Step 3：HTML结构骨架（.mvu-status-card > .card-body[id=render-root] > .loading-state加载占位）→ 输出```html\n' +
       '   ⚠️不要为每个变量写id！递归渲染会自动生成DOM。HTML只需外层骨架容器。\n' +
       'Step 4：CSS样式表（完整样式：.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/.indent-1~4）→ 输出```css\n' +
-      'Step 5：refreshStatus()+renderTree() 递归渲染函数 → 输出```javascript\n' +
-      '   核心实现（必须严格按此模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
+      'Step 5：_getVars() helper + refreshStatus()+renderTree() 递归渲染（StageDog标准双源读取）→ 输出```javascript\n' +
+      '   核心实现（严格按StageDog标准：先封装_getVars再递归渲染，禁止直接getAllVariables不做fallback）：\n' +
       '   ```javascript\n' +
+      '   /* Step 5 专用：消息级优先双源读变量 */\n' +
+      '   function _getVars() {\n' +
+      '     try { if (typeof getVariables === "function") { var r = getVariables({type:"message",message_id:"latest"}); if (r && typeof r==="object") return r; } }\n' +
+      '     catch(e) {}\n' +
+      '     try { return getAllVariables() || {}; } catch(e2) { return {}; }\n' +
+      '   }\n' +
       '   function refreshStatus() {\n' +
-      '     var allVars = getAllVariables();\n' +
-      '     var sourceData = _.get(allVars, "stat_data", {});\n' +
+      '     var sourceData = _.get(_getVars(), "stat_data", {});\n' +
       '     var htmlStr = \'\';\n' +
       '     function renderTree(obj, level) {\n' +
       '       level = level || 0;\n' +
@@ -3250,23 +3286,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '     }\n' +
       '     renderTree(sourceData, 0);\n' +
       '     var root = document.getElementById("render-root");\n' +
-      '     if (root) { root.innerHTML = htmlStr; root.classList.add("flash-update"); setTimeout(function() { root.classList.remove("flash-update"); }, 300); }\n' +
+      '     if (root) { root.innerHTML = htmlStr; try { root.classList.add("flash-update"); } catch(e) {} setTimeout(function() { try { root.classList.remove("flash-update"); } catch(e) {} }, 300); }\n' +
       '   }\n' +
       '   ```\n' +
-      '   ⚠️关键：用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（路径与InitVar YAML根字段一致）\n' +
+      '   ⚠️关键StageDog标准：必须有_getVars() helper做双源读取（消息级→全局fallback），直接调用getAllVariables()会读错楼层\n' +
       '   ⚠️关键：用 document.getElementById("render-root") 操作DOM（非jQuery $(\'#stat-xxx\')）\n' +
       '   ⚠️关键：递归 renderTree 自动渲染任意深度嵌套（不为每个变量写id）\n' +
-      'Step 6：事件绑定+入口 init() → 输出```javascript\n' +
-      '   async function init() {\n' +
-      '     await waitGlobalInitialized("Mvu");\n' +
-      '     refreshStatus();\n' +
-      '     setTimeout(refreshStatus, 1000); setTimeout(refreshStatus, 2500); // 兜底重试\n' +
-      '     if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
-      '       try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n' +
-      '       try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n' +
+      'Step 6：异步入口+轮询绑定（StageDog标准两步就绪+2秒轮询+事件兜底）→ 输出```javascript\n' +
+      '   ```javascript\n' +
+      '   /* StageDog标准顶层入口：jQuery ready + async + try/catch（顶层不用errorCatched） */\n' +
+      '   $(async function() {\n' +
+      '     try {\n' +
+      '       /* 1. MVU框架挂载等待 */\n' +
+      '       await waitGlobalInitialized("Mvu");\n' +
+      '       /* 2. StageDog waitUntil：等待stat_data存在（最多15秒，避免变量未就绪渲染空状态） */\n' +
+      '       var _waitCount = 0;\n' +
+      '       while (!_.has(_getVars(), "stat_data") && _waitCount < 15) {\n' +
+      '         await new Promise(function(r) { setTimeout(r, 1000); });\n' +
+      '         _waitCount++;\n' +
+      '       }\n' +
+      '       /* 3. 首次渲染 */\n' +
+      '       refreshStatus();\n' +
+      '       /* 4. StageDog主同步机制：每2秒轮询（与defineMvuDataStore内部useIntervalFn(2000)同策略） */\n' +
+      '       setInterval(refreshStatus, 2000);\n' +
+      '       /* 5. 事件绑定仅加分兜底：try/catch包两层；UI不得依赖事件（老酒馆无此API） */\n' +
+      '       try {\n' +
+      '         if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
+      '           eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n' +
+      '           eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n' +
+      '         }\n' +
+      '       } catch(evErr) {}\n' +
+      '     } catch(err) {\n' +
+      '       console.warn(\'[statusbar] init failed:\', err && err.message);\n' +
+      '       try { var root = document.getElementById("render-root") || document.body; if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\'; } catch(e) {}\n' +
       '     }\n' +
-      '   }\n' +
-      '   $(errorCatched(init));\n' +
+      '   });\n' +
+      '   ```\n' +
       'Step 7：全部完成（AI只做文字确认，不输出代码；写卡器自动从Step 2-6槽位中提取代码拼接成完整正则脚本）\n\n' +
       '【按语义精准修改状态栏】\n' +
       '· 先输出清空标记: <clear_statusbar>N1,N2,N3（Step号逗号分隔）→ 写卡器清空对应槽位\n' +
@@ -3827,18 +3882,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       desc: rx.length + ' 条脚本，' + badSubRegex + ' 条substituteRegex超出范围',
       fix: badSubRegex > 0 ? 'substituteRegex必须在0-2范围内（0=不替换宏，1=原始替换，2=转义替换）' : 'substituteRegex配置正确'
     });
-    // runOnEdit建议：状态栏类脚本建议开启runOnEdit（新增）
-    var statusScriptsWithoutRunOnEdit = rx.filter(function(s) {
+    // runOnEdit标准：StageDog模板默认false（避免编辑消息时重复执行），状态栏类/变量美化类脚本建议false
+    var mvScriptsWithBadRunOnEdit = rx.filter(function(s) {
       var name = (s.scriptName || '').toLowerCase();
-      var isStatusScript = name.indexOf('状态') >= 0 || name.indexOf('status') >= 0 || name.indexOf('格式化') >= 0;
-      return isStatusScript && s.runOnEdit !== true;
+      var isMvuOrStatusScript = name.indexOf('状态') >= 0 || name.indexOf('status') >= 0 || name.indexOf('格式化') >= 0
+        || name.indexOf('变量') >= 0 || name.indexOf('updatevariable') >= 0 || name.indexOf('mvu') >= 0
+        || name.indexOf('思维链') >= 0 || name.indexOf('analysis') >= 0;
+      return isMvuOrStatusScript && s.runOnEdit !== false;
     }).length;
     results.push({
-      pass: rx.length === 0 || statusScriptsWithoutRunOnEdit === 0,
+      pass: rx.length === 0 || mvScriptsWithBadRunOnEdit === 0,
       category: '正则脚本',
-      name: '状态栏脚本runOnEdit',
-      desc: rx.length + ' 条脚本，' + statusScriptsWithoutRunOnEdit + ' 条状态栏脚本未开启runOnEdit',
-      fix: statusScriptsWithoutRunOnEdit > 0 ? '状态栏类脚本建议开启runOnEdit=true，编辑消息时自动重新执行' : 'runOnEdit配置正确'
+      name: 'MVU/状态栏脚本runOnEdit',
+      desc: rx.length + ' 条脚本，' + mvScriptsWithBadRunOnEdit + ' 条MVU/状态栏脚本未正确设置runOnEdit',
+      fix: mvScriptsWithBadRunOnEdit > 0 ? 'MVU/状态栏类脚本建议 runOnEdit=false（StageDog标准，避免编辑消息时重复执行）' : 'runOnEdit配置正确（StageDog标准）'
     });
 
     // === 运行效果检查（3项） ===
@@ -4714,7 +4771,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               disabled: false,
               markdownOnly: false,
               promptOnly: true,
-              runOnEdit: true,
+              runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
               substituteRegex: 0,
               minDepth: null,
               maxDepth: null
@@ -4735,7 +4792,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               disabled: false,
               markdownOnly: false,
               promptOnly: true,
-              runOnEdit: true,
+              runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
               substituteRegex: 0,
               minDepth: 4,
               maxDepth: null
@@ -4798,7 +4855,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               disabled: false,
               markdownOnly: false,
               promptOnly: true,
-              runOnEdit: true,
+              runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
               substituteRegex: 0,
               minDepth: null,
               maxDepth: null
@@ -4810,8 +4867,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly;
           });
           if (!hasStatusBarRegex) {
-            // AI未生成时回退：用 ```html 代码块包裹默认状态栏HTML
-            var statusBarReplace = '```html\n' + MVU_STATUS_BAR_HTML + '\n```';
+            // AI未生成时回退：用 ``` 代码块包裹默认状态栏HTML（StageDog标准，纯三引号不指定语言）
+            var statusBarReplace = '```\n' + MVU_STATUS_BAR_HTML + '\n```';
             mvuRegex.push({
               id: 'mvu-status-bar',
               scriptName: '[美化]MVU状态栏',
@@ -4822,7 +4879,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               disabled: false,
               markdownOnly: true,
               promptOnly: false,
-              runOnEdit: true,
+              runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
               substituteRegex: 0,
               minDepth: null,
               maxDepth: null
@@ -6258,16 +6315,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '    };\n' +
           '  };\n' +
           '  window.Mvu = { events: { VARIABLE_INITIALIZED: "VARIABLE_INITIALIZED", VARIABLE_UPDATE_ENDED: "VARIABLE_UPDATE_ENDED" } };\n' +
-          '  window._ = { get: function(obj, path, def) {\n' +
-          '    if (obj == null) return def;\n' +
-          '    var keys = String(path).split(".");\n' +
-          '    var cur = obj;\n' +
-          '    for (var i = 0; i < keys.length; i++) {\n' +
-          '      if (cur == null) return def;\n' +
-          '      cur = cur[keys[i]];\n' +
+          '  // StageDog 标准变量 API：getVariables(option) 消息级 scope\n' +
+          '  window.getVariables = function(opt) {\n' +
+          '    opt = opt || {};\n' +
+          '    // type: "message" → 当前楼层变量；默认"latest"\n' +
+          '    // 返回结构与 getAllVariables 一致（预览模式下不区分楼层）\n' +
+          '    return { stat_data: window.__PREVIEW_MOCK_STAT_DATA__ || {} };\n' +
+          '  };\n' +
+          '  window._ = {\n' +
+          '    get: function(obj, path, def) {\n' +
+          '      if (obj == null) return def;\n' +
+          '      var keys = String(path).split(".");\n' +
+          '      var cur = obj;\n' +
+          '      for (var i = 0; i < keys.length; i++) {\n' +
+          '        if (cur == null) return def;\n' +
+          '        cur = cur[keys[i]];\n' +
+          '      }\n' +
+          '      return cur === undefined ? def : cur;\n' +
+          '    },\n' +
+          '    has: function(obj, path) {\n' +
+          '      if (obj == null) return false;\n' +
+          '      var keys = String(path).split(".");\n' +
+          '      var cur = obj;\n' +
+          '      for (var i = 0; i < keys.length; i++) {\n' +
+          '        if (cur == null || !Object.prototype.hasOwnProperty.call(cur, keys[i])) return false;\n' +
+          '        cur = cur[keys[i]];\n' +
+          '      }\n' +
+          '      return true;\n' +
           '    }\n' +
-          '    return cur === undefined ? def : cur;\n' +
-          '  }};\n' +
+          '  };\n' +
           '  function _miniJQ(sel) {\n' +
           '    if (typeof sel === "function") {\n' +
           '      try {\n' +
@@ -6927,7 +7003,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                      ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly);
           if (isSb) sbIdxList.push(j);
         }
-        var wrappedHtml = '```html\n' + assembledHtml + '\n```';
+        var wrappedHtml = '```\n' + assembledHtml + '\n```';
         if (sbIdxList.length > 0) {
           // 取第一个作为更新目标，其余重复的全部删除（按 id 或 findRegex 匹配的都算重复）
           var keepIdx = sbIdxList[0];
@@ -6936,7 +7012,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           rxList[keepIdx].markdownOnly = true;
           rxList[keepIdx].promptOnly = false;
           rxList[keepIdx].placement = [2];
-          rxList[keepIdx].runOnEdit = true;
+          rxList[keepIdx].runOnEdit = false; // StageDog标准：避免编辑消息时重复执行
           rxList[keepIdx].disabled = false;
           rxList[keepIdx].id = 'mvu-status-bar';
           rxList[keepIdx].scriptName = '[美化]MVU状态栏';
@@ -6959,7 +7035,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             disabled: false,
             markdownOnly: true,
             promptOnly: false,
-            runOnEdit: true,
+            runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
             substituteRegex: 0,
             minDepth: null,
             maxDepth: null
@@ -7049,7 +7125,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!hasR1) {
           rxList.push({ id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36', scriptName: '仅格式思维链',
             findRegex: '/<Analysis>[\\s\\S]+?<\\/Analysis>/gm', replaceString: '', trimStrings: [],
-            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
             substituteRegex: 0, minDepth: null, maxDepth: null });
           injected.push('正则1(思维链)');
         }
@@ -7059,7 +7135,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!hasR2) {
           rxList.push({ id: '5bb4b588-23ca-4564-8df5-882104eff764', scriptName: '只发送最新2楼的变量更新',
             findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm', replaceString: '', trimStrings: [],
-            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
             substituteRegex: 0, minDepth: 4, maxDepth: null });
           injected.push('正则2(变量更新截断)');
         }
@@ -7095,7 +7171,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!hasR5) {
           rxList.push({ id: 'mvu-status-hide', scriptName: '[不发送]隐藏状态栏标记',
             findRegex: '/<StatusPlaceHolderImpl\\/>/g', replaceString: '', trimStrings: [],
-            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
             substituteRegex: 0, minDepth: null, maxDepth: null });
           injected.push('正则5(隐藏状态栏标记)');
         }
@@ -7884,8 +7960,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           /* 匹配 StatusPlaceHolder（兼容带Impl和不带Impl的版本） */
           if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
             var rep = r.replaceString || '';
-            /* 去掉 ```html ... ``` 包裹 */
-            var m = rep.match(/```html\s*\n([\s\S]*?)\n```/);
+            /* 去掉 ```html ... ``` 或 ``` ... ``` 包裹（StageDog标准用纯```无语言） */
+            var m = rep.match(/```(?:html)?\s*\n([\s\S]*?)\n```/);
             if (m) {
               statusBarHtml = m[1];
               statusBarSource = 'AI生成正则';
@@ -8197,7 +8273,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '非贪婪匹配（.*?）': { field: 'regex_scripts', instr: '问题：使用贪婪匹配.*或.+\n影响：匹配过多内容\n修复：改用.*?或.+?非贪婪匹配' },
           'placement配置检查': { field: 'regex_scripts', instr: '问题：未设置placement\n影响：脚本不知在哪个位置执行\n修复：设置placement数组，[0]=用户输入、[1]=AI回复、[0,1]=两者都处理' },
           'substituteRegex范围（0-2）': { field: 'regex_scripts', instr: '问题：substituteRegex超出0-2范围\n影响：宏替换行为异常\n修复：设为0(不替换宏)/1(原始替换)/2(转义替换)，一般用1' },
-          '状态栏脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏脚本未开启runOnEdit\n影响：编辑消息时状态栏不刷新\n修复：状态栏类脚本设置 runOnEdit=true' },
+          '状态栏/MVU脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏/MVU脚本开启了runOnEdit（违反StageDog标准）\n影响：编辑消息时重复执行脚本，状态栏闪烁或初始化异常\n修复：MVU/状态栏/思维链/变量美化类脚本设置 runOnEdit=false（对齐tavern_helper_template标准）' },
           // === 运行效果 ===
           '常驻Token总量 ≤500': { field: 'entries', instr: '问题：常驻Token总量超过500\n影响：挤占上下文预算，长对话记忆受损\n修复：将非核心内容从constant条目移到触发条目，控制常驻Token≤500' },
           '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
@@ -8350,7 +8426,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '  * replaceString：支持$1-$9捕获组、{{match}}宏、$&完整匹配\n' +
             '  * placement：[0]=用户输入，[1]=AI回复，[0,1]=两者都处理\n' +
             '  * substituteRegex：0=不替换宏，1=原始替换，2=转义替换（一般用1）\n' +
-            '  * runOnEdit：true=编辑消息时重新执行（状态栏类脚本建议开启）\n' +
+            '  * runOnEdit：true=编辑消息时重新执行；MVU/状态栏/变量美化类脚本必须设为false（StageDog标准，避免编辑消息时重复执行）\n' +
             '  * scriptName：简短描述脚本功能\n' +
             '- 常用场景：\n' +
             '  * 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
@@ -8406,12 +8482,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
             '   - AI 输出示例：{ "op": "replace", "path": "/stat_data/主角/体力值", "value": 80 }, { "op": "delta", "path": "/stat_data/同桌/好感度", "value": 5 }\n' +
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<状态栏>占位符提醒条目、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
-            '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
-            '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-            '  · 【包裹格式】完整HTML结构：html→head(style)→body(script type=module)，用```html代码块包裹（注意：无<!doctype html>，参考卡标准）\n' +
-            '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
-            '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后绑定 VARIABLE_UPDATE_ENDED 事件（参考卡标准）；可酌情附加 VARIABLE_INITIALIZED\n' +
-            '  · 【异常捕获】$(errorCatched(init)) 包裹\n' +
+            '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范+StageDog标准生成，美观度对齐参考卡片，严禁敷衍：\n' +
+            '  · 【配置固定StageDog标准】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0\n' +
+            "  · 【包裹格式StageDog标准】完整HTML结构（无<!doctype html>、无<html>根）：head(style)+body(script type=module)；replaceString用纯```代码块包裹（禁止```html标记）\n" +
+            '  · 【读变量StageDog标准】优先getVariables({type:"message",message_id:"latest"})，try/catch fallback getAllVariables()，封装_getVars() helper；_.get(res,"stat_data",{})取根（禁止Mvu.getVar有时序失效）\n' +
+            '  · 【异步等待StageDog标准两步走】①await waitGlobalInitialized("Mvu")；②while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒）\n' +
+            "  · 【顶层入口+主同步】入口用$(async function(){try/catch})，禁止顶层errorCatched；同步用setInterval(刷新,2000)（StageDog主机制）；事件仅try/catch包裹作加分兜底\n" +
             '  · 【递归渲染规范（核心！严禁只遍历一层）】function renderTree(obj, level) { level = level || 0; } 跳过 key.startsWith(\'_\')/(\'$\') 隐藏变量\n' +
             '    - typeof==="number" → .value-number 主题色显示；布尔值 → value-true ✓ / value-false ✕（绿/红分色，不用emoji✅❌）\n' +
             '    - 嵌套对象 → 先flush为.stat-grid，再输出.category-title（▸图标+分隔线），然后递归 renderTree(value, level+1) 并 .indent-N 缩进\n' +
