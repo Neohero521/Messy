@@ -61,6 +61,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-msg .bubble code{background:#efe7d6;padding:1px 5px;border-radius:4px;font-size:.82em;color:#8a6d3b}
 .chat-msg .bubble pre{background:#f9f5ed;border:1px solid #e6dfd0;border-radius:8px;padding:8px;overflow-x:auto;font-size:1em;margin:6px 0;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
 .chat-msg .bubble pre code{background:none;padding:0;color:inherit}
+.chat-msg .bubble .md-table-wrap{margin:8px 0;overflow-x:auto}
+.chat-msg .bubble table{border-collapse:collapse;font-size:.92em}
+.chat-msg .bubble th,.chat-msg .bubble td{border:1px solid #d8cfb8;padding:6px 10px;vertical-align:top;min-width:60px}
+.chat-msg .bubble th{background:#f3ebd8;font-weight:700;color:#57503f}
+.chat-msg .bubble tbody tr:nth-child(even) td{background:#faf7ef}
 .chat-msg .bubble h2{font-size:1.15em;font-weight:700;margin:10px 0 4px;color:#57503f;border-bottom:1px solid #e6dfd0;padding-bottom:2px}
 .chat-msg .bubble h3{font-size:1.05em;font-weight:700;margin:8px 0 3px;color:#57503f}
 .chat-msg .bubble h4{font-size:1em;font-weight:700;margin:6px 0 2px;color:#57503f}
@@ -6469,70 +6474,96 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             var h = p.content;
             var placeholders = [];
             var iframes = [];
-            // 先保护 ```json 代码块（避免内部HTML被误匹配）
-            h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) {
-              placeholders.push('<pre><code>' + code + '</code></pre>');
-              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
-            });
-            // 保护其他 ```代码块
-            h = h.replace(/```\w*\s*([\s\S]*?)```/g, function(_, code) {
-              placeholders.push('<pre><code>' + code + '</code></pre>');
-              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
-            });
-            /* 渲染 ```html 代码块为 iframe */
+            // ===== 保护阶段：先做 iframe → 再做代码块 → 最后做 Markdown =====
+            // 1) ```html 代码块优先转 iframe（必须放在一般 ```\w* 之前）
             h = h.replace(/```html\s*\n([\s\S]*?)```/gi, function(_, code) {
               iframes.push(renderHtmlToIframe(code.replace(/\\n/g, '\n')));
               return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
             });
-            /* 检测消息中直接包含的完整HTML文档（非代码块格式） */
+            // 2) 检测消息中直接包含的完整HTML文档（非代码块格式）
             h = h.replace(/(?:html\s*[\n\\n]+)?(<!doctype html>[\s\S]*?<\/html>)/gi, function(_, htmlCode) {
               var code = htmlCode.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
               iframes.push(renderHtmlToIframe(code));
               return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
             });
+            // 3) 所有 ``` 代码块存占位符（含 ```json / ```js 等），内容必须 HTML 转义后再塞回
+            h = h.replace(/```(\w*)\s*\n([\s\S]*?)```/g, function(_, lang, code) {
+              var escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+              var cls = lang ? ' class="lang-' + lang.replace(/[^a-zA-Z0-9_-]/g,'') + '"' : '';
+              placeholders.push('<pre><code' + cls + '>' + escaped + '</code></pre>');
+              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
+            });
+            // ===== 转义 + Markdown 渲染 =====
             h = h.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            // ===== Markdown 渲染 =====
-            // 标题 ### / ## / #（必须在行首，### 先于 ## 先于 #）
+            // 标题 ### / ## / #
             h = h.replace(/^###\s+(.+)$/gm, '<h4>$1</h4>');
             h = h.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
             h = h.replace(/^#\s+(.+)$/gm, '<h2>$1</h2>');
-            // 分隔线 --- 或 ***（独立行）
+            // 分隔线
             h = h.replace(/^(---|\*\*\*)$/gm, '<hr>');
-            // 引用块 > （连续行合并为一个 blockquote）
+            // 引用块
             h = h.replace(/^&gt;\s?(.*)$/gm, function(_, txt) { return '__BQ__' + txt; });
             h = h.replace(/(__BQ__(?:.*\n?)*)/g, function(m) {
               var inner = m.replace(/__BQ__/g, '').replace(/\n$/, '');
               return '<blockquote>' + inner + '</blockquote>';
             });
-            // 无序列表 - 或 * （连续行合并为 <ul>）
+            // ===== GFM 表格（必须在换行 → <br> 之前处理，按段落解析） =====
+            h = h.replace(/^((?:\|.*\|\n)+)$/gm, function(block) {
+              var lines = block.replace(/\n$/, '').split(/\n/);
+              if (lines.length < 2) return block;
+              // 取第二行判断是否为分隔线（:---|:---:|---: 之类）
+              var sep = lines[1].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+              var isSep = sep.length > 0 && sep.every(function(s) { return /^:?-{3,}:?$/.test(s.trim()); });
+              if (!isSep) return block;
+              // 解析表头
+              var headers = lines[0].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+              var aligns = sep.map(function(s) {
+                var t = s.trim();
+                if (t.charAt(0) === ':' && t.charAt(t.length-1) === ':') return 'center';
+                if (t.charAt(t.length-1) === ':') return 'right';
+                if (t.charAt(0) === ':') return 'left';
+                return '';
+              });
+              var thead = '<thead><tr>' + headers.map(function(hd, i) {
+                var st = aligns[i] ? ' style="text-align:' + aligns[i] + '"' : '';
+                return '<th' + st + '>' + hd.trim() + '</th>';
+              }).join('') + '</tr></thead>';
+              var bodyRows = '';
+              for (var ri = 2; ri < lines.length; ri++) {
+                var cells = lines[ri].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+                bodyRows += '<tr>' + cells.map(function(ce, ci) {
+                  var st = aligns[ci] ? ' style="text-align:' + aligns[ci] + '"' : '';
+                  return '<td' + st + '>' + ce.trim() + '</td>';
+                }).join('') + '</tr>';
+              }
+              var tbody = bodyRows ? '<tbody>' + bodyRows + '</tbody>' : '';
+              return '<div class="md-table-wrap"><table>' + thead + tbody + '</table></div>';
+            });
+            // 无序列表 - 或 *
             h = h.replace(/^[\-\*]\s+(.+)$/gm, function(_, txt) { return '__UL__' + txt; });
             h = h.replace(/(__UL__(?:.*\n?)*)/g, function(m) {
               var items = m.replace(/__UL__/g, '').split(/\n/).filter(function(x){return x;});
               return '<ul>' + items.map(function(it){ return '<li>' + it + '</li>'; }).join('') + '</ul>';
             });
-            // 有序列表 1. 2. （连续行合并为 <ol>）
+            // 有序列表 1.
             h = h.replace(/^\d+\.\s+(.+)$/gm, function(_, txt) { return '__OL__' + txt; });
             h = h.replace(/(__OL__(?:.*\n?)*)/g, function(m) {
               var items = m.replace(/__OL__/g, '').split(/\n/).filter(function(x){return x;});
               return '<ol>' + items.map(function(it){ return '<li>' + it + '</li>'; }).join('') + '</ol>';
             });
-            // 行内代码 `code`
+            // 行内
             h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
-            // 粗体 **text** 或 __text__
             h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
             h = h.replace(/__(.+?)__/g, '<b>$1</b>');
-            // 斜体 *text* 或 _text_（避免与粗体冲突：只匹配单个*且非**开头）
             h = h.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
-            // 删除线 ~~text~~
             h = h.replace(/~~(.+?)~~/g, '<del>$1</del>');
-            // 换行处理
+            // 换行
             h = h.replace(/\n{3,}/g, '\n\n');
             h = h.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-            // 还原iframe占位符
+            // 还原 iframe → 代码块
             for (var ii = 0; ii < iframes.length; ii++) {
               h = h.replace('__HTML_IFRAME_' + ii + '__', iframes[ii]);
             }
-            // 还原受保护的代码块
             for (var pi = 0; pi < placeholders.length; pi++) {
               h = h.replace('__PROTECTED_BLOCK_' + pi + '__', placeholders[pi]);
             }
