@@ -2156,6 +2156,98 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     // ========== 硬拦截结束 =================================================
     // ======================================================================
 
+    // ====== MVU Tab 专属：写入前对已有数据做去重清理 ======
+    // 问题根因：AI 多次生成 MVU 条目时，comment 可能稍有不同（如 [mvu_update]变量更新规则 vs 变量更新规则），
+    // findMatchingEntry 无法匹配 → 产生重复条目。正则脚本也有类似问题。
+    // 解决方案：在 MVU Tab 下，写入新数据前先清理已有数据中的重复项。
+    if (_activeTab === 'mvu') {
+      // ---- 1. MVU 世界书条目去重：按 MVU 类型分类，同类型只保留最后一条 ----
+      if (cd.character_book && cd.character_book.entries && Array.isArray(cd.character_book.entries)) {
+        var mvuTypeMap = {};  // type → index in entries
+        var indicesToRemove = [];
+        for (var ei = 0; ei < cd.character_book.entries.length; ei++) {
+          var e = cd.character_book.entries[ei];
+          if (!e) continue;
+          var cmt = String(e.comment || '');
+          var cnt = String(e.content || '');
+          var mvuType = null;
+          // 分类 MVU 条目类型
+          if (cmt.indexOf('[InitVar]') >= 0 || (cmt.indexOf('初始变量') >= 0 && cnt.indexOf('stat_data') >= 0)) mvuType = 'initvar';
+          else if (cmt.indexOf('变量列表') >= 0 || cnt.indexOf('format_message_variable') >= 0) mvuType = 'varlist';
+          else if (cmt.indexOf('变量更新规则') >= 0 || cmt.indexOf('[mvu_update]变量更新规则') >= 0) mvuType = 'updaterule';
+          else if (cmt.indexOf('变量输出格式') >= 0 || (cmt.indexOf('mvu_update') >= 0 && cnt.indexOf('UpdateVariable') >= 0)) mvuType = 'outputfmt';
+          else if (cmt.indexOf('<状态栏>') >= 0 || cmt.indexOf('StatusPlaceHolder') >= 0) mvuType = 'statusbar_placeholder';
+          if (mvuType) {
+            if (mvuTypeMap[mvuType] !== undefined) {
+              // 已有同类型条目 → 标记旧的为待删除（保留新的，因为新的在数组后面 = 更新生成）
+              indicesToRemove.push(mvuTypeMap[mvuType]);
+            }
+            mvuTypeMap[mvuType] = ei;
+          }
+        }
+        // 降序删除重复的旧条目
+        if (indicesToRemove.length > 0) {
+          indicesToRemove.sort(function(a, b) { return b - a; });
+          indicesToRemove.forEach(function(idx) {
+            console.warn('[Tab隔离·MVU Tab] 去重：删除重复的旧MVU条目:', cd.character_book.entries[idx].comment);
+            cd.character_book.entries.splice(idx, 1);
+          });
+          changeLog._mvuDedupRemoved = indicesToRemove.length;
+          modified = true;
+        }
+      }
+      // ---- 2. 正则脚本去重：按「美化(markdownOnly且非promptOnly)」和「隐藏(promptOnly)」分类，各类只保留最后一条 ----
+      // ⚠️旧逻辑只按 findRegex 含 StatusPlaceHolder 去重，会把功能完全不同的「[美化]MVU状态栏」
+      //   (markdownOnly, 显示用) 和「[不发送]隐藏状态栏标记」(promptOnly, 提示词清理用) 混在一起，
+      //   误删隐藏脚本。现改为分类去重，且按 id === 'mvu-status-bar' 精确匹配美化脚本。
+      if (cd.extensions && cd.extensions.regex_scripts && Array.isArray(cd.extensions.regex_scripts)) {
+        var rxList = cd.extensions.regex_scripts;
+        // 分类收集：beautify=美化显示脚本，hide=提示词清理脚本
+        var beautifyIdxList = [];
+        var hideIdxList = [];
+        for (var ri = 0; ri < rxList.length; ri++) {
+          if (!rxList[ri]) continue;
+          var rxr = rxList[ri];
+          var rxFind = (rxr.findRegex || '');
+          var hasStatusPH = rxFind.indexOf('StatusPlaceHolder') >= 0 || rxr.id === 'mvu-status-bar';
+          if (!hasStatusPH) continue;
+          // 区分两类：promptOnly 的是「隐藏占位符」脚本，markdownOnly 且非 promptOnly 的是「美化状态栏」脚本
+          if (rxr.promptOnly) {
+            hideIdxList.push(ri);
+          } else {
+            beautifyIdxList.push(ri);
+          }
+        }
+        // 美化脚本去重：多于1个时只保留最后一个（最新的）
+        var totalRemoved = 0;
+        if (beautifyIdxList.length > 1) {
+          var keepBeautify = beautifyIdxList[beautifyIdxList.length - 1];
+          var removeBeautify = beautifyIdxList.slice(0, -1);
+          removeBeautify.sort(function(a, b) { return b - a; });
+          removeBeautify.forEach(function(idx) {
+            console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[美化]MVU状态栏脚本:', rxList[idx].scriptName || rxList[idx].name);
+            rxList.splice(idx, 1);
+          });
+          totalRemoved += removeBeautify.length;
+        }
+        // 隐藏脚本去重：多于1个时只保留最后一个
+        if (hideIdxList.length > 1) {
+          var keepHide = hideIdxList[hideIdxList.length - 1];
+          var removeHide = hideIdxList.slice(0, -1);
+          removeHide.sort(function(a, b) { return b - a; });
+          removeHide.forEach(function(idx) {
+            console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[不发送]隐藏状态栏标记脚本:', rxList[idx].scriptName || rxList[idx].name);
+            rxList.splice(idx, 1);
+          });
+          totalRemoved += removeHide.length;
+        }
+        if (totalRemoved > 0) {
+          changeLog._mvuRxScriptDedupRemoved = totalRemoved;
+          modified = true;
+        }
+      }
+    }
+
     if (partial.character && !partial.spec) {
       var ch = partial.character;
       delete partial.character;
@@ -3042,6 +3134,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '· CSS/布局：禁用vh；禁用position:absolute；禁min-height/overflow:auto；用width+aspect-ratio适配\n' +
       '· 跳过隐藏变量：key以_或$开头的跳过不渲染\n' +
       '· 布尔值仅✅/❌：不要加是/否文字\n' +
+      '\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '🔗 路径一致性与覆盖铁律（状态栏能否显示的关键，违反=纯文字状态栏）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '⚠️状态栏显示为纯文字/占位符不消失，99%是以下三处路径不一致导致 loadVars 读不到值、renderVars 写不进DOM：\n' +
+      '1. 【键名语言统一】InitVar 的 YAML 键名 ↔ Step5 loadVars 的 _.get 路径 ↔ 变量更新规则引用的路径，三者必须字字相同。\n' +
+      '   · 统一用英文键（如 stat_data.world.entropy），禁止中文键（如 stat_data.世界.现实熵）\n' +
+      '   · 若上方「当前角色卡内容上下文」已列出 InitVar 的实际键名，Step5 的 _.get 路径必须逐字引用那些键名，不得自创中文翻译\n' +
+      '2. 【loadVars返回 ↔ renderVars读取】Step5 loadVars() 返回对象的属性路径 ↔ Step6 renderVars(data) 中读取的 data.xxx 属性，必须一一对应。\n' +
+      '   · 例：loadVars 返回 { world: { entropy: val } }，则 renderVars 必须读 data.world.entropy，不得读 data.entropy\n' +
+      '3. 【HTML id ↔ jQuery选择器】Step3 HTML 中 id="stat-xxx" ↔ Step6 renderVars 中 $(\'#stat-xxx\') 选择器，必须一一对应。\n' +
+      '   · 例：HTML 有 <span id="stat-world-entropy">，renderVars 必须有 $(\'#stat-world-entropy\')，不得写成 $(\'#stat-entropy\')\n' +
+      '4. 【覆盖而非新增】修改 MVU 条目或状态栏脚本时，必须用相同的 comment / id 覆盖现有条目，禁止新增重复条目。\n' +
+      '   · 美化状态栏正则脚本固定只有一个（id=mvu-status-bar, findRegex=/<StatusPlaceHolderImpl\\\\/>/g），写卡器自动覆盖，你不要在JSON里重复输出\n' +
+      '   · 4条MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式\n' +
+      '\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '🚫 纯文字状态栏禁令（Step 2-7 必须输出代码块）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '⚠️Step 2-7 每一步都「必须」输出对应的```代码块，绝对不允许只用文字描述「已设计配色/已编写函数」而不给代码！\n' +
+      '· 错误示范：「Step 2 配色方案：我采用了深渊紫配色…」后面没有代码块 → 状态栏无法生成\n' +
+      '· 正确示范：「Step 2 配色方案：」+ ```css\\n:root{--bg:#0a0a0f;...}\\n``` → 写卡器自动收集\n' +
+      '· 如果你发现自己只写了文字没写代码块，立即补上代码块再结束本轮回复\n' +
       '\n' +
       '【MVU条目输出格式提醒（MVU Tab）】\n' +
       '· 修改或新建4条MVU条目时，输出: ```json\\n{"entries":[{"comment":"...","content":"...","constant":true,...}]}\\n```\n' +
@@ -6638,25 +6753,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         // 保存到 cardData.extensions.regex_scripts
         cardData.extensions = cardData.extensions || {};
         var rxList = cardData.extensions.regex_scripts || [];
-        var foundIdx = -1;
+        // 收集所有「美化状态栏」脚本：findRegex 含 StatusPlaceHolder 且 markdownOnly 且 非 promptOnly
+        // 同时兼容 id === 'mvu-status-bar' 的脚本（历史数据可能 findRegex 写法不一）
+        var sbIdxList = [];
         for (var j = 0; j < rxList.length; j++) {
           var r = rxList[j];
-          if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
-            foundIdx = j;
-            break;
-          }
+          if (!r) continue;
+          var isSb = (r.id === 'mvu-status-bar') ||
+                     ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly);
+          if (isSb) sbIdxList.push(j);
         }
         var wrappedHtml = '```html\n' + assembledHtml + '\n```';
-        if (foundIdx >= 0) {
-          rxList[foundIdx].replaceString = wrappedHtml;
-          rxList[foundIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
-          rxList[foundIdx].markdownOnly = true;
-          rxList[foundIdx].promptOnly = false;
-          rxList[foundIdx].placement = [2];
-          rxList[foundIdx].runOnEdit = true;
-          rxList[foundIdx].disabled = false;
-          rxList[foundIdx].id = 'mvu-status-bar';
-          rxList[foundIdx].scriptName = '[美化]MVU状态栏';
+        if (sbIdxList.length > 0) {
+          // 取第一个作为更新目标，其余重复的全部删除（按 id 或 findRegex 匹配的都算重复）
+          var keepIdx = sbIdxList[0];
+          rxList[keepIdx].replaceString = wrappedHtml;
+          rxList[keepIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
+          rxList[keepIdx].markdownOnly = true;
+          rxList[keepIdx].promptOnly = false;
+          rxList[keepIdx].placement = [2];
+          rxList[keepIdx].runOnEdit = true;
+          rxList[keepIdx].disabled = false;
+          rxList[keepIdx].id = 'mvu-status-bar';
+          rxList[keepIdx].scriptName = '[美化]MVU状态栏';
+          // 降序删除其余重复脚本（保留 keepIdx）
+          if (sbIdxList.length > 1) {
+            var dupToRemove = sbIdxList.slice(1).sort(function(a, b) { return b - a; });
+            dupToRemove.forEach(function(idx) {
+              console.warn('[statusbar] 去重：删除重复的[美化]MVU状态栏脚本:', rxList[idx].scriptName || rxList[idx].name);
+              rxList.splice(idx, 1);
+            });
+          }
         } else {
           rxList.push({
             id: 'mvu-status-bar',
