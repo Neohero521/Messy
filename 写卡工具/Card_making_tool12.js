@@ -1951,104 +1951,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return '';
   }
 
-  // ===== 识别 MVU 条目的语义类型 =====
-  // AI 可能用不同 comment 格式表示同一条 MVU 条目，例如：
-  //   "[mvu_update]变量更新规则" vs "变量更新规则" vs "⟦变量更新规则⟧"
-  //   "[InitVar]初始变量" vs "初始变量"
-  // 这些应视为同一语义条目，更新而非新增，避免重复
-  function getMvuEntryType(comment) {
-    var c = String(comment || '').toLowerCase();
-    if (!c) return null;
-    // 去掉常见的前缀装饰符（⟦⟧、[]、mvu_update、mvu 标记等）后再判定
-    if (c.indexOf('[initvar]') >= 0 || c.indexOf('初始变量') >= 0) return 'init_var';
-    if (c.indexOf('变量列表') >= 0) return 'var_list';
-    if (c.indexOf('变量更新规则') >= 0 || c.indexOf('变量更新逻辑') >= 0) return 'var_update_rule';
-    if (c.indexOf('变量输出格式') >= 0) return 'var_output_format';
-    if (c.indexOf('状态变量输出') >= 0) return 'status_var_output';
-    return null;
-  }
-
-  // ===== 存量数据去重：清理历史遗留的重复 MVU 条目和重复正则脚本 =====
-  // findMatchingEntry 的 MVU 语义匹配只能「防止新增重复」，无法清理「已经存在的重复」。
-  // 此函数在导入/加载时运行一次，把同语义类型的 MVU 条目、同名正则脚本合并为单条（保留内容最长的）。
-  function dedupeCardData(cd) {
-    if (!cd || typeof cd !== 'object') return 0;
-    var removed = 0;
-    // 1. MVU 世界书条目按语义类型去重（同类型只保留 content 最长的一条，非 MVU 条目原样保留）
-    if (cd.character_book && Array.isArray(cd.character_book.entries)) {
-      var entries = cd.character_book.entries;
-      var bestIdxByType = {};  // mvuType -> 当前最佳（content 最长）条目的索引
-      for (var i = 0; i < entries.length; i++) {
-        var e = entries[i];
-        if (!e) continue;
-        var t = getMvuEntryType(e.comment || '');
-        if (!t) continue;  // 非 MVU 条目不参与去重
-        var len = (e.content || '').length;
-        if (bestIdxByType[t] === undefined) {
-          bestIdxByType[t] = i;
-        } else {
-          var prevLen = (entries[bestIdxByType[t]].content || '').length;
-          if (len > prevLen) bestIdxByType[t] = i;  // 当前的更长，改记当前
-        }
-      }
-      // 重建数组：MVU 条目只保留每种类型的最佳索引，非 MVU 条目全部保留
-      var hasMvuDup = false;
-      var typeCounts = {};
-      for (var k = 0; k < entries.length; k++) {
-        var tk = getMvuEntryType(entries[k] ? entries[k].comment || '' : '');
-        if (tk) { typeCounts[tk] = (typeCounts[tk] || 0) + 1; if (typeCounts[tk] > 1) hasMvuDup = true; }
-      }
-      if (hasMvuDup) {
-        var newEntries = [];
-        for (var j = 0; j < entries.length; j++) {
-          var ej = entries[j];
-          if (!ej) continue;
-          var tj = getMvuEntryType(ej.comment || '');
-          if (tj && bestIdxByType[tj] !== j) { removed++; continue; }  // 同类型里非最佳的，删除
-          newEntries.push(ej);
-        }
-        cd.character_book.entries = newEntries;
-      }
-    }
-    // 2. regex_scripts 按 scriptName/name（其次 findRegex）去重，保留 replaceString 最长的
-    if (cd.extensions && Array.isArray(cd.extensions.regex_scripts)) {
-      var rx = cd.extensions.regex_scripts;
-      var bestRxByIdx = {};  // key -> index
-      var rxKeyCounts = {};
-      for (var r = 0; r < rx.length; r++) {
-        var s = rx[r];
-        if (!s) continue;
-        var nm = s.scriptName || s.name || '';
-        var key = nm || (s.findRegex || '');
-        if (!key) continue;
-        rxKeyCounts[key] = (rxKeyCounts[key] || 0) + 1;
-        if (bestRxByIdx[key] === undefined) {
-          bestRxByIdx[key] = r;
-        } else {
-          var prevRlen = (rx[bestRxByIdx[key]].replaceString || '').length;
-          var rlen = (s.replaceString || '').length;
-          if (rlen > prevRlen) bestRxByIdx[key] = r;
-        }
-      }
-      var hasRxDup = false;
-      for (var rk in rxKeyCounts) { if (rxKeyCounts.hasOwnProperty(rk) && rxKeyCounts[rk] > 1) { hasRxDup = true; break; } }
-      if (hasRxDup) {
-        var newRx = [];
-        for (var r2 = 0; r2 < rx.length; r2++) {
-          var s2 = rx[r2];
-          if (!s2) continue;
-          var nm2 = s2.scriptName || s2.name || '';
-          var key2 = nm2 || (s2.findRegex || '');
-          if (key2 && bestRxByIdx[key2] !== r2) { removed++; continue; }
-          newRx.push(s2);
-        }
-        cd.extensions.regex_scripts = newRx;
-      }
-    }
-    return removed;
-  }
-
-  // ===== 智能查找匹配条目：精确匹配 -> MVU语义等价匹配 -> 同类型单条匹配 -> 内容相似度匹配 =====
+  // ===== 智能查找匹配条目：精确匹配 -> 同类型单条匹配 -> 内容相似度匹配 =====
   function findMatchingEntry(newEntry, existingArr) {
     if (!newEntry || !existingArr || !existingArr.length) return -1;
     var neComment = newEntry.comment || '';
@@ -2058,21 +1961,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     // 第1优先级：精确 comment 匹配（最可靠）
     var exactIdx = existingArr.findIndex(function(e) { return (e.comment || '') === neComment; });
     if (exactIdx >= 0) return { index: exactIdx, mode: 'exact' };
-
-    // 第1.5优先级：MVU 语义等价匹配
-    // AI可能用不同comment格式表示同一条MVU条目，例如：
-    //   "[mvu_update]变量更新规则" vs "变量更新规则" vs "⟦变量更新规则⟧"
-    //   "[InitVar]初始变量" vs "初始变量" vs "[initvar]初始变量"
-    // 这些应视为同一条目，更新而非新增，避免重复
-    var neMvuType = getMvuEntryType(neComment);
-    if (neMvuType) {
-      for (var mi = 0; mi < existingArr.length; mi++) {
-        var exMvuType = getMvuEntryType(existingArr[mi].comment || '');
-        if (exMvuType && exMvuType === neMvuType) {
-          return { index: mi, mode: 'mvu-semantic' };
-        }
-      }
-    }
 
     // 第2优先级：同规范前缀下只有1条现有条目（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
     if (nePrefix) {
@@ -5182,27 +5070,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function importCardData(data) {
         var rawData = data;
-        // ===== 检测聊天记录导出格式（本工具导出的 chatlog 文件） =====
-        // chatlog 顶层含 cardData + cardMessages/mvuMessages（或 chatSessions）+ toolVersion，
-        // 而非裸角色卡。需要先取出内层 cardData 作为导入源，并暂存历史会话以便后续恢复。
-        var chatlogState = null;
-        if (data && data.cardData && typeof data.cardData === 'object' &&
-            (data.toolVersion === 'Card_making_tool' || data.cardMessages || data.mvuMessages || data.chatSessions)) {
-          var cl = data;
-          var clCs = cl.chatSessions;
-          chatlogState = {
-            cardMessages: (clCs && clCs.card && clCs.card.messages) || cl.cardMessages || [],
-            mvuMessages: (clCs && clCs.mvu && clCs.mvu.messages) || cl.mvuMessages || [],
-            activeTab: cl.activeTab || cl.currentTab || 'card',
-            mvuModules: (clCs && clCs.mvu && clCs.mvu.modules) || cl.mvuTabStatusBarModules || null,
-            mvuCurrentStep: (clCs && clCs.mvu && clCs.mvu.currentStep) || cl.mvuTabStatusBarCurrentStep || 0,
-            mvuStatusBarMode: (clCs && clCs.mvu && clCs.mvu.statusBarMode) || cl.mvuTabStatusBarMode || false,
-            progress: cl.progress,
-            moduleProgress: cl.moduleProgress
-          };
-          // 用内层 cardData 作为后续导入源
-          data = cl.cardData;
-        }
         var cd = data.data || data;
         if (!cd || typeof cd !== 'object') { showToast('无效的角色卡格式', 'error'); return; }
 
@@ -5305,11 +5172,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           };
         }
 
-        // ========== 存量去重：清理导入数据中可能存在的重复 MVU 条目 / 重复正则脚本 ==========
-        var _dedupeRemoved = dedupeCardData(cardData);
-        if (_dedupeRemoved > 0 && typeof showToast === 'function') {
-          try { showToast('已自动清理 ' + _dedupeRemoved + ' 条重复的MVU条目/正则脚本', 'success'); } catch(e) {}
-        }
         cardGenerated = !!(cardData.name && (cardData.description || (cardData.character_book.entries && cardData.character_book.entries.length > 0)));
         progress = calcProgress();
         // ========== Tab 隔离：导入角色卡时重置两边聊天记录（回到全新起始状态） ==========
@@ -5326,42 +5188,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         mvuTabStatusBarCurrentStep = 0;
         mvuTabStatusBarModules = chatSessions.mvu.modules;
         mvuTabStatusBarMode = false;
-        // ========== 如果是从聊天记录导出文件导入，恢复历史会话与Tab状态 ==========
-        // chatlogState 在函数开头检测聊天记录格式时填充；普通角色卡导入时为 null
-        if (chatlogState) {
-          chatSessions.card.messages = Array.isArray(chatlogState.cardMessages) ? chatlogState.cardMessages.slice() : [];
-          chatSessions.mvu.messages = Array.isArray(chatlogState.mvuMessages) ? chatlogState.mvuMessages.slice() : [];
-          cardMessages = chatSessions.card.messages;
-          mvuMessages = chatSessions.mvu.messages;
-          messages = (chatlogState.activeTab === 'mvu') ? chatSessions.mvu.messages.slice() : chatSessions.card.messages.slice();
-          if (chatlogState.mvuModules) {
-            chatSessions.mvu.modules = chatlogState.mvuModules;
-            chatSessions.mvu.currentStep = chatlogState.mvuCurrentStep || 0;
-            chatSessions.mvu.statusBarMode = !!chatlogState.mvuStatusBarMode;
-            mvuTabStatusBarModules = chatSessions.mvu.modules;
-            mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
-            mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
-          }
-          if (typeof chatlogState.progress === 'number' && chatlogState.progress > 0) progress = chatlogState.progress;
-          if (chatlogState.moduleProgress && typeof chatlogState.moduleProgress === 'object') moduleProgress = chatlogState.moduleProgress;
-          // 恢复 chatlog 记录的当前Tab（导入聊天记录=继续上次创作，应回到原来的Tab）
-          activeTab = chatlogState.activeTab || 'card';
-          currentTab = activeTab;
-          if (typeof window !== 'undefined') window.__tab_activeTab = activeTab;
-        }
         // 同步模块级状态栏变量（与当前激活的Tab匹配）
         if (activeTab === 'mvu') {
           statusBarModules = chatSessions.mvu.modules;
-          statusBarCurrentStep = chatSessions.mvu.currentStep || 0;
-          statusBarMode = chatSessions.mvu.statusBarMode || false;
+          statusBarCurrentStep = 0;
+          statusBarMode = false;
         } else {
           statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
           statusBarCurrentStep = 0;
           statusBarMode = false;
         }
         // 如果当前不在角色卡Tab，自动切回角色卡Tab（导入后默认从角色卡开始）
-        // 注意：从聊天记录导入时尊重原Tab，不强制切回
-        var needSwitchBack = (!chatlogState && activeTab !== 'card');
+        var needSwitchBack = (activeTab !== 'card');
 
         renderChatUI();
         if (needSwitchBack) {
@@ -5394,35 +5232,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           mvuPanelAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
         }
         var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
-        // ========== 从聊天记录导入时，把历史消息渲染到对话区并显示恢复提示 ==========
-        if (chatlogState) {
-          // 把当前Tab的历史消息渲染到对话区
-          var restoreMsgs = (getCurrentMessages ? getCurrentMessages() : (activeTab === 'mvu' ? mvuMessages : cardMessages)) || [];
-          var chatC = doc.getElementById('chatMessages');
-          if (chatC) chatC.innerHTML = '';
-          restoreMsgs.slice().forEach(function(m) {
-            if (m && m.role && m.content !== undefined) appendMsg(m.role, m.content);
-          });
-          var clCardN = restoreMsgs.length;
-          var clMvuN = (chatSessions.mvu && chatSessions.mvu.messages) ? chatSessions.mvu.messages.length : 0;
-          var clGreeting = '📂 已从聊天记录恢复「' + (cardData.name || '未命名') + '」\n\n' +
-            '角色卡消息 ' + clCardN + ' 条 · MVU消息 ' + clMvuN + ' 条 · 世界书 ' + entriesLen + ' 条\n' +
-            '当前Tab：' + (activeTab === 'mvu' ? 'MVU变量状态栏' : '角色卡生成') + '\n\n' +
-            '已恢复上次的全部对话与创作进度，可直接继续。';
-          addAssistantMsg(clGreeting);
-          if (typeof showToast === 'function') showToast('已恢复聊天记录（当前：' + (activeTab === 'card' ? '角色卡 Tab' : 'MVU Tab') + '）', 'success');
-        } else {
-          var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
-            '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
-            '**我已读取了角色卡的全部内容，可以直接进行增/删/改操作：**\n' +
-            '• 想修改某个字段？直接说"把名字改成XXX"或"修改世界观描述"\n' +
-            '• 想添加世界书条目？说"添加一个XX的条目"\n' +
-            '• 想优化内容？说"优化开场白"或"优化世界书条目"\n' +
-            '• 想质检？点击「✅ 质检」按钮\n\n' +
-            '（MVU变量/状态栏请切换到「MVU变量状态栏」Tab重新制作）\n\n' +
-            '请告诉我你想做什么！';
-          addAssistantMsg(greeting);
-        }
+        var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
+          '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
+          '**我已读取了角色卡的全部内容，可以直接进行增/删/改操作：**\n' +
+          '• 想修改某个字段？直接说"把名字改成XXX"或"修改世界观描述"\n' +
+          '• 想添加世界书条目？说"添加一个XX的条目"\n' +
+          '• 想优化内容？说"优化开场白"或"优化世界书条目"\n' +
+          '• 想质检？点击「✅ 质检」按钮\n\n' +
+          '（MVU变量/状态栏请切换到「MVU变量状态栏」Tab重新制作）\n\n' +
+          '请告诉我你想做什么！';
+        addAssistantMsg(greeting);
         saveToStorage();
       }
 
@@ -5489,12 +5308,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
             if (!cardData.tags) cardData.tags = [];
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
-
-            // ========== 存量去重：清理旧数据中可能遗留的重复 MVU 条目 / 重复正则脚本 ==========
-            try {
-              var _ldDup = dedupeCardData(cardData);
-              if (_ldDup > 0) console.warn('[loadFromStorage] 已清理 ' + _ldDup + ' 条重复的MVU条目/正则脚本');
-            } catch(e) { console.warn('[loadFromStorage] dedupeCardData failed:', e); }
 
             // ========== Tab 隔离：优先加载 chatSessions 对象，其次从独立字段重建 ==========
             if (state.chatSessions && typeof state.chatSessions === 'object') {
@@ -5938,30 +5751,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
       function exportChatLogs() {
-        // 保存前同步最新状态到 chatSessions（唯一真源）
-        if (activeTab === 'mvu') {
-          chatSessions.mvu.modules = statusBarModules;
-          chatSessions.mvu.currentStep = statusBarCurrentStep;
-          chatSessions.mvu.statusBarMode = statusBarMode;
-        }
-        chatSessions.card.messages = cardMessages;
-        chatSessions.mvu.messages = mvuMessages;
         var log = {
           exportTime: new Date().toISOString(),
           toolVersion: 'Card_making_tool',
           cardData: cardData,
-          // ========== Tab 隔离：完整保存 chatSessions + activeTab ==========
-          activeTab: activeTab,
-          chatSessions: chatSessions,
-          currentTab: currentTab,  // 向后兼容
+          currentTab: currentTab,
           cardMessages: cardMessages,
           mvuMessages: mvuMessages,
           mvuTabStatusBarModules: mvuTabStatusBarModules,
           mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep,
-          mvuTabStatusBarMode: mvuTabStatusBarMode,
           statusBarModules: statusBarModules,
-          statusBarMode: statusBarMode,
-          statusBarCurrentStep: statusBarCurrentStep,
           progress: progress,
           moduleProgress: moduleProgress
         };
