@@ -6914,17 +6914,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           case 2: // Step2：配色方案 —— 必须含 :root 或 CSS变量定义
             return code.indexOf(':root') >= 0 || /--[\w-]+\s*:/.test(code);
           case 3: // Step3：HTML骨架 —— 必须含HTML标签（div/span等），且不能是纯文本文档
-            return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
+            return (/<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0)
+              && !(/[.#][\w-]+\s*\{/.test(code) && !/<\w/.test(code)); // 非纯CSS
           case 4: // Step4：CSS样式 —— 必须含CSS选择器{规则}，排除纯JSON对象
-            return /\{[\s\S]*\}/.test(code) && /[.#][\w-]+\s*\{/.test(code);
-          case 5: // Step5：refreshStatus + renderTree —— 必须含 refreshStatus 函数 + 变量读取API + renderTree 递归
+            return /\{[\s\S]*\}/.test(code) && /[.#][\w-]+\s*\{/.test(code)
+              && !(code.indexOf(':root') >= 0 && !/[.#][\w-]+\s*\{[^{]*\w/.test(code)); // 非纯:root配色
+          case 5: // Step5：refreshStatus + renderTree —— 必须含 refreshStatus 函数 + 变量读取API + renderTree 递归（兼容StageDog标准_getVars）
             return (code.indexOf('function') >= 0 || code.indexOf('refreshStatus') >= 0)
-              && (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0)
+              && (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0 || code.indexOf('getVariables') >= 0 || code.indexOf('_getVars') >= 0)
               && (code.indexOf('renderTree') >= 0 || code.indexOf('getElementById') >= 0);
-          case 6: // Step6：事件入口 init —— 必须含运行时API调用（waitGlobalInitialized/eventOn/errorCatched/init()）
-            return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || /(^|[^a-zA-Z])init\s*\(/.test(code) || code.indexOf('refreshStatus') >= 0;
+          case 6: // Step6：入口 —— 必须含运行时API调用（StageDog标准新增2秒轮询setInterval、jQuery async ready、waitUntil循环while_.has）
+            return code.indexOf('waitGlobalInitialized') >= 0
+              || code.indexOf('eventOn') >= 0
+              || code.indexOf('errorCatched') >= 0
+              || /(^|[^a-zA-Z])init\s*\(/.test(code)
+              || code.indexOf('refreshStatus') >= 0
+              || (code.indexOf('setInterval') >= 0 && code.indexOf('refreshStatus') >= 0)
+              || (code.indexOf('async') >= 0 && code.indexOf('function') >= 0 && code.indexOf('Mvu') >= 0)
+              || (code.indexOf('_.has') >= 0 && code.indexOf('_getVars') >= 0);
         }
         return true;
+      }
+
+      // 根据代码内容与代码块语言标签自动判定Step号（用于状态栏修改时AI漏写<clear_statusbar>N的兜底）
+      // 返回 0/2-6；0=无法判定/非状态栏代码
+      function detectStepByCode(code, codeLangHint) {
+        if (!code || code.length < 8) return 0;
+        var lang = (codeLangHint || '').toLowerCase();
+        // 按Step 2→4→5→6→3的顺序逐一validate，取第一个通过的Step
+        var tryOrder = [2, 4, 5, 6, 3];
+        for (var oi = 0; oi < tryOrder.length; oi++) {
+          var sn = tryOrder[oi];
+          if (validateStepCode(sn, code)) {
+            // 语言校验：Step2/4必须css，Step3必须html/无标记，Step5/6必须javascript/无标记
+            if ((sn === 2 || sn === 4) && lang && lang !== 'css') continue;
+            if (sn === 3 && lang && !(lang === 'html' || lang === 'htm')) continue;
+            if ((sn === 5 || sn === 6) && lang && !(lang === 'javascript' || lang === 'js')) continue;
+            return sn;
+          }
+        }
+        return 0;
       }
 
       function assembleStatusBarFromModules() {
@@ -7510,6 +7539,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
                   progress = calcProgress();
                   renderPreview();
+                } else {
+                  // ═══════════════════════════════════════════════════════════
+                  // ⚠️ 核心BUG修复：状态栏修改但AI漏写clear_statusbar标签时的兜底
+                  // 自动扫描所有代码块 → 内容判定Step号 → 回填statusBarModules
+                  // 若5个模块齐全，则调用assembleStatusBarFromModules+saveStatusBarToCard
+                  // ═══════════════════════════════════════════════════════════
+                  try {
+                    var blocks = [];
+                    var allBlockRe = /```([a-z]*)\s*\n?([\s\S]*?)```/gi;
+                    var bm2;
+                    while ((bm2 = allBlockRe.exec(aiResponse)) !== null) {
+                      var blang = (bm2[1] || '').toLowerCase();
+                      var bcontent = bm2[2].trim();
+                      if (blang === 'json' || blang === 'yaml') continue;
+                      if (!blang && /^\s*\{[\s\S]*\}\s*$/.test(bcontent)) continue;
+                      if (bcontent.length < 10) continue;
+                      blocks.push({ lang: blang, code: bcontent });
+                    }
+                    if (blocks.length > 0) {
+                      var updatedStepNames = [];
+                      for (var bi = 0; bi < blocks.length; bi++) {
+                        var blk = blocks[bi];
+                        // 若是完整HTML文档（含<html或<head><body>双双存在）跳过让tryExtractStatusBarHtml已处理的路径
+                        if (/<html[\s>]|<\/html>/i.test(blk.code)
+                          || (/<head[\s>]/i.test(blk.code) && /<body[\s>]/i.test(blk.code))) continue;
+                        // 自动判定归属Step
+                        var autoStep = detectStepByCode(blk.code, blk.lang || '');
+                        if (autoStep >= 2 && autoStep <= 6) {
+                          statusBarModules['step' + autoStep] = blk.code;
+                          updatedStepNames.push('Step ' + autoStep + ':' + sbStepName(autoStep));
+                        }
+                      }
+                      // 如果自动回填成功（至少更新1个模块），则尝试保存
+                      if (updatedStepNames.length > 0) {
+                        // 检查5个模块是否全部齐全
+                        var allFiveOK = true;
+                        for (var fii = 0; fii < SB_STEP_ORDER.length; fii++) {
+                          if (!statusBarModules['step' + SB_STEP_ORDER[fii]]) { allFiveOK = false; break; }
+                        }
+                        if (allFiveOK) {
+                          var assembledHtml = assembleStatusBarFromModules();
+                          if (assembledHtml) {
+                            saveStatusBarToCard(assembledHtml);
+                            statusBarCurrentStep = 7;
+                            addAssistantMsg('🔧 已识别到状态栏修改（AI漏写clear_statusbar已自动兜底）\n' +
+                              '  ✅ 更新模块：' + updatedStepNames.join('、') + '\n' +
+                              '  ✅ 5个模块齐全 → 已重新拼接保存完整HTML到角色卡\n' +
+                              '  💡 建议：规范修改方式 = 先输出 <clear_statusbar>2,3</clear_statusbar> 清空需要修改的Step，再输出代码块。');
+                            progress = calcProgress();
+                            renderPreview();
+                          }
+                        } else {
+                          // 有模块更新但还不齐全 → 提示用户继续补
+                          statusBarCurrentStep = findNextEmptyStep();
+                          var missing2 = [];
+                          for (var fii2 = 0; fii2 < SB_STEP_ORDER.length; fii2++) {
+                            if (!statusBarModules['step' + SB_STEP_ORDER[fii2]]) missing2.push(sbStepName(SB_STEP_ORDER[fii2]));
+                          }
+                          addAssistantMsg('🔧 状态栏修改已识别（AI漏写clear_statusbar已自动兜底）\n' +
+                            '  ✅ 已更新：' + updatedStepNames.join('、') + '\n' +
+                            '  ⬜ 还缺少：' + (missing2.length ? missing2.join('、') : '无') + '\n' +
+                            '  ⏭️ 下一步：请生成 Step ' + statusBarCurrentStep + ':' + sbStepName(statusBarCurrentStep) + '，或对我说出"继续"。');
+                          showToast('✅ Step已更新：' + updatedStepNames.join('、'), 'success');
+                        }
+                      }
+                    }
+                  } catch(autoErr) { console.warn('[statusbar] auto-mod save fallback failed:', autoErr && autoErr.message); }
                 }
                 // 如果用户明确说"退出状态栏模式"等，退出模式
                 if (/退出状态栏|结束状态栏|退出状态|取消状态栏/.test(userText)) {
