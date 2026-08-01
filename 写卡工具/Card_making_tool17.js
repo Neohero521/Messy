@@ -406,7 +406,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '<html>\n<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n// StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready)\n$(async function() {\n    try {\n        // 1. 等 MVU 框架挂载\n        await waitGlobalInitialized(\'Mvu\');\n\n        // 2. 读变量：StageDog标准用 getVariables({type:\"message\"})，fallback 到 getAllVariables()\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        // 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒）\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        // 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略）\n        refreshStatus();\n        setInterval(refreshStatus, 2000);\n\n        // 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>\n</html>';
+  var MVU_STATUS_BAR_HTML = '<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n/* StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready) */\n$(async function() {\n    try {\n        /* 1. 等 MVU 框架挂载 */\n        await waitGlobalInitialized(\'Mvu\');\n\n        /* 2. 读变量：StageDog标准用 getVariables({type:"message"})，fallback 到 getAllVariables() */\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        /* 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒） */\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        /* 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略） */\n        refreshStatus();\n        setInterval(refreshStatus, 2000);\n\n        /* 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件 */\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -642,8 +642,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '7. 无变化：{"_nochange":true}\n' +
     '8. JSON前1-2句说明，JSON后不解释\n' +
     '9. **严禁输出完整 chara_card_v3 JSON**（除非用户说"生成角色卡"）\n\n' +
-    '**状态栏铁律**：\n' +
-    '- 每次回复必须包含 `<statusblock>` 状态栏\n' +
+    '**写卡器自检状态栏（<statusblock>，本聊天界面用）铁律**：\n' +
+    '- 注意：这是【写卡器聊天界面自身】的输出状态块，和角色卡的【MVU状态栏】（StatusPlaceHolderImpl）完全是两件事，不要混淆\n' +
+    '- 每次回复必须包含 `<statusblock>` 状态块\n' +
     '- 使用 `<details open>` 标签，8大体系用 ✅⏳❌ 标识\n' +
     '- 所有问题放在「🔍 需要您补充的信息」区块\n\n' +
     '**Token预算铁律**：\n' +
@@ -1240,7 +1241,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0, minDepth=null, maxDepth=null\n' +
     '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
     "      注意（StageDog标准铁则）：\n" +
-    "      · HTML结构：无<!doctype html>、无<html>根；直接<head>+<body>；<script type=\\\"module\\\">放<head>内\n" +
+    "      · HTML结构：无<!doctype html>、无<html>根；直接<head>+<body>；<script type=\\\"module\\\">放<body>末尾\n" +
     "      · 包裹格式：replaceString用纯```代码块包裹（禁止```html标记）\n" +
     "      · 加载方式：优先 $('body').load('https://cdn.jsdelivr.net/gh/用户/仓库@分支/状态栏/index.html') 独立文件方案；内嵌HTML仅作fallback\n" +
     "      · runOnEdit=false（StageDog标准，避免编辑消息时重复执行）\n" +
@@ -6956,6 +6957,153 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return 0;
       }
 
+      /* ===== 改进3：5槽位一致性正则校验（Step2↔3↔4↔5↔6 跨槽位一致性） ===== */
+      function validateStatusBarConsistency() {
+        var warnings = [];
+        var s2 = statusBarModules.step2 || '';
+        var s3 = statusBarModules.step3 || '';
+        var s4 = statusBarModules.step4 || '';
+        var s5 = statusBarModules.step5 || '';
+        var s6 = statusBarModules.step6 || '';
+        var m;
+
+        /* 校验1：Step3的class名 → Step2/4 CSS中是否有对应选择器定义 */
+        var s3Classes = {};
+        var clsRe = /class="([^"]+)"/g;
+        while ((m = clsRe.exec(s3)) !== null) {
+          m[1].trim().split(/\s+/).forEach(function(c) { if (c) s3Classes[c] = true; });
+        }
+        var s4Selectors = {};
+        var selRe = /\.([a-zA-Z0-9_-]+)/g;
+        while ((m = selRe.exec(s4)) !== null) s4Selectors[m[1]] = true;
+        while ((m = selRe.exec(s2)) !== null) s4Selectors[m[1]] = true;
+        var missingCss = Object.keys(s3Classes).filter(function(c) { return !s4Selectors[c]; });
+        if (missingCss.length > 0) {
+          warnings.push('Step3骨架中的class未在Step2/4样式中定义: ' + missingCss.join(', '));
+        }
+
+        /* 校验2：Step3的id → Step5/6 getElementById引用 */
+        var s3Ids = {};
+        var idRe = /id="([^"]+)"/g;
+        while ((m = idRe.exec(s3)) !== null) s3Ids[m[1]] = true;
+        var s6Ids = {};
+        var getByIdRe = /getElementById\(['"]([^'"]+)['"]\)/g;
+        while ((m = getByIdRe.exec(s6)) !== null) s6Ids[m[1]] = true;
+        while ((m = getByIdRe.exec(s5)) !== null) s6Ids[m[1]] = true;
+        var missingId = Object.keys(s3Ids).filter(function(i) { return !s6Ids[i]; });
+        if (missingId.length > 0) {
+          warnings.push('Step3骨架中的id未在Step5/6中被getElementById引用: ' + missingId.join(', '));
+        }
+
+        /* 校验3：_getVars必须在refreshStatus外部定义（Step6的while循环需跨函数访问） */
+        if (s5) {
+          var refreshIdx = s5.indexOf('function refreshStatus');
+          if (refreshIdx >= 0) {
+            var beforeRefresh = s5.substring(0, refreshIdx);
+            var hasGetVarsBefore = beforeRefresh.indexOf('_getVars') >= 0;
+            if (!hasGetVarsBefore) {
+              warnings.push('_getVars可能定义在refreshStatus内部，Step6的while循环将无法访问。请将_getVars移到refreshStatus外部（顶层作用域）。');
+            }
+          }
+          if (s6.indexOf('_getVars') >= 0 && s5.indexOf('_getVars') < 0) {
+            warnings.push('Step6引用了_getVars，但Step5中未定义该函数。');
+          }
+        }
+
+        /* 校验4：Step3/4中var(--xxx) → Step2/4中是否有对应定义 */
+        var varRefs = {};
+        var varRe = /var\((--[^)]+)\)/g;
+        while ((m = varRe.exec(s3)) !== null) varRefs[m[1].trim()] = true;
+        while ((m = varRe.exec(s4)) !== null) varRefs[m[1].trim()] = true;
+        var varDefs = {};
+        var defRe = /(--[a-zA-Z0-9_-]+)\s*:/g;
+        while ((m = defRe.exec(s2)) !== null) varDefs[m[1].trim()] = true;
+        while ((m = defRe.exec(s4)) !== null) varDefs[m[1].trim()] = true;
+        var missingVars = Object.keys(varRefs).filter(function(v) { return !varDefs[v]; });
+        if (missingVars.length > 0) {
+          warnings.push('使用了未定义的CSS变量: ' + missingVars.join(', '));
+        }
+
+        return warnings;
+      }
+
+      /* ===== 改进4：MVU路径对齐校验（InitVar ↔ zod schema ↔ renderTree） ===== */
+      function validateMvuPathAlignment() {
+        var warnings = [];
+        var entries = (cardData.character_book || {}).entries || [];
+
+        /* 1. 从InitVar条目提取顶层key路径 */
+        var initVarEntry = entries.filter(function(e) {
+          return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
+        })[0];
+        if (!initVarEntry) {
+          warnings.push('未找到[InitVar]初始变量条目，无法进行路径对齐校验。');
+          return warnings;
+        }
+        var initVarObj = parseInitVar(initVarEntry.content || '');
+        if (!initVarObj) {
+          warnings.push('[InitVar]条目内容解析失败，无法提取变量路径。');
+          return warnings;
+        }
+        var initVarTopKeys = Object.keys(initVarObj);
+
+        /* 2. 从zod schema脚本提取顶层key */
+        var scripts = ((cardData.extensions || {}).tavern_helper || {}).scripts || [];
+        var zodScript = '';
+        for (var si = 0; si < scripts.length; si++) {
+          if (typeof scripts[si] === 'string' && (scripts[si].indexOf('registerMvuSchema') >= 0 || scripts[si].indexOf('z.object') >= 0)) {
+            zodScript = scripts[si];
+            break;
+          }
+        }
+        var zodTopKeys = [];
+        if (zodScript) {
+          /* 提取 z.object 内第一层 key: z. 模式（2空格缩进） */
+          var keyRe = /^\s{2}([\u4e00-\u9fff\w]+)\s*:\s*z\./gm;
+          var m;
+          while ((m = keyRe.exec(zodScript)) !== null) {
+            zodTopKeys.push(m[1]);
+          }
+        }
+
+        /* 3. 从Step5 renderTree提取变量根路径 */
+        var s5 = statusBarModules.step5 || '';
+        var renderRootPath = '';
+        if (s5) {
+          var getRe = /_\.(?:get|has)\s*\([^,]+,\s*['"]([^'"]+)['"]/;
+          var gm = getRe.exec(s5);
+          if (gm) renderRootPath = gm[1];
+        }
+
+        /* 4. 比对 InitVar ↔ zod 顶层key */
+        if (zodTopKeys.length > 0) {
+          var zodMissing = initVarTopKeys.filter(function(k) { return zodTopKeys.indexOf(k) < 0; });
+          if (zodMissing.length > 0) {
+            warnings.push('InitVar中定义了变量但zod schema中未声明: ' + zodMissing.join(', '));
+          }
+          var initMissing = zodTopKeys.filter(function(k) { return initVarTopKeys.indexOf(k) < 0; });
+          if (initMissing.length > 0) {
+            warnings.push('zod schema中声明了变量但InitVar中未定义: ' + initMissing.join(', '));
+          }
+        }
+
+        /* 5. 检查renderTree根路径是否为stat_data */
+        if (s5 && renderRootPath && renderRootPath !== 'stat_data') {
+          warnings.push('renderTree读取的变量根路径为"' + renderRootPath + '"，MVU标准应为"stat_data"。状态栏可能无法显示数据。');
+        }
+        if (s5 && !renderRootPath) {
+          warnings.push('Step5中未找到 _.get/_getVars 对stat_data的引用，状态栏可能无法读取变量。');
+        }
+
+        /* 6. 检查Step6 while循环是否等待stat_data */
+        var s6 = statusBarModules.step6 || '';
+        if (s6 && s6.indexOf('stat_data') < 0 && s6.indexOf('_getVars') >= 0) {
+          warnings.push('Step6的while循环未检查stat_data是否存在，可能在MVU初始化完成前就开始渲染。');
+        }
+
+        return warnings;
+      }
+
       function assembleStatusBarFromModules() {
         // ⚠️完整性校验：5个模块必须全部存在，确保最终状态栏完整可用
         // 标准实现模式（对齐参考卡）：step5=refreshStatus+renderTree（合并槽位）, step6=init入口
@@ -6988,13 +7136,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         //   3. 无IIFE包装、无ready函数、无polyfill（参考卡就是直接顶层代码）
         //   4. script在body末尾（不是head里）
         //   5. 无<!doctype html>（参考卡没有）
-        var assembledHtml = '<html>\n<head>\n<style>\n';
+        var assembledHtml = '<head>\n<style>\n';
         assembledHtml += cssContent;
         assembledHtml += '\n</style>\n</head>\n<body>\n\n';
         assembledHtml += step3Body;
         assembledHtml += '\n\n<script type="module">\n';
         assembledHtml += jsContent;
-        assembledHtml += '\n</script>\n\n</body>\n</html>';
+        assembledHtml += '\n</script>\n\n</body>';
         return assembledHtml;
       }
 
@@ -7446,11 +7594,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               } else {
                 var assembledHtml = assembleStatusBarFromModules();
                 if (assembledHtml) {
+                  /* 改进3+4：拼接保存时做一致性和路径对齐校验 */
+                  var consistencyWarnings = validateStatusBarConsistency();
+                  var pathWarnings = validateMvuPathAlignment();
+                  var allWarnings = consistencyWarnings.concat(pathWarnings);
                   saveStatusBarToCard(assembledHtml);
                   statusBarCurrentStep = 7;
-                  addAssistantMsg('🎉 状态栏全部5个模块已收集完成！\n' +
+                  var sbMsg = '🎉 状态栏全部5个模块已收集完成！\n' +
                     '  ✅ ' + collected.join(' · ') + '\n' +
-                    '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。');
+                    '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。';
+                  if (allWarnings.length > 0) {
+                    sbMsg += '\n\n⚠️ 一致性校验发现以下问题（状态栏已保存，建议修复后重新生成对应模块）：\n' +
+                      allWarnings.map(function(w) { return '  • ' + w; }).join('\n');
+                  }
+                  addAssistantMsg(sbMsg);
                 }
               }
               progress = calcProgress();
@@ -7581,12 +7738,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                         if (allFiveOK) {
                           var assembledHtml = assembleStatusBarFromModules();
                           if (assembledHtml) {
+                            /* 改进3+4：兜底拼接时也做一致性和路径对齐校验 */
+                            var autoWarnings = validateStatusBarConsistency().concat(validateMvuPathAlignment());
                             saveStatusBarToCard(assembledHtml);
                             statusBarCurrentStep = 7;
-                            addAssistantMsg('🔧 已识别到状态栏修改（AI漏写clear_statusbar已自动兜底）\n' +
+                            var autoMsg = '🔧 已识别到状态栏修改（AI漏写clear_statusbar已自动兜底）\n' +
                               '  ✅ 更新模块：' + updatedStepNames.join('、') + '\n' +
                               '  ✅ 5个模块齐全 → 已重新拼接保存完整HTML到角色卡\n' +
-                              '  💡 建议：规范修改方式 = 先输出 <clear_statusbar>2,3</clear_statusbar> 清空需要修改的Step，再输出代码块。');
+                              '  💡 建议：规范修改方式 = 先输出 <clear_statusbar>2,3</clear_statusbar> 清空需要修改的Step，再输出代码块。';
+                            if (autoWarnings.length > 0) {
+                              autoMsg += '\n\n⚠️ 一致性校验发现以下问题（状态栏已保存，建议修复后重新生成对应模块）：\n' +
+                                autoWarnings.map(function(w) { return '  • ' + w; }).join('\n');
+                            }
+                            addAssistantMsg(autoMsg);
                             progress = calcProgress();
                             renderPreview();
                           }
