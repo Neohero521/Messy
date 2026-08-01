@@ -1294,13 +1294,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      ⚠️如果模块重复（重新生成同一个Step），直接替换槽位中的旧代码\n' +
     '      ⚠️生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
     '        - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点\n' +
-    '        - 生成Step 4样式前，对照Step 3骨架的class/id命名，确保选择器一一对应\n' +
-    '        - 生成Step 5读取前，对照Step 1变量表的路径，确保_.get路径完全一致\n' +
-    '        - 生成Step 6渲染前，对照Step 3的id命名和Step 5的返回值结构，确保DOM操作目标存在\n' +
-    '        - 生成Step 7入口前，对照Step 6的函数名和Step 5的函数名，确保调用正确\n' +
+    '        - 生成Step 4样式前，对照Step 3骨架的class命名，确保选择器一一对应\n' +
+    '        - 生成Step 5 refreshStatus+renderTree前，对照Step 1变量表的路径，确保_.get根路径为"stat_data"与InitVar一致\n' +
+    '        - 生成Step 6入口前，对照Step 5的refreshStatus函数名，确保init调用正确\n' +
     '      ⚠️各Step代码块用 ``` 包裹，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
     '      ⚠️写卡器会在每轮对话后显示收集进度（✅已收集/⬜还缺），并提示下一步该生成什么\n' +
-    '      ⚠️完整性保障：6个模块（Step 2-7）全部收集完毕后，写卡器才会自动拼接保存到角色卡\n' +
+    '      ⚠️完整性保障：5个模块（Step 2-6）全部收集完毕后，写卡器才会自动拼接保存到角色卡\n' +
     '         缺任何一个模块都不会保存，避免生成残缺不可用的状态栏\n' +
     '         修改时旧状态栏保持不变，直到新模块全部收集完毕才覆盖\n' +
     '\n' +
@@ -1328,80 +1327,98 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        交付：展示配色，问"配色OK吗？"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 3: HTML结构骨架，请说继续"\n' +
     '\n' +
-    '      ▶ Step 3：HTML结构骨架（仅<body>内DOM，含静态假数据，无CSS无JS）\n' +
-    '        产出：纯DOM结构，每个变量节点预留唯一id\n' +
-    '        规则：\n' +
-    '          · id命名：stat-<分组>-<字段>（如 id="stat-core-hp"）\n' +
-    '          · 用Step 1表格的假数据填充，让用户直观看效果\n' +
+    '      ▶ Step 3：HTML结构骨架（仅外层骨架，无CSS无JS）\n' +
+    '        产出：纯DOM外层骨架，只有 id="render-root" 一个根容器，递归渲染会自动填充内部\n' +
+    '        规则（标准实现模式）：\n' +
+    '          · 只输出 .mvu-status-card > .card-body[id=render-root] > .loading-state 三层骨架\n' +
+    '          · 不为每个变量写id（递归 renderTree 会自动生成 .stat-item DOM）\n' +
     '          · 不写style属性、不写script\n' +
     '        示例片段：\n' +
-    '          <div class="card" id="card-core">\n' +
-    '            <div class="cat-title">核心状态</div>\n' +
-    '            <div class="stat-row"><span class="label">好感度</span><span class="value" id="stat-core-hp">35</span></div>\n' +
+    '          <div class="mvu-status-card">\n' +
+    '            <div class="card-body" id="render-root">\n' +
+    '              <div class="loading-state">正在加载状态数据...</div>\n' +
+    '            </div>\n' +
     '          </div>\n' +
-    '        交付：展示骨架，问"结构和分组OK吗？"\n' +
+    '        交付：展示骨架，问"结构OK吗？"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 4: CSS样式表，请说继续"\n' +
     '\n' +
     '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
-    '        产出：基于Step 3结构写所有选择器规则，引用Step 2的CSS变量\n' +
-    '        必含：卡片容器、分类标题、stat-row布局、数值着色、加载动画、刷新淡入\n' +
-    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片形状不加背景色\n' +
+    '        产出：基于标准实现模式写所有选择器规则，引用Step 2的CSS变量\n' +
+    '        必含：.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4\n' +
+    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度\n' +
     '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 5: 变量读取函数，请说继续"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 5: refreshStatus+renderTree，请说继续"\n' +
     '\n' +
-    '      ▶ Step 5：变量读取函数（仅JS function，纯函数无副作用）\n' +
-    '        产出：`function loadVars() { ... return data; }` 单个函数\n' +
-    '        规则：\n' +
-    '          · 用 _.get(getAllVariables(), "stat_data.xxx", 默认值)\n' +
-    '          · 每个Step 1表格的路径都要读取\n' +
-    '          · 禁止Mvu.getVar，禁止在此函数操作DOM\n' +
+    '      ▶ Step 5：refreshStatus + renderTree（仅JS function，变量读取+递归渲染合并为单槽位）\n' +
+    '        产出：`function refreshStatus() { ... }` 单个函数 + 内部 renderTree(obj, level) 递归函数\n' +
+    '        规则（标准实现模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
+    '          · 用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（根路径与InitVar YAML根字段一致）\n' +
+    '          · 递归 renderTree 遍历对象生成HTML字符串，过滤 _/$ 开头的键\n' +
+    '          · 按类型分支：number→.value-number, boolean→.value-true/.value-false(✓/✕), array→[元素,元素], string→.value-text\n' +
+    '          · 用 document.getElementById("render-root").innerHTML = htmlStr 写DOM（非jQuery $("#id")）\n' +
+    '          · 禁止Mvu.getVar，禁止为每个变量写id\n' +
     '        示例：\n' +
-    '          function loadVars() {\n' +
-    '            const all = getAllVariables();\n' +
-    '            return {\n' +
-    '              hp: _.get(all, "stat_data.角色.好感度", 0),\n' +
-    '              time: _.get(all, "stat_data.世界.时间", "未知"),\n' +
-    '              bag: _.get(all, "stat_data.背包", [])\n' +
-    '            };\n' +
+    '          function refreshStatus() {\n' +
+    '            var allVars = getAllVariables();\n' +
+    '            var sourceData = _.get(allVars, "stat_data", {});\n' +
+    '            var htmlStr = \'\';\n' +
+    '            function renderTree(obj, level) {\n' +
+    '              level = level || 0;\n' +
+    '              var indentClass = "indent-" + Math.min(level, 4);\n' +
+    '              var itemsHtml = \'\';\n' +
+    '              Object.keys(obj || {}).forEach(function(key) {\n' +
+    '                var value = obj[key];\n' +
+    '                if (key.indexOf("_") === 0 || key.indexOf("$") === 0) return;\n' +
+    '                var isPlainObj = value !== null && typeof value === "object" && !Array.isArray(value);\n' +
+    '                if (isPlainObj) {\n' +
+    '                  if (itemsHtml) { htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }\n' +
+    '                  if (level > 0) htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n' +
+    '                  renderTree(value, level + 1);\n' +
+    '                  return;\n' +
+    '                }\n' +
+    '                itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n' +
+    '                if (typeof value === "number") itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n' +
+    '                else if (typeof value === "boolean") itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n' +
+    '                else if (Array.isArray(value)) itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n' +
+    '                else itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n' +
+    '                itemsHtml += \'</span></div>\';\n' +
+    '              });\n' +
+    '              if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n' +
+    '            }\n' +
+    '            renderTree(sourceData, 0);\n' +
+    '            var root = document.getElementById("render-root");\n' +
+    '            if (root) { root.innerHTML = htmlStr; root.classList.add("flash-update"); setTimeout(function() { root.classList.remove("flash-update"); }, 300); }\n' +
     '          }\n' +
-    '        交付：展示函数，简要说明读取了哪些路径\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 渲染函数，请说继续"\n' +
+    '        交付：展示函数，简要说明读取路径与渲染策略\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 事件绑定+入口，请说继续"\n' +
     '\n' +
-    '      ▶ Step 6：渲染函数（仅JS function，处理类型+写DOM）\n' +
-    '        产出：`function renderVars(data) { ... }` 单个函数\n' +
-    '        规则：\n' +
-    '          · 遍历Step 1表格，按类型分支处理：number→进度条/数值、boolean→✓/✕、string→文本、array→列表、object→递归\n' +
-    '          · DOM必须用jquery（$("#id").text/html/addClass），禁止原生DOM\n' +
-    '          · 嵌套对象用renderVarTree递归\n' +
-    '          · 跳过key以_/$开头的\n' +
-    '          · 注释只能用 /* */，禁止 //\n' +
-    '        交付：展示函数，问"渲染逻辑OK吗？"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 7: 事件绑定+入口，请说继续"\n' +
-    '\n' +
-    '      ▶ Step 7：事件绑定+入口（仅JS入口代码，无函数定义）\n' +
+    '      ▶ Step 6：事件绑定+入口（仅JS入口代码，无函数定义）\n' +
     '        产出：\n' +
     '          async function init() {\n' +
     '            await waitGlobalInitialized(\'Mvu\');\n' +
-    '            renderVars(loadVars());\n' +
-    '            eventOn(Mvu.events.VARIABLE_INITIALIZED, () => renderVars(loadVars()));\n' +
-    '            eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => renderVars(loadVars()));\n' +
+    '            refreshStatus();\n' +
+    '            setTimeout(refreshStatus, 1000); setTimeout(refreshStatus, 2500);\n' +
+    '            if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
+    '              try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n' +
+    '              try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n' +
+    '            }\n' +
     '          }\n' +
     '          $(errorCatched(init));\n' +
     '        规则：仅入口，禁止Mvu.watch等不存在接口；errorCatched包裹；$(() => {})加载\n' +
     '        交付：展示入口，问"事件绑定OK吗？"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 8: 拼接合并+自查，请说继续"\n' +
+    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 7: 拼接合并+自查，请说继续"\n' +
     '\n' +
-    '      ▶ Step 8：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
+    '      ▶ Step 7：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
     '        ⚠️重要：拼接由写卡器自动完成，AI不需要重新输出完整HTML！\n' +
     '        AI只需确认各Step模块已就绪，写卡器会自动提取各Step代码块并拼接成完整HTML保存。\n' +
     '        这样各模块可以任意大，拼接不受AI单次输出长度限制。\n' +
-    '        AI在Step 8需要做的：\n' +
-    '          ① 确认 Step 2-7 的代码块都已输出（每个Step用 /* === Step N: 标题 === */ 标记+代码块）\n' +
+    '        AI在Step 7需要做的：\n' +
+    '          ① 确认 Step 2-6 的代码块都已输出（每个Step用 /* === Step N: 标题 === */ 标记+代码块）\n' +
     '          ② 模块间交叉对照自查（发现问题回到对应Step修正——但每次只能重新输出一个Step）：\n' +
-    '            a. HTML结构：Step 3骨架是合法HTML片段\n' +
+    '            a. HTML结构：Step 3骨架是合法HTML片段，含 id="render-root" 根容器\n' +
     '            b. 注释规范：全文无 // 注释，仅 /* */\n' +
-    '            c. DOM规范：无原生DOM，全部jquery\n' +
-    '            d. 变量路径：所有_.get路径以 stat_data 开头，与Step 1表一致\n' +
+    '            c. DOM规范：用 document.getElementById("render-root")，非jQuery $("#stat-xxx")\n' +
+    '            d. 变量路径：_.get 根路径为 "stat_data"，与InitVar YAML根字段一致\n' +
     '            e. 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
     '            f. 异步安全：waitGlobalInitialized + errorCatched + $(()=>{})\n' +
     '            g. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
@@ -2861,13 +2878,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   // ===== 状态栏生成模式状态（模块级，buildPrompt和openEditor都能访问） =====
-  var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
-  var statusBarCurrentStep = 0;  // 0=未在状态栏模式, 1-7=对应Step, 8=全部完成
+  // 标准实现模式（对齐参考卡"无限读档：轮回观测者"）：5个槽位
+  //   step5 = refreshStatus + renderTree（变量读取与渲染合并为一个槽位）
+  //   step6 = init入口（事件绑定+入口）
+  var statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
+  var statusBarCurrentStep = 0;  // 0=未在状态栏模式, 1-6=对应Step, 7/8=全部完成
   var statusBarMode = false;     // 是否在状态栏生成模式
   // Step显示名称（UI展示用，统一常量避免多处重复定义）
-  var SB_STEP_DISPLAY_NAMES = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: '变量读取', step6: '渲染函数', step7: '事件绑定+入口' };
-  var SB_STEP_ORDER = [2, 3, 4, 5, 6, 7];
-  // 按Step号(2-7)获取显示名称
+  var SB_STEP_DISPLAY_NAMES = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: 'refreshStatus+renderTree', step6: '事件绑定+入口' };
+  var SB_STEP_ORDER = [2, 3, 4, 5, 6];
+  // 按Step号(2-6)获取显示名称
   function sbStepName(stepNum) { return SB_STEP_DISPLAY_NAMES['step' + stepNum]; }
 
   // ===== 构建完整提示词 =====
@@ -3132,37 +3152,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     // 2. MVU状态栏分步生成模式状态信息
     var statusBarStateInfo = '';
     if (statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
-      var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取函数', 6:'渲染函数', 7:'事件绑定+入口', 8:'拼接合并(完成)' };
+      var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取与渲染函数', 6:'事件绑定+入口', 7:'拼接合并(完成)', 8:'拼接合并(完成)' };
+      // ⚠️ 标准实现模式（对齐参考卡"无限读档：轮回观测者"）：
+      //   - 单一 refreshStatus() 函数（不拆 loadVars/renderVars 两函数）
+      //   - getAllVariables() + _.get(allVars,"stat_data",{}) 读变量
+      //   - document.getElementById('render-root') 操作DOM（非jQuery $('#stat-xxx')）
+      //   - 递归 renderTree(obj, level) 自动渲染任意深度嵌套（不为每个变量写id）
+      //   - eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus) 监听变量更新
+      //   - await waitGlobalInitialized('Mvu') 等模块就绪
+      //   - $(errorCatched(init)) 全局异常捕获入口
       var sbStepDescs = {
         1: '输出纯文本表格，列出所有要显示的变量路径/类型/分组/显示名。不输出代码块。',
-        2: '输出```css代码块，包含:root配色变量定义。只输出这一个代码块，禁止输出其他代码块。',
-        3: '输出```html代码块，包含HTML结构骨架（div/span等）。只输出这一个代码块，禁止输出其他代码块。',
-        4: '输出```css代码块，包含CSS样式规则。只输出这一个代码块，禁止输出其他代码块。',
-        5: '输出```javascript代码块，包含变量读取函数（用_.get从stat_data读取）。只输出这一个代码块，禁止输出其他代码块。',
-        6: '输出```javascript代码块，包含渲染函数（用jquery操作DOM）。只输出这一个代码块，禁止输出其他代码块。',
-        7: '输出```javascript代码块，包含事件绑定和入口函数。只输出这一个代码块，禁止输出其他代码块。',
-        8: '状态栏已全部完成，无需再输出代码。'
+        2: '输出```css代码块，仅包含:root配色变量定义（--card-bg/--text-main/--accent-blue等CSS变量）。只输出这一个代码块。',
+        3: '输出```html代码块，仅包含外层结构骨架：.mvu-status-card > .card-body[id=render-root] > .loading-state（加载占位）。不要为每个变量写id，递归渲染会自动生成。只输出这一个代码块。',
+        4: '输出```css代码块，包含完整CSS样式规则（.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4）。只输出这一个代码块。',
+        5: '输出```javascript代码块，包含 refreshStatus() 函数 + 内部 renderTree(obj, level) 递归渲染函数。核心实现：var allVars=getAllVariables(); var sourceData=_.get(allVars,"stat_data",{}); 然后递归 renderTree 遍历对象生成HTML字符串，过滤 _/$ 开头的键，number→.value-number, boolean→.value-true/.value-false(✓/✕), array→[元素,元素], string→.value-text。最后 document.getElementById(\'render-root\').innerHTML = htmlStr。只输出这一个代码块。',
+        6: '输出```javascript代码块，包含 init() 入口函数：await waitGlobalInitialized(\'Mvu\') 等模块就绪 → 调用 refreshStatus() → eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus) 监听变量更新。用 $(errorCatched(init)) 包装入口。可加 setTimeout(refreshStatus,1000/2500) 兜底重试。只输出这一个代码块。',
+        7: '状态栏已全部完成，无需再输出代码。只做文字确认。',
+        8: '状态栏已全部完成，无需再输出代码。只做文字确认。'
       };
       var curStep = statusBarCurrentStep;
       if (curStep >= 1 && curStep <= 8) {
         statusBarStateInfo = '\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
-          '🔧 状态栏生成模式（写卡器后台管理 · MVU Tab专属）\n' +
+          '🔧 状态栏生成模式（写卡器后台管理 · MVU Tab专属 · 标准实现模式）\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
           '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n' +
           '要求: ' + sbStepDescs[curStep] + '\n';
         var sbCollected = [];
         var sbMissing = [];
-        var sbModNames = { step2:'配色', step3:'骨架', step4:'样式', step5:'读取', step6:'渲染', step7:'入口' };
+        // 标准5槽位：配色/骨架/样式/refreshStatus+renderTree/init入口（注意：变量读取与渲染合并为1个槽位）
+        var sbModNames = { step2:'配色', step3:'骨架', step4:'样式', step5:'refreshStatus+renderTree', step6:'init入口' };
         for (var sbk in sbModNames) {
           if (statusBarModules[sbk]) sbCollected.push(sbModNames[sbk]);
           else sbMissing.push(sbModNames[sbk]);
         }
-        statusBarStateInfo += '已收集: ' + (sbCollected.length ? sbCollected.join('、') : '无') + ' (' + sbCollected.length + '/6)\n';
+        statusBarStateInfo += '已收集: ' + (sbCollected.length ? sbCollected.join('、') : '无') + ' (' + sbCollected.length + '/5)\n';
         if (sbMissing.length) statusBarStateInfo += '还缺: ' + sbMissing.join('、') + '\n';
         statusBarStateInfo += '⚠️写卡器会自动提取你回复中的第一个代码块填入当前Step槽位，不需要输出 /* === Step N === */ 标记\n';
         statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（世界书条目JSON/角色卡生成指令等）\n';
-        if (curStep >= 3 && curStep <= 7) {
+        if (curStep >= 3 && curStep <= 6) {
           statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名等）\n';
         }
         statusBarStateInfo += '═══════════════════════════════════════════════════════════════════\n';
@@ -3208,64 +3237,109 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '条目4: comment="变量输出格式", constant=true, position=4, depth=0, order=200\n' +
       '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
       '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
-      '【状态栏8步分模块流程】（写卡器后台管理Step 2-7共6个槽位）\n' +
+      '【状态栏6步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
       'Step 1：变量盘点表（纯文本表格 | 路径 | 类型 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
-      'Step 2：配色方案（仅CSS :root变量块）→ 输出```css\n' +
-      'Step 3：HTML结构骨架（仅<body>内DOM，含静态假数据）→ 输出```html，id=stat-<分组>-<字段>\n' +
-      'Step 4：CSS样式表（仅<style>内规则，引用Step2的CSS变量）→ 输出```css\n' +
-      'Step 5：变量读取函数（纯函数 loadVars()，用 _.get(getAllVariables(),"stat_data.xxx",默认值)）→ 输出```javascript\n' +
-      'Step 6：渲染函数 renderVars(data)（jquery操作DOM，按类型分支处理：number→进度条/数值、boolean→✓/✕、string→文本、array→列表、object→递归renderVarTree）→ 输出```javascript\n' +
-      'Step 7：事件绑定+入口（init函数用waitGlobalInitialized(\'Mvu\') + eventOn VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED + errorCatched + $(()=>{})）→ 输出```javascript\n' +
-      'Step 8：拼接合并+自查（AI只做文字确认，不输出代码；写卡器自动从Step 2-7槽位中提取代码拼接成完整正则脚本）\n\n' +
+      'Step 2：配色方案（仅CSS :root变量块：--card-bg/--text-main/--accent-blue等）→ 输出```css\n' +
+      'Step 3：HTML结构骨架（.mvu-status-card > .card-body[id=render-root] > .loading-state加载占位）→ 输出```html\n' +
+      '   ⚠️不要为每个变量写id！递归渲染会自动生成DOM。HTML只需外层骨架容器。\n' +
+      'Step 4：CSS样式表（完整样式：.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/.indent-1~4）→ 输出```css\n' +
+      'Step 5：refreshStatus()+renderTree() 递归渲染函数 → 输出```javascript\n' +
+      '   核心实现（必须严格按此模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
+      '   ```javascript\n' +
+      '   function refreshStatus() {\n' +
+      '     var allVars = getAllVariables();\n' +
+      '     var sourceData = _.get(allVars, "stat_data", {});\n' +
+      '     var htmlStr = \'\';\n' +
+      '     function renderTree(obj, level) {\n' +
+      '       level = level || 0;\n' +
+      '       var indentClass = "indent-" + Math.min(level, 4);\n' +
+      '       var itemsHtml = \'\';\n' +
+      '       Object.keys(obj || {}).forEach(function(key) {\n' +
+      '         var value = obj[key];\n' +
+      '         if (key.indexOf("_") === 0 || key.indexOf("$") === 0) return; // 跳过隐藏变量\n' +
+      '         var isPlainObj = value !== null && typeof value === "object" && !Array.isArray(value);\n' +
+      '         if (isPlainObj) {\n' +
+      '           if (itemsHtml) { htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }\n' +
+      '           if (level > 0) htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n' +
+      '           renderTree(value, level + 1);\n' +
+      '           return;\n' +
+      '         }\n' +
+      '         itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n' +
+      '         if (typeof value === "number") itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n' +
+      '         else if (typeof value === "boolean") itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n' +
+      '         else if (Array.isArray(value)) itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n' +
+      '         else itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n' +
+      '         itemsHtml += \'</span></div>\';\n' +
+      '       });\n' +
+      '       if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n' +
+      '     }\n' +
+      '     renderTree(sourceData, 0);\n' +
+      '     var root = document.getElementById("render-root");\n' +
+      '     if (root) { root.innerHTML = htmlStr; root.classList.add("flash-update"); setTimeout(function() { root.classList.remove("flash-update"); }, 300); }\n' +
+      '   }\n' +
+      '   ```\n' +
+      '   ⚠️关键：用 getAllVariables() + _.get(allVars,"stat_data",{}) 读变量（路径与InitVar YAML根字段一致）\n' +
+      '   ⚠️关键：用 document.getElementById("render-root") 操作DOM（非jQuery $(\'#stat-xxx\')）\n' +
+      '   ⚠️关键：递归 renderTree 自动渲染任意深度嵌套（不为每个变量写id）\n' +
+      'Step 6：事件绑定+入口 init() → 输出```javascript\n' +
+      '   async function init() {\n' +
+      '     await waitGlobalInitialized("Mvu");\n' +
+      '     refreshStatus();\n' +
+      '     setTimeout(refreshStatus, 1000); setTimeout(refreshStatus, 2500); // 兜底重试\n' +
+      '     if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
+      '       try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n' +
+      '       try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n' +
+      '     }\n' +
+      '   }\n' +
+      '   $(errorCatched(init));\n' +
+      'Step 7/8：拼接合并+自查（AI只做文字确认，不输出代码；写卡器自动从Step 2-6槽位中提取代码拼接成完整正则脚本）\n\n' +
       '【按语义精准修改状态栏】\n' +
       '· 先输出清空标记: <clear_statusbar>N1,N2,N3（Step号逗号分隔）→ 写卡器清空对应槽位\n' +
       '· 同一个回答中只输出第一个需要修改的Step的代码块 → 后续Step等用户说"继续"后逐个生成\n' +
-      '· 禁止"改一处就重写全部8步"——只重写需要改的Step\n' +
+      '· 禁止"改一处就重写全部6步"——只重写需要改的Step\n' +
       '\n' +
       '【状态栏预览命令】\n' +
       '· 需要向用户展示当前已收集的状态栏效果时，在消息中输出: <preview_statusbar> 标记\n' +
       '· 写卡器会自动检测并用已收集的模块拼接渲染预览\n\n' +
       '【通用关键实现要求】\n' +
       '· 可用库：jquery、lodash、yaml、zod（无需import直接使用）\n' +
-      '· DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById\n' +
+      '· DOM操作：必须用 document.getElementById("render-root")（标准实现模式），禁止为每个变量写id=stat-xxx再用jQuery选择\n' +
       '· 注释：只能用 /* 注释 */，禁止 // 注释（会导致渲染失败）\n' +
       '· CSS/布局：禁用vh；禁用position:absolute；禁min-height/overflow:auto；用width+aspect-ratio适配\n' +
       '· 跳过隐藏变量：key以_或$开头的跳过不渲染\n' +
-      '· 布尔值仅✅/❌：不要加是/否文字\n' +
+      '· 布尔值仅✓/✕：不要加是/否文字\n' +
       '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🔗 路径一致性与覆盖铁律（状态栏能否显示的关键，违反=纯文字状态栏）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '⚠️状态栏显示为纯文字/占位符不消失，99%是以下三处路径不一致导致 loadVars 读不到值、renderVars 写不进DOM：\n' +
-      '1. 【键名语言统一】InitVar 的 YAML 键名 ↔ Step5 loadVars 的 _.get 路径 ↔ 变量更新规则引用的路径，三者必须字字相同。\n' +
+      '⚠️状态栏显示为纯文字/占位符不消失，99%是以下路径不一致导致 refreshStatus 读不到值、写不进DOM：\n' +
+      '1. 【键名语言统一】InitVar 的 YAML 键名 ↔ Step5 refreshStatus 的 _.get 路径 ↔ 变量更新规则引用的路径，三者必须字字相同。\n' +
       '   · 统一用英文键（如 stat_data.world.entropy），禁止中文键（如 stat_data.世界.现实熵）\n' +
       '   · 若上方「当前角色卡内容上下文」已列出 InitVar 的实际键名，Step5 的 _.get 路径必须逐字引用那些键名，不得自创中文翻译\n' +
-      '2. 【loadVars返回 ↔ renderVars读取】Step5 loadVars() 返回对象的属性路径 ↔ Step6 renderVars(data) 中读取的 data.xxx 属性，必须一一对应。\n' +
-      '   · 例：loadVars 返回 { world: { entropy: val } }，则 renderVars 必须读 data.world.entropy，不得读 data.entropy\n' +
-      '3. 【HTML id ↔ jQuery选择器】Step3 HTML 中 id="stat-xxx" ↔ Step6 renderVars 中 $(\'#stat-xxx\') 选择器，必须一一对应。\n' +
-      '   · 例：HTML 有 <span id="stat-world-entropy">，renderVars 必须有 $(\'#stat-world-entropy\')，不得写成 $(\'#stat-entropy\')\n' +
+      '2. 【_.get 根路径统一】Step5 中 _.get(allVars,"stat_data",{}) 的根字段 "stat_data" ↔ InitVar YAML 的根字段 ↔ 变量列表宏 {{format_message_variable::stat_data}} 的参数，三者必须都是 "stat_data"。\n' +
+      '3. 【递归渲染模式统一】Step3 HTML 只有 id="render-root" 一个固定根容器 ↔ Step5 用 document.getElementById("render-root") 获取该容器。不为每个变量单独写id，递归 renderTree 会自动生成 .stat-item DOM。\n' +
       '4. 【覆盖而非新增】修改 MVU 条目或状态栏脚本时，必须用相同的 comment / id 覆盖现有条目，禁止新增重复条目。\n' +
       '   · 美化状态栏正则脚本固定只有一个（id=mvu-status-bar, findRegex=/<StatusPlaceHolderImpl\\\\/>/g），写卡器自动覆盖，你不要在JSON里重复输出\n' +
       '   · 4条MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式\n' +
       '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '🚫 纯文字状态栏禁令（Step 2-7 必须输出代码块）\n' +
+      '🚫 纯文字状态栏禁令（Step 2-6 必须输出代码块）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '⚠️Step 2-7 每一步都「必须」输出对应的```代码块，绝对不允许只用文字描述「已设计配色/已编写函数」而不给代码！\n' +
+      '⚠️Step 2-6 每一步都「必须」输出对应的```代码块，绝对不允许只用文字描述「已设计配色/已编写函数」而不给代码！\n' +
       '· 错误示范：「Step 2 配色方案：我采用了深渊紫配色…」后面没有代码块 → 状态栏无法生成\n' +
       '· 正确示范：「Step 2 配色方案：」+ ```css\\n:root{--bg:#0a0a0f;...}\\n``` → 写卡器自动收集\n' +
       '· 如果你发现自己只写了文字没写代码块，立即补上代码块再结束本轮回复\n' +
       '\n' +
       '【MVU条目输出格式提醒（MVU Tab）】\n' +
       '· 修改或新建4条MVU条目时，输出: ```json\\n{"entries":[{"comment":"...","content":"...","constant":true,...}]}\\n```\n' +
-      '· 状态栏Step 2-7只输出对应代码块（```css / ```html / ```javascript），不要用JSON包\n' +
-      '· 状态栏Step 8不要输出任何代码块，只做自查文字确认\n' +
+      '· 状态栏Step 2-6只输出对应代码块（```css / ```html / ```javascript），不要用JSON包\n' +
+      '· 状态栏Step 7/8不要输出任何代码块，只做自查文字确认\n' +
       '· ⚠️一次只做一个Step，绝对不要一次回答中包含多个Step的代码块\n';
 
     // 4. JSON/输出格式提醒（MVU Tab版：与状态栏Step联动）
     var jsonReminder = '';
-    if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
-      var sbLangHint = {2:'css', 3:'html', 4:'css', 5:'javascript', 6:'javascript', 7:'javascript'}[statusBarCurrentStep];
+    if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 6) {
+      var sbLangHint = {2:'css', 3:'html', 4:'css', 5:'javascript', 6:'javascript'}[statusBarCurrentStep];
       jsonReminder = '\n\n' +
         '═══════════════════════════════════════════════════════════════════\n' +
         '⚠️【输出格式提醒 - 状态栏代码生成模式（最高优先级） MVU Tab】\n' +
@@ -4871,7 +4945,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         mvu: {
           messages: [],          // MVU Tab独立聊天历史
           currentStep: 0,        // MVU状态栏生成当前步骤：0=未开始，1-8=对应Step
-          modules: { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },  // 每步生成的代码模块
+          modules: { step2: null, step3: null, step4: null, step5: null, step6: null },  // 每步生成的代码模块
           statusBarMode: false   // MVU Tab 是否处于状态栏生成模式
         }
       };
@@ -4980,7 +5054,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
         } else {
           // 角色卡Tab：强制禁用状态栏生成模式，防止AI生成多余MVU条目
-          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
           statusBarCurrentStep = 0;
           statusBarMode = false;
           chatSessions.card.mode = 'normal';  // 角色卡Tab永远是normal
@@ -5403,7 +5477,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         messages = [];
         // 重置MVU Tab状态栏状态（导入新卡，原来的MVU配置不适用）
         chatSessions.mvu.currentStep = 0;
-        chatSessions.mvu.modules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+        chatSessions.mvu.modules = { step2: null, step3: null, step4: null, step5: null, step6: null };
         chatSessions.mvu.statusBarMode = false;
         mvuTabStatusBarCurrentStep = 0;
         mvuTabStatusBarModules = chatSessions.mvu.modules;
@@ -5414,7 +5488,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           statusBarCurrentStep = 0;
           statusBarMode = false;
         } else {
-          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
           statusBarCurrentStep = 0;
           statusBarMode = false;
         }
@@ -5427,7 +5501,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           activeTab = 'card';
           currentTab = 'card';
           if (typeof window !== 'undefined') window.__tab_activeTab = 'card';
-          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
           statusBarCurrentStep = 0;
           statusBarMode = false;
         }
@@ -5492,7 +5566,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             currentTab: activeTab || 'card',
             cardMessages: chatSessions.card.messages || [],
             mvuMessages: chatSessions.mvu.messages || [],
-            mvuTabStatusBarModules: chatSessions.mvu.modules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
+            mvuTabStatusBarModules: chatSessions.mvu.modules || { step2: null, step3: null, step4: null, step5: null, step6: null },
             mvuTabStatusBarCurrentStep: chatSessions.mvu.currentStep || 0,
             mvuTabStatusBarMode: chatSessions.mvu.statusBarMode || false,
             messages: (activeTab === 'card' ? chatSessions.card.messages : chatSessions.mvu.messages),
@@ -5537,7 +5611,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 state.chatSessions.card || {}
               );
               chatSessions.mvu = Object.assign(
-                { messages: [], currentStep: 0, modules: { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null }, statusBarMode: false },
+                { messages: [], currentStep: 0, modules: { step2: null, step3: null, step4: null, step5: null, step6: null }, statusBarMode: false },
                 state.chatSessions.mvu || {}
               );
             } else {
@@ -5553,7 +5627,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               chatSessions.mvu = {
                 messages: (state.mvuMessages && Array.isArray(state.mvuMessages)) ? state.mvuMessages : [],
                 currentStep: state.mvuTabStatusBarCurrentStep || 0,
-                modules: state.mvuTabStatusBarModules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
+                modules: state.mvuTabStatusBarModules || { step2: null, step3: null, step4: null, step5: null, step6: null },
                 statusBarMode: state.mvuTabStatusBarMode || false
               };
             }
@@ -5583,7 +5657,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             } else {
               // 当前在角色卡Tab：强制禁用状态栏生成模式（如果是新版数据有 chatSessions 对象的话）
               if (state.chatSessions) {
-                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
                 statusBarMode = false;
                 statusBarCurrentStep = 0;
               } else if (state.statusBarModules) {
@@ -5592,7 +5666,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 statusBarMode = state.statusBarMode || false;
                 statusBarCurrentStep = state.statusBarCurrentStep || 0;
               } else {
-                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
                 statusBarMode = false;
                 statusBarCurrentStep = 0;
               }
@@ -5821,7 +5895,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             setCurrentMessages([]);
             // MVU Tab 清空时也重置其状态栏模块状态
             if (currentTab === 'mvu') {
-              mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+              mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
               mvuTabStatusBarCurrentStep = 0;
               mvuTabStatusBarMode = false;
               statusBarModules = mvuTabStatusBarModules;
@@ -5896,7 +5970,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           statusBarCurrentStep = firstEmpty === 0 ? 1 : firstEmpty;
           addAssistantMsg('🎛️ 已进入状态栏制作模式！\n' +
             (firstEmpty === 0
-              ? '当前6个模块都已完成，可以说「预览状态栏」查看效果，或「修改配色/结构」等进行微调。'
+              ? '当前5个模块都已完成，可以说「预览状态栏」查看效果，或「修改配色/结构」等进行微调。'
               : '下一步是 Step ' + firstEmpty + ': ' + sbStepName(firstEmpty) + '，请对我说"继续"或描述你的需求。'));
           return;
         }
@@ -5907,7 +5981,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (!statusBarModules['step' + SB_STEP_ORDER[si]]) { nextStep = SB_STEP_ORDER[si]; break; }
           }
           if (nextStep === 0) {
-            addAssistantMsg('✅ 状态栏6个模块（配色/骨架/样式/读取/渲染/入口）已全部完成！\n可以点「🎛️ 状态栏预览」查看最终效果，或说"修改配色"等进行微调。');
+            addAssistantMsg('✅ 状态栏5个模块（配色/骨架/样式/refreshStatus+renderTree/入口）已全部完成！\n可以点「🎛️ 状态栏预览」查看最终效果，或说"修改配色"等进行微调。');
           } else {
             statusBarCurrentStep = nextStep;
             if (input) { input.value = '继续'; handleSend(); }
@@ -6409,7 +6483,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
         var hasStatusBar = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
         var step = chatSessions.mvu.currentStep || 0;
-        var stepNames = ['', 'Step1:规划', 'Step2:CSS', 'Step3:HTML骨架', 'Step4:数据绑定', 'Step5:交互逻辑', 'Step6:正则注入', 'Step7:测试', 'Step8:完成'];
+        var stepNames = ['', 'Step1:规划', 'Step2:配色', 'Step3:HTML骨架', 'Step4:CSS样式', 'Step5:refreshStatus+renderTree', 'Step6:入口', 'Step7:完成'];
 
         var h = '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center">';
         // MVU 4条核心条目状态
@@ -6792,20 +6866,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return /<\w+[\s>]/.test(code) || code.indexOf('<div') >= 0 || code.indexOf('<span') >= 0;
           case 4: // Step4：CSS样式 —— 必须含CSS选择器{规则}，排除纯JSON对象
             return /\{[\s\S]*\}/.test(code) && /[.#][\w-]+\s*\{/.test(code);
-          case 5: // Step5：变量读取 —— 必须含函数定义或变量读取API
-            return code.indexOf('function') >= 0 || code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0;
-          case 6: // Step6：渲染函数 —— 必须含函数定义或DOM操作API
-            return code.indexOf('function') >= 0 || code.indexOf('.text(') >= 0 || code.indexOf('.html(') >= 0 || code.indexOf('renderVars') >= 0;
-          case 7: // Step7：事件入口 —— 必须含运行时API调用（waitGlobalInitialized/eventOn/errorCatched/init()）
-            return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || /(^|[^a-zA-Z])init\s*\(/.test(code);
+          case 5: // Step5：refreshStatus + renderTree —— 必须含 refreshStatus 函数 + 变量读取API + renderTree 递归
+            return (code.indexOf('function') >= 0 || code.indexOf('refreshStatus') >= 0)
+              && (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0)
+              && (code.indexOf('renderTree') >= 0 || code.indexOf('getElementById') >= 0);
+          case 6: // Step6：事件入口 init —— 必须含运行时API调用（waitGlobalInitialized/eventOn/errorCatched/init()）
+            return code.indexOf('waitGlobalInitialized') >= 0 || code.indexOf('eventOn') >= 0 || code.indexOf('errorCatched') >= 0 || /(^|[^a-zA-Z])init\s*\(/.test(code) || code.indexOf('refreshStatus') >= 0;
         }
         return true;
       }
 
       function assembleStatusBarFromModules() {
-        // ⚠️完整性校验：6个模块必须全部存在，确保最终状态栏完整可用
+        // ⚠️完整性校验：5个模块必须全部存在，确保最终状态栏完整可用
+        // 标准实现模式（对齐参考卡）：step5=refreshStatus+renderTree（合并槽位）, step6=init入口
         // 缺任何一个模块都不拼接，避免生成残缺不可用的状态栏
-        var requiredSteps = ['step2', 'step3', 'step4', 'step5', 'step6', 'step7'];
+        var requiredSteps = ['step2', 'step3', 'step4', 'step5', 'step6'];
         for (var ri = 0; ri < requiredSteps.length; ri++) {
           if (!statusBarModules[requiredSteps[ri]]) return '';
         }
@@ -6814,9 +6889,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cssParts.push('/* === Step 2: 配色方案 === */\n' + statusBarModules.step2);
         cssParts.push('/* === Step 4: CSS样式 === */\n' + statusBarModules.step4);
         var jsParts = [];
-        jsParts.push('/* === Step 5: 变量读取 === */\n' + statusBarModules.step5);
-        jsParts.push('/* === Step 6: 渲染函数 === */\n' + statusBarModules.step6);
-        jsParts.push('/* === Step 7: 事件绑定+入口 === */\n' + statusBarModules.step7);
+        jsParts.push('/* === Step 5: refreshStatus + renderTree === */\n' + statusBarModules.step5);
+        jsParts.push('/* === Step 6: 事件绑定+入口 === */\n' + statusBarModules.step6);
 
         // 拼接防护：Step3是HTML骨架片段，若AI误输出完整文档结构会导致嵌套标签
         // 清理掉doctype/html/head/body等文档级标签，只保留body内的结构片段
@@ -6857,7 +6931,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var cleared = [];
         for (var i = 0; i < nums.length; i++) {
           var n = parseInt(nums[i].trim(), 10);
-          if (n >= 2 && n <= 7) {
+          if (n >= 2 && n <= 6) {
             statusBarModules['step' + n] = null;
             cleared.push(n);
           }
@@ -7244,7 +7318,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               for (var i = 0; i < SB_STEP_ORDER.length; i++) {
                 if (!statusBarModules['step' + SB_STEP_ORDER[i]]) return SB_STEP_ORDER[i];
               }
-              return 8; // 全满
+              return 7; // 全满
             }
 
             // 显示收集进度
@@ -7259,20 +7333,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               for (var j = 0; j < SB_STEP_ORDER.length; j++) {
                 progressBar += statusBarModules['step' + SB_STEP_ORDER[j]] ? '✅' : '⬜';
               }
-              var allComplete = collected.length === 6;
+              var allComplete = collected.length === 5;
               if (!allComplete) {
                 var nextEmpty = findNextEmptyStep();
-                addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/6）\n' +
+                addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/5）\n' +
                   '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
                   '  ⬜ 还缺：' + (missing.length ? missing.join('、') : '无') + '\n' +
                   '  ⏭️ 下一步：请生成 Step ' + nextEmpty + ': ' + sbStepName(nextEmpty) + '（对我说"继续"即可）\n' +
-                  '  ⚠️ 6个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。');
+                  '  ⚠️ 5个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。');
               } else {
                 var assembledHtml = assembleStatusBarFromModules();
                 if (assembledHtml) {
                   saveStatusBarToCard(assembledHtml);
-                  statusBarCurrentStep = 8;
-                  addAssistantMsg('🎉 状态栏全部6个模块已收集完成！\n' +
+                  statusBarCurrentStep = 7;
+                  addAssistantMsg('🎉 状态栏全部5个模块已收集完成！\n' +
                     '  ✅ ' + collected.join(' · ') + '\n' +
                     '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。');
                 }
@@ -7302,7 +7376,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 statusBarMode = true;
                 // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
                 var firstEmpty = findNextEmptyStep();
-                statusBarCurrentStep = (firstEmpty === 8) ? 8 : 1;
+                statusBarCurrentStep = (firstEmpty === 7) ? 7 : 1;
               }
             }
 
@@ -7319,7 +7393,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
             // 状态栏生成模式主逻辑
             if (statusBarMode) {
-              if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
+              if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 6) {
                 // 提取代码并填入当前Step槽位
                 var stepNum = statusBarCurrentStep;
                 var code = extractFirstCodeBlock(aiResponse);
@@ -7335,9 +7409,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 } else {
                   // ⚠️关键修复：AI未输出任何代码块（只输出文字描述或空<statusblock>占位符）
                   // 不能静默放行，必须明确告知AI错误并要求重新输出代码块
-                  // 否则AI会误以为成功，继续下一步，导致6个模块全部为null
-                  var stepLangHint = {2:'```css', 3:'```html', 4:'```css', 5:'```javascript', 6:'```javascript', 7:'```javascript'}[stepNum];
-                  var stepCodeHint = {2:':root { --bg-color: #xxx; ... }', 3:'<div class="status-card">...</div>', 4:'.status-card { color: var(--bg-color); }', 5:'function loadVars() { return _.get(stat_data, "..."); }', 6:'function renderVars() { $("#id").text(...); }', 7:'waitGlobalInitialized("...").then(function(){...});'}[stepNum];
+                  // 否则AI会误以为成功，继续下一步，导致5个模块全部为null
+                  var stepLangHint = {2:'```css', 3:'```html', 4:'```css', 5:'```javascript', 6:'```javascript'}[stepNum];
+                  var stepCodeHint = {2:':root { --card-bg: #xxx; ... }', 3:'<div class="mvu-status-card"><div class="card-body" id="render-root">...</div></div>', 4:'.mvu-status-card { ... } .stat-item { ... }', 5:'function refreshStatus() { var allVars=getAllVariables(); var sourceData=_.get(allVars,"stat_data",{}); renderTree(sourceData,0); }', 6:'async function init() { await waitGlobalInitialized("Mvu"); refreshStatus(); eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); }'}[stepNum];
                   addAssistantMsg('❌ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 未检测到代码块！\n' +
                     '  ⚠️你刚才的回复里没有任何 ``` 代码块，只有文字描述/空<statusblock>占位符。\n' +
                     '  状态栏模块必须是可执行代码，不能用文字描述代替。\n' +
@@ -7350,13 +7424,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               } else if (statusBarCurrentStep === 1) {
                 // Step 1是变量表（纯文本），不参与拼接，直接推进到第一个空缺
                 statusBarCurrentStep = findNextEmptyStep();
-                if (statusBarCurrentStep <= 7) {
+                if (statusBarCurrentStep <= 6) {
                   addAssistantMsg('📋 变量表已确认。接下来请生成 Step ' + statusBarCurrentStep + ': ' + sbStepName(statusBarCurrentStep) + '（对我说"继续"即可）。\n' +
                     '  ⚠️ 只输出当前Step的代码块，不要输出其他代码块。');
                 } else {
                   showSBProgress();
                 }
-              } else if (statusBarCurrentStep === 8 || statusBarCurrentStep === 0) {
+              } else if (statusBarCurrentStep === 7 || statusBarCurrentStep === 8 || statusBarCurrentStep === 0) {
                 // 已完成或未开始：尝试兜底完整HTML提取（允许用户直接输出完整HTML覆盖）
                 var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
                 if (statusBarSaved) {
@@ -8631,13 +8705,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>🧩 状态栏正则脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成正则脚本</div></div>';
           }
 
-          // 状态栏生成进度
+          // 状态栏生成进度（标准实现模式：5槽位 step2-6）
           var step = chatSessions.mvu.currentStep || 0;
-          var stepNames = ['', 'Step1:规划', 'Step2:CSS', 'Step3:HTML骨架', 'Step4:数据绑定', 'Step5:交互逻辑', 'Step6:正则注入', 'Step7:测试', 'Step8:完成'];
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (step >= 8 ? 'full' : step > 0 ? 'full' : 'empty') + '"></span>📊 状态栏生成进度</span><span class="sec-right">' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + '</span><span class="pv-toggle"></span></h3>';
+          var stepNames = ['', 'Step1:规划', 'Step2:配色', 'Step3:HTML骨架', 'Step4:CSS样式', 'Step5:refreshStatus+renderTree', 'Step6:入口', 'Step7:完成'];
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (step >= 7 ? 'full' : step > 0 ? 'full' : 'empty') + '"></span>📊 状态栏生成进度</span><span class="sec-right">' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + '</span><span class="pv-toggle"></span></h3>';
           h += '<div class="pv-content">';
           var modules = chatSessions.mvu.modules || {};
-          var modNames = { step2: 'CSS样式', step3: 'HTML骨架', step4: '数据绑定', step5: '交互逻辑', step6: '正则注入', step7: '测试验证' };
+          var modNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: 'refreshStatus+renderTree', step6: '事件绑定+入口' };
           Object.keys(modNames).forEach(function(k) {
             var done = modules[k] !== null && modules[k] !== undefined;
             h += '<div style="margin:2px 0">' + (done ? '✅' : '⬜') + ' ' + modNames[k] + '</div>';
