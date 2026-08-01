@@ -346,12 +346,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-icon{margin-right:5px;font-size:.95em}
 
 /* MVU Tab：隐藏非 MVU 的模块按钮和进度项 */
-.mod-focus.mvu-only .mod-focus-btn{display:none}
-.mod-focus.mvu-only .mod-focus-btn[data-mvu="1"]{display:inline-block}
-.mod-dash.mvu-only .mod-dash-item:not(.mvu-item){display:none}
-
+.mod-focus.mvu-only{display:none}
+.mod-dash.mvu-only{display:none}
 /* 角色卡 Tab：隐藏 MVU 按钮（如果标记了）*/
 .mod-focus.card-only .mod-focus-btn[data-mvu="1"]{display:none}
+/* MVU Tab 专属面板：角色卡Tab 时隐藏 */
+.mvu-info-panel{display:none}
+.mvu-info-panel.mvu-only{display:block}
 `;
             d.head.appendChild(s);
             resolve(d);
@@ -3318,7 +3319,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       category: '高价值字段',
       name: 'regex_scripts 状态同步正则',
       desc: '当前 ' + rx.length + ' 条',
-      fix: rx.length === 0 ? '建议生成基础状态同步正则脚本，无需插件实现动态状态栏' : '状态正则已配置'
+      fix: rx.length === 0 ? '建议生成基础状态同步正则脚本，无需插件实现动态状态栏（在MVU变量状态栏Tab制作）' : '状态正则已配置',
+      _mvuOnly: true  // 标记：角色卡Tab质检时过滤此项
     });
 
     // === 世界书基础检查（6项） ===
@@ -4658,6 +4660,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var mvuTabStatusBarModules = chatSessions.mvu.modules;
       var mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
       var mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
+      // ★ 向后兼容别名：旧代码各处仍直接引用 messages 变量（importCardData/loadFromStorage等）
+      // 必须保留 var messages 声明，否则会报 "messages is not defined"
+      var messages = chatSessions.card.messages;
 
       // 当前Tab的messages访问器（根据activeTab返回对应数组）
       function getCurrentMessages() {
@@ -4707,7 +4712,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         for (var ti = 0; ti < tabBtns.length; ti++) {
           tabBtns[ti].classList.toggle('active', tabBtns[ti].getAttribute('data-tab') === targetTab);
         }
-        // 更新 mod-focus / mod-dash 显示筛选
+        // 更新 mod-focus / mod-dash / mvu-info-panel 显示筛选
         var modFocus = doc.getElementById('modFocus');
         if (modFocus) {
           modFocus.classList.remove('card-only', 'mvu-only');
@@ -4717,6 +4722,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (modDash) {
           modDash.classList.remove('card-only', 'mvu-only');
           modDash.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
+        }
+        var mvuPanel = doc.getElementById('mvuInfoPanel');
+        if (mvuPanel) {
+          mvuPanel.classList.remove('card-only', 'mvu-only');
+          mvuPanel.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
         }
         // 切换聊天记录：清空当前聊天面板并重放目标Tab的消息
         var chatC = doc.getElementById('chatMessages');
@@ -4744,6 +4754,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         updateModFocus();
         renderPreview();
         renderModDash();
+        renderMvuInfoPanel();
         // 更新输入框占位符
         var inputEl = doc.getElementById('chatInput');
         if (inputEl) {
@@ -4831,6 +4842,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '<div class="md-header" id="modDashHeader"><span>📊 模块进度仪表盘</span><span class="md-arrow">▼</span></div>' +
                   '<div class="md-body"></div>' +
                 '</div>' +
+                // ========== MVU Tab 专属信息面板（角色卡Tab隐藏）==========
+                '<div class="mvu-info-panel card-only" id="mvuInfoPanel" style="margin:0;padding:8px 10px;border-bottom:1px solid #efe9dc;font-size:.72em;color:#8c8472;background:rgba(127,168,201,.03)">' +
+                  '<div id="mvuInfoBody">MVU变量系统就绪</div>' +
+                '</div>' +
                 '<div class="chat-messages" id="chatMessages"></div>' +
                 '<div class="scroll-btns" id="scrollBtns"><button id="scrollBottomBtn" title="到底部">↓</button></div>' +
                 '<div class="quick-actions" id="quickActions"></div>' +
@@ -4860,6 +4875,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         updateQuickActions();
         renderPreview();
         renderModDash();
+        renderMvuInfoPanel();
         updateCharCount();
       }
 
@@ -5194,6 +5210,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           modDashAfter.classList.remove('card-only', 'mvu-only');
           modDashAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
         }
+        var mvuPanelAfter = doc.getElementById('mvuInfoPanel');
+        if (mvuPanelAfter) {
+          mvuPanelAfter.classList.remove('card-only', 'mvu-only');
+          mvuPanelAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
+        }
         var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
         var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
           '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
@@ -5351,7 +5372,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return false;
           var state = JSON.parse(raw);
-          return state && state.cardData && state.cardData.name && state.cardData.name.length > 0;
+          // 放宽条件：有 name 或有 entries 或有 description 都算有数据
+          if (!state || !state.cardData) return false;
+          var cd = state.cardData;
+          var hasName = cd.name && cd.name.length > 0;
+          var hasDesc = cd.description && cd.description.length > 0;
+          var hasEntries = cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0;
+          return hasName || hasDesc || hasEntries;
         } catch(e) { return false; }
       }
 
@@ -5379,6 +5406,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           if (modDash) {
             modDash.classList.remove('card-only', 'mvu-only');
             modDash.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
+          }
+          // 恢复 mvu-info-panel 的 card/mvu-only 样式
+          var mvuPanel = doc.getElementById('mvuInfoPanel');
+          if (mvuPanel) {
+            mvuPanel.classList.remove('card-only', 'mvu-only');
+            mvuPanel.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
           }
           // 恢复Tab按钮激活态（renderChatUI 默认可能没有选中对应Tab）
           var tabBtns = doc.querySelectorAll('.tab-btn');
@@ -5409,6 +5442,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           updateModFocus();
           renderPreview();
           renderModDash();
+          renderMvuInfoPanel();
           showToast('已恢复上次创作进度（当前：' + (activeTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab') + '）', 'success');
         } else {
           showToast('没有找到保存的数据', 'warning');
@@ -5690,6 +5724,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         saveToStorage();
         renderModDash();
+        renderMvuInfoPanel();
       }
       function addUserMsg(content) {
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
@@ -6036,9 +6071,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           { key: 'entity_interact', icon: '👥', name: '实体交互', group: '触发' },
           { key: 'narrative_bg', icon: '📖', name: '叙事背景', group: '触发' },
           { key: 'dynamic_adapt', icon: '🔄', name: '动态适配', group: '动态' },
-          { key: 'init_var', icon: '📊', name: '初始变量', group: '变量' },
-          { key: 'var_update_rule', icon: '📝', name: '变量更新规则', group: '变量' }
+          { key: 'init_var', icon: '📊', name: '初始变量', group: '变量', mvuOnly: true },
+          { key: 'var_update_rule', icon: '📝', name: '变量更新规则', group: '变量', mvuOnly: true }
         ];
+        // ========== Tab 隔离：角色卡Tab 隐藏 MVU 变量模块 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        if (__tab === 'card') {
+          labels = labels.filter(function(l) { return !l.mvuOnly; });
+        }
         // 计算总进度（用于仪表盘头部展示）
         var totalPct = 0;
         var doneCount = 0;
@@ -6049,6 +6089,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
         var avgPct = Math.round(totalPct / labels.length);
         var groups = { '常驻': '#8ba888', '触发': '#8a6d3b', '动态': '#b89968', '变量': '#7fa8c9' };
+        // 角色卡Tab 隐藏「变量」体系标签
+        if (__tab === 'card') delete groups['变量'];
         var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #efe9dc">' +
           '<div style="display:flex;flex-wrap:wrap;gap:4px">';
         Object.keys(groups).forEach(function(g) {
@@ -6103,6 +6145,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           }
         }
       }
+
+      // ========== MVU Tab 专属信息面板渲染 ==========
+      function renderMvuInfoPanel() {
+        var panelBody = doc.getElementById('mvuInfoBody');
+        if (!panelBody) return;
+        var entries = (cardData.character_book || {}).entries || [];
+        var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
+        var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+        var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+        var hasUpdateRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
+        var hasOutputFmt = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
+        var mvuCount = mvuEntries.length;
+        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+        var hasStatusBar = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
+        var step = chatSessions.mvu.currentStep || 0;
+        var stepNames = ['', 'Step1:规划', 'Step2:CSS', 'Step3:HTML骨架', 'Step4:数据绑定', 'Step5:交互逻辑', 'Step6:正则注入', 'Step7:测试', 'Step8:完成'];
+
+        var h = '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center">';
+        // MVU 4条核心条目状态
+        h += '<span style="color:' + (hasInitVar ? '#8ba888' : '#c98b7a') + '">' + (hasInitVar ? '✅' : '⬜') + ' [InitVar]初始变量</span>';
+        h += '<span style="color:' + (hasVarList ? '#8ba888' : '#c98b7a') + '">' + (hasVarList ? '✅' : '⬜') + ' 变量列表</span>';
+        h += '<span style="color:' + (hasUpdateRule ? '#8ba888' : '#c98b7a') + '">' + (hasUpdateRule ? '✅' : '⬜') + ' 变量更新规则</span>';
+        h += '<span style="color:' + (hasOutputFmt ? '#8ba888' : '#c98b7a') + '">' + (hasOutputFmt ? '✅' : '⬜') + ' 变量输出格式</span>';
+        h += '</div>';
+        // 状态栏进度
+        if (step > 0 || hasStatusBar) {
+          h += '<div style="margin-top:4px;color:#7fa8c9">📊 状态栏: ' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + (hasStatusBar ? ' · ✅ 正则已注入' : '') + '</div>';
+        }
+        h += '<div style="margin-top:3px;font-size:.95em;opacity:.7">MVU条目 ' + mvuCount + ' 条 · 正则脚本 ' + rxScripts.length + ' 条 · 角色卡: ' + (cardData.name || '(未命名)') + '</div>';
+        panelBody.innerHTML = h;
+      }
+
       async function handleAnalyzeProgress() {
         if (isGenerating) return;
         var entries = (cardData.character_book || {}).entries || [];
@@ -6172,6 +6246,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function getDetailedModuleProgress() {
         var entries = (cardData.character_book || {}).entries || [];
+        // ========== Tab 隔离：角色卡Tab 过滤掉 MVU 条目 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        if (__tab === 'card') {
+          entries = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
+        }
         var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
         var modKeywords = {
           axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
@@ -7127,6 +7206,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function getModuleProgress() {
         var entries = (cardData.character_book || {}).entries || [];
+        // ========== Tab 隔离：角色卡Tab 过滤掉 MVU 条目 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        if (__tab === 'card') {
+          entries = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
+        }
         var comments = entries.map(function(e) { return (e.comment || ''); });
         var keywords = {
           axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
@@ -7142,6 +7226,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         };
         var result = {};
         Object.keys(keywords).forEach(function(mod) {
+          // 角色卡Tab：跳过MVU模块检查（永远返回false，不影响进度计算）
+          if (__tab === 'card' && (mod === 'init_var' || mod === 'var_update_rule')) {
+            result[mod] = false;
+            return;
+          }
           var kws = keywords[mod];
           result[mod] = comments.some(function(c) {
             return kws.some(function(kw) { return c.indexOf(kw) >= 0; });
@@ -7163,6 +7252,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         else if (cardData.description && cardData.description.length >= 200) score += 10;
         else if (cardData.description && cardData.description.length > 50) score += 5;
         var entries = (cardData.character_book || {}).entries || [];
+        // ========== Tab 隔离：角色卡Tab 不统计 MVU 条目 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        if (__tab === 'card') {
+          entries = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
+        }
         if (entries.length >= 4) {
           if (cardData.first_mes && cardData.first_mes.length >= 500) score += 15;
           else if (cardData.first_mes && cardData.first_mes.length >= 300) score += 8;
@@ -7170,7 +7264,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (cardData.system_prompt && cardData.system_prompt.length >= 20) score += 5;
         score += Math.min(entries.length * 5, 30);
         var mp = getModuleProgress();
+        // 角色卡Tab：不把 init_var / var_update_rule 计入 doneCount
         var modKeys = Object.keys(mp);
+        if (__tab === 'card') {
+          modKeys = modKeys.filter(function(k) { return k !== 'init_var' && k !== 'var_update_rule'; });
+        }
         var doneCount = modKeys.filter(function(k) { return mp[k] === true; }).length;
         score += doneCount * 5;
         if (cardData.tags && cardData.tags.length >= 2) score += 5;
@@ -7199,7 +7297,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           showToast('还没有内容可以质检哦，先和AI聊聊吧', 'warning');
           return;
         }
+        // ========== Tab 隔离：角色卡Tab 质检不检查 MVU 相关内容 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
         var results = runQualityCheck(cardData);
+        // 角色卡Tab：过滤掉 MVU变量系统 分类和正则脚本中MVU相关的检查项
+        if (__tab === 'card') {
+          results = results.filter(function(r) {
+            if (r.category === 'MVU变量系统') return false;
+            if (r._mvuOnly) return false;  // 标记为MVU专属的检查项
+            return true;
+          });
+        }
         var passCount = results.filter(function(r) { return r.pass; }).length;
         var coreResults = results.filter(function(r) { return r.category !== '附加检查' && r.category !== 'MVU变量系统'; });
         var corePass = coreResults.filter(function(r) { return r.pass; }).length;
@@ -7207,11 +7315,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var mvuPass = mvuResults.filter(function(r) { return r.pass; }).length;
         var h = '<div class="modal" id="qcModal">' +
           '<div class="modal-content">' +
-            '<h3 style="color:#8a6d3b;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（' + coreResults.length + '项核心 + ' + mvuResults.length + '项MVU + ' + (results.length - coreResults.length - mvuResults.length) + '项附加）</h3>' +
+            '<h3 style="color:#8a6d3b;margin-bottom:4px;font-size:1em">✅ ' + (__tab === 'card' ? '角色卡' : 'MVU变量系统') + '质检报告（' + coreResults.length + '项核心' + (mvuResults.length > 0 ? ' + ' + mvuResults.length + '项MVU' : '') + ' + ' + (results.length - coreResults.length - mvuResults.length) + '项附加）</h3>' +
             '<p style="font-size:.78em;color:#8c8472;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标' + (mvuResults.length > 0 ? ' · MVU ' + mvuPass + '/' + mvuResults.length + ' 项达标' : '') + ' · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
             '<div class="modal-body" style="margin-top:10px">';
         var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
+        // 角色卡Tab 隐藏 MVU变量系统 分类
+        if (__tab === 'card') {
+          categories = categories.filter(function(c) { return c !== 'MVU变量系统'; });
+        }
         var catColors = { '基础字段': '#8a6d3b', '高价值字段': '#b89968', '世界书': '#8ba888', '世界书高级': '#9b7fb0', '正则脚本': '#cf9f5e', '运行效果': '#cf9f5e', 'MVU变量系统': '#7fa8c9', '附加检查': '#8c8472' };
         categories.forEach(function(cat) {
           var catResults = results.filter(function(r) { return r.category === cat; });
@@ -8054,6 +8166,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var body = doc.getElementById('previewBody');
         if (!body) return;
         updateProgress();
+        // ========== Tab 隔离：角色卡Tab 过滤 MVU 内容，MVU Tab 只显示 MVU 相关 ==========
+        var __tab = (typeof window !== 'undefined' && window.__tab_activeTab) ? window.__tab_activeTab : (typeof activeTab !== 'undefined' ? activeTab : 'card');
 
         // 通用段落：完整显示内容（不再截断），支持折叠
         function sec(icon, title, content, rightInfo) {
@@ -8065,20 +8179,98 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
 
         var h = '';
+
+        if (__tab === 'mvu') {
+          // ========== MVU Tab 预览：只显示 MVU 变量系统 + 状态栏相关内容 ==========
+          var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
+          var mvuEntries = allEntries.filter(function(e) { return isMVUEntry(e.comment || ''); });
+          var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
+
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (mvuEntries.length > 0 ? 'full' : 'empty') + '"></span>🎛️ MVU变量条目</span><span class="sec-right">' + mvuEntries.length + '条</span><span class="pv-toggle"></span></h3>';
+          if (mvuEntries.length > 0) {
+            h += '<div class="pv-entry-list">';
+            mvuEntries.forEach(function(e, i) {
+              var eTok = countTokens(e.content || '');
+              var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+              h += '<div class="pv-entry"><div class="pv-entry-title">' + escHtml(e.comment || ('MVU条目' + (i+1))) + ' <span class="sec-right">~' + eTok + 'T</span></div>' +
+                '<div style="margin:2px 0">' + disabledTag + '</div>' +
+                '<div class="pv-entry-content">' + escHtml(e.content || '') + '</div></div>';
+            });
+            h += '</div>';
+          } else {
+            h += '<div class="pv-empty">尚未生成MVU变量条目，请在聊天中描述你想要的变量系统</div>';
+          }
+          h += '</div>';
+
+          // 状态栏正则脚本
+          if (rxScripts.length > 0) {
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>🧩 状态栏正则脚本</span><span class="sec-right">' + rxScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
+            rxScripts.forEach(function(r, idx) {
+              var isStatusBar = (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0;
+              var flags = [];
+              if (r.markdownOnly) flags.push('<span class="pv-tag">仅显示</span>');
+              if (r.promptOnly) flags.push('<span class="pv-tag">仅提示词</span>');
+              if (r.disabled) flags.push('<span class="pv-tag off">禁用</span>');
+              if (isStatusBar) flags.push('<span class="pv-tag ok">美化状态栏</span>');
+              h += '<div class="pv-entry"><div class="pv-entry-title">' + (idx+1) + '. ' + escHtml(r.scriptName || '正则脚本') + '</div>';
+              h += '<div style="margin:2px 0">' + flags.join('') + '</div>';
+              h += '<div class="pv-code">查找：<code>' + escHtml(r.findRegex || '') + '</code></div>';
+              var rep = r.replaceString || '';
+              if (rep) {
+                var repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断）' : rep;
+                h += '<div class="pv-code" style="margin-top:3px">替换：\n' + escHtml(repDisplay) + '</div>';
+              }
+              h += '</div>';
+            });
+            h += '</div></div>';
+          } else {
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>🧩 状态栏正则脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成正则脚本</div></div>';
+          }
+
+          // 状态栏生成进度
+          var step = chatSessions.mvu.currentStep || 0;
+          var stepNames = ['', 'Step1:规划', 'Step2:CSS', 'Step3:HTML骨架', 'Step4:数据绑定', 'Step5:交互逻辑', 'Step6:正则注入', 'Step7:测试', 'Step8:完成'];
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (step >= 8 ? 'full' : step > 0 ? 'full' : 'empty') + '"></span>📊 状态栏生成进度</span><span class="sec-right">' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + '</span><span class="pv-toggle"></span></h3>';
+          h += '<div class="pv-content">';
+          var modules = chatSessions.mvu.modules || {};
+          var modNames = { step2: 'CSS样式', step3: 'HTML骨架', step4: '数据绑定', step5: '交互逻辑', step6: '正则注入', step7: '测试验证' };
+          Object.keys(modNames).forEach(function(k) {
+            var done = modules[k] !== null && modules[k] !== undefined;
+            h += '<div style="margin:2px 0">' + (done ? '✅' : '⬜') + ' ' + modNames[k] + '</div>';
+          });
+          h += '</div></div>';
+
+          // 关联角色卡信息（只读）
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (cardData.name ? 'full' : 'empty') + '"></span>🎭 关联角色卡</span><span class="pv-toggle"></span></h3><div class="pv-content">' + escHtml(cardData.name || '(未命名)') + (cardData.description ? ' · 描述' + cardData.description.length + '字' : '') + '</div></div>';
+
+          body.innerHTML = h;
+          bindPreviewInteractions();
+          return;
+        }
+
+        // ========== 角色卡 Tab 预览：过滤掉 MVU 内容 ==========
+
         h += sec('🌍', '世界名称', cardData.name);
         h += sec('📜', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '');
 
-        // 模块进度
+        // 模块进度（角色卡Tab：隐藏MVU模块）
         var mp = getModuleProgress();
         var modLabels = { axiom: '🏛️ 公理', soft_rules: '🤝 软规则', core_rules: '🔐 铁则', near_constraint: '🎯 近场', scene_mechanics: '⚔️ 机制', entity_interact: '👥 实体', narrative_bg: '📖 叙事', dynamic_adapt: '🔄 动态', init_var: '📊 变量', var_update_rule: '📝 更新' };
-        var modH = '<div class="module-progress">';
+        // 角色卡Tab 移除 MVU 模块标签
+        var modLabelsFiltered = {};
         Object.keys(modLabels).forEach(function(k) {
+          if (k !== 'init_var' && k !== 'var_update_rule') modLabelsFiltered[k] = modLabels[k];
+        });
+        var modH = '<div class="module-progress">';
+        Object.keys(modLabelsFiltered).forEach(function(k) {
           var cls = mp[k] ? 'done' : 'todo';
-          modH += '<div class="module-item ' + cls + '">' + modLabels[k] + '</div>';
+          modH += '<div class="module-item ' + cls + '">' + modLabelsFiltered[k] + '</div>';
         });
         modH += '</div>';
 
-        var entries = (cardData.character_book && cardData.character_book.entries) || [];
+        var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
+        // 角色卡Tab：过滤掉 MVU 条目
+        var entries = allEntries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
         var bookName = (cardData.name ? cardData.name + ' · 世界设定集' : '世界设定集');
         var bookTokCount = 0;
         entries.forEach(function(e) { bookTokCount += countTokens(e.content || ''); });
@@ -8116,62 +8308,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         h += sec('📝', '创作者备注', cardData.creator_notes);
 
-        // ===== 正则脚本（regex_scripts）完整展示 =====
-        var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
-        if (rxScripts.length > 0) {
-          var rxH = '<div class="pv-sub">';
-          rxScripts.forEach(function(r, idx) {
-            var isStatusBar = (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly;
-            var placementMap = { 1: '用户输入', 2: 'AI回复', 3: '斜杠命令', 4: '世界书' };
-            var plLabel = (r.placement || []).map(function(p) { return placementMap[p] || ('P' + p); }).join('/') || '-';
-            var flags = [];
-            if (r.markdownOnly) flags.push('<span class="pv-tag">仅显示</span>');
-            if (r.promptOnly) flags.push('<span class="pv-tag">仅提示词</span>');
-            if (r.runOnEdit) flags.push('<span class="pv-tag ok">编辑触发</span>');
-            if (r.disabled) flags.push('<span class="pv-tag off">禁用</span>');
-            if (isStatusBar) flags.push('<span class="pv-tag ok">美化状态栏</span>');
-            var rep = r.replaceString || '';
-            // 状态栏正则的 replaceString 可能是 ```html 包裹的完整 HTML，完整显示
-            rxH += '<div class="pv-entry"><div class="pv-entry-title">' + (idx + 1) + '. ' + escHtml(r.scriptName || '正则脚本') + ' <span class="sec-right">' + escHtml(plLabel) + '</span></div>';
-            rxH += '<div style="margin:2px 0">' + flags.join('') + '</div>';
-            rxH += '<div class="pv-code">查找：<code>' + escHtml(r.findRegex || '') + '</code></div>';
-            if (rep) {
-              var repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断预览）' : rep;
-              rxH += '<div class="pv-code" style="margin-top:3px">替换：\n' + escHtml(repDisplay) + '</div>';
-            }
-            rxH += '</div>';
-          });
-          rxH += '</div>';
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>🧩 正则脚本</span><span class="sec-right">' + rxScripts.length + '条</span><span class="pv-toggle"></span></h3>' + rxH + '</div>';
-        } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>🧩 正则脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">待生成...（MVU卡导出时会自动注入正则1-5；正则6美化状态栏需AI生成）</div></div>';
-        }
-
-        // ===== 脚本（tavern_helper.scripts）完整展示 =====
-        var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-        if (thScripts.length > 0) {
-          var shH = '<div class="pv-sub">';
-          thScripts.forEach(function(s, idx) {
-            var sName = s.name || s.scriptName || ('脚本' + (idx + 1));
-            var sFlags = [];
-            if (s.enabled === false) sFlags.push('<span class="pv-tag off">禁用</span>'); else sFlags.push('<span class="pv-tag ok">启用</span>');
-            if ((s.content || '').indexOf('bundle.js') >= 0 || (s.content || '').indexOf('MagVarUpdate') >= 0) sFlags.push('<span class="pv-tag">MVU核心</span>');
-            if ((s.content || '').indexOf('registerMvuSchema') >= 0) sFlags.push('<span class="pv-tag">变量结构</span>');
-            shH += '<div class="pv-entry"><div class="pv-entry-title">' + (idx + 1) + '. ' + escHtml(sName) + '</div>';
-            shH += '<div style="margin:2px 0">' + sFlags.join('') + '</div>';
-            var sc = s.content || '';
-            var scDisplay = sc.length > 1500 ? sc.substring(0, 1500) + '\n…（共' + sc.length + '字符，已截断预览）' : sc;
-            shH += '<div class="pv-code">' + escHtml(scDisplay) + '</div>';
-            shH += '</div>';
-          });
-          shH += '</div>';
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>⚙️ 脚本</span><span class="sec-right">' + thScripts.length + '条</span><span class="pv-toggle"></span></h3>' + shH + '</div>';
-        } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>⚙️ 脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">待生成...（MVU卡导出时会自动注入 bundle.js 与变量结构脚本）</div></div>';
-        }
-
-        // ===== 状态栏生成与显示（深度完善）=====
-        h += buildStatusBarPreviewSection();
+        // ===== 正则脚本 / tavern_helper 脚本 / 状态栏 在角色卡Tab 隐藏（MVU专属，在MVU Tab预览中查看）=====
 
         body.innerHTML = h;
         // 绑定折叠/按钮事件（每次重渲染后重新绑定）
