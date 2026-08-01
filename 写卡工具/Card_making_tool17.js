@@ -4352,8 +4352,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   function generateMvuSchemaScript(initVarContent) {
-    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
-    var FOOTER = "});";
+    // ⚠️改进R2+R3：对齐tavern_helper_template标准实现
+    // 1. HEADER 补充 z 和 _ 的 import（运行期裸用会 ReferenceError）
+    // 2. FOOTER 补充 registerMvuSchema(Schema) 调用（否则 schema 定义了但未注册到 MVU）
+    // 3. transform 中的 _.clamp 改为纯 JS Math.max/Math.min（去 lodash 依赖）
+    var HEADER = "import { z, registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    var FOOTER = "});\n\n$(() => { registerMvuSchema(Schema); });";
 
     function isAffinityLike(name) {
       return /好感|依存|信任|忠诚|友好|亲密/.test(name);
@@ -4381,7 +4385,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       if (typeof val === 'number') {
         if (isAffinityLike(key)) {
-          return 'z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100))';
+          // ⚠️R3：用纯 JS Math.max/Math.min 替代 _.clamp，去 lodash 依赖
+          return 'z.coerce.number().prefault(' + val + ').transform(value => Math.max(0, Math.min(100, value)))';
         }
         return 'z.coerce.number().prefault(' + val + ')';
       }
@@ -4390,7 +4395,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
       if (Array.isArray(val)) {
         // 数组统一用 z.array(z.string()).prefault([])，不递归生成内层 prefault
-        // 参考(6)的正确格式：物品栏/当前词条/累计死因记录 均为 z.array(z.string()).prefault([])
         var itemType = 'z.string()';
         if (val.length > 0) {
           if (typeof val[0] === 'number') itemType = 'z.coerce.number()';
@@ -4398,7 +4402,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
         return 'z.array(' + itemType + ').prefault([])';
       }
-      // 不应到达此处（对象由 genObjectLines 处理）
       return "z.string().prefault('')";
     }
 
@@ -4412,7 +4415,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       return genObjectDefaultInline(val);
     }
 
-    // 生成对象的 inline 默认值（如 { 当前时间: '开局', 当前地点: '待定' }），匹配参考文件格式
+    // 生成对象的 inline 默认值
     function genObjectDefaultInline(obj) {
       var parts = Object.keys(obj).map(function(key) {
         return escapeKey(key) + ': ' + genDefaultLiteral(obj[key]);
@@ -4420,7 +4423,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       return '{ ' + parts.join(', ') + ' }';
     }
 
-    // 递归生成对象字段的 zod 代码行，匹配参考文件 ur 函数的格式
+    // 递归生成对象字段的 zod 代码行
     function genObjectLines(obj, indent) {
       var padStr = new Array(indent + 1).join(' ');
       var lines = [];
@@ -4603,14 +4606,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var c = (entry.comment || '').toLowerCase();
         if (c.indexOf('[initvar]') >= 0) {
           var content = entry.content || '';
-          // 解析 YAML 格式：找到 "角色名:" 形式的行
-          var lines = content.split('\n');
-          for (var k = 0; k < lines.length; k++) {
-            var line = lines[k].trim();
-            // 匹配以冒号结尾的行（非世界/非缩进行）
-            if (/^[\u4e00-\u9fff\w]+:\s*$/.test(line) && line.indexOf('世界:') < 0) {
-              var nm = line.replace(/:$/, '').trim();
-              if (nm && nm !== '世界' && names.indexOf(nm) < 0) names.push(nm);
+          // ⚠️改进R4：用 parseInitVar 取顶层键（准确），不再用 line.trim() 逐行匹配
+          // 旧逻辑的 line.trim() 会把缩进的嵌套 mapping（着装:/称号:/近期事务:）误收为角色名
+          try {
+            var parsed = parseInitVar(content);
+            if (parsed && typeof parsed === 'object') {
+              var topKeys = Object.keys(parsed);
+              for (var tk = 0; tk < topKeys.length; tk++) {
+                var nm = topKeys[tk];
+                if (nm === '世界' || nm.charAt(0) === '_' || nm.charAt(0) === '$') continue;
+                if (names.indexOf(nm) < 0) names.push(nm);
+              }
+            }
+          } catch(_e) {
+            // parseInitVar 失败时回退到逐行匹配（仅取0缩进行的顶层键）
+            var lines = content.split('\n');
+            for (var k = 0; k < lines.length; k++) {
+              var rawLine = lines[k];
+              // ⚠️R4关键修复：只匹配0缩进（行首非空白）的"键:"行，跳过缩进行的嵌套字段
+              if (rawLine.charAt(0) !== ' ' && rawLine.charAt(0) !== '\t' && rawLine.charAt(0) !== '-') {
+                var line = rawLine.trim();
+                if (/^[^\s:#]+:\s*$/.test(line) && line.indexOf('世界:') < 0) {
+                  var nm2 = line.replace(/:$/, '').trim();
+                  if (nm2 && nm2 !== '世界' && names.indexOf(nm2) < 0) names.push(nm2);
+                }
+              }
             }
           }
           break;
@@ -4619,11 +4639,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
     // 2. 回退：从角色卡名称和描述中提取
     if (names.length === 0 && cd) {
-      if (cd.name && cd.name !== '未命名世界') names.push(cd.name);
-      // 从描述中提取角色名（常见格式："角色名：描述" 或 "角色名, 角色名"）
+      if (cd.name && !/^(未命名|新建|空)/.test(cd.name)) names.push(cd.name);
       if (cd.description) {
         var desc = cd.description;
-        var nameMatches = desc.match(/[\u4e00-\u9fff]{2,4}(?=对主角|对<user>|的依存|的好感|暗恋|喜欢|依恋)/g);
+        var nameMatches = desc.match(/[\u4e00-\u9fff]{1,6}(?=对主角|对<user>|的依存|的好感|暗恋|喜欢|依恋|钟情|心仪|在意)/g);
         if (nameMatches) {
           for (var m = 0; m < nameMatches.length; m++) {
             if (names.indexOf(nameMatches[m]) < 0) names.push(nameMatches[m]);
@@ -4831,6 +4850,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var cardFirstMes = toCRLF(rawFirstMes);
     var cardMesExample = toCRLF(cd.mes_example || '');
     var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
+      // ⚠️改进R5：非字符串元素（null/数字/对象）会令 toCRLF 崩溃，加 typeof 守卫
+      if (typeof g !== 'string') g = '';
       var greeting = toCRLF(g);
       // MVU开局变量初始化：在alternate_greetings中保留<UpdateVariable>段（覆盖[InitVar]默认值）
       // 同时确保每个alt greeting也含<StatusPlaceHolderImpl/>占位符
@@ -4999,7 +5020,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             mvuRegex.push({
               id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5',
               scriptName: '[美化]变量完成',
-              findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+              findRegex: '/<UpdateVariable(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
               replaceString: MVU_BEAUTIFY_COMPLETE,
               trimStrings: [],
               placement: [2],
@@ -5102,6 +5123,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         entries: entries
       }
     };
+    // ⚠️改进R6：data.format='milk' 必须在 return 前设置（旧代码在 return 之后是死代码）
+    if (cardData && !cardData.format) cardData.format = 'milk';
     // ST规范：顶层需要重复 data 中的关键字段（v3格式顶层用 creatorcomment，data内沿用 creator_notes）
     return {
       name: cardName,
@@ -5120,8 +5143,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       spec_version: '3.0',
       data: cardData
     };
-    /* 改进N：v3规范要求 data.format = "milk"，严格v3校验器会检查此字段 */
-    if (cardData && !cardData.format) cardData.format = 'milk';
   }
 
   // ===== 主界面 =====
@@ -7150,8 +7171,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             return /\{[\s\S]*\}/.test(code)
               && /[.#][\w-]+\s*\{/.test(code);
           case 5: // Step5：refreshStatus + renderTree —— 含函数定义/refreshStatus + 变量读取API + renderTree/DOM操作
+            // ⚠️R9：移除 WTC.getVariable（WTC是世界书调用工具，不是变量读取API）
+            // 标准 API：getVariables({type:'message'}) / getAllVariables() / _getVars(封装) / _.get
             return (code.indexOf('function') >= 0 || code.indexOf('refreshStatus') >= 0)
-              && (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0 || code.indexOf('getVariables') >= 0 || code.indexOf('_getVars') >= 0 || code.indexOf('WTC.getVariable') >= 0 || code.indexOf('getVariable') >= 0)
+              && (code.indexOf('_.get') >= 0 || code.indexOf('getAllVariables') >= 0 || code.indexOf('getVariables') >= 0 || code.indexOf('_getVars') >= 0)
               && (code.indexOf('renderTree') >= 0 || code.indexOf('getElementById') >= 0 || code.indexOf('innerHTML') >= 0);
           case 6: // Step6：入口 —— 含运行时API调用（setInterval轮询 / init入口 / waitUntil循环 / 事件绑定）
             return code.indexOf('waitGlobalInitialized') >= 0
@@ -7187,7 +7210,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           case 5:
             var missing = [];
             if (code.indexOf('function') < 0 && code.indexOf('refreshStatus') < 0) missing.push('function/refreshStatus函数');
-            if (code.indexOf('_.get') < 0 && code.indexOf('getAllVariables') < 0 && code.indexOf('_getVars') < 0 && code.indexOf('WTC.getVariable') < 0 && code.indexOf('getVariable') < 0) missing.push('变量读取API（_.get / _getVars / WTC.getVariable）');
+            if (code.indexOf('_.get') < 0 && code.indexOf('getAllVariables') < 0 && code.indexOf('_getVars') < 0 && code.indexOf('getVariables') < 0) missing.push('变量读取API（_.get / _getVars / getVariables / getAllVariables）');
             if (code.indexOf('renderTree') < 0 && code.indexOf('getElementById') < 0 && code.indexOf('innerHTML') < 0) missing.push('渲染调用（renderTree / getElementById / innerHTML）');
             if (missing.length) return '缺少: ' + missing.join('、');
             break;
@@ -7395,12 +7418,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var DEFAULT_STEP4_CSS = '';
 
       var DEFAULT_STEP5_JS =
-        'function _getVars(){try{return window&&window.WTC?WTC.getVariable("stat_data"):null;}catch(e){return null;}}\n' +
-        'function renderTree(v,el){if(!el)return;var html="";if(v&&typeof v==="object"){for(var k in v){if(k.indexOf("_")===0||k.indexOf("$")===0)continue;var val=v[k];if(typeof val==="number"){var max=100;var pct=Math.max(0,Math.min(100,val));html+=\'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +val+\'</span><span class="stat-bar"><span style="width:\'+pct+\'%"></span></span></span> \';}else if(typeof val==="string"){html+=\'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +String(val)+\'</span></span> \';}else if(typeof val==="object"){html+=\'<span class="stat-group"><span class="stat-label">【\' +k+\'】</span></span> \';}}}el.innerHTML=html||"（无变量数据）";}\n' +
-        'function refreshStatus(){try{var root=document.getElementById("render-root");var vars=_getVars();if(root)renderTree(vars,root);}catch(e){console.warn("refreshStatus error:",e);}}';
+        'function _getVars(){try{if(typeof getVariables==="function"){var r=getVariables({type:"message",message_id:"latest"});if(r&&typeof r==="object")return r;}}catch(e){}try{return getAllVariables()||{};}catch(e2){return{};}}\n' +
+        'function renderTree(v,el){if(!el)return;var html="";if(v&&typeof v==="object"){for(var k in v){if(k.indexOf("_")===0||k.indexOf("$")===0)continue;var val=v[k];if(typeof val==="number"){var pct=Math.max(0,Math.min(100,val));html+=\'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +val+\'</span><span class="stat-bar"><span style="width:\'+pct+\'%"></span></span></span> \';}else if(typeof val==="string"){html+=\'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +String(val)+\'</span></span> \';}else if(typeof val==="object"){html+=\'<span class="stat-group"><span class="stat-label">【\' +k+\'】</span></span> \';}}}el.innerHTML=html||"（无变量数据）";}\n' +
+        'function refreshStatus(){try{var root=document.getElementById("render-root");var sourceData={};try{sourceData=_.get(_getVars(),"stat_data",{});}catch(e3){sourceData=_getVars()||{};}if(root)renderTree(sourceData,root);}catch(e){console.warn("refreshStatus error:",e);}}';
 
       var DEFAULT_STEP6_JS =
-        '(function init(){var max=100,count=0;var _sbTimer=null;function tryRender(){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e){}count++;if(!window||!window.WTC||!window.WTC.getVariable||!window.WTC.getVariable("stat_data")){if(count<max){setTimeout(tryRender,150);}return;}_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);typeof refreshStatus==="function"&&refreshStatus();}\n' +
+        '(function init(){var max=100,count=0;var _sbTimer=null;function _hasStatData(){try{var v=_getVars();return v&&typeof v==="object"&&v.stat_data!==undefined;}catch(e){return false;}}\n' +
+        'function tryRender(){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e){}count++;if(!_hasStatData()){if(count<max){setTimeout(tryRender,150);}return;}_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);typeof refreshStatus==="function"&&refreshStatus();}\n' +
         'tryRender();_sbTimer=setInterval(function(){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e){}},2000);\n' +
         'document.addEventListener("visibilitychange",function(){if(document.hidden){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);}else if(!_sbTimer){_sbTimer=setInterval(function(){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e){}},2000);}});\n' +
         'window.addEventListener("pagehide",function(){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);});})();';
