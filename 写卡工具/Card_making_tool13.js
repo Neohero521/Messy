@@ -4971,6 +4971,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           statusBarModules = chatSessions.mvu.modules;
           statusBarCurrentStep = chatSessions.mvu.currentStep;
           statusBarMode = chatSessions.mvu.statusBarMode;
+          // ===== 进入MVU Tab时自动注入固定资产（bundle.js/WTC/正则1-5/变量结构zod）=====
+          // 这些资产固定不变，提前注入让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
+          var injectedAssets = ensureFixedMvuAssetsInCardData();
+          if (injectedAssets && injectedAssets.length > 0) {
+            renderPreview();
+            showToast('已自动注入MVU固定资产：' + injectedAssets.join('、'), 'success');
+          }
         } else {
           // 角色卡Tab：强制禁用状态栏生成模式，防止AI生成多余MVU条目
           statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
@@ -5867,6 +5874,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         // MVU专属快捷动作（仅MVU Tab有效）
         if (action === 'start_sb') {
+          // ===== 前置检查：进入状态栏模式前，必须先生成4条MVU变量条目 =====
+          // 状态栏的 loadVars 需要引用 InitVar 的变量路径，没有变量条目就无法生成可用状态栏
+          var sbEntries = (cardData.character_book || {}).entries || [];
+          var hasInitVarForSB = sbEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+          if (!hasInitVarForSB) {
+            addAssistantMsg('⚠️ 还未生成MVU变量条目，无法制作状态栏！\n\n' +
+              '状态栏需要引用 [InitVar]初始变量 中定义的变量路径，请先点击「📊 设计MVU变量4条目」生成变量系统，\n' +
+              '生成完成后再点击「🎛️ 开始制作状态栏」。');
+            showToast('请先生成MVU变量4条目', 'warning');
+            return;
+          }
+          // 进入状态栏制作模式前，确保固定资产已注入（bundle.js/正则1-5等）
+          ensureFixedMvuAssetsInCardData();
           // 进入状态栏制作模式，从Step 1开始或从第一个空缺开始
           statusBarMode = true;
           var firstEmpty = 0;
@@ -6922,6 +6942,125 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return true;
       }
 
+      // ===== 进入MVU Tab时自动注入固定资产（bundle.js/WTC/正则1-5/变量结构zod）=====
+      // 这些资产固定不变，由写卡器自动管理，AI无权写入/删除（白名单拦截）
+      // 提前注入到cardData，让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
+      function ensureFixedMvuAssetsInCardData() {
+        if (!cardData) return;
+        cardData.extensions = cardData.extensions || {};
+        cardData.extensions.tavern_helper = cardData.extensions.tavern_helper || { scripts: [], variables: {} };
+        if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
+        if (!cardData.extensions.regex_scripts) cardData.extensions.regex_scripts = [];
+        var thScripts = cardData.extensions.tavern_helper.scripts;
+        var rxList = cardData.extensions.regex_scripts;
+        var injected = [];
+
+        // === 1. 注入 bundle.js（MVU本体脚本）===
+        var hasBundle = thScripts.some(function(s) { return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0; });
+        if (!hasBundle) {
+          thScripts.push({
+            type: 'script', enabled: true, name: 'MVU', id: '961f366d-e403-45c2-8155-3d14ec86de53',
+            content: "import'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';",
+            info: '', button: { enabled: true, buttons: [
+              { name: '重新处理变量', visible: false }, { name: '重新读取初始变量', visible: false },
+              { name: '快照楼层', visible: false }, { name: '重演楼层', visible: false },
+              { name: '重试额外模型解析', visible: false }, { name: '清除旧楼层变量', visible: false }
+            ]}, data: {}
+          });
+          injected.push('bundle.js');
+        }
+
+        // === 2. 注入 WTC（世界书调用脚本）===
+        var hasWTC = thScripts.some(function(s) { return (s.content || '').indexOf('LorebookToolCall') >= 0 || (s.content || '').indexOf('wtc') >= 0; });
+        if (!hasWTC) {
+          thScripts.push({
+            type: 'script', enabled: true, name: '世界书调用', id: 'wtc-lorebook-call',
+            content: 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js',
+            info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
+            button: { enabled: true, buttons: [] }, data: {}
+          });
+          injected.push('WTC');
+        }
+
+        // === 3. 注入变量结构 zod 脚本（如果有 InitVar 条目）===
+        var entries = (cardData.character_book || {}).entries || [];
+        var initVarEntry = entries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
+        if (initVarEntry && initVarEntry.content) {
+          var hasSchema = thScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('mvu_zod') >= 0; });
+          if (!hasSchema) {
+            var schemaContent = generateMvuSchemaScript(initVarEntry.content);
+            thScripts.push({
+              type: 'script', enabled: true, name: '变量结构', id: 'mvu-schema',
+              content: schemaContent, info: '自动生成的 MVU 变量结构脚本。',
+              button: { enabled: true, buttons: [] }, data: {}
+            });
+            injected.push('变量结构zod');
+          }
+        }
+
+        // === 4. 注入正则1：仅格式思维链（移除<Analysis>段）===
+        var hasR1 = rxList.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
+        if (!hasR1) {
+          rxList.push({ id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36', scriptName: '仅格式思维链',
+            findRegex: '/<Analysis>[\\s\\S]+?<\\/Analysis>/gm', replaceString: '', trimStrings: [],
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            substituteRegex: 0, minDepth: null, maxDepth: null });
+          injected.push('正则1(思维链)');
+        }
+
+        // === 5. 注入正则2：只发送最新2楼的变量更新 ===
+        var hasR2 = rxList.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly; });
+        if (!hasR2) {
+          rxList.push({ id: '5bb4b588-23ca-4564-8df5-882104eff764', scriptName: '只发送最新2楼的变量更新',
+            findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm', replaceString: '', trimStrings: [],
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            substituteRegex: 0, minDepth: 4, maxDepth: null });
+          injected.push('正则2(变量更新截断)');
+        }
+
+        // === 6. 注入正则3：[美化]变量完成 ===
+        var hasR3 = rxList.some(function(r) {
+          return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-done') >= 0;
+        });
+        if (!hasR3) {
+          rxList.push({ id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5', scriptName: '[美化]变量完成',
+            findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+            replaceString: MVU_BEAUTIFY_COMPLETE, trimStrings: [], placement: [2], disabled: false,
+            markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null });
+          injected.push('正则3(变量完成美化)');
+        }
+
+        // === 7. 注入正则4：[美化]变量更新中 ===
+        var hasR4 = rxList.some(function(r) {
+          return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-thinking') >= 0;
+        });
+        if (!hasR4) {
+          rxList.push({ id: 'bf1b7441-5cf1-426d-bd6c-911332be9923', scriptName: '[美化]变量更新中',
+            findRegex: '/<UpdateVariable(?:variable)?>(?!.*<\\/UpdateVariable(?:variable)?>)\\s*(.*)\\s*$/gsi',
+            replaceString: MVU_BEAUTIFY_THINKING, trimStrings: [], placement: [2], disabled: false,
+            markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null });
+          injected.push('正则4(变量更新中美化)');
+        }
+
+        // === 8. 注入正则5：[不发送]隐藏状态栏标记 ===
+        var hasR5 = rxList.some(function(r) {
+          return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly;
+        });
+        if (!hasR5) {
+          rxList.push({ id: 'mvu-status-hide', scriptName: '[不发送]隐藏状态栏标记',
+            findRegex: '/<StatusPlaceHolderImpl\\/>/g', replaceString: '', trimStrings: [],
+            placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
+            substituteRegex: 0, minDepth: null, maxDepth: null });
+          injected.push('正则5(隐藏状态栏标记)');
+        }
+
+        if (injected.length > 0) {
+          console.log('[MVU Tab] 自动注入固定资产:', injected.join('、'));
+          saveToStorage();
+        }
+        return injected;
+      }
+
       // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
       // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
       function repairJSON(str) {
@@ -7044,6 +7183,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   cardGenerated = true;
                 }
                 progress = calcProgress();
+                // ===== MVU Tab：合并后自动注入/更新固定资产（变量结构zod等）=====
+                // 当AI生成了InitVar条目后，需要自动生成对应的变量结构zod脚本
+                // 同时确保bundle.js/WTC/正则1-5等固定资产始终存在
+                if (currentTab === 'mvu') {
+                  var mvuEntriesAfterMerge = (cardData.character_book || {}).entries || [];
+                  var hasInitVarAfterMerge = mvuEntriesAfterMerge.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+                  if (hasInitVarAfterMerge) {
+                    var newlyInjected = ensureFixedMvuAssetsInCardData();
+                    if (newlyInjected && newlyInjected.length > 0) {
+                      renderPreview();
+                    }
+                  }
+                }
                 // 显示变更统计 Toast，让用户明确知道AI确实执行了删改而不是瞎加
                 try {
                   if (changeLogResult) {
@@ -7137,10 +7289,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
             // 进入状态栏模式：用户提到状态栏且当前不在模式中
             if (isSBRequest && !statusBarMode) {
-              statusBarMode = true;
-              // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
-              var firstEmpty = findNextEmptyStep();
-              statusBarCurrentStep = (firstEmpty === 8) ? 8 : 1;
+              // 前置检查：必须有 InitVar 条目才能制作状态栏
+              var sbEntriesCheck = (cardData.character_book || {}).entries || [];
+              var hasInitVarForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+              if (!hasInitVarForAutoSB) {
+                addAssistantMsg('⚠️ 检测到你想制作状态栏，但还未生成MVU变量条目！\n\n' +
+                  '状态栏需要引用 [InitVar]初始变量 中定义的变量路径。\n' +
+                  '请先对我说「设计MVU变量4条目」生成变量系统，然后再制作状态栏。');
+              } else {
+                // 确保固定资产已注入
+                ensureFixedMvuAssetsInCardData();
+                statusBarMode = true;
+                // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
+                var firstEmpty = findNextEmptyStep();
+                statusBarCurrentStep = (firstEmpty === 8) ? 8 : 1;
+              }
             }
 
             // 检测清空标记
