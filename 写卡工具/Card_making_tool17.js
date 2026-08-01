@@ -406,7 +406,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n/* StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready) */\n$(async function() {\n    try {\n        /* 1. 等 MVU 框架挂载 */\n        await waitGlobalInitialized(\'Mvu\');\n\n        /* 2. 读变量：StageDog标准用 getVariables({type:"message"})，fallback 到 getAllVariables() */\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        /* 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒） */\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        /* 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略） */\n        refreshStatus();\n        setInterval(refreshStatus, 2000);\n\n        /* 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件 */\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>';
+  var MVU_STATUS_BAR_HTML = '<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n\n.nested-group { padding-left: 10px; border-left: 2px dashed rgba(148,163,184,0.2); margin-left: 4px; margin-bottom: 4px; }\n.progress-bar { width: 100%; height: 4px; background: rgba(148,163,184,0.15); border-radius: 2px; margin-top: 3px; overflow: hidden; }\n.progress-bar-fill { height: 100%; background: var(--accent-blue); border-radius: 2px; transition: width 0.3s ease; }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n/* StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready) */\n$(async function() {\n    try {\n        /* 1. 等 MVU 框架挂载 */\n        await waitGlobalInitialized(\'Mvu\');\n\n        /* 2. 读变量：StageDog标准用 getVariables({type:"message"})，fallback 到 getAllVariables() */\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        /* 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒） */\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0) continue;\n                    if (key.indexOf(\'$\') === 0 && !(/(阶段|状态|等级|名称|称号|时间|日期)$/.test(key))) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="nested-group \' + indentClass + \'"><div class="category-title">\' + key + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        if (level > 0) htmlStr += \'</div>\';\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                        var pct = Math.max(0, Math.min(100, Number(value) || 0));\n                        itemsHtml += \'<div class="progress-bar"><div class="progress-bar-fill" style="width:\' + pct + \'%"></div></div>\';\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        /* 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略） */\n        refreshStatus();\n        setInterval(refreshStatus, 2000);\n\n        /* 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件 */\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -652,7 +652,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- description≥400字, first_mes≥500字, system_prompt≤50字\n' +
     '- post_history_instructions≤100字（核心铁则放此位置，权重最高）\n' +
     '- 常驻条目总Token≤500，触发条目按需加载\n' +
-    '- 世界书条目≥250字/条, 总数≤30条\n\n' +
+    '- 世界书条目≥250字/条, 总数≤30条\n' +
+    '**MVU条目Token预算铁律（补充）**：\n' +
+    '- 【数量上限】MVU变量条目最多4条，禁止多生成：①[InitVar]初始变量 ②变量列表 ③[mvu_update]变量更新规则 ④[mvu_update]变量输出格式。状态栏占位符提醒条目由写卡器自动注入，不计入。\n' +
+    '- [InitVar]初始变量（enabled=false，只初始化读一次，不占常驻）：≤1500字。超多变量请拆：初始化只设核心字段默认值，非核心字段用zod .prefault()在schema中定义默认值+AI首次触达时再写\n' +
+    '- 变量列表（constant=true常驻）：≤200字，内容是format_message_variable宏占位符本身不长\n' +
+    '- [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
+    '- [mvu_update]变量输出格式（constant=true常驻）：≤600字。JSON Patch模板本身约300字，rule字段精炼在10行以内\n' +
+    '- 四条MVU条目合计常驻Token（constant=true的三条）≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段\n\n' +
     '=== ⚠️⚠️⚠️ 内容尺度控制（最高优先级，违反将导致任务失败） ===\n' +
     '1. **默认全年龄向**：除非用户明确要求NSFW/成人/色情/暗黑等内容，否则所有内容必须保持全年龄向\n' +
     '2. **禁止主动生成NSFW**：严禁在用户未明确要求的情况下生成任何性描写、色情内容、肉体描写等\n' +
@@ -734,6 +741,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）【改进19：结构化分段（弱模型召回）】\n' +
     '- 【总览】五大核心组件 + 三条联动机制 + 九条铁则（写卡器自动注入脚本/正则1-5/占位符提醒条目；4条MVU变量条目和正则6由AI生成）\n' +
     '- 【Tab隔离】状态栏生成/正则6/4条MVU条目已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成。如需生成，请提示用户切换Tab。\n' +
+    '- 【灰色模式】本Tab可在普通世界书条目中讨论/规划变量结构（如"变量设计说明""schema草案"），但带[InitVar]/[mvu_update]/StatusPlaceHolderImpl/<UpdateVariable>/format_message_variable/stat_data等功能性标记的真实MVU条目仍会被拦截——这些必须到MVU Tab生成。\n' +
     '- 【状态栏实现二选一】简单项目=【写卡器标准原生方案】（MVU Tab的Step 1-7流程，教的就是这个）；复杂大型界面=【StageDog官方Vue3+Pinia组件化方案】（需webpack打包，参考示例但不在本流程）。绝对禁止混用！\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
     '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
@@ -881,6 +889,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 路径：/白娅/依存度（相对stat_data内部，不是/stat_data/白娅/依存度）；JSON Patch的根是stat_data内部\n' +
     '     · AI绝对不得修改 _ 开头的只读字段；$开头的派生显示字段AI不写（由zod transform自动生成）\n' +
     '9.4.3 MVU条目前缀规范：[InitVar]初始变量 / 变量列表 / 变量分段提示（EJS模板） / [mvu_update]变量更新规则 / [mvu_update]变量输出格式 / [mvu_update]变量输出格式强调\n\n' +
+    '## 9.5 🔧 MVU常见问题标准排查流程（改进22）\n' +
+    '【"状态栏没有显示/空白"按此顺序查不跳步】：\n' +
+    '  1. first_mes末尾有没有 <StatusPlaceHolderImpl/>（开场白注入生效没）\n' +
+    '  2. 世界书里有没有 <状态栏>占位符提醒 条目且 enabled=true constant=true\n' +
+    '  3. regex_scripts 里有没有**两条** StatusPlaceHolderImpl（正则5 promptOnly隐藏 + 正则6 markdownOnly美化）\n' +
+    '  4. 正则6 findRegex是不是 /<StatusPlaceHolderImpl\\/>/g 且 markdownOnly=true promptOnly=false\n' +
+    '  5. 浏览器Console搜 [statusbar] init failed → 看报错（最常见是 while 循环找不到stat_data=InitVar没加载或zod字段名对不上）\n' +
+    '  6. 控制台执行 getVariables({type:"message"}) → 有没有stat_data：\n' +
+    '     · 没有 = MVU没初始化 → 查 bundle.js / zod 脚本\n' +
+    '     · 有 = renderTree逻辑问题\n' +
+    '  7. getAllVariables().stat_data 有值但上条没值 = 消息级scope没同步 → 查 Step 6 while循环 _waitCount < 15（MVU初始化慢）\n' +
+    '【"变量没更新/AI写完<UpdateVariable>数值没变"按此顺序查】：\n' +
+    '  1. JSON Patch路径对不对：/白娅/好感度，不是/stat_data/白娅/好感度（根是stat_data内部）\n' +
+    '  2. 操作对不对：number增减用delta不是replace；对象整替换用replace；数组尾插用 insert path="/xxx/-"\n' +
+    '  3. zod里该字段是不是 _ 开头（只读，AI写了被丢弃）\n' +
+    '  4. Console搜 Mvu.events → VARIABLE_UPDATE_ENDED 触没触发，前后值分别是什么\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -2102,9 +2126,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       else if (typeof getActiveTab === 'function') { _activeTab = getActiveTab(); }
     } catch(e) {}
 
-    // ====== MVU关键词库（升级版）：comment 或 content 命中任一即视为MVU内容，角色卡Tab直接丢弃 ======
-    var MVU_KEYWORDS_RE = /(MVU|StatusPlaceHolder|StatusPlaceHolderImpl|UpdateVariable|initvar|\[InitVar\]|format_message_variable|mvu_update|\[mvu_update\]|<updatevariable>|<状态栏>|状态栏|变量系统|变量列表|变量更新规则|变量输出格式|状态变量输出|stat_data|waitGlobalInitialized|eventOn\s*\(\s*['"]variable|变量更新函数|动态状态栏|变量渲染函数)/i;
+    // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 ======
+    //   MVU_STRONG_RE = 功能性/结构性强特征（出现即代表真实MVU条目，永远拦截）
+    //   MVU_WEAK_RE    = 讨论性弱特征（仅严格模式拦截；灰色模式开启时放行，允许AI讨论/规划变量结构）
+    // 灰色模式（window.__mvuDiscussMode=true）：角色卡Tab允许讨论变量结构，但仍禁止生成真实MVU条目
+    var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized)/i;
+    var MVU_WEAK_RE = /(变量更新规则|变量输出格式|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
+    var _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
+    /* MVU_KEYWORDS_RE：完整集（强弱合并），供 MVU Tab 判定"是否MVU条目"使用，不受灰色模式影响 */
+    var MVU_KEYWORDS_RE = new RegExp('(' + MVU_STRONG_RE.source.slice(1, -1) + '|' + MVU_WEAK_RE.source.slice(1, -1) + ')', 'i');
     var MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU)/i;
+    /* 改进10：角色卡Tab拦截判定（灰色模式感知 + 弱特征降误拦）
+       - 强特征（功能性标记）：comment 或 content 命中即拦截（真实MVU条目必有）
+       - 弱特征（讨论性词）：仅 comment（条目标题）命中才拦截；正文偶发提及不拦，降低误拦率
+       - 灰色模式：弱特征完全放行，允许讨论/规划变量结构 */
+    var _isMvuCardEntry = function(e) {
+      if (!e) return false;
+      var cmt = e.comment || '';
+      var cnt = e.content || '';
+      if (MVU_STRONG_RE.test(cmt) || MVU_STRONG_RE.test(cnt)) return true;
+      if (!_mvuDiscussMode && (MVU_WEAK_RE.test(cmt) || MVU_CONTENT_KEYWORDS_RE.test(cmt))) return true;
+      return false;
+    };
 
     if (_activeTab === 'card') {
       // ===================== 角色卡Tab：硬拦截所有MVU写入 =====================
@@ -2115,9 +2158,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var before = partial.entries.length;
           partial.entries = partial.entries.filter(function(e) {
             if (!e) return false;
-            var cmt = String(e.comment || '').toLowerCase();
-            var cnt = String(e.content || '').toLowerCase();
-            var isMvu = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '') || MVU_CONTENT_KEYWORDS_RE.test(e.comment || '') || MVU_CONTENT_KEYWORDS_RE.test(e.content || '');
+            var isMvu = _isMvuCardEntry(e);
             if (isMvu) { console.warn('[Tab隔离·角色卡Tab] 拦截MVU条目: comment=', e.comment); }
             return !isMvu;
           });
@@ -2127,7 +2168,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var beforeC = partial.character_book.entries.length;
           partial.character_book.entries = partial.character_book.entries.filter(function(e) {
             if (!e) return false;
-            var isMvu = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '') || MVU_CONTENT_KEYWORDS_RE.test(e.comment || '') || MVU_CONTENT_KEYWORDS_RE.test(e.content || '');
+            var isMvu = _isMvuCardEntry(e);
             if (isMvu) { console.warn('[Tab隔离·角色卡Tab] 拦截character_book MVU条目: comment=', e.comment); }
             return !isMvu;
           });
@@ -2155,13 +2196,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       });
       if (mvuBlockedCounts.entries > 0 || mvuBlockedCounts.fields > 0 || mvuBlockedCounts.regex_scripts > 0) {
         changeLog._mvuBlockedOnCardTab = mvuBlockedCounts;
+        if (_mvuDiscussMode) changeLog._mvuDiscussMode = true;
         if (typeof showToast === 'function') {
           var _msgParts = [];
           if (mvuBlockedCounts.entries > 0) _msgParts.push('拦截MVU世界书条目 ' + mvuBlockedCounts.entries + ' 条');
           if (mvuBlockedCounts.regex_scripts > 0) _msgParts.push('拦截正则脚本 ' + mvuBlockedCounts.regex_scripts + ' 条');
           if (mvuBlockedCounts.fields > 0) _msgParts.push('拦截MVU字段写入 ' + mvuBlockedCounts.fields + ' 项');
           if (_msgParts.length > 0) {
-            try { showToast('角色卡Tab已' + _msgParts.join('，') + '（请切换到MVU变量状态栏Tab进行操作）', 'warning'); } catch(e) {}
+            var _mvuTip = _mvuDiscussMode
+              ? '（灰色模式：已放行变量结构讨论，仅拦截真实MVU条目；如需生成请切换MVU Tab）'
+              : '（请切换到MVU变量状态栏Tab进行操作）';
+            try { showToast('角色卡Tab已' + _msgParts.join('，') + _mvuTip, 'warning'); } catch(e) {}
           }
         }
       }
@@ -5058,6 +5103,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (typeof window !== 'undefined') {
         window.__tab_activeTab = activeTab;
         window.__getActiveTab = function() { return window.__tab_activeTab; };
+        /* 改进16：灰色模式开关——角色卡Tab允许讨论/规划变量结构，但仍禁止生成真实MVU条目
+           用法：setMvuDiscussMode(true) 开启讨论模式；setMvuDiscussMode(false) 恢复严格拦截 */
+        window.__mvuDiscussMode = false;
+        window.setMvuDiscussMode = function(on) {
+          window.__mvuDiscussMode = !!on;
+          console.log('[Tab隔离] 灰色模式（变量结构讨论）' + (window.__mvuDiscussMode ? '已开启' : '已关闭'));
+          return window.__mvuDiscussMode;
+        };
       }
       // 向后兼容别名：activeTab === currentTab，两边代码都能跑
       var currentTab = activeTab;
@@ -7342,6 +7395,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           });
           if (cardData.character_book.entries.length < beforeLen) {
             console.warn('[statusbar] 共清理 ' + (beforeLen - cardData.character_book.entries.length) + ' 个状态栏残留条目');
+          }
+        }
+
+        /* 改进8：自动追加占位符兜底——确保 first_mes 末尾有 <StatusPlaceHolderImpl/> */
+        if (cardData.first_mes && cardData.first_mes.indexOf('StatusPlaceHolderImpl') < 0) {
+          cardData.first_mes = cardData.first_mes.replace(/\s*$/, '') + '\n<StatusPlaceHolderImpl/>';
+          console.warn('[statusbar] 改进8兜底：first_mes 末尾自动追加 <StatusPlaceHolderImpl/>');
+        }
+        /* 同样确保 alternate_greetings 每条也追加了占位符 */
+        if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
+          for (var gi = 0; gi < cardData.alternate_greetings.length; gi++) {
+            var ag = cardData.alternate_greetings[gi];
+            if (typeof ag === 'string' && ag.indexOf('StatusPlaceHolderImpl') < 0) {
+              cardData.alternate_greetings[gi] = ag.replace(/\s*$/, '') + '\n<StatusPlaceHolderImpl/>';
+            }
           }
         }
         return true;
