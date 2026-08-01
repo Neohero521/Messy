@@ -2560,6 +2560,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
 
     // ---- 智能合并 regex_scripts：支持增量更新、按名替换、_action:delete ----
+    // ⚠️ MVU固定正则白名单拦截：正则1-5（仅格式思维链/只发送最新2楼变量更新/[美化]变量完成/[美化]变量更新中/[不发送]隐藏状态栏标记）
+    //   由写卡器导出时自动注入，禁止AI写入cardData（避免导出时重复注入2份）
+    //   只允许AI修改：正则6 [美化]MVU状态栏（id=mvu-status-bar 或 StatusPlaceHolderImpl + markdownOnly + 非promptOnly）
+    var MVU_FIXED_REGEX_IDS = {
+      'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36': '仅格式思维链',
+      '5bb4b588-23ca-4564-8df5-882104eff764': '只发送最新2楼的变量更新',
+      '6fb572ae-a9ea-436d-9779-ad100f1ff7f5': '[美化]变量完成',
+      'bf1b7441-5cf1-426d-bd6c-911332be9923': '[美化]变量更新中',
+      'mvu-status-hide': '[不发送]隐藏状态栏标记'
+    };
+    function isFixedMvuRegex(r) {
+      if (!r) return false;
+      if (r.id && MVU_FIXED_REGEX_IDS[r.id]) return true;
+      var rxFind = String(r.findRegex || '');
+      var scriptName = String(r.scriptName || r.name || '');
+      // 固定正则特征匹配（兜底，防止AI改id）
+      if (rxFind.indexOf('Analysis') >= 0 && r.promptOnly) return true;  // 正则1
+      if (rxFind.indexOf('UpdateVariable') >= 0 && r.promptOnly) return true;  // 正则2
+      if (rxFind.indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly) {
+        var rs = String(r.replaceString || '');
+        if (rs.indexOf('mvu-done') >= 0 || rs.indexOf('mvu-thinking') >= 0) return true;  // 正则3/4
+      }
+      if (rxFind.indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly) return true;  // 正则5
+      return false;
+    }
+    function isAllowedMvuRegex(r) {
+      if (!r) return false;
+      if (r.id === 'mvu-status-bar') return true;
+      var rxFind = String(r.findRegex || '');
+      if (rxFind.indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) return true;  // 正则6 美化状态栏
+      return false;
+    }
     var mergeRegexScripts = function(newRxList) {
       if (!Array.isArray(newRxList)) return;
       cd.extensions = cd.extensions || {};
@@ -2567,10 +2599,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var beforeSnapshot = JSON.stringify(existingRx);
       newRxList.forEach(function(s) {
         if (!s || typeof s !== 'object') return;
+        // === MVU固定正则拦截：删除请求也拦截（固定正则由写卡器注入，AI无权删除）===
+        if (isFixedMvuRegex(s)) {
+          var blockName = (s.id && MVU_FIXED_REGEX_IDS[s.id]) || s.scriptName || s.name || '(MVU固定正则)';
+          console.warn('[Tab隔离·MVU] 拦截写入：MVU固定正则「' + blockName + '」由写卡器导出时自动注入，无需AI写入cardData，避免重复。');
+          changeLog._mvuFixedRegexBlocked = (changeLog._mvuFixedRegexBlocked || 0) + 1;
+          return;
+        }
+        // === 白名单放行：允许写入的MVU正则只有 [美化]MVU状态栏（正则6）===
+        // 其他不属于 MVU 固定正则 / 不属于 MVU 状态栏 的自定义正则也允许（如角色剧情替换等）
+        var isMvuRelatedRegex = isFixedMvuRegex(s) || isAllowedMvuRegex(s);
+        if (isMvuRelatedRegex && !isAllowedMvuRegex(s)) {
+          console.warn('[Tab隔离·MVU] 拦截写入：非白名单MVU正则被丢弃:', s.scriptName || s.id || s.findRegex);
+          return;
+        }
         // 删除：_action:delete 或 delete:true
         if (s._action === 'delete' || s._action === 'remove' || s.delete === true) {
+          // 先检查目标是否是固定正则，是的话也拦截删除
+          if (isFixedMvuRegex({id: s.id, scriptName: s.scriptName, name: s.name, findRegex: s.findRegex, promptOnly: true, markdownOnly: true})) {
+            console.warn('[Tab隔离·MVU] 拦截删除：MVU固定正则由写卡器注入，AI无权删除。');
+            return;
+          }
           var beforeLen = existingRx.length;
           existingRx = existingRx.filter(function(es) {
+            // 固定正则即使 id/name 匹配也不允许被删
+            if (isFixedMvuRegex(es)) return true;
             if (s.id && es.id === s.id) return false;
             if (s.scriptName && es.scriptName === s.scriptName) return false;
             if (s.name && !es.scriptName && es.name === s.name) return false;
@@ -2637,6 +2690,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (partial['regex_scripts'] === undefined) mergeRegexScripts(partial.extensions.regex_scripts);
           } else if (ek === 'tavern_helper') {
             // 修复版：支持脚本删除 / 按 id/name 替换，不再只追加
+            // ⚠️ MVU固定脚本白名单拦截：bundle.js（MVU本体）、WTC（世界书调用脚本）由写卡器导出时自动注入，
+            //   禁止AI写入cardData（避免导出时重复注入2份）
+            //   只允许AI修改：变量结构 (id=mvu-schema 或 name='变量结构' 或 含 mvu_zod)
+            var MVU_FIXED_SCRIPT_IDS = {
+              '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)',
+              'wtc-lorebook-call': '世界书调用 (WTC)'
+            };
+            function isFixedMvuScript(scr) {
+              if (!scr) return false;
+              if (scr.id && MVU_FIXED_SCRIPT_IDS[scr.id]) return true;
+              var sName = String(scr.name || '');
+              var sContent = String(scr.content || '');
+              // 特征兜底：bundle.js / MagVarUpdate = MVU本体；LorebookToolCall / wtc = 世界书调用脚本
+              if (sContent.indexOf('MagVarUpdate') >= 0 || sContent.indexOf('bundle.js') >= 0) return true;
+              if (sContent.indexOf('LorebookToolCall') >= 0 || (sName.indexOf('世界书调用') >= 0 && sContent.indexOf('wtc') >= 0)) return true;
+              return false;
+            }
+            function isAllowedMvuScript(scr) {
+              if (!scr) return false;
+              if (scr.id === 'mvu-schema') return true;
+              if (String(scr.name || '').indexOf('变量结构') >= 0) return true;
+              if (String(scr.content || '').indexOf('mvu_zod') >= 0) return true;
+              return false;
+            }
             if (partial.extensions[ek] && typeof partial.extensions[ek] === 'object') {
               cd.extensions = cd.extensions || {};
               if (!cd.extensions[ek]) cd.extensions[ek] = { scripts: [], variables: {} };
@@ -2649,8 +2726,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               if (resetScripts) { thScripts = []; }
               newTHScripts.forEach(function(ns) {
                 if (!ns || typeof ns !== 'object') return;
+                // === MVU固定脚本拦截：写入请求也拦截（固定脚本由写卡器注入，AI无权写入/删除）===
+                if (isFixedMvuScript(ns)) {
+                  var blockName = (ns.id && MVU_FIXED_SCRIPT_IDS[ns.id]) || ns.name || '(MVU固定脚本)';
+                  console.warn('[Tab隔离·MVU] 拦截写入：MVU固定脚本「' + blockName + '」由写卡器导出时自动注入，无需AI写入cardData，避免重复。');
+                  changeLog._mvuFixedScriptBlocked = (changeLog._mvuFixedScriptBlocked || 0) + 1;
+                  return;
+                }
+                // === 白名单放行：只允许 [变量结构] 被AI写入 ===
+                // 其他不属于 MVU 固定脚本 / 不属于 MVU 变量结构 的自定义脚本也允许
+                var isMvuRelatedScript = isFixedMvuScript(ns) || isAllowedMvuScript(ns);
+                if (isMvuRelatedScript && !isAllowedMvuScript(ns)) {
+                  console.warn('[Tab隔离·MVU] 拦截写入：非白名单MVU脚本被丢弃:', ns.name || ns.id);
+                  return;
+                }
                 if (ns._action === 'delete' || ns._action === 'remove' || ns.delete === true) {
+                  // 先检查目标是否是固定脚本，是的话拦截删除
+                  if (isFixedMvuScript({id: ns.id, name: ns.name, content: ns.content})) {
+                    console.warn('[Tab隔离·MVU] 拦截删除：MVU固定脚本由写卡器注入，AI无权删除。');
+                    return;
+                  }
                   thScripts = thScripts.filter(function(es) {
+                    // 固定脚本即使 id/name 匹配也不允许被删
+                    if (isFixedMvuScript(es)) return true;
                     if (ns.id && es.id === ns.id) return false;
                     if (ns.name && es.name === ns.name) return false;
                     return true;
