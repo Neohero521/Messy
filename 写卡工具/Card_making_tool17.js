@@ -731,11 +731,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  3. 变量模板：全内容适配ST原生宏变量（{{user}}/{{random:A,B}}/{{roll:XdY}}/{{date}}/{{time}}）\n' +
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
-    '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）\n' +
+    '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）【改进19：结构化分段（弱模型召回）】\n' +
+    '- 【总览】五大核心组件 + 三条联动机制 + 九条铁则（写卡器自动注入脚本/正则1-5/占位符提醒条目；4条MVU变量条目和正则6由AI生成）\n' +
+    '- 【Tab隔离】状态栏生成/正则6/4条MVU条目已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成。如需生成，请提示用户切换Tab。\n' +
+    '- 【状态栏实现二选一】简单项目=【写卡器标准原生方案】（MVU Tab的Step 1-7流程，教的就是这个）；复杂大型界面=【StageDog官方Vue3+Pinia组件化方案】（需webpack打包，参考示例但不在本流程）。绝对禁止混用！\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
     '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
-    '- 五大核心组件（写卡器自动注入脚本、正则1-5和<状态栏>占位符提醒条目，4条MVU变量条目和正则6需AI生成）：\n' +
-    '  1. [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量的初始值\n' +
+    '\n' +
+    '## 9.1 五大核心组件（4条世界书条目 + 1脚本）\n' +
+    '9.1.1 [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量初始值\n' +
     '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
     '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
     '     · 示例：\n' +
@@ -749,11 +753,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '           薄荷糖:\n' +
     '             描述: 提神用薄荷糖\n' +
     '             数量: 1\n' +
-    '  2. 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
+    '9.1.2 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
     '     · 固定内容：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
     '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
     '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
-    '  3. [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '9.1.3 [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
     '     · YAML格式，沿用变量结构层级，每变量含以下字段（按需选用）：\n' +
     '       - type: 变量类型（string类型可省略此字段；number/boolean直接写；复杂类型用 |- 多行TypeScript类型块）\n' +
     '       - range: 数值范围（如 0~100）\n' +
@@ -761,11 +765,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '       - category: 数值分段语义（如 20~40: 普通人 / 40~70: 冒险者）\n' +
     '       - check: 更新规则（核心字段，用自然语言说明何时更新、更新成什么值）\n' +
     '     · ⚠️注意：变量结构脚本(zod)是对变量的硬性要求，更新规则中的type/range/format/category是对AI的希望建议\n' +
+    '     · 【改进15：禁止zod与更新规则写重复约束（浪费token+易矛盾）】\n' +
+    '       ⚠️ 如果 zod 已经 `.transform(v => _.clamp(v, min, max))` 做了硬 clamp，更新规则中**不要再写 range/category**（zod已保证合法值，AI额外判断是浪费token且易与自动处理矛盾）\n' +
+    '       ⚠️ 更新规则的 category 仅在两种场景保留：① zod 没有派生对应 `$XXX阶段` 字段；② 且AI需要用阶段语义做叙事决策（不同阶段做不同事）\n' +
+    '       ⚠️ range 仅在 zod **没做 transform clamp**（允许超范围/需手动处理）时才写\n' +
     '     · 同类型合并：固定键用 ${力量|敏捷|体质|感知} 写法，动态键放进type的index signature\n' +
     '     · 同对象字段嵌套以减少token；_前缀字段是只读，AI不可更新\n' +
     '     · 示例：\n' +
-    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      range: 0~100\\n      category:\\n        0~20: 陌生\\n        80~100: 深爱\\n      check:\\n        - 单次互动最多+1，同一剧情日累计最多+5\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进后更新\n' +
-    '  4. [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
+    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      # ⚠️注意：zod已做 clamp(0,100)，此处不再重复写 range/category\n' +
+    '      check:\\n        - 单次互动最多+1，同一剧情日累计最多+5\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进后更新\n' +
+    '9.1.4 [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
     '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
     '     · 格式模板：\n' +
@@ -773,7 +782,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · AI实际输出示例：\n' +
     '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
-    '  5. 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
+    '9.1.5 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
     '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）；但布尔直接用z.boolean()，不要用z.coerce.boolean()\n' +
     '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值，用户期望部分更新而非整体丢弃）\n' +
     '     · 默认值用.prefault(默认值)（非z.default；AI漏写字段时自动填充）；复合类型若用prefault，其所有子字段也必须prefault\n' +
@@ -794,8 +803,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 格式化字符串优先用z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...])（优于正则或手动解析）\n' +
     '     · 字段含义用.describe(\'描述\')（仅当字段名无法自解释时用，如z.record的key类型；字段名已说明用途时不要画蛇添足）\n' +
     '     · 插入顺序：若需按插入时间管理key，用_(data).entries()（按插入序列出）；配合 $time: z.coerce.number().prefault(()=>Date.now()) 自动时间戳\n' +
-    '     · AI不可更新字段用 _ 前缀（如_当前回合），schema中添加注释；AI不可见字段用 $ 前缀\n' +
-    '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤等动态规则\n' +
+    '     · 【三条命名铁律（严格执行）】\n' +
+    '       1) 字段用中文（SillyTavern中文生态），禁止中英混杂\n' +
+    '       2) 层级：一级=大分类(世界/角色名/主角/系统)，二级=属性，三级=子属性；禁止平铺(禁止"角色_白娅_好感度")；深度≤4\n' +
+    '       3) 前缀：_开头=AI只读不更新（schema需写注释），renderTree默认跳过；例：_当前回合\n' +
+    '                 $开头=派生显示专用字段（zod transform自动生成），**renderTree显示、AI不更新**；例：$依存度阶段\n' +
+    '                 无前缀=普通可读写字段\n' +
+    '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤、派生$阶段字段等动态规则\n' +
     '     · 完整示例：\n' +
     '       import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '       export const Schema = z.object({\n' +
@@ -805,6 +819,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '         }),\n' +
     '         白娅: z.object({\n' +
     '           依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
+    '           $依存度阶段: z.string().optional(),  /* 派生显示字段：AI不更新，renderTree显示 */\n' +
     '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\']), z.string().describe(\'服装描述\')),\n' +
     '         }),\n' +
     '         主角: z.object({\n' +
@@ -812,41 +827,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '             描述: z.string(), 数量: z.coerce.number(),\n' +
     '           })).transform(d => _.pickBy(d, ({数量}) => 数量 > 0)),\n' +
     '         }),\n' +
-    '       });\n' +
+    '       }).transform(data => ({ ...data, 白娅: { ...data.白娅, $依存度阶段: data.白娅.依存度 < 20 ? \'消极自毁\' : data.白娅.依存度 < 40 ? \'冷漠疏离\' : data.白娅.依存度 < 60 ? \'平淡同事\' : data.白娅.依存度 < 80 ? \'信任伙伴\' : \'完全依赖\' } }));\n' +
     '       $(() => { registerMvuSchema(Schema); })\n' +
-    '  6. 酒馆助手脚本 API（StageDog标准，用于状态栏渲染和事件响应）：\n' +
-    '     · 变量读取（状态栏渲染推荐StageDog标准）：优先getVariables({type:"message", message_id:"latest"})，fallback getAllVariables()；用_.get(res,"stat_data",{})取根。UI渲染用消息级scope，不要直接用Mvu.getVar（有时序失效问题）\n' +
-    '     · 读取（通用）：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
+    '\n' +
+    '## 9.2 三条联动机制\n' +
+    '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
+    '     · 变量读取（状态栏渲染推荐）：优先getVariables({type:"message", message_id:"latest"})，fallback getAllVariables()；用_.get(res,"stat_data",{})取根。UI用消息级scope，不要直接Mvu.getVar（有时序失效问题）\n' +
+    '     · 通用读取：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
     '     · 写入：Mvu.setVar("stat_data.角色.好感度", 80) / Mvu.patchVar([{op:"replace",...}])\n' +
-    '     · 等待就绪（StageDog标准两步走）：先await waitGlobalInitialized("Mvu")，再用while循环+setTimeout每秒检查_.has(getVariables({type:"message"}), "stat_data")（最多等15秒）——此为waitUntil模式\n' +
-    '     · 顶层入口（StageDog标准）：$(async function(){ try { ...逻辑... } catch(e){console.warn(e)} }) —— jQuery ready + async，顶层不用errorCatched包裹（errorCatched仅用于pinia store内部setup）\n' +
-    '     · 主同步机制（StageDog defineMvuDataStore标准）：setInterval(刷新函数, 2000) 每2秒轮询同步；事件（VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED）仅作加分兜底，UI不得依赖事件\n' +
-    '     · 事件API（作兜底而非主机制）：Mvu.events.VARIABLE_INITIALIZED（initvar加载完成）、Mvu.events.VARIABLE_UPDATE_ENDED（每次更新结束）。try/catch包裹eventOn调用避免老版本酒馆抛错\n' +
-    '  7. EJS 动态模板（可选，根据变量值发送不同提示词给AI）：\n' +
-    '     · 使用 getvar("stat_data.角色.好感度") 读取变量值，按阈值分段\n' +
+    '     · StageDog标准两步就绪：先await waitGlobalInitialized("Mvu")，再while+setTimeout每秒_.has(getVariables({type:"message"}),"stat_data")（最多15秒）——此为waitUntil模式\n' +
+    '     · 顶层入口（StageDog标准）：$(async function(){ try { ...逻辑... } catch(e){console.warn(e)} }) —— jQuery ready+async，顶层不用errorCatched（仅pinia store内部setup用）\n' +
+    '     · 主同步（defineMvuDataStore标准策略）：setInterval(刷新函数,2000)每2秒轮询；事件VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED仅作加分兜底，UI不得依赖\n' +
+    '9.2.2 【改进14：新增 injectPrompts 立即事件（StageDog原生阈值触发最强模式）】\n' +
+    '     · 作用：变量阈值命中时，动态注入/撤回 system prompt，直接改变AI行为（比EJS更精准、可堆叠、可独立启用禁用）\n' +
+    '     · 用法：放在tavern_helper.scripts局部脚本中：\n' +
+    '       $(async () => { injectPrompts([{ \n' +
+    '         id: "冲动啊，请平息吧",\n' +
+    '         position: "none", depth: 0, role: "system", should_scan: true,\n' +
+    '         filter: () => _.get(getAllVariables(), "stat_data.白娅.依存度") === 0,\n' +
+    '         content: "【【冲动啊，请平息吧】】：此时白娅正处于自我毁灭边缘，她的一切行为都带有自毁倾向、拒绝沟通、攻击性强的语义。",\n' +
+    '       }]); });\n' +
+    '     · 典型场景：依存度=0→注入"你正自我毁灭"；好感度≥80→注入"你完全信任主角"；拥有稀有道具→注入特殊行为提示\n' +
+    '     · 与EJS动态模板对比：\n' +
+    '       - EJS改的是世界书条目里的静态内容（字符串替换），适合按阶段改角色人设/称呼段落\n' +
+    '       - injectPrompts改的是system prompt（按阈值启停、可堆叠、可独立禁用），适合行为模式/临时规则/特殊触发的动态注入\n' +
+    '       - 两者可叠加使用\n' +
+    '9.2.3 EJS动态模板（可选，按变量值分段修改世界书条目里的静态内容）：\n' +
+    '     · 使用 getvar("stat_data.角色.好感度") 按阈值分段\n' +
     '     · 示例：<% if (getvar("stat_data.白娅.好感度") >= 50) { %>温柔依赖模式<% } %>\n' +
     '     · 分段建议：≥80深爱 / ≥50好感 / ≥20熟识 / <20陌生\n' +
-    '     · 典型场景：根据好感度/剧情日切换角色语气、称呼、行为\n' +
-    '  8. 正则脚本：6个必备正则\n' +
-    '     · 正则1：仅格式思维链 - 从提示词移除<Analysis>段（AI思维链无需重复发送）【写卡器自动注入】\n' +
-    '     · 正则2：[不发送]只发送最新2楼的变量更新 - 移除旧消息的<UpdateVariable>段（仅格式提示词，minDepth=4保留最近2楼）【写卡器自动注入】\n' +
-    '     · 正则3：[美化]变量完成 - 美化已完成的<UpdateVariable>显示（仅格式显示，折叠样式）【写卡器自动注入】\n' +
-    '     · 正则4：[美化]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示，流式动画）【写卡器自动注入】\n' +
-    '     · 正则5：[不发送]隐藏状态栏标记 - 从提示词移除<StatusPlaceHolderImpl/>占位符（AI不需要看到它）【写卡器自动注入】\n' +
-    '     · <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>占位符【写卡器自动注入】\n' +
-    '     · 正则6：[美化]MVU状态栏 - 将<StatusPlaceHolderImpl/>替换为状态栏HTML（仅格式显示，渲染可视化状态栏）【⚠️AI必须根据用户需求生成！】\n' +
-    '- 三版正则选择：promptOnly版只影响发送给AI的内容；markdownOnly版只影响显示；全局版（无promptOnly/markdownOnly）影响所有内容\n' +
-    '- 开局变量初始化：\n' +
-    '  1. [InitVar] 条目定义默认初始值（enabled=false，仅初始化时读取一次）\n' +
-    '  2. 若需开局动态设置（根据玩家选择），在alternate_greetings中嵌入<UpdateVariable><initvar>YAML</initvar></UpdateVariable>覆盖\n' +
-    '  3. 初始化后变量可在状态栏玩家直接修改（通过酒馆助手UI）\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；<状态栏>占位符提醒条目（constant=true）常驻提醒AI输出占位符；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（每2秒轮询从消息级getVariables读stat_data渲染，事件仅兜底）\n' +
-    '- ⚠️【Tab隔离】状态栏生成已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成状态栏正则。\n' +
-    '  · 状态栏正则6由MVU Tab的5步分模块流程生成（Step 2-6共5个槽位）\n' +
-    '  · 标准实现模式：refreshStatus()+renderTree() 递归渲染，document.getElementById("render-root")，<script type="module">\n' +
-    '  · 如用户要求生成状态栏，请提示切换到「MVU变量状态栏」Tab\n' +
-    '- 更新铁则：AI不得修改 _ 开头的只读字段；使用 delta 操作进行数值增减；使用 replace 进行文本/对象替换；remove 删除物品；insert 添加新物品/条目\n' +
-    '- 条目前缀：[InitVar]初始变量、变量列表、变量分段提示（EJS模板）、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
+    '     · 典型场景：按好感度/剧情日切换角色语气、称呼、行为段落\n' +
+    '\n' +
+    '## 9.3 正则与占位符流水线（写卡器自动注入正则1-5 + AI生成正则6）\n' +
+    '9.3.1 正则1-5（写卡器自动注入，AI不用管）：\n' +
+    '     · 正则1（promptOnly）：从提示词移除<Analysis>段\n' +
+    '     · 正则2（promptOnly, minDepth=4）：移除旧消息<UpdateVariable>段，仅保留最近2楼\n' +
+    '     · 正则3（markdownOnly）：美化已完成的<UpdateVariable>折叠显示\n' +
+    '     · 正则4（markdownOnly）：美化正在输出的<UpdateVariable>流式动画\n' +
+    '     · 正则5（promptOnly）：从提示词移除<StatusPlaceHolderImpl/>占位符\n' +
+    '9.3.2 <状态栏>占位符提醒条目（写卡器自动注入，constant=true常驻）：提醒AI每条消息底部输出<StatusPlaceHolderImpl/>\n' +
+    '9.3.3 正则6【AI必须生成】：[美化]MVU状态栏（markdownOnly=true, promptOnly=false）\n' +
+    '     · findRegex = /<StatusPlaceHolderImpl\\/>/g；replaceString = 用```包裹的完整HTML状态栏（MVU Tab Step 2-6共5槽位拼接）\n' +
+    '     · 三版正则区分：promptOnly只改发给AI的提示词；markdownOnly只改显示渲染；全局版（无标记）改所有内容\n' +
+    '9.3.4 状态栏占位符4层流水线：开场白自动追加→提醒条目触发AI自觉写→正则5从提示词移除→正则6显示时替换成HTML\n' +
+    '\n' +
+    '## 9.4 初始化与更新铁则\n' +
+    '9.4.1 变量初始化（两种方式）：\n' +
+    '     · [InitVar]条目（enabled=false）定义默认初始值，初始化时仅读一次\n' +
+    '     · alternate_greetings里嵌入 <UpdateVariable><initvar>YAML覆盖</initvar></UpdateVariable>（根据玩家选择开局动态设置）\n' +
+    '     · 初始化后玩家可通过酒馆助手UI直接修改状态栏里的变量\n' +
+    '9.4.2 更新操作铁则（<UpdateVariable>中的JSON Patch）：\n' +
+    '     · delta：数值增减（支持负数）；replace：文本/对象整体替换；remove：删除物品/字段/数组元素；insert：新增物品/条目/数组元素；move：移动\n' +
+    '     · 路径：/白娅/依存度（相对stat_data内部，不是/stat_data/白娅/依存度）；JSON Patch的根是stat_data内部\n' +
+    '     · AI绝对不得修改 _ 开头的只读字段；$开头的派生显示字段AI不写（由zod transform自动生成）\n' +
+    '9.4.3 MVU条目前缀规范：[InitVar]初始变量 / 变量列表 / 变量分段提示（EJS模板） / [mvu_update]变量更新规则 / [mvu_update]变量输出格式 / [mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
@@ -1282,16 +1316,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '         缺任何一个模块都不会保存，避免生成残缺不可用的状态栏\n' +
     '         修改时旧状态栏保持不变，直到新模块全部收集完毕才覆盖\n' +
     '\n' +
-    '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）\n' +
-    '        产出：表格 | 路径 | 类型 | 分组 | 显示名 |\n' +
-    '        范围：从用户zod schema提取所有要显示的变量，跳过_/$开头的\n' +
+    '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）【改进9：扩展7列】\n' +
+    '        产出：表格（7列，顺序固定） | 变量路径 | 类型 | 派生规则（如有） | 空值兜底 | 是否跳过（_/$开头需明确） | 显示格式 | 分组 | 显示名 |\n' +
+    '        范围：从用户zod schema提取所有字段。不要直接跳过_/$开头的——先看【是否跳过】列再决定：\n' +
+    '          · _前缀（如_当前回合）：AI只读不更新，跳过渲染=是\n' +
+    '          · $前缀但派生显示专用（如$依存度阶段）：AI不更新，但renderTree要**显示**→跳过渲染=否\n' +
+    '          · $前缀纯元数据（如$time自动时间戳）：AI不更新也不显示→跳过渲染=是\n' +
+    '        【派生规则列】：抄zod里的transform逻辑（如"物品栏：_.pickBy(d,({数量})=>数量>0)"、"依存度阶段：按<20消极/<40疏离/<60平淡/<80信任/>80完全"）\n' +
+    '        【空值兜底列】：如果zod做了过滤（如物品栏被pickBy数量>0），可能是空对象{}，此处写"背包为空"/"暂无"等文字\n' +
+    '        【显示格式列】（4选1）：\n' +
+    '          · number 类型：数字 / 进度条 / 进度条+派生阶段（优先，能和$阶段字段联动）\n' +
+    '          · string/boolean/array：保持默认\n' +
     '        类型识别：number/boolean/string/array/object\n' +
-    '        示例：\n' +
-    '          | stat_data.角色.好感度 | number | 核心状态 | 好感度 |\n' +
-    '          | stat_data.世界.时间 | string | 世界状态 | 时间 |\n' +
-    '          | stat_data.背包 | array | 物品栏 | 背包 |\n' +
-    '        用途：后续Step全部基于此表，路径和类型不得偏离\n' +
-    '        交付：展示表格，问"这些变量都显示吗？要加/减/改分组的告诉我"\n' +
+    '        示例（扩展7列）：\n' +
+    '          | stat_data.白娅.好感度 | number | zod已做clamp(0,100) | — | 否 | 进度条+阶段 | 白娅·状态 | 好感度 |\n' +
+    '          | stat_data.白娅.$好感度阶段 | string | 派生：<20消极/<40疏离/<60平淡/<80信任 | — | 否 | 文本 | 白娅·状态 | 阶段 |\n' +
+    '          | stat_data.白娅.着装.上装 | string | — | "未穿" | 否 | 文本 | 白娅·着装 | 上装 |\n' +
+    '          | stat_data.世界.时间 | string | — | "初始时间" | 否 | 文本 | 世界状态 | 时间 |\n' +
+    '          | stat_data.主角.物品栏 | object | _.pickBy({数量}>0)；空对象显示"背包为空" | "背包为空" | 否 | 分组显示 | 物品栏 | 背包 |\n' +
+    '          | stat_data._当前回合 | number | _前缀只读 | — | 是 | — | 系统 | 当前回合 |\n' +
+    '        用途：后续Step 2-6全部基于此表，路径/类型/显示格式/是否跳过不得偏离\n' +
+    '        交付：展示7列表格，问"这些变量都对吗？显示格式/分组要调整的告诉我"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 2: 配色方案，请说继续"\n' +
     '\n' +
     '      ▶ Step 2：配色方案（仅CSS :root变量块）\n' +
@@ -1302,42 +1347,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '            --card-bg: rgba(20,20,30,0.85);\n' +
     '            --accent-blue: #93c5fd;\n' +
     '            --text-main: #e2e8f0;\n' +
+    '            --progress-bar-bg: rgba(148,163,184,0.2);\n' +
+    '            --progress-bar-fill: var(--accent-blue);\n' +
     '          }\n' +
     '        交付：展示配色，问"配色OK吗？"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 3: HTML结构骨架，请说继续"\n' +
     '\n' +
-    '      ▶ Step 3：HTML结构骨架（仅外层骨架，无CSS无JS）\n' +
-    '        产出：纯DOM外层骨架，只有 id="render-root" 一个根容器，递归渲染会自动填充内部\n' +
+    '      ▶ Step 3：HTML结构骨架（仅外层骨架，无CSS无JS）【改进12：放宽允许固定结构层】\n' +
+    '        产出：纯DOM外层骨架，只有 id="render-root" 一个变量容器，递归渲染会自动填充内部的stat-item DOM\n' +
     '        规则（标准实现模式）：\n' +
-    '          · 只输出 .mvu-status-card > .card-body[id=render-root] > .loading-state 三层骨架\n' +
+    '          · 【固定结构层放宽允许】在 render-root 外部，允许追加以下**非变量驱动的固定层**（写死内容即可）：\n' +
+    '              - .status-header：顶部角色名字头像条、剧情日/时间显示条\n' +
+    '              - .status-tabs：Tab导航栏（像官方参考TabNav组件那样做"状态/背包/关系/日志"切换）\n' +
+    '              - .status-footer：底部操作栏（重置按钮等，一般不加）\n' +
+    '          · 【强制不变】变量驱动的动态内容必须全部在 .card-body[id=render-root] 容器下（递归 renderTree 会填充，不要预先写任何 stat-item/class=category-title 在这里）\n' +
     '          · 不为每个变量写id（递归 renderTree 会自动生成 .stat-item DOM）\n' +
     '          · 不写style属性、不写script\n' +
-    '        示例片段：\n' +
+    '        · 三层核心骨架必须保留（不可缺）：.mvu-status-card > .card-body[id=render-root] > .loading-state （加载占位）\n' +
+    '        示例片段（含status-tabs固定结构层）：\n' +
     '          <div class="mvu-status-card">\n' +
+    '            <div class="status-tabs">/* 固定Tab导航：状态/背包/关系/日志 */\n' +
+    '              <span class="tab active">状态</span><span class="tab">背包</span><span class="tab">关系</span>\n' +
+    '            </div>\n' +
     '            <div class="card-body" id="render-root">\n' +
     '              <div class="loading-state">正在加载状态数据...</div>\n' +
     '            </div>\n' +
     '          </div>\n' +
-    '        交付：展示骨架，问"结构OK吗？"\n' +
+    '        交付：展示骨架，问"结构OK吗？固定层（header/tabs/footer）需要加减的告诉我"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 4: CSS样式表，请说继续"\n' +
     '\n' +
     '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
     '        产出：基于标准实现模式写所有选择器规则，引用Step 2的CSS变量\n' +
-    '        必含：.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4\n' +
+    '        必含类名（根据Step 3的骨架调整：如果Step3有.status-tabs，Step4就必须有.status-tabs选择器；如果有.nested-group也要有）：\n' +
+    '          核心必含：.mvu-status-card/.category-title/.stat-grid/.nested-group(嵌套对象左侧虚线缩进容器)/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4\n' +
+    '          显示格式可选：.progress-bar(进度条容器背景)+.progress-bar-fill(进度条fill)\n' +
+    '          固定结构层可选（如有）：.status-header/.status-tabs/.status-footer 及对应交互态.active\n' +
     '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度\n' +
     '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
     '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 5: refreshStatus+renderTree，请说继续"\n' +
     '\n' +
     '      ▶ Step 5：refreshStatus + renderTree（仅JS function，变量读取+递归渲染合并为单槽位）\n' +
-    '        产出：`function refreshStatus() { ... }` 单个函数 + 内部 renderTree(obj, level) 递归函数\n' +
+    '        产出：_getVars() helper【⚠️必须定义在refreshStatus外部！Step6的while循环要跨函数访问它】 + `function refreshStatus() { ... }` + 内部 renderTree(obj, level) 递归\n' +
     '        规则（StageDog标准实现模式，禁止用 loadVars/renderVars 双函数模式）：\n' +
+    '          · 【_getVars作用域必须正确】必须定义在refreshStatus外部（顶层作用域），否则Step6的while循环访问不到会ReferenceError\n' +
     '          · 定义helper _getVars()：优先getVariables({type:"message",message_id:"latest"})，try/catch fallback到getAllVariables()（StageDog标准：UI用消息级scope）\n' +
     '          · 用 _.get(_getVars(), "stat_data", {}) 读变量（根路径与InitVar YAML根字段一致）\n' +
-    '          · 递归 renderTree 遍历对象生成HTML字符串，过滤 _/$ 开头的键\n' +
-    '          · 按类型分支：number→.value-number, boolean→.value-true/.value-false(✓/✕), array→[元素,元素], string→.value-text\n' +
+    '          · 递归 renderTree 遍历对象生成HTML字符串：\n' +
+    '              - 跳键规则（严格按Step1是否跳过列）：_前缀纯只读=跳过；$前缀派生显示字段如$阶段=不跳过；$前缀纯元数据如$time=跳过\n' +
+    '              - 【嵌套对象加 .nested-group 容器】（Step1有>2层嵌套时必须加）：category-title+下一级stat-grid包裹在<div class="nested-group">中（左侧虚线框明确从属关系）\n' +
+    '              - 【进度条】（Step1显示格式=进度条/进度条+阶段的number）除.value-number外追加进度条HTML：<div class="progress-bar"><div class="progress-bar-fill" style="width:MIN(100,val)%"></div></div>\n' +
+    '              - 类型分支：number→.value-number（+进度条），boolean→.value-true(✓)/.value-false(✕)，array→[元素,元素]，string→.value-text，object→递归+分类\n' +
     '          · 用 document.getElementById("render-root").innerHTML = htmlStr 写DOM（非jQuery $("#id")）\n' +
     '          · 禁止Mvu.getVar，禁止为每个变量写id\n' +
-    '        示例（含_getVars helper）：\n' +
+    '        示例（含_getVars helper + 作用域正确说明注释）：\n' +
+    '          /* ===== 顶层作用域（⚠️Step 6的while循环会访问，不要写在refreshStatus内部）===== */\n' +
     '          function _getVars() {\n' +
     '            try { if (typeof getVariables === "function") { var r = getVariables({type:"message",message_id:"latest"}); if (r && typeof r==="object") return r; } }\n' +
     '            catch(e) {} try { return getAllVariables() || {}; } catch(e) { return {}; }\n' +
@@ -3155,8 +3218,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '═══════════════════════════════════════════════════════════════════\n';
     }
 
-    // 2. MVU状态栏分步生成模式状态信息
+    // 2. MVU状态栏分步生成模式状态信息（含改进6：真实槽位状态注入，防AI口嗨虚报）
     var statusBarStateInfo = '';
+    /* 改进6：无论 statusBarMode 是否开启，只要任一槽位非空就注入真实状态，防止 AI 编造"5模块齐全已保存" */
+    var sbAnyFilled = false;
+    var sbCollectedGlobal = [];
+    var sbMissingGlobal = [];
+    var sbModNamesGlobal = { step2:'配色(Step2)', step3:'骨架(Step3)', step4:'样式(Step4)', step5:'refreshStatus+renderTree(Step5)', step6:'init入口(Step6)' };
+    for (var gk in sbModNamesGlobal) {
+      if (statusBarModules && statusBarModules[gk]) { sbCollectedGlobal.push(sbModNamesGlobal[gk]); sbAnyFilled = true; }
+      else sbMissingGlobal.push(sbModNamesGlobal[gk]);
+    }
+    var sbReadyFive = sbCollectedGlobal.length === 5;
+    var sbProgressIconsGlobal = '';
+    ['step2','step3','step4','step5','step6'].forEach(function(k){ sbProgressIconsGlobal += (statusBarModules && statusBarModules[k]) ? '✅' : '⬜'; });
+    var sbStateHeader = '\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '📊 【状态栏槽位真实状态（写卡器后台权威数据 · AI 必须严格转述，禁止编造）】\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '收集进度: ' + sbProgressIconsGlobal + ' (' + sbCollectedGlobal.length + '/5)\n' +
+      '已收集槽位: ' + (sbCollectedGlobal.length ? sbCollectedGlobal.join(' · ') : '无') + '\n' +
+      '未收集槽位: ' + (sbMissingGlobal.length ? sbMissingGlobal.join(' · ') : '无') + '\n' +
+      '5槽位是否齐全: ' + (sbReadyFive ? '✅ 齐全（可拼接保存）' : '❌ 不齐全（缺 ' + (5 - sbCollectedGlobal.length) + ' 个）') + '\n' +
+      '⚠️ 铁律：以上状态来自写卡器后台内存，AI 只准逐字转述，绝对禁止编造「已齐全/已保存/还缺XX」等信息！\n' +
+      '⚠️ 铁律：若未齐全，AI 不得声称"状态栏已生成完毕/已保存"，只能提示还缺哪些槽位。\n' +
+      '⚠️ 铁律：只有当上面写着"✅齐全（可拼接保存）"时，AI 才能说"5模块齐全，写卡器会自动拼接保存"。\n' +
+      '═══════════════════════════════════════════════════════════════════\n';
+
     if (statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
       var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取与渲染函数', 6:'事件绑定+入口', 7:'拼接合并(完成)', 8:'拼接合并(完成)' };
       // ⚠️ StageDog标准实现模式（对齐tavern_helper_template）：
@@ -3169,40 +3257,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       //   - 就绪两步走：await waitGlobalInitialized('Mvu') → while+setTimeout轮询stat_data（15秒上限）
       //   - 入口：$(async function(){ try {...} catch(err){} }) —— 顶层不用errorCatched
       var sbStepDescs = {
-        1: '输出纯文本表格，列出所有要显示的变量路径/类型/分组/显示名。不输出代码块。',
+        1: '输出纯文本表格，列出所有要显示的变量路径/类型/派生规则/空值兜底/是否跳过/显示格式/分组/显示名。不输出代码块。',
         2: '输出```css代码块，仅包含:root配色变量定义（--card-bg/--text-main/--accent-blue等CSS变量）。只输出这一个代码块。',
-        3: '输出```代码块（纯```无语言标记，不要```html），仅包含外层结构骨架：<head>放style和<script type="module">,<body>放.mvu-status-card > .card-body[id=render-root] > .loading-state（加载占位）。不要为每个变量写id，递归渲染会自动生成。只输出这一个代码块。',
-        4: '输出```css代码块，包含完整CSS样式规则（.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4）。只输出这一个代码块。',
-        5: '输出```javascript代码块，包含 _getVars() helper + refreshStatus() 函数 + 内部 renderTree(obj, level) 递归。核心：封装_getVars()双源读取（消息级优先→全局fallback）；_.get(_getVars(),"stat_data",{})；递归renderTree过滤_/$键；number→.value-number,boolean→✓/✕,array→[a,b],string→.value-text；最后document.getElementById("render-root").innerHTML写DOM。只输出这一个代码块。',
+        3: '输出```代码块（纯```无语言标记，不要```html），外层结构骨架：<head>放style和<script type="module">，<body>放.mvu-status-card（允许追加.status-header/.status-tabs/.status-footer等固定结构层，详见Step3规则）> .card-body[id=render-root] > .loading-state（加载占位）。不要为每个变量写id，递归渲染会自动生成。只输出这一个代码块。',
+        4: '输出```css代码块，包含完整CSS样式规则（.mvu-status-card/.status-header/.status-tabs/.status-footer/.category-title/.stat-grid/.nested-group/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4/进度条.progress-bar）。只输出这一个代码块。',
+        5: '输出```javascript代码块，包含 _getVars() helper【⚠️必须定义在refreshStatus外部！Step6的while循环要跨函数访问】 + refreshStatus() 函数 + 内部 renderTree(obj, level) 递归。核心：封装_getVars()双源读取（消息级优先→全局fallback）；_.get(_getVars(),"stat_data",{})；递归renderTree过滤_/$键（注意：$前缀的派生显示字段如$依存度阶段→不跳过，AI不更新即可）；number→.value-number/进度条（若显示格式=进度条）；boolean→✓/✕；array→[a,b]；string→.value-text；最后document.getElementById("render-root").innerHTML写DOM。只输出这一个代码块。',
         6: '输出```javascript代码块，StageDog标准入口：$(async function(){try{ 1)await waitGlobalInitialized("Mvu"); 2)while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒）; 3)refreshStatus(); 4)setInterval(refreshStatus,2000)（主同步2秒轮询）; 5)事件try/catch绑定两个Mvu.events作兜底 } catch(err){降级UI显示错误}}）。注意：顶层不用errorCatched，不用async function init()+$(errorCatched(init))的旧写法。只输出这一个代码块。',
-        7: '状态栏已全部完成，无需再输出代码。只做文字确认。',
-        8: '状态栏已全部完成，无需再输出代码。只做文字确认。'
+        7: '状态栏已全部完成，无需再输出代码。只做文字确认（严格基于上面的权威状态信息转述）。',
+        8: '状态栏已全部完成，无需再输出代码。只做文字确认（严格基于上面的权威状态信息转述）。'
       };
       var curStep = statusBarCurrentStep;
       if (curStep >= 1 && curStep <= 8) {
-        statusBarStateInfo = '\n' +
+        statusBarStateInfo = sbStateHeader + '\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
           '🔧 状态栏生成模式（写卡器后台管理 · MVU Tab专属 · 标准实现模式）\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
           '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n' +
           '要求: ' + sbStepDescs[curStep] + '\n';
-        var sbCollected = [];
-        var sbMissing = [];
-        // 标准5槽位：配色/骨架/样式/refreshStatus+renderTree/init入口（注意：变量读取与渲染合并为1个槽位）
-        var sbModNames = { step2:'配色', step3:'骨架', step4:'样式', step5:'refreshStatus+renderTree', step6:'init入口' };
-        for (var sbk in sbModNames) {
-          if (statusBarModules[sbk]) sbCollected.push(sbModNames[sbk]);
-          else sbMissing.push(sbModNames[sbk]);
-        }
-        statusBarStateInfo += '已收集: ' + (sbCollected.length ? sbCollected.join('、') : '无') + ' (' + sbCollected.length + '/5)\n';
-        if (sbMissing.length) statusBarStateInfo += '还缺: ' + sbMissing.join('、') + '\n';
         statusBarStateInfo += '⚠️写卡器会自动提取你回复中的第一个代码块填入当前Step槽位，不需要输出 /* === Step N === */ 标记\n';
         statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（世界书条目JSON/角色卡生成指令等）\n';
         if (curStep >= 3 && curStep <= 6) {
-          statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名等）\n';
+          statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名/CSS类名/CSS变量等）\n';
         }
         statusBarStateInfo += '═══════════════════════════════════════════════════════════════════\n';
       }
+    } else if (sbAnyFilled) {
+      /* 非状态栏模式但有已收集的模块，也注入真实状态（比如用户在MVU Tab中闲聊，问"现在做到哪一步"时，AI不会编造） */
+      statusBarStateInfo = sbStateHeader;
     }
 
     // 3. MVU 专属系统指令（SYS_PROMPT中 MVU 部分的精简提取）
@@ -3245,15 +3326,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
       '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
       '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
-      'Step 1：变量盘点表（纯文本表格 | 路径 | 类型 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
-      'Step 2：配色方案（仅CSS :root变量块：--card-bg/--text-main/--accent-blue等）→ 输出```css\n' +
-      'Step 3：HTML结构骨架（.mvu-status-card > .card-body[id=render-root] > .loading-state加载占位）→ 输出```html\n' +
-      '   ⚠️不要为每个变量写id！递归渲染会自动生成DOM。HTML只需外层骨架容器。\n' +
-      'Step 4：CSS样式表（完整样式：.mvu-status-card/.category-title/.stat-grid/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/.indent-1~4）→ 输出```css\n' +
-      'Step 5：_getVars() helper + refreshStatus()+renderTree() 递归渲染（StageDog标准双源读取）→ 输出```javascript\n' +
+      'Step 1：变量盘点表（7列纯文本表格 | 路径 | 类型 | 派生规则 | 空值兜底 | 是否跳过 | 显示格式 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
+      '   ⚠️$前缀字段分两种：派生显示专用（如$依存度阶段→跳过=否）、纯元数据（如$time→跳过=是）；_前缀一律只读跳过=是\n' +
+      '   ⚠️显示格式number类：数字/进度条/进度条+派生阶段；string/boolean/array保持默认\n' +
+      'Step 2：配色方案（仅CSS :root变量块：--card-bg/--text-main/--accent-blue/--progress-bar-bg/--progress-bar-fill等）→ 输出```css\n' +
+      'Step 3：HTML结构骨架【放宽允许固定层】（.mvu-status-card 允许含.status-header/.status-tabs/.status-footer等固定结构层，核心三层必须有：> .card-body[id=render-root] > .loading-state加载占位）→ 输出```html\n' +
+      '   ⚠️不要为每个变量写id！递归渲染会自动生成DOM。动态变量内容必须全部放render-root容器下，固定结构层写死内容即可。\n' +
+      'Step 4：CSS样式表（完整样式：.mvu-status-card/.status-header/.status-tabs/.status-footer/.category-title/.stat-grid/.nested-group(嵌套左侧虚线容器)/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/.indent-1~4/.progress-bar/.progress-bar-fill）→ 输出```css\n' +
+      '   ⚠️固定结构层如果Step3有.status-tabs，Step4必须定义.status-tabs选择器（写卡器后台会自动校验）\n' +
+      'Step 5：_getVars() helper【必须定义在refreshStatus外部！Step6跨函数访问】+ refreshStatus()+renderTree()递归（StageDog标准双源+派生$字段+进度条+.nested-group）→ 输出```javascript\n' +
       '   核心实现（严格按StageDog标准：先封装_getVars再递归渲染，禁止直接getAllVariables不做fallback）：\n' +
       '   ```javascript\n' +
-      '   /* Step 5 专用：消息级优先双源读变量 */\n' +
+      '   /* ===== 顶层作用域（⚠️Step 6的while循环会访问本函数，不要写在refreshStatus内部）===== */\n' +
       '   function _getVars() {\n' +
       '     try { if (typeof getVariables === "function") { var r = getVariables({type:"message",message_id:"latest"}); if (r && typeof r==="object") return r; } }\n' +
       '     catch(e) {}\n' +
@@ -3268,17 +3352,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '       var itemsHtml = \'\';\n' +
       '       Object.keys(obj || {}).forEach(function(key) {\n' +
       '         var value = obj[key];\n' +
-      '         if (key.indexOf("_") === 0 || key.indexOf("$") === 0) return; // 跳过隐藏变量\n' +
+      '         /* 跳过规则（严格按Step1是否跳过列）：_前缀纯只读=跳过；$前缀纯元数据(如$time)=跳过；$前缀派生显示专用(如$阶段)=显示不跳过 */\n' +
+      '         if (key.indexOf("_") === 0) return;\n' +
+      '         if (key.indexOf("$") === 0 && !(/(阶段|状态|等级|名称|称号|时间|日期)$/.test(key))) return;\n' +
       '         var isPlainObj = value !== null && typeof value === "object" && !Array.isArray(value);\n' +
       '         if (isPlainObj) {\n' +
       '           if (itemsHtml) { htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }\n' +
-      '           if (level > 0) htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n' +
+      '           if (level > 0) htmlStr += \'<div class="nested-group \' + indentClass + \'"><div class="category-title">\' + key + \'</div>\';  /* .nested-group 左侧虚线缩进容器 */\n' +
       '           renderTree(value, level + 1);\n' +
+      '           if (level > 0) htmlStr += \'</div>\'; /* 关闭.nested-group */\n' +
       '           return;\n' +
       '         }\n' +
       '         itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n' +
-      '         if (typeof value === "number") itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n' +
-      '         else if (typeof value === "boolean") itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n' +
+      '         if (typeof value === "number") {\n' +
+      '           itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n' +
+      '           /* 显示格式=进度条时追加进度条（Step1显示格式选"进度条/进度条+阶段"的number字段） */\n' +
+      '           var pct = Math.max(0, Math.min(100, Number(value) || 0));\n' +
+      '           itemsHtml += \'<div class="progress-bar"><div class="progress-bar-fill" style="width:\' + pct + \'%\"></div></div>\';\n' +
+      '         } else if (typeof value === "boolean") itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n' +
       '         else if (Array.isArray(value)) itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n' +
       '         else itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n' +
       '         itemsHtml += \'</span></div>\';\n' +
@@ -7022,6 +7113,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var missingVars = Object.keys(varRefs).filter(function(v) { return !varDefs[v]; });
         if (missingVars.length > 0) {
           warnings.push('使用了未定义的CSS变量: ' + missingVars.join(', '));
+        }
+
+        /* 校验5（改进12）：Step3声明的固定结构层 → Step4必须有对应选择器 */
+        var s3HasHeader = s3.indexOf('class="status-header"') >= 0 || s3.indexOf('status-header') >= 0;
+        var s3HasTabs = s3.indexOf('class="status-tabs"') >= 0 || s3.indexOf('status-tabs') >= 0;
+        var s3HasFooter = s3.indexOf('class="status-footer"') >= 0 || s3.indexOf('status-footer') >= 0;
+        if (s3HasHeader && !/\.status-header\s*\{/.test(s4)) warnings.push('Step3骨架含.status-header（顶栏固定层），但Step4样式中未定义 .status-header 选择器');
+        if (s3HasTabs && !/\.status-tabs\s*\{/.test(s4)) warnings.push('Step3骨架含.status-tabs（Tab导航固定层），但Step4样式中未定义 .status-tabs 选择器');
+        if (s3HasFooter && !/\.status-footer\s*\{/.test(s4)) warnings.push('Step3骨架含.status-footer（底栏固定层），但Step4样式中未定义 .status-footer 选择器');
+
+        /* 校验6（改进9）：Step5声明了进度条/进度条+阶段 → Step4必须有.progress-bar/.progress-bar-fill选择器 */
+        var s5HasProgress = s5.indexOf('progress-bar-fill') >= 0 || s5.indexOf('progress-bar') >= 0;
+        if (s5HasProgress) {
+          if (!/\.progress-bar\s*\{/.test(s4)) warnings.push('Step5 renderTree输出了进度条(progress-bar)，但Step4样式中未定义 .progress-bar 选择器');
+          if (!/\.progress-bar-fill\s*\{/.test(s4)) warnings.push('Step5 renderTree输出了进度条(progress-bar)，但Step4样式中未定义 .progress-bar-fill 选择器');
         }
 
         return warnings;
