@@ -451,7 +451,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
-    '[InitVar]初始变量': { constant: true, selective: false, position: 4, depth: 4, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 4, depth: 4, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: true },
     '变量列表': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量更新规则': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量输出格式': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -3398,6 +3398,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
       '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
       '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
+      'Step 0：需求收集（⚠️首次生成必做！用户说"继续"或"直接生成"才可跳过）\n' +
+      '   在开始任何Step代码前，必须先询问用户以下问题：\n' +
+      '   1️⃣ 想要什么UI风格？（如：简约白卡/暗黑赛博朋克/古风水墨/科幻全息/可爱圆润/极简扁平）\n' +
+      '   2️⃣ 想显示哪些变量？按什么分组？（如：只显示核心3个变量 / 按角色分组 / 按世界-角色-状态分层）\n' +
+      '   3️⃣ 配色偏好？（主色调、背景色、强调色，或直接说"你看着办"）\n' +
+      '   4️⃣ 是否要进度条？是否要嵌套分组？\n' +
+      '   ⚠️用户回答前禁止输出任何Step代码块！用户说"直接生成"或"简单就行"或"你看着办"才可跳过询问，按默认风格生成\n' +
+      '   ⚠️如果用户已经在消息中描述了需求（如"我要赛博朋克风的状态栏"），直接按用户描述生成，不要重复询问\n\n' +
       'Step 1：变量盘点表（7列纯文本表格 | 路径 | 类型 | 派生规则 | 空值兜底 | 是否跳过 | 显示格式 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
       '   ⚠️$前缀字段分两种：派生显示专用（如$依存度阶段→跳过=否）、纯元数据（如$time→跳过=是）；_前缀一律只读跳过=是\n' +
       '   ⚠️显示格式number类：数字/进度条/进度条+派生阶段；string/boolean/array保持默认\n' +
@@ -4175,9 +4183,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var hasVarRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
     var hasVarFormat = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
     var hasAnyMVU = mvuEntries.length > 0;
-    // 检查InitVar条目的enabled是否为true（仅显式开启才算违规，undefined/null/false 都视为合格）
+    // 检查InitVar条目的enabled是否为false（仅显式禁用才算违规，undefined/null/true 都视为合格）
     var initVarEnabledWrong = mvuEntries.some(function(e) {
-      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled === true;
+      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled === false;
     });
     // 检查变量列表条目内容是否含 format_message_variable 宏
     var varListEntry = mvuEntries.find(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
@@ -4193,9 +4201,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     results.push({
       pass: !hasInitVar || !initVarEnabledWrong,
       category: 'MVU变量系统',
-      name: '[InitVar]条目enabled=false',
-      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled=true（应禁用）' : 'InitVar条目已正确禁用或未显式开启'),
-      fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化' : '配置正确'
+      name: '[InitVar]条目enabled=true',
+      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled=false（应开启）' : 'InitVar条目已正确开启'),
+      fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=true（开启），MVU需要读取已注入的initvar条目进行初始化' : '配置正确'
     });
     results.push({
       pass: !hasVarList || hasVarMacro,
@@ -4715,7 +4723,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var _idx = filledEntries.length;
       // InitVar
       if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // 变量列表（含 format_message_variable::stat_data 宏）
@@ -4790,7 +4798,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         constant: e.constant !== undefined ? e.constant : isConst,
         selective: e.selective !== undefined ? e.selective : isSel,
         insertion_order: e.insertion_order || order,
-        enabled: isInitVar ? false : (isVarFormatEmphasis ? (e.enabled !== undefined ? e.enabled : false) : (e.enabled !== undefined ? e.enabled : defaultEnabled)),
+        enabled: isInitVar ? true : (isVarFormatEmphasis ? (e.enabled !== undefined ? e.enabled : false) : (e.enabled !== undefined ? e.enabled : defaultEnabled)),
         position: topPosStr,
         use_regex: e.use_regex !== undefined ? e.use_regex : true,
         extensions: {
@@ -4971,7 +4979,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               enabled: true,
               name: '世界书调用',
               id: 'wtc-lorebook-call',
-              content: 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js',
+              content: "import 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js';",
               info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
               button: { enabled: true, buttons: [] },
               data: {}
@@ -5675,10 +5683,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               var defaultDepth = tmpl ? tmpl.depth : 4;
               var defaultOrder = tmpl ? tmpl.order : 100;
               var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-              // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
+              // [InitVar] 条目 enabled=true（MVU 需要读取已注入的 initvar 条目进行初始化）
               var isInitVar = comment.indexOf('[InitVar]') >= 0;
               var isVarList = comment.indexOf('变量列表') >= 0;
-              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
+              var enabledVal = isInitVar ? true : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               var ext = e.extensions || {};
               return {
                 comment: comment,
@@ -6371,7 +6379,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
         var avatarHtml = buildAvatarHtml(role);
-        div.innerHTML = avatarHtml + '<div class="bubble">' + fmtBubble(content) + '</div>';
+        var bubbleHtml;
+        try {
+          bubbleHtml = fmtBubble(content);
+        } catch(e) {
+          console.warn('fmtBubble error:', e);
+          bubbleHtml = '';
+        }
+        if (bubbleHtml) {
+          div.innerHTML = avatarHtml + '<div class="bubble">' + bubbleHtml + '</div>';
+        } else {
+          div.innerHTML = avatarHtml + '<div class="bubble"></div>';
+          var bubbleEl = div.querySelector('.bubble');
+          if (bubbleEl) bubbleEl.textContent = (content == null ? '' : String(content));
+        }
         c.appendChild(div);
         var avEl = div.querySelector('.avatar-clickable');
         if (avEl) avEl.addEventListener('click', function() { triggerAvatarUpload(role); });
@@ -6475,23 +6496,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             var placeholders = [];
             var iframes = [];
             // ===== 保护阶段：先做 iframe → 再做代码块 → 最后做 Markdown =====
+            // ⚠️占位符用 \u0000 包裹，避免被 Markdown 的 __bold__ 正则吃掉
             // 1) ```html 代码块优先转 iframe（必须放在一般 ```\w* 之前）
             h = h.replace(/```html\s*\n([\s\S]*?)```/gi, function(_, code) {
               iframes.push(renderHtmlToIframe(code.replace(/\\n/g, '\n')));
-              return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
+              return '\u0000HTML_IFRAME_' + (iframes.length - 1) + '\u0000';
             });
             // 2) 检测消息中直接包含的完整HTML文档（非代码块格式）
             h = h.replace(/(?:html\s*[\n\\n]+)?(<!doctype html>[\s\S]*?<\/html>)/gi, function(_, htmlCode) {
               var code = htmlCode.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
               iframes.push(renderHtmlToIframe(code));
-              return '__HTML_IFRAME_' + (iframes.length - 1) + '__';
+              return '\u0000HTML_IFRAME_' + (iframes.length - 1) + '\u0000';
             });
             // 3) 所有 ``` 代码块存占位符（含 ```json / ```js 等），内容必须 HTML 转义后再塞回
-            h = h.replace(/```(\w*)\s*\n([\s\S]*?)```/g, function(_, lang, code) {
+            h = h.replace(/```(\w*)\s*\n([\s\S]*?)```/gi, function(_, lang, code) {
               var escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
               var cls = lang ? ' class="lang-' + lang.replace(/[^a-zA-Z0-9_-]/g,'') + '"' : '';
               placeholders.push('<pre><code' + cls + '>' + escaped + '</code></pre>');
-              return '__PROTECTED_BLOCK_' + (placeholders.length - 1) + '__';
+              return '\u0000PROTECTED_BLOCK_' + (placeholders.length - 1) + '\u0000';
             });
             // ===== 转义 + Markdown 渲染 =====
             h = h.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -6560,12 +6582,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             // 换行
             h = h.replace(/\n{3,}/g, '\n\n');
             h = h.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-            // 还原 iframe → 代码块
+            // 还原 iframe → 代码块（用 split/join 全局替换，避免 replace 只替换首个）
             for (var ii = 0; ii < iframes.length; ii++) {
-              h = h.replace('__HTML_IFRAME_' + ii + '__', iframes[ii]);
+              h = h.split('\u0000HTML_IFRAME_' + ii + '\u0000').join(iframes[ii]);
             }
             for (var pi = 0; pi < placeholders.length; pi++) {
-              h = h.replace('__PROTECTED_BLOCK_' + pi + '__', placeholders[pi]);
+              h = h.split('\u0000PROTECTED_BLOCK_' + pi + '\u0000').join(placeholders[pi]);
             }
             out += h;
           }
@@ -7697,7 +7719,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!hasWTC) {
           thScripts.push({
             type: 'script', enabled: true, name: '世界书调用', id: 'wtc-lorebook-call',
-            content: 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js',
+            content: "import 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js';",
             info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
             button: { enabled: true, buttons: [] }, data: {}
           });
@@ -8056,7 +8078,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 if (!Array.isArray(cardData.character_book.entries)) cardData.character_book.entries = [];
                 var _chNames = extractCharNames(cardData, cardData.character_book.entries);
                 if (!hasInitVarForAutoSB) {
-                  cardData.character_book.entries.push({ id: Date.now() + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(_chNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
+                  cardData.character_book.entries.push({ id: Date.now() + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(_chNames), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
                   autoCreatedEntries.push('[InitVar]初始变量');
                 }
                 if (!sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
