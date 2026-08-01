@@ -337,6 +337,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d4c4a4;border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:#c9b48f}
+
+/* ========== Tab 切换样式（角色卡 / MVU状态栏 完全隔离）========== */
+.tab-switcher{flex-shrink:0;display:flex;background:#f3ead8;border-bottom:1px solid #e6dfd0}
+.tab-btn{flex:1;padding:10px 14px;background:transparent;border:none;color:#8c8472;font-size:.85em;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .15s;font-weight:500}
+.tab-btn.active{color:#b89968;border-bottom-color:#b89968;background:rgba(184,153,104,.06);font-weight:600}
+.tab-btn:hover:not(.active){color:#8a6d3b;background:rgba(184,153,104,.03)}
+.tab-icon{margin-right:5px;font-size:.95em}
+
+/* MVU Tab：隐藏非 MVU 的模块按钮和进度项 */
+.mod-focus.mvu-only .mod-focus-btn{display:none}
+.mod-focus.mvu-only .mod-focus-btn[data-mvu="1"]{display:inline-block}
+.mod-dash.mvu-only .mod-dash-item:not(.mvu-item){display:none}
+
+/* 角色卡 Tab：隐藏 MVU 按钮（如果标记了）*/
+.mod-focus.card-only .mod-focus-btn[data-mvu="1"]{display:none}
 `;
             d.head.appendChild(s);
             resolve(d);
@@ -2507,6 +2522,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
+    // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
+    if (currentTab === 'mvu') {
+      // ===== MVU变量状态栏 Tab：只发角色卡内容 + MVU专属指令，完全不发角色卡生成逻辑 =====
+      return buildMvuTabPrompt(cardData, messages);
+    }
+    // ===== 角色卡生成 Tab：继续走原逻辑，但严格剥离/禁止所有MVU内容 =====
     var existingInfo = '';
     var cd = cardData;
     if (cd && (cd.name || cd.description || cd.first_mes || (cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0))) {
@@ -2517,19 +2538,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (cd.first_mes) parts.push('开场白(' + (cd.first_mes||'').length + '字)：' + (cd.first_mes||'').substring(0, 200));
       var entries = (cd.character_book || {}).entries || [];
       if (entries.length > 0) {
-        var entryText = '世界书条目（' + entries.length + '条）：';
-        entries.forEach(function(e, i) {
+        // ========== 角色卡Tab：过滤掉MVU相关条目，不让AI看到MVU内容，也禁止它生成 ==========
+        var filteredEntries = entries.filter(function(e) {
+          var c = (e.comment || '').toLowerCase();
+          // 只保留非MVU条目：剔除[InitVar]、变量列表、变量更新规则、变量输出格式、状态变量输出这5类MVU专属条目
+          if (c.indexOf('[initvar]') >= 0) return false;
+          if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+          if (c.indexOf('变量更新规则') >= 0) return false;
+          if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
+          if (c.indexOf('状态变量输出') >= 0) return false;
+          if (c.indexOf('<状态栏>') >= 0) return false;  // 角色卡Tab也不处理<状态栏>条目，MVU Tab专属
+          return true;
+        });
+        var entryText = '世界书条目（' + filteredEntries.length + '条，不含MVU变量系统内容）：';
+        filteredEntries.forEach(function(e, i) {
           entryText += '\n  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] keys:' + (e.keys||[]).join(',') + '\n     content(' + (e.content||'').length + '字): ' + (e.content || '').substring(0, 200);
         });
         parts.push(entryText);
-        // ⭐ 额外输出：精确 comment 清单（删改时直接复制，避免 comment 不一致导致只加不删）
+        // 精确 comment 清单（只列非MVU条目）
         var commentListText = '⚠️【世界书条目精确 comment 清单 - 删改时务必使用下列精确字符串匹配】\n';
         commentListText += '删除条目写法：\n';
         commentListText += '  方式1: { "_delete": ["character_book.entries.<这里粘贴完整comment>"] }\n';
         commentListText += '  方式2: entries数组里加 { "_action":"delete", "comment":"<这里粘贴完整comment>" }\n';
         commentListText += '修改条目写法（确保成功覆盖）：comment必须与下面「精确字符串」完全相同，字符级匹配，空格标点都不能变！\n';
         commentListText += '----------------------------------------\n';
-        entries.forEach(function(e, i) {
+        filteredEntries.forEach(function(e, i) {
           var comment = e.comment || ('条目'+(i+1));
           commentListText += (i+1) + '. 精确字符串: ⟦' + comment + '⟧\n';
           commentListText += '     前缀类型: <' + extractEntryPrefix(comment) + '>\n';
@@ -2539,26 +2572,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         parts.push(commentListText);
       }
       if (cd.tags && cd.tags.length) parts.push('标签：' + cd.tags.join('、'));
-      if (parts.length > 0) existingInfo = '\n\n=== 当前角色卡已有内容（不要重复输出，除非增/删/改） ===\n' + parts.join('\n');
+      if (parts.length > 0) existingInfo = '\n\n=== 当前角色卡已有内容（不要重复输出，除非增/删/改）【角色卡Tab：不含MVU变量系统内容】 ===\n' + parts.join('\n');
     }
 
-    // 注入实际质检结果（防止AI虚报进度）
+    // 注入实际质检结果（防止AI虚报进度）—— 在角色卡Tab中，质检不统计MVU条目
     var qcBlock = '';
     if (cd) {
       var qcResults = runQualityCheck(cd);
       var passed = qcResults.filter(function(r) { return r.pass; });
       var failed = qcResults.filter(function(r) { return !r.pass; });
       var entries = (cd.character_book || {}).entries || [];
-      // 统计各模块条目数
+      // 角色卡Tab：过滤MVU条目后再统计各模块条目数
+      var nonMvuEntries = entries.filter(function(e) {
+        var c = (e.comment || '').toLowerCase();
+        if (c.indexOf('[initvar]') >= 0) return false;
+        if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+        if (c.indexOf('变量更新规则') >= 0) return false;
+        if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
+        if (c.indexOf('状态变量输出') >= 0) return false;
+        return true;
+      });
       var modCounts = { '基础公理': 0, '交互软规则': 0, '核心铁则': 0, '近场强约束': 0, '场景机制': 0, '实体交互': 0, '叙事背景': 0, '动态适配': 0 };
-        entries.forEach(function(e) {
+        nonMvuEntries.forEach(function(e) {
           var c = e.comment || '';
           Object.keys(modCounts).forEach(function(mod) {
             if (c.indexOf(mod) >= 0) modCounts[mod]++;
           });
         });
-      qcBlock = '\n\n=== 📋 实际状态评估（权威标准，你必须以此为准） ===\n';
-      qcBlock += '实际条目总数：' + entries.length + ' 条\n';
+      qcBlock = '\n\n=== 📋 实际状态评估（权威标准，你必须以此为准）【角色卡Tab：不含MVU条目统计】 ===\n';
+      qcBlock += '实际世界书条目总数（不含MVU变量条目）：' + nonMvuEntries.length + ' 条\n';
       qcBlock += '各模块条目数：\n';
       Object.keys(modCounts).forEach(function(mod) {
         qcBlock += '  ' + mod + '：' + modCounts[mod] + ' 条 ' + (modCounts[mod] === 0 ? '← ❌未完成' : modCounts[mod] >= 2 ? '← ✅较完整' : '← ⏳需补充') + '\n';
@@ -2578,12 +2620,159 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
 
     var stateInfo = cardGenerated
-      ? '\n\n=== 当前状态：角色卡核心内容已具备 ===\n用户可继续完善细节，或要求优化、质检、生成完整卡。'
-      : '\n\n=== 当前状态：创作进行中 ===\n请继续引导用户逐步完善六大模块内容。';
+      ? '\n\n=== 当前状态：角色卡核心内容已具备【角色卡Tab生成模式】 ===\n用户可继续完善细节，或要求优化、质检、生成完整卡。'
+      : '\n\n=== 当前状态：创作进行中【角色卡Tab生成模式】 ===\n请继续引导用户逐步完善六大模块内容。';
 
-    // 状态栏生成模式：注入当前Step信息，告诉AI当前要生成哪个模块
+    // 角色卡Tab：永远不开启状态栏生成模式（即使模块级变量被污染也要强制屏蔽）
     var statusBarStateInfo = '';
-    if (typeof statusBarMode !== 'undefined' && statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
+    // 角色卡Tab下的核心铁律注入：严格禁止生成任何MVU相关条目
+    var antiMvuBlock = '\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '⚠️【角色卡Tab核心铁律 · MVU隔离禁令 · 最高优先级，违反即失败】\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '1. ❌禁止生成任何与MVU变量系统相关的条目！包括但不限于：\n' +
+      '   · [InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式 四类MVU专属条目\n' +
+      '   · 内容中包含{{format_message_variable::stat_data}}宏的条目\n' +
+      '   · [mvu_update]前缀或<UpdateVariable>JSON Patch相关内容的条目\n' +
+      '   · <状态变量输出>前缀的条目\n' +
+      '   · 任何其他变量相关、变量更新、变量渲染的条目\n' +
+      '2. ❌禁止生成<状态栏>条目或任何状态栏相关的世界书条目！\n' +
+      '   · MVU变量系统和状态栏完全由「MVU变量状态栏」Tab独立管理，不属于角色卡生成范畴\n' +
+      '   · 如果用户明确提到MVU/变量/状态栏，回复:「请切换到「MVU变量状态栏」Tab进行MVU变量系统和状态栏的设计」\n' +
+      '3. ❌禁止在任何生成的JSON字段（description/post_history_instructions/system_prompt/entries等）中包含MVU相关内容！\n' +
+      '4. ❌禁止在regex_scripts中生成任何与MVU相关的正则脚本！\n' +
+      '5. ✅除上述4类MVU条目外，正常生成所有角色卡/世界书条目（基础公理、核心铁则、近场强约束、场景机制、实体交互、叙事背景、动态适配等）\n' +
+      '6. ✅如果角色卡中已经存在4条MVU条目，请保留原样、不要修改、不要删除、不要重新生成——它们由MVU Tab负责管理。\n' +
+      '═══════════════════════════════════════════════════════════════════\n';
+
+    // 构建系统提示词（角色卡Tab：过滤SYS_PROMPT中的MVU段落 + 追加MVU隔离禁令）
+    var filteredSysPrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
+    var sysPrompt = filteredSysPrompt + stateInfo + existingInfo + qcBlock + statusBarStateInfo + antiMvuBlock;
+
+    // jsonReminder：角色卡Tab下永远不进入状态栏代码生成模式，强制用JSON格式
+    var jsonReminder = '';
+    // 角色卡Tab：强制禁用状态栏生成模式相关的JSON提醒分支，永远走普通JSON模式
+    jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守（角色卡Tab）】\n' +
+      '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
+      '2. JSON格式：字段平铺在顶层，用entries数组表示世界书条目\n' +
+      '3. 状态栏完全不在此Tab处理——如果用户要做MVU/变量/状态栏，请引导切换到MVU Tab\n' +
+      '4. 先输出自然语言回复，再输出JSON代码块\n' +
+      '5. 没有需要修改的内容就输出{"_nochange":true}\n' +
+      '6. ⚠️严禁只聊天不输出JSON！严禁生成任何MVU相关条目（见上方MVU隔离禁令）\n' +
+      '7. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
+
+    var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
+
+    var tabMessages = getCurrentMessages();
+    tabMessages.forEach(function(m, idx) {
+      var isLast = (idx === tabMessages.length - 1);
+      var roleLabel = (m.role === 'user' ? '用户' : '助手');
+      if (isLast && m.role === 'user') {
+        fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + m.content + '\n\n';
+      } else {
+        fullPrompt += roleLabel + ': ' + m.content + '\n\n';
+      }
+    });
+    fullPrompt += '助手: ';
+
+    // 额外追加一句"只回答最新指令"的锚点提示
+    fullPrompt += '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。严格遵守MVU隔离禁令，绝对不要生成任何MVU变量相关条目。）';
+
+    return fullPrompt;
+  }
+
+  // ========== 工具函数：从SYS_PROMPT中剔除MVU相关段落（角色卡Tab用） ==========
+  function filterOutMvuSectionsFromSysPrompt(originalPrompt) {
+    if (!originalPrompt) return originalPrompt;
+    // 通过关键词过滤掉MVU专属的大型段落：
+    // 1. 示例14-18（MVU正则脚本相关示例）
+    // 2. 状态栏美化显示 以及 后面的 Step 1-8 状态栏生成流程
+    // 3. 机制1~机制5（状态栏填入式收集的机制）
+    // 4. 条目命名规范中 [InitVar]/变量列表/变量更新规则/变量输出格式/<状态变量输出>/<状态栏>
+    // 5. 条目配置规范中 MVU 相关行
+    // 简单起见，用分段+正则过滤掉关键词区域
+    var p = originalPrompt;
+    // 移除 "15. MVU-移除旧变量更新..." 到 "18. MVU-状态栏美化显示..." 的所有内容（含后续的生成引导流程）
+    // 先移除 15~18 号 MVU 专属正则示例以及后面到 "高级场景与设计模式" 前的一大段状态栏生成流程
+    var mvuStartPattern = /16\.\s*MVU-移除变量更新\(显示\)[\s\S]*?高级场景与设计模式/;
+    if (mvuStartPattern.test(p)) {
+      p = p.replace(mvuStartPattern, '【MVU状态栏相关内容已剥离 - 请在MVU变量状态栏Tab查看】\n\n**高级场景与设计模式**');
+    }
+    // 条目命名规范中移除6个MVU相关条目前缀说明
+    var mvuPrefixPattern = /- \[InitVar\]初始变量：MVU变量系统[\s\S]*?- <状态变量输出>：输出当前变量状态给LLM的触发条目/;
+    if (mvuPrefixPattern.test(p)) {
+      p = p.replace(mvuPrefixPattern, '- 【MVU专属条目已剥离 - 请在MVU变量状态栏Tab查看】');
+    }
+    // 条目配置规范表中移除 MVU 相关行（最后5行左右的 MVU 条目配置）
+    var mvuConfigPattern = /\| \[InitVar\]初始变量[\s\S]*?\| <状态变量输出>.*?\n/;
+    if (mvuConfigPattern.test(p)) {
+      p = p.replace(mvuConfigPattern, '| 【MVU条目配置已剥离 - 请在MVU变量状态栏Tab查看】 |\n');
+    }
+    // 注5、注6（MVU相关的注）也删掉
+    p = p.replace(/注5：\[InitVar\].*?\n/g, '注5：【MVU相关注已剥离】\n');
+    p = p.replace(/注6：MVU脚本.*?\n/g, '注6：【MVU相关注已剥离】\n');
+    return p;
+  }
+
+  // ========== MVU Tab 专属提示词：完全不发角色卡生成逻辑，只发角色卡内容 + MVU指令 ==========
+  function buildMvuTabPrompt(cardData, messages) {
+    var cd = cardData || {};
+    // 1. 收集当前角色卡的「纯内容上下文」（仅用于参考，不发送角色卡生成逻辑）
+    var cardContext = '';
+    var ctxParts = [];
+    if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
+    if (cd.description) ctxParts.push('世界观描述摘要：' + (cd.description||'').substring(0, 500));
+    if (cd.first_mes) ctxParts.push('开场白摘要：' + (cd.first_mes||'').substring(0, 200));
+    if (cd.tags && cd.tags.length) ctxParts.push('标签：' + cd.tags.join('、'));
+    // 从现有角色卡条目中，提取4条MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
+    var entries = (cd.character_book || {}).entries || [];
+    var mvuOnlyEntries = entries.filter(function(e) {
+      var c = (e.comment || '').toLowerCase();
+      if (c.indexOf('[initvar]') >= 0) return true;
+      if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return true;
+      if (c.indexOf('变量更新规则') >= 0) return true;
+      if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return true;
+      if (c.indexOf('状态变量输出') >= 0) return true;
+      return false;
+    });
+    if (mvuOnlyEntries.length > 0) {
+      var mvuEntryText = '当前已有MVU变量条目（' + mvuOnlyEntries.length + '条）：\n';
+      mvuOnlyEntries.forEach(function(e, i) {
+        mvuEntryText += '── 条目 ' + (i+1) + ' ──\n';
+        mvuEntryText += 'comment: ' + (e.comment||'(空)') + '\n';
+        mvuEntryText += 'keys: ' + (e.keys||[]).join(', ') + '\n';
+        mvuEntryText += 'content:\n' + (e.content||'(空)') + '\n\n';
+      });
+      ctxParts.push(mvuEntryText);
+    }
+    // 提取已有的正则脚本中 MVU 相关内容
+    var regexScripts = (cd.extensions || {}).regex_scripts || [];
+    var mvuRegexScripts = regexScripts.filter(function(s) {
+      var name = (s.scriptName || '').toLowerCase();
+      var find = (s.findRegex || '').toLowerCase();
+      return name.indexOf('mvu') >= 0 || name.indexOf('status') >= 0 || find.indexOf('statusplaceholderimpl') >= 0 || find.indexOf('updatevariable') >= 0;
+    });
+    if (mvuRegexScripts.length > 0) {
+      var rxText = '当前已有MVU相关正则脚本（' + mvuRegexScripts.length + '条）：\n';
+      mvuRegexScripts.forEach(function(r, i) {
+        rxText += '── 正则 ' + (i+1) + ' ──\n';
+        rxText += '名称: ' + (r.scriptName||'(空)') + '\n';
+        rxText += 'disabled: ' + (!!r.disabled) + '\n\n';
+      });
+      ctxParts.push(rxText);
+    }
+    if (ctxParts.length > 0) {
+      cardContext = '\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
+        '📋 当前角色卡内容上下文（仅作MVU设计参考用）\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
+        ctxParts.join('\n───\n') + '\n' +
+        '═══════════════════════════════════════════════════════════════════\n';
+    }
+
+    // 2. MVU状态栏分步生成模式状态信息
+    var statusBarStateInfo = '';
+    if (statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
       var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取函数', 6:'渲染函数', 7:'事件绑定+入口', 8:'拼接合并(完成)' };
       var sbStepDescs = {
         1: '输出纯文本表格，列出所有要显示的变量路径/类型/分组/显示名。不输出代码块。',
@@ -2597,10 +2786,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       };
       var curStep = statusBarCurrentStep;
       if (curStep >= 1 && curStep <= 8) {
-        statusBarStateInfo = '\n\n=== 🔧 状态栏生成模式（写卡器后台管理） ===\n';
-        statusBarStateInfo += '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n';
-        statusBarStateInfo += '要求: ' + sbStepDescs[curStep] + '\n';
-        // 显示已收集的模块
+        statusBarStateInfo = '\n' +
+          '═══════════════════════════════════════════════════════════════════\n' +
+          '🔧 状态栏生成模式（写卡器后台管理 · MVU Tab专属）\n' +
+          '═══════════════════════════════════════════════════════════════════\n' +
+          '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n' +
+          '要求: ' + sbStepDescs[curStep] + '\n';
         var sbCollected = [];
         var sbMissing = [];
         var sbModNames = { step2:'配色', step3:'骨架', step4:'样式', step5:'读取', step6:'渲染', step7:'入口' };
@@ -2611,63 +2802,250 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         statusBarStateInfo += '已收集: ' + (sbCollected.length ? sbCollected.join('、') : '无') + ' (' + sbCollected.length + '/6)\n';
         if (sbMissing.length) statusBarStateInfo += '还缺: ' + sbMissing.join('、') + '\n';
         statusBarStateInfo += '⚠️写卡器会自动提取你回复中的第一个代码块填入当前Step槽位，不需要输出 /* === Step N === */ 标记\n';
-        statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（条目JSON/脚本/statusblock等）\n';
+        statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（世界书条目JSON/角色卡生成指令等）\n';
         if (curStep >= 3 && curStep <= 7) {
           statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名等）\n';
         }
+        statusBarStateInfo += '═══════════════════════════════════════════════════════════════════\n';
       }
     }
 
-    var sysPrompt = SYS_PROMPT + stateInfo + existingInfo + qcBlock + statusBarStateInfo;
+    // 3. MVU 专属系统指令（SYS_PROMPT中 MVU 部分的精简提取）
+    var mvuSystemPrompt = '' +
+      '你是「MVU变量与状态栏设计师」——专门负责设计和维护MVU变量系统与HTML状态栏。\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '🎯 你的专属职责（只有这些，别的都不管）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      'A. MVU变量系统4大条目的设计与维护：\n' +
+      '   1. [InitVar]初始变量条目：enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层\n' +
+      '   2. 变量列表条目：含{{format_message_variable::stat_data}}宏，在对话中注入当前变量\n' +
+      '   3. 变量更新规则条目：定义每个变量在什么对话条件下如何更新\n' +
+      '   4. 变量输出格式条目：使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式\n' +
+      'B. 动态HTML状态栏设计与实现：通过8步分模块流程（Step 1-8）生成状态栏正则脚本，写卡器后台管理6个槽位拼接保存\n' +
+      'C. MVU系统的修改、调试、预览（可通过<clear_statusbar>N标记清空指定Step槽位重新生成）\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '⚠️ MVU Tab 核心铁律（最高优先级）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '1. ❌绝对不要生成任何世界书条目、角色卡字段、角色卡生成相关内容！\n' +
+      '   · 基础公理 / 核心铁则 / 近场强约束 / 场景机制 / 实体交互 / 叙事背景 / 动态适配 等全部与你无关\n' +
+      '   · 不要修改name、description、first_mes、post_history_instructions、tags等角色卡字段\n' +
+      '   · 不要生成任何JSON代码块表示entries数组——除非里面装的是4个MVU变量条目\n' +
+      '   · 如果用户明确要设计世界观/角色卡/剧情，回复:「请切换到「角色卡生成」Tab进行角色卡/世界书的创作」\n' +
+      '2. ❌不要输出完整的角色卡JSON（chara_card_v3格式）——MVU Tab不负责生成角色卡\n' +
+      '3. ✅所有输出只聚焦在：MVU变量4条目、状态栏Step模块代码块（css/html/javascript）、清空标记<clear_statusbar>N\n' +
+      '4. ✅MVU变量系统和状态栏之间要相互配合——变量的路径决定了状态栏的渲染路径，设计时要保证一致\n' +
+      '5. ✅修改MVU条目时，使用```json代码块，entries数组里只放需要新增/修改/删除的MVU条目（用_action:delete或comment精确匹配覆盖）\n' +
+      '6. ✅状态栏Step 2-7模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '📚 MVU变量系统技术规范速查\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '【MVU 4大条目规范】（写入世界书entries数组）\n' +
+      '条目1: comment="[InitVar]初始变量", constant=true, position=4, depth=4, order=200, enabled=false\n' +
+      '       content=YAML格式（缩进表示层级），MVU系统读取enabled=false的此条目进行初始化\n' +
+      '条目2: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
+      '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照\n' +
+      '条目3: comment="变量更新规则", constant=true, position=4, depth=0, order=200\n' +
+      '       content=逐条规则：在什么条件下（对话关键词、上下文内容），更新哪个变量路径到什么值\n' +
+      '条目4: comment="变量输出格式", constant=true, position=4, depth=0, order=200\n' +
+      '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
+      '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
+      '【状态栏8步分模块流程】（写卡器后台管理Step 2-7共6个槽位）\n' +
+      'Step 1：变量盘点表（纯文本表格 | 路径 | 类型 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
+      'Step 2：配色方案（仅CSS :root变量块）→ 输出```css\n' +
+      'Step 3：HTML结构骨架（仅<body>内DOM，含静态假数据）→ 输出```html，id=stat-<分组>-<字段>\n' +
+      'Step 4：CSS样式表（仅<style>内规则，引用Step2的CSS变量）→ 输出```css\n' +
+      'Step 5：变量读取函数（纯函数 loadVars()，用 _.get(getAllVariables(),"stat_data.xxx",默认值)）→ 输出```javascript\n' +
+      'Step 6：渲染函数 renderVars(data)（jquery操作DOM，按类型分支处理：number→进度条/数值、boolean→✓/✕、string→文本、array→列表、object→递归renderVarTree）→ 输出```javascript\n' +
+      'Step 7：事件绑定+入口（init函数用waitGlobalInitialized(\'Mvu\') + eventOn VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED + errorCatched + $(()=>{})）→ 输出```javascript\n' +
+      'Step 8：拼接合并+自查（AI只做文字确认，不输出代码；写卡器自动从Step 2-7槽位中提取代码拼接成完整正则脚本）\n\n' +
+      '【按语义精准修改状态栏】\n' +
+      '· 先输出清空标记: <clear_statusbar>N1,N2,N3（Step号逗号分隔）→ 写卡器清空对应槽位\n' +
+      '· 同一个回答中只输出第一个需要修改的Step的代码块 → 后续Step等用户说"继续"后逐个生成\n' +
+      '· 禁止"改一处就重写全部8步"——只重写需要改的Step\n' +
+      '\n' +
+      '【状态栏预览命令】\n' +
+      '· 需要向用户展示当前已收集的状态栏效果时，在消息中输出: <preview_statusbar> 标记\n' +
+      '· 写卡器会自动检测并用已收集的模块拼接渲染预览\n\n' +
+      '【通用关键实现要求】\n' +
+      '· 可用库：jquery、lodash、yaml、zod（无需import直接使用）\n' +
+      '· DOM操作：必须用jquery（$(\'#id\').text/html/addClass），禁止原生document.getElementById\n' +
+      '· 注释：只能用 /* 注释 */，禁止 // 注释（会导致渲染失败）\n' +
+      '· CSS/布局：禁用vh；禁用position:absolute；禁min-height/overflow:auto；用width+aspect-ratio适配\n' +
+      '· 跳过隐藏变量：key以_或$开头的跳过不渲染\n' +
+      '· 布尔值仅✅/❌：不要加是/否文字\n' +
+      '\n' +
+      '【MVU条目输出格式提醒（MVU Tab）】\n' +
+      '· 修改或新建4条MVU条目时，输出: ```json\\n{"entries":[{"comment":"...","content":"...","constant":true,...}]}\\n```\n' +
+      '· 状态栏Step 2-7只输出对应代码块（```css / ```html / ```javascript），不要用JSON包\n' +
+      '· 状态栏Step 8不要输出任何代码块，只做自查文字确认\n' +
+      '· ⚠️一次只做一个Step，绝对不要一次回答中包含多个Step的代码块\n';
 
-    // jsonReminder 放在对话历史之前（属于系统指令区），不放在"助手:"之后
+    // 4. JSON/输出格式提醒（MVU Tab版：与状态栏Step联动）
     var jsonReminder = '';
     if (statusBarMode && statusBarCurrentStep >= 2 && statusBarCurrentStep <= 7) {
-      // 状态栏代码生成模式：不要求AI输出JSON，只要求输出当前Step的代码块
       var sbLangHint = {2:'css', 3:'html', 4:'css', 5:'javascript', 6:'javascript', 7:'javascript'}[statusBarCurrentStep];
-      jsonReminder = '\n\n⚠️【输出格式提醒 - 状态栏代码生成模式（最高优先级，覆盖角色卡叙事风格）】\n' +
+      jsonReminder = '\n\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
+        '⚠️【输出格式提醒 - 状态栏代码生成模式（最高优先级） MVU Tab】\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
         '1. 当前在状态栏分步生成模式，只需输出当前Step的```' + sbLangHint + '代码块\n' +
-        '2. ⚠️这次不需要输出```json代码块！只输出当前Step的代码块即可\n' +
-        '3. 禁止输出其他代码块（条目JSON/脚本/完整HTML等）\n' +
+        '2. ⚠️这次不需要输出```json代码块（除非是修改4条MVU变量条目）！只输出当前Step的代码块即可\n' +
+        '3. 禁止输出其他代码块（世界书条目JSON/角色卡JSON/完整HTML等）\n' +
         '4. 可以在代码块前后用纯文字补充说明，但不要用代码块包裹说明\n' +
         '5. ⚠️严禁把状态栏模块代码放进JSON的entries数组！状态栏代码不属于世界书条目。\n' +
-        '   反面示例（禁止这样做）：{"entries":[{"comment":"<状态栏>配色方案-Step 2","content":":root{...}"}]}\n' +
         '   正确做法：直接输出```' + sbLangHint + '\\n代码内容\\n```代码块即可，写卡器后台会自动收集拼接保存到正则脚本。\n' +
         '6. ⚠️严禁只用文字描述"已设计配色/已编写函数"但不输出代码！代码块是必须的，文字描述不算生成模块。\n' +
-        '   禁止示例："已设计 Slate & Fog 配色系统，采用冷感实验室风格" ← 这是描述，不是代码，写卡器无法收集\n' +
-        '   正确示例：```css\\n:root { --bg-color: #xxx; ... }\\n``` ← 这是可执行代码，写卡器能收集\n' +
-        '7. ⚠️禁止输出空的<statusblock></statusblock>标签！状态栏模式下代码块由写卡器后台收集，不需要你输出<statusblock>标签。\n' +
-        '8. ⚠️不要用世界书笔调/叙事风格描述代码！状态栏模块是前端代码（CSS/HTML/JS），不是世界书设定条目。\n' +
-        '9. ⚠️只处理用户「最新一条」消息的指令！';
+        '7. ⚠️禁止输出空的<statusblock></statusblock>标签！状态栏模式下代码块由写卡器后台收集。\n' +
+        '8. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n';
     } else {
-      jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守】\n' +
-        '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
-        '2. JSON格式：字段平铺在顶层，用entries数组表示世界书条目\n' +
-        '3. 状态栏放在<statusblock>标签中，使用HTML的details/summary格式\n' +
-        '4. 先输出自然语言回复，再输出JSON代码块，最后输出状态栏\n' +
-        '5. 没有需要修改的内容就输出{"_nochange":true}\n' +
-        '6. 严禁只聊天不输出JSON！\n' +
-        '7. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
+      jsonReminder = '\n\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
+        '⚠️【输出格式提醒（MVU Tab）】\n' +
+        '═══════════════════════════════════════════════════════════════════\n' +
+        '· 如果用户要求设计/修改4条MVU变量条目：输出一个```json代码块，格式: {"entries": [ { "comment": "[InitVar]初始变量", "content": "...YAML...", "constant": true, "position": 4 }, ... ]}\n' +
+        '· 如果在状态栏Step 1：输出纯文本表格（变量盘点表），不写代码块\n' +
+        '· 如果在状态栏Step 8：输出自查文字报告，不输出任何代码块\n' +
+        '· 不要生成任何角色卡/世界书相关的JSON（name/description/entries非MVU条目）\n' +
+        '· 没有需要修改的内容就输出简短的文字说明，不要输出JSON\n' +
+        '· ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n';
     }
 
-    var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史 ===\n';
+    // 5. 组装完整提示词
+    var fullPrompt = mvuSystemPrompt + cardContext + statusBarStateInfo + jsonReminder +
+      '\n\n═══════════════════════════════════════════════════════════════════\n' +
+      '📜 对话历史（MVU Tab专属，与角色卡Tab完全隔离）\n' +
+      '═══════════════════════════════════════════════════════════════════\n';
 
-    messages.forEach(function(m, idx) {
-      var isLast = (idx === messages.length - 1);
+    var tabMessages = getCurrentMessages();
+    tabMessages.forEach(function(m, idx) {
+      var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
       if (isLast && m.role === 'user') {
-        // 最新一条用户消息用醒目标记，防止AI回头处理旧指令
         fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + m.content + '\n\n';
       } else {
         fullPrompt += roleLabel + ': ' + m.content + '\n\n';
       }
     });
     fullPrompt += '助手: ';
-
-    // 额外追加一句"只回答最新指令"的锚点提示
-    fullPrompt += '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
+    fullPrompt += '（请只针对上方>>>标记的最新指令回复。严格遵守MVU Tab核心铁律：不要生成任何角色卡/世界书条目。）';
 
     return fullPrompt;
+  }
+
+  // ========== 工具函数：角色卡Tab专属 - 从AI返回的parsed JSON中剔除MVU相关内容 ==========
+  // 这是最后一道防线：即使AI违反prompt禁令生成了MVU内容，这里也会硬性拦截过滤
+  function filterMvuEntriesFromParsed(parsed) {
+    var result = JSON.parse(JSON.stringify(parsed));  // deep copy
+    var strippedCount = 0;
+    var regexScriptStripped = false;
+
+    // 1. 过滤 entries 数组中的MVU条目
+    if (result.entries && Array.isArray(result.entries)) {
+      var beforeCount = result.entries.length;
+      result.entries = result.entries.filter(function(e) {
+        var c = ((e.comment || '') + ' ' + (e.content || '')).toLowerCase();
+        var isMvuEntry = false;
+        // comment匹配：MVU条目的精确comment
+        var cmt = (e.comment || '').toLowerCase();
+        if (cmt.indexOf('[initvar]') >= 0) isMvuEntry = true;
+        if (cmt.indexOf('变量列表') >= 0 && (c.indexOf('format_message_variable') >= 0 || c.indexOf('stat_data') >= 0)) isMvuEntry = true;
+        if (cmt.indexOf('变量更新规则') >= 0) isMvuEntry = true;
+        if (cmt.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0 || c.indexOf('<updatevariable>') >= 0) isMvuEntry = true;
+        if (cmt.indexOf('状态变量输出') >= 0) isMvuEntry = true;
+        if (cmt.indexOf('<状态栏>') >= 0) isMvuEntry = true;
+        // content匹配：即使comment伪装正常，如果内容里有MVU关键特征也拦
+        if (c.indexOf('format_message_variable::stat_data') >= 0) isMvuEntry = true;
+        if (c.indexOf('[mvu_update]') >= 0) isMvuEntry = true;
+        if (c.indexOf('enabled=false') >= 0 && c.indexOf('初始变量') >= 0) isMvuEntry = true;
+        return !isMvuEntry;
+      });
+      strippedCount += (beforeCount - result.entries.length);
+      if (result.entries.length === 0) delete result.entries;
+    }
+
+    // 2. 过滤 _delete 数组中的MVU条目删除请求（角色卡Tab无权操作MVU条目，删除/修改都拦）
+    if (result._delete && Array.isArray(result._delete)) {
+      var beforeDel = result._delete.length;
+      result._delete = result._delete.filter(function(target) {
+        if (typeof target !== 'string') return true;  // 非字符串的保留（通常是字段名，MVU用comment字符串匹配）
+        var t = target.toLowerCase();
+        var isMvuTarget = false;
+        if (t.indexOf('character_book.entries.') >= 0) {
+          // 提取entry comment部分并检查
+          var entryCmt = t.replace(/^.*character_book\.entries\./, '');
+          if (entryCmt.indexOf('[initvar]') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('变量列表') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('变量更新规则') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('变量输出格式') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('状态变量输出') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('<状态栏>') >= 0) isMvuTarget = true;
+        }
+        // regex_scripts 中的MVU相关正则删除也拦
+        if (t.indexOf('regex_scripts') >= 0 && t.toLowerCase().indexOf('status') >= 0) isMvuTarget = true;
+        if (t.indexOf('regex_scripts') >= 0 && t.toLowerCase().indexOf('mvu') >= 0) isMvuTarget = true;
+        return !isMvuTarget;
+      });
+      if (result._delete.length === 0) delete result._delete;
+      // 注：删除MVU条目的操作不计入strippedCount，因为删除本身是"不做"
+    }
+
+    // 3. 过滤 entries 数组中带 _action: "delete" / "update" 的MVU条目操作
+    if (result.entries && Array.isArray(result.entries)) {
+      var beforeAct = result.entries.length;
+      result.entries = result.entries.filter(function(e) {
+        if (e._action) {
+          var cmt = (e.comment || '').toLowerCase();
+          if (cmt.indexOf('[initvar]') >= 0) return false;
+          if (cmt.indexOf('变量列表') >= 0) return false;
+          if (cmt.indexOf('变量更新规则') >= 0) return false;
+          if (cmt.indexOf('变量输出格式') >= 0) return false;
+          if (cmt.indexOf('状态变量输出') >= 0) return false;
+          if (cmt.indexOf('<状态栏>') >= 0) return false;
+        }
+        return true;
+      });
+      strippedCount += (beforeAct - result.entries.length);
+      if (result.entries.length === 0) delete result.entries;
+    }
+
+    // 4. 过滤 extensions.regex_scripts 中的MVU相关正则脚本（角色卡Tab无权修改MVU正则）
+    if (result.extensions && result.extensions.regex_scripts && Array.isArray(result.extensions.regex_scripts)) {
+      var rxBefore = result.extensions.regex_scripts.length;
+      result.extensions.regex_scripts = result.extensions.regex_scripts.filter(function(rx) {
+        var name = ((rx.scriptName || '') + ' ' + (rx.findRegex || '')).toLowerCase();
+        // MVU特征：MVU/StatusPlaceHolderImpl/UpdateVariable/status正则
+        var isMvuRegex = false;
+        if (name.indexOf('mvu') >= 0) isMvuRegex = true;
+        if (name.indexOf('statusplaceholderimpl') >= 0) isMvuRegex = true;
+        if (name.indexOf('updatevariable') >= 0) isMvuRegex = true;
+        if (name.indexOf('状态栏') >= 0 && (name.indexOf('美化') >= 0 || name.indexOf('status') >= 0)) isMvuRegex = true;
+        if (isMvuRegex) regexScriptStripped = true;
+        return !isMvuRegex;
+      });
+      if (result.extensions.regex_scripts.length === 0) delete result.extensions.regex_scripts;
+      if (Object.keys(result.extensions).length === 0) delete result.extensions;
+    }
+
+    // 5. 直接检查顶层描述字段是否夹带MVU内容（通常不会，但防一手）
+    ['description', 'post_history_instructions', 'system_prompt', 'first_mes', 'personality', 'scenario'].forEach(function(f) {
+      if (typeof result[f] === 'string') {
+        var s = result[f].toLowerCase();
+        if (s.indexOf('format_message_variable') >= 0 || s.indexOf('[mvu_update]') >= 0 || s.indexOf('<updatevariable>') >= 0) {
+          // 这些字段里不应该出现MVU关键宏/标记，如果有则剔除相关段或整个字段
+          // 简单处理：替换掉MVU标记
+          result[f] = result[f].replace(/\{\{format_message_variable::[^\}]+\}\}/gi, '')
+            .replace(/\[mvu_update\][\s\S]*?(?=\n\n|$)/gi, '')
+            .replace(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/gi, '');
+          strippedCount += 1;
+        }
+      }
+    });
+
+    return {
+      parsed: result,
+      _mvuStrippedCount: strippedCount,
+      _mvuRegexScriptStripped: regexScriptStripped
+    };
   }
 
   // ===== 质检规则（32项核心 + 6项附加 · 对齐官方文档） =====
@@ -4088,11 +4466,88 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         character_book: { entries: [] }
       };
 
-      var messages = [];
+      // ========== Tab 隔离系统：角色卡 Tab 与 MVU状态栏 Tab 完全独立 ==========
+      var currentTab = 'card';  // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
+      var cardMessages = [];    // 角色卡 Tab 的独立聊天记录
+      var mvuMessages = [];     // MVU状态栏 Tab 的独立聊天记录
+      // MVU Tab 专属状态栏模块状态（完全独立，不影响角色卡Tab）
+      var mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+      var mvuTabStatusBarCurrentStep = 0;  // 0=未开始, 1-8=对应Step
+      var mvuTabStatusBarMode = false;     // MVU Tab 是否处于状态栏生成模式
+
+      // 当前Tab的messages访问器（根据currentTab返回对应数组）
+      function getCurrentMessages() { return currentTab === 'card' ? cardMessages : mvuMessages; }
+      function setCurrentMessages(arr) { if (currentTab === 'card') cardMessages = arr; else mvuMessages = arr; }
+      // 所有地方使用 messages 变量时，改为访问当前Tab的数组
+      Object.defineProperty(typeof window !== 'undefined' ? window : {}, '_dummy', {value:0});
+      // 为了兼容现有代码，我们通过消息函数来路由，不直接覆盖messages引用
+
       var isGenerating = false;
       var cardGenerated = false;
       var progress = 0;
       var moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
+
+      // ===== Tab 切换函数：保存当前Tab状态 + 切换并恢复另一Tab状态 =====
+      function switchTab(targetTab) {
+        if (targetTab === currentTab || isGenerating) return;
+        // 先切到新Tab
+        currentTab = targetTab;
+        // 更新Tab按钮激活态
+        var tabBtns = doc.querySelectorAll('.tab-btn');
+        for (var ti = 0; ti < tabBtns.length; ti++) {
+          tabBtns[ti].classList.toggle('active', tabBtns[ti].getAttribute('data-tab') === targetTab);
+        }
+        // 更新 mod-focus 显示筛选
+        var modFocus = doc.getElementById('modFocus');
+        if (modFocus) {
+          modFocus.classList.remove('card-only', 'mvu-only');
+          modFocus.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
+        }
+        var modDash = doc.getElementById('modDash');
+        if (modDash) {
+          modDash.classList.remove('card-only', 'mvu-only');
+          modDash.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
+        }
+        // 切换聊天记录：清空当前聊天面板并重放目标Tab的消息
+        var chatC = doc.getElementById('chatMessages');
+        if (chatC) {
+          chatC.innerHTML = '';
+          var msgs = getCurrentMessages();
+          for (var mi = 0; mi < msgs.length; mi++) {
+            appendMsg(msgs[mi].role, msgs[mi].content);
+          }
+        }
+        // 同步状态栏状态到模块级变量（buildPrompt/statusBar处理依赖的是模块级变量）
+        if (targetTab === 'mvu') {
+          statusBarModules = mvuTabStatusBarModules;
+          statusBarCurrentStep = mvuTabStatusBarCurrentStep;
+          statusBarMode = mvuTabStatusBarMode;
+        } else {
+          // 角色卡Tab：强制禁用状态栏生成模式，防止AI生成多余MVU条目
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarCurrentStep = 0;
+          statusBarMode = false;
+        }
+        // 刷新快捷动作和UI
+        updateQuickActions();
+        updateModFocus();
+        renderPreview();
+        renderModDash();
+        // 更新输入框占位符
+        var inputEl = doc.getElementById('chatInput');
+        if (inputEl) {
+          inputEl.placeholder = targetTab === 'card'
+            ? '描述你想要的世界/角色设定，我来生成角色卡...'
+            : '描述你想要的MVU变量系统或状态栏，如\"做一个好感度+物品栏的状态栏\"...';
+        }
+        var titleH1 = doc.querySelector('.topbar h1');
+        if (titleH1) {
+          titleH1.innerHTML = targetTab === 'card'
+            ? '⚡ 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:#8c8472">角色卡生成</span>'
+            : '🎛️ MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:#8c8472">变量与状态栏</span>';
+        }
+        showToast('已切换到：' + (targetTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab'), 'info');
+      }
 
       function renderWelcome() {
         doc.body.innerHTML =
@@ -4134,8 +4589,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '<button class="close-btn" id="closeBtn">×</button>' +
           '<div class="app">' +
             '<div class="topbar">' +
-              '<h1>⚡ 时之写卡器</h1>' +
+              '<h1>⚡ 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:#8c8472">角色卡生成</span></h1>' +
               '<span class="phase" id="phaseLabel">0%</span>' +
+            '</div>' +
+            // ========== Tab 切换器：角色卡 Tab ↔ MVU状态栏 Tab，两边完全隔离 ==========
+            '<div class="tab-switcher" id="tabSwitcher">' +
+              '<button class="tab-btn active" data-tab="card"><span class="tab-icon">🎭</span>角色卡生成</button>' +
+              '<button class="tab-btn" data-tab="mvu"><span class="tab-icon">🎛️</span>MVU变量·状态栏</button>' +
             '</div>' +
             '<div class="main">' +
               '<div class="mobile-tabs">' +
@@ -4143,7 +4603,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 '<button class="mobile-tab" data-tab="preview">📋 预览</button>' +
               '</div>' +
               '<div class="chat-panel" style="position:relative">' +
-                '<div class="mod-focus" id="modFocus">' +
+                // data-mvu="1" 标记 MVU 专属按钮，CSS根据Tab控制显示/隐藏
+                '<div class="mod-focus card-only" id="modFocus">' +
                   '<button class="mod-focus-btn" data-mod="axiom">🏛️ 基础公理</button>' +
                   '<button class="mod-focus-btn" data-mod="soft_rules">🤝 交互软规则</button>' +
                   '<button class="mod-focus-btn" data-mod="core_rules">🔐 核心铁则</button>' +
@@ -4152,10 +4613,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '<button class="mod-focus-btn" data-mod="entity_interact">👥 实体交互</button>' +
                   '<button class="mod-focus-btn" data-mod="narrative_bg">📖 叙事背景</button>' +
                   '<button class="mod-focus-btn" data-mod="dynamic_adapt">🔄 动态适配</button>' +
-                  '<button class="mod-focus-btn" data-mod="init_var">📊 初始变量</button>' +
-                  '<button class="mod-focus-btn" data-mod="var_update_rule">📝 变量更新规则</button>' +
+                  '<button class="mod-focus-btn" data-mod="init_var" data-mvu="1">📊 初始变量</button>' +
+                  '<button class="mod-focus-btn" data-mod="var_update_rule" data-mvu="1">📝 变量更新规则</button>' +
                 '</div>' +
-                '<div class="mod-dash" id="modDash" style="margin:0;border-left:none;border-right:none;border-radius:0">' +
+                '<div class="mod-dash card-only" id="modDash" style="margin:0;border-left:none;border-right:none;border-radius:0">' +
                   '<div class="md-header" id="modDashHeader"><span>📊 模块进度仪表盘</span><span class="md-arrow">▼</span></div>' +
                   '<div class="md-body"></div>' +
                 '</div>' +
@@ -4164,7 +4625,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 '<div class="quick-actions" id="quickActions"></div>' +
                 '<div class="chat-input-area">' +
                   '<div class="chat-input-row">' +
-                    '<textarea class="chat-input" id="chatInput" placeholder="描述你想要的世界..." rows="1"></textarea>' +
+                    '<textarea class="chat-input" id="chatInput" placeholder="描述你想要的世界/角色设定，我来生成角色卡..." rows="1"></textarea>' +
                     '<button class="btn-send" id="sendBtn" title="发送" aria-label="发送">' +
                       '<svg class="send-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>' +
                       '<svg class="send-spinner" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>' +
@@ -4249,6 +4710,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             for (var tj = 0; tj < mTabs.length; tj++) {
               mTabs[tj].classList.toggle('active', mTabs[tj].getAttribute('data-tab') === tab);
             }
+          });
+        }
+        // ========== Tab 切换按钮：角色卡 / MVU状态栏，完全隔离两边聊天记录与AI上下文 ==========
+        var tabBtns = doc.querySelectorAll('.tab-btn');
+        for (var tbi = 0; tbi < tabBtns.length; tbi++) {
+          tabBtns[tbi].addEventListener('click', function() {
+            var targetTab = this.getAttribute('data-tab');
+            switchTab(targetTab);
           });
         }
       }
@@ -4483,9 +4952,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function saveToStorage() {
         try {
+          // 每次保存前同步 MVU Tab 的状态（如果当前在MVU Tab的话，最新状态已经在模块变量；无论当前在哪个Tab都保存两份）
+          if (currentTab === 'mvu') {
+            mvuTabStatusBarModules = statusBarModules;
+            mvuTabStatusBarCurrentStep = statusBarCurrentStep;
+            mvuTabStatusBarMode = statusBarMode;
+          }
           var state = {
             cardData: cardData,
-            messages: messages,
+            // ========== Tab 隔离：保存两份独立的聊天记录，不再保存单一 messages 数组 ==========
+            currentTab: currentTab || 'card',
+            cardMessages: cardMessages || [],
+            mvuMessages: mvuMessages || [],
+            // MVU Tab 专属状态栏模块状态（与角色卡Tab的完全隔离）
+            mvuTabStatusBarModules: mvuTabStatusBarModules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
+            mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep || 0,
+            mvuTabStatusBarMode: mvuTabStatusBarMode || false,
+            // 向后兼容：保留 messages 字段，但仅作为旧版数据迁移参考（实际加载时不再使用）
+            messages: currentTab === 'card' ? cardMessages : mvuMessages,
             cardGenerated: cardGenerated,
             progress: progress,
             moduleProgress: moduleProgress,
@@ -4516,15 +5000,64 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
             if (!cardData.tags) cardData.tags = [];
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
-            messages = state.messages || [];
+
+            // ========== Tab 隔离：加载两份独立的聊天记录，处理旧版单一 messages 迁移 ==========
+            if (state.cardMessages && Array.isArray(state.cardMessages)) {
+              // 新版数据：两份独立消息
+              cardMessages = state.cardMessages;
+            } else if (state.messages && Array.isArray(state.messages)) {
+              // 旧版数据迁移：原来的 messages 全部视为角色卡Tab历史
+              cardMessages = state.messages.slice();
+            } else {
+              cardMessages = [];
+            }
+            if (state.mvuMessages && Array.isArray(state.mvuMessages)) {
+              mvuMessages = state.mvuMessages;
+            } else {
+              mvuMessages = [];  // 旧版没有MVU Tab独立消息，初始为空
+            }
+            // 当前Tab：从保存值恢复，默认回到角色卡Tab
+            currentTab = state.currentTab || 'card';
+            // 当前Tab的 messages 兼容：虽然我们不再使用全局 messages 变量，但为了向后兼容
+            messages = (currentTab === 'card') ? cardMessages.slice() : mvuMessages.slice();
+
+            // MVU Tab 专属状态栏状态：从保存值恢复，不存在则初始化
+            if (state.mvuTabStatusBarModules) {
+              mvuTabStatusBarModules = state.mvuTabStatusBarModules;
+            } else {
+              mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+            }
+            mvuTabStatusBarCurrentStep = state.mvuTabStatusBarCurrentStep || 0;
+            mvuTabStatusBarMode = state.mvuTabStatusBarMode || false;
+
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
             moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
-            if (state.statusBarModules) {
-              statusBarModules = state.statusBarModules;
+
+            // 状态栏：根据恢复的当前Tab决定加载哪一份
+            if (currentTab === 'mvu') {
+              // 当前在MVU Tab：加载 MVU Tab 专属状态栏状态
+              statusBarModules = mvuTabStatusBarModules;
+              statusBarMode = mvuTabStatusBarMode;
+              statusBarCurrentStep = mvuTabStatusBarCurrentStep;
+            } else {
+              // 当前在角色卡Tab：优先从 state.statusBarModules 加载（向后兼容）
+              // 但角色卡Tab理论上不应该启用状态栏生成模式，所以强制禁用 statusBarMode 除非它就是MVU的
+              if (state.statusBarModules) {
+                statusBarModules = state.statusBarModules;
+              } else {
+                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+              }
+              // 保存了 mvuTabStatusBarModules 说明是新版数据，角色卡Tab就不进入状态栏模式
+              if (state.mvuTabStatusBarModules) {
+                statusBarMode = false;
+                statusBarCurrentStep = 0;
+              } else {
+                // 旧版数据：直接沿用保存的值（可能进入状态栏模式，向后兼容）
+                statusBarMode = state.statusBarMode || false;
+                statusBarCurrentStep = state.statusBarCurrentStep || 0;
+              }
             }
-            statusBarMode = state.statusBarMode || false;
-            statusBarCurrentStep = state.statusBarCurrentStep || 0;
             return true;
           }
         } catch(e) {}
@@ -4547,21 +5080,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       function continueFromSave() {
         if (loadFromStorage()) {
           renderChatUI();
-          // 恢复历史消息到对话区（renderChatUI 只搭建骨架，不渲染 messages）
-          var savedMessages = messages.slice();
-          messages = [];
+          // ========== Tab 隔离：恢复对应Tab的历史消息到对话区 ==========
+          // 用 getCurrentMessages() 取当前Tab的专属消息数组（currentTab已在loadFromStorage中恢复）
+          var curMsgs = getCurrentMessages();
+          var savedMessages = curMsgs.slice();
+          setCurrentMessages([]);
           var chatC = doc.getElementById('chatMessages');
           if (chatC) chatC.innerHTML = '';
           savedMessages.forEach(function(m) {
-            messages.push(m);
+            var arr = getCurrentMessages();
+            arr.push(m);
             appendMsg(m.role, m.content);
           });
+          // 恢复Tab按钮激活态（renderChatUI 默认可能没有选中对应Tab）
+          var tabBtns = doc.querySelectorAll('.tab-btn');
+          for (var tbi = 0; tbi < tabBtns.length; tbi++) {
+            tabBtns[tbi].classList.toggle('active', tabBtns[tbi].getAttribute('data-tab') === currentTab);
+          }
+          // 更新 mod-focus 显示筛选（Card/MVU-only）
+          var modFocus = doc.getElementById('modFocus');
+          if (modFocus) {
+            modFocus.classList.remove('card-only', 'mvu-only');
+            modFocus.classList.add(currentTab === 'card' ? 'card-only' : 'mvu-only');
+          }
+          // 更新输入框占位符和标题
+          var inputEl = doc.getElementById('chatInput');
+          if (inputEl) {
+            inputEl.placeholder = currentTab === 'card'
+              ? '描述你想要的世界/角色设定，我来生成角色卡...'
+              : '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
+          }
+          var titleH1 = doc.querySelector('.topbar h1');
+          if (titleH1) {
+            titleH1.innerHTML = currentTab === 'card'
+              ? '⚡ 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:#8c8472">角色卡生成</span>'
+              : '🎛️ MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:#8c8472">变量与状态栏</span>';
+          }
           updateProgress();
           updateQuickActions();
           updateModFocus();
           renderPreview();
           renderModDash();
-          showToast('已恢复上次创作进度', 'success');
+          showToast('已恢复上次创作进度（当前：' + (currentTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab') + '）', 'success');
         } else {
           showToast('没有找到保存的数据', 'warning');
         }
@@ -4597,41 +5157,78 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var hasDesc = cardData.description && cardData.description.length > 50;
         var hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
         var hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
+        /* MVU状态栏检测：仅当用户已配置MVU变量系统（存在[InitVar]或核心MVU条目）时标记 */
+        var hasMVU = hasEntries && cardData.character_book.entries.some(function(e) {
+          return isMVUEntry(e.comment || '');
+        });
+
+        // ========== Tab 隔离：根据当前 Tab 显示完全不同的快捷动作按钮 ==========
         var actions = [];
-        // 引导流程7步（规范4.5）：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配→配变量系统
-        if (p < 20) {
-          actions.push({ action: 'core_rules', label: '🔐 定核心铁则', hl: true });
-          actions.push({ action: 'axiom', label: '🏛️ 搭世界基底' });
-        } else if (p < 40) {
-          actions.push({ action: 'axiom', label: '🏛️ 搭世界基底', hl: true });
-          actions.push({ action: 'soft_rules', label: '🤝 交互软规则' });
-        } else if (p < 60) {
-          actions.push({ action: 'entity_interact', label: '👥 做实体内容', hl: true });
-          actions.push({ action: 'scene_mechanics', label: '⚔️ 加场景规则' });
-        } else if (p < 80) {
-          actions.push({ action: 'narrative_bg', label: '📖 补叙事背景' });
-          actions.push({ action: 'dynamic_adapt', label: '🔄 做动态适配', hl: true });
-        } else if (p < 95) {
-          actions.push({ action: 'init_var', label: '📊 配变量系统', hl: true });
+        if (currentTab === 'card') {
+          // ===== 角色卡Tab快捷动作：专注于角色卡/世界书生成，绝对不含MVU变量制作 =====
+          // 引导流程6步（规范4.5，去掉了MVU变量系统 - MVU独立到另一个Tab）
+          if (p < 20) {
+            actions.push({ action: 'core_rules', label: '🔐 定核心铁则', hl: true });
+            actions.push({ action: 'axiom', label: '🏛️ 搭世界基底' });
+          } else if (p < 40) {
+            actions.push({ action: 'axiom', label: '🏛️ 搭世界基底', hl: true });
+            actions.push({ action: 'soft_rules', label: '🤝 交互软规则' });
+          } else if (p < 60) {
+            actions.push({ action: 'entity_interact', label: '👥 做实体内容', hl: true });
+            actions.push({ action: 'scene_mechanics', label: '⚔️ 加场景规则' });
+          } else if (p < 80) {
+            actions.push({ action: 'narrative_bg', label: '📖 补叙事背景' });
+            actions.push({ action: 'dynamic_adapt', label: '🔄 做动态适配', hl: true });
+          } else if (p < 95) {
+            // p>=80 <95：角色卡内容已比较完整，提示用户可以去MVU Tab做变量系统
+            actions.push({ action: 'goto_mvu', label: '🎛️ 去做MVU变量/状态栏', hl: true });
+          } else {
+            // p>=95：生成角色卡与优化在下方常驻区展示
+          }
+          // 常驻快捷动作（角色卡Tab）
+          actions.push({ action: 'next', label: '💡 下一步' });
+          actions.push({ action: 'summary', label: '📊 当前进度' });
+          if (!hasFirst && p >= 20) actions.push({ action: 'opening', label: '🎬 生成开场白' });
+          actions.push({ action: 'qc', label: '✅ 质检' });
+          actions.push({ action: 'optimize', label: '🔧 优化' });
+          if (hasEntries) {
+            actions.push({ action: 'weight', label: '📊 权重可视化' });
+            actions.push({ action: 'group', label: '🗂️ 分组管理' });
+          }
+          // 如果已经有MVU内容，提供一个跳转到MVU Tab查看的入口
+          if (hasMVU) actions.push({ action: 'goto_mvu', label: '🎛️ MVU变量/状态栏 →' });
+          actions.push({ action: 'generate', label: '✨ 生成角色卡', hl: p >= 95 });
         } else {
-          // p>=95：生成角色卡与优化已在下方常驻区展示（生成卡在高完成度时高亮）
-        }
-        // 常驻快捷动作
-        actions.push({ action: 'next', label: '💡 下一步' });
-        actions.push({ action: 'summary', label: '📊 当前进度' });
-        if (!hasFirst && p >= 20) actions.push({ action: 'opening', label: '🎬 生成开场白' });
-        actions.push({ action: 'qc', label: '✅ 质检' });
-        actions.push({ action: 'optimize', label: '🔧 优化' });
-        if (hasEntries) {
-          actions.push({ action: 'weight', label: '📊 权重可视化' });
-          actions.push({ action: 'group', label: '🗂️ 分组管理' });
-          /* MVU状态栏预览：仅当用户已配置MVU变量系统（存在[InitVar]或核心MVU条目）时显示 */
-          var hasMVU = cardData.character_book.entries.some(function(e) {
-            return isMVUEntry(e.comment || '');
-          });
+          // ===== MVU变量状态栏Tab快捷动作：完全专注于MVU变量4条目 + 8步状态栏生成 =====
+          // 根据当前状态栏生成进度推荐动作
+          var sbProgress = 0;
+          for (var sk in SB_STEP_DISPLAY_NAMES) {
+            if (statusBarModules[sk]) sbProgress++;
+          }
+          // MVU专属引导
+          if (!hasMVU && !statusBarMode) {
+            actions.push({ action: 'init_var', label: '📊 设计MVU变量4条目', hl: true });
+          } else if (!statusBarMode) {
+            // 已有变量但没进入状态栏模式
+            if (sbProgress < 6) {
+              actions.push({ action: 'start_sb', label: '🎛️ 开始制作状态栏', hl: true });
+            } else {
+              actions.push({ action: 'mvuPreview', label: '👀 预览状态栏效果', hl: true });
+            }
+          } else {
+            // 状态栏制作中：显示当前进度
+            actions.push({ action: 'continue_sb', label: '⏭️ 继续下一步 (' + sbProgress + '/6)', hl: true });
+          }
+          actions.push({ action: 'init_var', label: '📊 变量4条目（修改/完善）' });
+          actions.push({ action: 'var_update_rule', label: '⚙️ 变量更新规则/格式' });
+
+          // MVU Tab常驻动作
+          actions.push({ action: 'summary', label: '📊 MVU进度总览' });
           if (hasMVU) actions.push({ action: 'mvuPreview', label: '🎛️ 状态栏预览' });
+
+          // 提供跳转回角色卡Tab的入口（方便切换）
+          actions.push({ action: 'goto_card', label: '⚡ 去角色卡生成Tab →' });
         }
-        actions.push({ action: 'generate', label: '✨ 生成角色卡', hl: p >= 95 });
         var h = '';
         actions.forEach(function(a) {
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + a.label + '</button>';
@@ -4658,13 +5255,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (clearChatBtn) {
           clearChatBtn.addEventListener('click', function() {
             if (isGenerating) { showToast('⚠️ AI正在生成中，请稍后再清除', 'warning'); return; }
-            if (messages.length === 0) { showToast('对话已经是空的', 'info'); return; }
-            if (!confirm('确定清空所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除聊天对话历史')) return;
-            messages = [];
+            // ========== Tab 隔离：只清空当前Tab的聊天记录，另一Tab不受影响 ==========
+            var curMsgs = getCurrentMessages();
+            var tabName = currentTab === 'card' ? '角色卡生成' : 'MVU变量状态栏';
+            if (curMsgs.length === 0) { showToast(tabName + ' Tab 的对话已经是空的', 'info'); return; }
+            if (!confirm('确定清空「' + tabName + '」Tab 的所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除当前Tab的聊天对话历史\n✅ 另一个Tab的聊天记录不受影响')) return;
+            setCurrentMessages([]);
+            // MVU Tab 清空时也重置其状态栏模块状态
+            if (currentTab === 'mvu') {
+              mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+              mvuTabStatusBarCurrentStep = 0;
+              mvuTabStatusBarMode = false;
+              statusBarModules = mvuTabStatusBarModules;
+              statusBarCurrentStep = 0;
+              statusBarMode = false;
+            }
             var chatC = doc.getElementById('chatMessages');
             if (chatC) chatC.innerHTML = '';
             saveToStorage();
-            showToast('✅ 对话已清空（角色卡内容不受影响）', 'success');
+            showToast('✅ ' + tabName + ' Tab 的对话已清空（角色卡内容不受影响）', 'success');
           });
         }
         // 同步禁用态（生成中）
@@ -4673,16 +5282,82 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function handleQuickAction(action) {
         var input = doc.getElementById('chatInput');
+
+        // ========== Tab 跳转动作（跨Tab快速切换入口） ==========
+        if (action === 'goto_mvu') {
+          showToast('正在切换到「MVU变量状态栏」Tab...', 'info');
+          switchTab('mvu');
+          return;
+        }
+        if (action === 'goto_card') {
+          showToast('正在切换到「角色卡生成」Tab...', 'info');
+          switchTab('card');
+          return;
+        }
+
+        // ========== Tab 隔离：动作权限校验，跨Tab动作自动跳转 ==========
+        // 在角色卡Tab中点击了MVU专属动作 → 自动切到MVU Tab再执行
+        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb'];
+        if (currentTab === 'card' && mvuOnlyActions.indexOf(action) >= 0) {
+          showToast('「' + action + '」是MVU专属功能，正在切换到MVU变量状态栏Tab...', 'info');
+          switchTab('mvu');
+          // 切换后在MVU Tab执行同一个动作
+          setTimeout(function() { handleQuickAction(action); }, 300);
+          return;
+        }
+        // 在MVU Tab中点击了角色卡专属动作 → 自动切到角色卡Tab再执行
+        var cardOnlyActions = ['core_rules', 'axiom', 'soft_rules', 'entity_interact', 'scene_mechanics', 'narrative_bg', 'dynamic_adapt', 'opening', 'generate', 'qc', 'optimize', 'weight', 'group'];
+        if (currentTab === 'mvu' && cardOnlyActions.indexOf(action) >= 0) {
+          showToast('「' + action + '」是角色卡专属功能，正在切换到角色卡生成Tab...', 'info');
+          switchTab('card');
+          setTimeout(function() { handleQuickAction(action); }, 300);
+          return;
+        }
+
+        // MVU专属快捷动作（仅MVU Tab有效）
+        if (action === 'start_sb') {
+          // 进入状态栏制作模式，从Step 1开始或从第一个空缺开始
+          statusBarMode = true;
+          var firstEmpty = 0;
+          for (var sbi = 0; sbi < SB_STEP_ORDER.length; sbi++) {
+            if (!statusBarModules['step' + SB_STEP_ORDER[sbi]]) { firstEmpty = SB_STEP_ORDER[sbi]; break; }
+          }
+          statusBarCurrentStep = firstEmpty === 0 ? 1 : firstEmpty;
+          addAssistantMsg('🎛️ 已进入状态栏制作模式！\n' +
+            (firstEmpty === 0
+              ? '当前6个模块都已完成，可以说「预览状态栏」查看效果，或「修改配色/结构」等进行微调。'
+              : '下一步是 Step ' + firstEmpty + ': ' + sbStepName(firstEmpty) + '，请对我说"继续"或描述你的需求。'));
+          return;
+        }
+        if (action === 'continue_sb') {
+          statusBarMode = true;
+          var nextStep = 0;
+          for (var si = 0; si < SB_STEP_ORDER.length; si++) {
+            if (!statusBarModules['step' + SB_STEP_ORDER[si]]) { nextStep = SB_STEP_ORDER[si]; break; }
+          }
+          if (nextStep === 0) {
+            addAssistantMsg('✅ 状态栏6个模块（配色/骨架/样式/读取/渲染/入口）已全部完成！\n可以点「🎛️ 状态栏预览」查看最终效果，或说"修改配色"等进行微调。');
+          } else {
+            statusBarCurrentStep = nextStep;
+            if (input) { input.value = '继续'; handleSend(); }
+          }
+          return;
+        }
+
+        // 通用动作（两个Tab都可以用，但行为不同）
         if (action === 'qc') { showQualityCheck(); return; }
         if (action === 'optimize') { showOptimizeModal(); return; }
         if (action === 'weight') { showWeightVisual(); return; }
         if (action === 'group') { showGroupMgr(); return; }
         if (action === 'mvuPreview') { showMvuStatusBarPreview(); return; }
         if (action === 'generate') {
-          if (input) { input.value = '生成完整角色卡'; handleSend(); }
+          // generate 仅角色卡Tab有效（已在上面校验），但在这里再兜底
+          if (currentTab === 'card' && input) { input.value = '生成完整角色卡'; handleSend(); }
           return;
         }
-        var prompts = {
+
+        // Prompt字典：区分角色卡Tab和MVU Tab使用不同的默认提示
+        var cardPrompts = {
           next: '下一步我该做什么？请根据当前完成度和未达标项，给出2-3条具体可执行的建议，并说明每条建议会改善哪个体系。',
           summary: '帮我梳理一下当前已收集的信息和进度：1) 已完成的核心设定 2) 各体系完成情况 3) 还缺什么 4) 推荐的下一步。用简洁列表呈现。',
           opening: '请根据现有世界观设定生成一段500-800字的开场白（first_mes）。要求：场景描写→主角出场→冲突/悬念→结尾留钩。必须是完整文本，禁止占位符。',
@@ -4694,21 +5369,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。输出到```json代码块，使用<场景机制>前缀。',
           entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。输出到```json代码块，使用<实体交互>前缀，prevent_recursion=true。',
           narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。输出到```json代码块，使用<叙事背景>前缀，delay_until_recursion=true。',
-          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、状态栏、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。',
-          init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段。',
-          var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。'
+          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。（状态栏和变量系统请去MVU Tab制作）'
         };
-        if (prompts[action] && input) { input.value = prompts[action]; handleSend(); }
+        var mvuPrompts = {
+          next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏6个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
+          summary: '帮我梳理MVU系统的当前状态：1) [InitVar]初始变量 2) 变量列表 3) 变量更新规则 4) 变量输出格式 → 4条MVU条目完成情况；状态栏Step2-7共6个模块完成情况；缺失什么；推荐的下一步。',
+          init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段，只放这4条MVU变量条目，不要生成其他世界书条目。',
+          var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。输出到```json代码块的 entries 字段。'
+        };
+        // 选择当前Tab对应的Prompt字典
+        var prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
+        // summary/next在两个字典中都有；init_var/var_update_rule仅在MVU字典
+        if (prompts[action] && input) {
+          input.value = prompts[action];
+          handleSend();
+        } else if (!prompts[action] && currentTab === 'mvu') {
+          // 如果在MVU Tab点了角色卡Tab才有的动作（应该被上面的跳转拦住了，兜底防止意外）
+          showToast('⚠️ 该动作仅在「角色卡生成」Tab中可用', 'warning');
+        }
       }
 
       function addAssistantMsg(content) {
-        messages.push({ role: 'assistant', content: content });
+        // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
+        var curMsgs = getCurrentMessages();
+        curMsgs.push({ role: 'assistant', content: content });
         appendMsg('assistant', content);
+        // MVU Tab：每次消息后同步最新模块状态回 mvuTabStatusBarModules，防止丢失
+        if (currentTab === 'mvu') {
+          mvuTabStatusBarModules = statusBarModules;
+          mvuTabStatusBarCurrentStep = statusBarCurrentStep;
+          mvuTabStatusBarMode = statusBarMode;
+        }
         saveToStorage();
         renderModDash();
       }
       function addUserMsg(content) {
-        messages.push({ role: 'user', content: content });
+        // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
+        var curMsgs = getCurrentMessages();
+        curMsgs.push({ role: 'user', content: content });
         appendMsg('user', content);
         saveToStorage();
       }
@@ -4718,7 +5416,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           exportTime: new Date().toISOString(),
           toolVersion: 'Card_making_tool',
           cardData: cardData,
-          messages: messages,
+          currentTab: currentTab,
+          cardMessages: cardMessages,
+          mvuMessages: mvuMessages,
+          mvuTabStatusBarModules: mvuTabStatusBarModules,
+          mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep,
           statusBarModules: statusBarModules,
           progress: progress,
           moduleProgress: moduleProgress
@@ -5698,12 +6400,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         setEnabled(false);
         addTyping();
         try {
-          var prompt = buildPrompt(cardData, cardGenerated, messages);
+          // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
+          var curTabMessages = getCurrentMessages();
+          var prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
           var aiResponse = await callAI(prompt);
           aiResponse = cleanAIReply(aiResponse);
           removeTyping();
           var parsed = extractJSON(aiResponse);
           if (parsed) {
+            // ========== Tab 隔离：角色卡Tab下，严格过滤掉AI违规生成的MVU条目 ==========
+            if (currentTab === 'card') {
+              var filteredForCard = filterMvuEntriesFromParsed(parsed);
+              if (filteredForCard._mvuStrippedCount > 0) {
+                showToast('⚠️ 检测到AI违规生成了 ' + filteredForCard._mvuStrippedCount + ' 条MVU相关内容，已自动拦截。\nMVU变量系统请切换到「MVU变量状态栏」Tab进行制作。', 'warning', 6000);
+              }
+              if (filteredForCard._mvuRegexScriptStripped) {
+                showToast('⚠️ 检测到AI违规生成了MVU相关正则脚本，已自动拦截。', 'warning', 6000);
+              }
+              parsed = filteredForCard.parsed;
+            }
             var hasData = Object.keys(parsed).filter(function(k) { return k !== '_nochange'; }).length > 0;
             if (hasData) {
               // 传递 returnLog 选项以便获取精确的变更统计（新增/删除/更新数量）
@@ -5758,7 +6473,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           }
-          // ===== 状态栏模块处理（写卡器后台主动管理，像角色卡一样填入槽位） =====
+          // ===== 状态栏模块处理（写卡器后台主动管理，像角色卡一样填入槽位）==========
+          // ========== Tab 隔离：状态栏模块处理仅在 MVU Tab 中执行，角色卡Tab完全跳过 ==========
+          if (currentTab === 'mvu') {
           try {
             // SB_STEP_NAMES/SB_STEP_ORDER 已提升为模块级常量，sbStepName(n) 按号取名称
 
@@ -5804,9 +6521,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               renderPreview();
             }
 
-            // 检测用户是否要进入状态栏生成模式
-            var userText = (messages.length > 0 && messages[messages.length - 1].role === 'user')
-              ? messages[messages.length - 1].content : '';
+            // 检测用户是否要进入状态栏生成模式（仅MVU Tab生效）
+            var userText = (curTabMessages.length > 0 && curTabMessages[curTabMessages.length - 1].role === 'user')
+              ? curTabMessages[curTabMessages.length - 1].content : '';
             var sbKeywords = ['状态栏', 'statusbar', 'status_bar', '状态显示', 'MVU状态', 'mvu状态'];
             var isSBRequest = sbKeywords.some(function(k) { return userText.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
 
@@ -5893,9 +6610,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               }
             }
           } catch(e) { console.warn('statusbar process error:', e); }
+          } // End of: if (currentTab === 'mvu') - 状态栏处理仅在MVU Tab
 
-          // 检测AI发出的 <preview_statusbar> 命令，自动在聊天中渲染已收集的状态栏
-          if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
+          // 检测AI发出的 <preview_statusbar> 命令（仅MVU Tab生效）
+          if (currentTab === 'mvu' && aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
             var previewHtml = assembleStatusBarFromModules();
             if (previewHtml && previewHtml.length > 50) {
               addAssistantMsg('🎛️ 当前已收集的状态栏预览（6/6完整）：\n```html\n' + previewHtml + '\n```');
@@ -5971,12 +6689,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 1. 先显示完整内容到对话框（用户需要看到JSON和statusblock）
           try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
 
-          // 2. 再存储清理后的对话文本到历史
+          // 2. 再存储清理后的对话文本到历史（Tab隔离：存到当前Tab的专属数组）
           if (cleanContent && cleanContent.length > 5) {
-            messages.push({ role: 'assistant', content: cleanContent });
+            curTabMessages.push({ role: 'assistant', content: cleanContent });
           } else {
             // 清理后太短说明AI只输出了JSON没有自然对话，用简短摘要
-            messages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
+            curTabMessages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
           }
           saveToStorage();
           updateProgress();
@@ -5998,6 +6716,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // ===== 完整生成 =====
       async function doGenerate() {
         if (isGenerating) return;
+        // ========== Tab 隔离：角色卡一键生成仅在角色卡Tab可用，MVU Tab不能调用 ==========
+        if (currentTab !== 'card') {
+          showToast('⚠️ 「一键生成完整角色卡」仅在「角色卡生成」Tab中可用。\n当前在MVU变量状态栏Tab，请切换到角色卡生成Tab使用此功能。', 'warning', 5000);
+          return;
+        }
         isGenerating = true;
         setEnabled(false);
         addTyping();
@@ -6015,7 +6738,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             setEnabled(true);
             return;
           }
-          var genPrompt = SYS_PROMPT +
+          // 角色卡Tab：genPrompt也必须过滤MVU内容，并明确禁止生成MVU条目
+          var filteredSysForGenerate = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
+          var antiMvuBanGenerate = '\n\n⚠️【生成时MVU隔离禁令 · 绝对不允许违反】\n' +
+            '1. 绝对禁止生成4条MVU变量条目：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式\n' +
+            '2. 绝对禁止生成<状态栏>或任何状态栏相关的世界书条目\n' +
+            '3. 绝对禁止在regex_scripts中生成MVU/StatusPlaceHolderImpl/UpdateVariable相关正则脚本\n' +
+            '4. 4条MVU变量条目和状态栏由独立的MVU Tab负责，当前生成任务与MVU系统完全无关\n';
+          var genPrompt = filteredSysForGenerate + antiMvuBanGenerate +
             '\n\n=== 生成指令 ===\n' +
             '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
             '=== 必须达到的字段标准 ===\n' +
@@ -6029,7 +6759,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '- mes_example：1-2组对话示例（Few-shot）\n' +
             '- alternate_greetings：≥3个差异化备用开局\n' +
             '- extensions.depth_prompt：新手引导（depth=0）\n' +
-            '- extensions.regex_scripts：3-5条状态同步正则\n' +
+            '- extensions.regex_scripts：2-3条通用正则（如行动标签、关键词高亮、状态栏标签通用格式化），禁止MVU相关正则\n' +
             '- character_book.entries：≥12条，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条content≥250字\n' +
             '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
             '=== 已有内容（参考，不要丢失） ===\n' +
@@ -6037,15 +6767,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
             (cardData.tags && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
-            '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。';
+            '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
           var aiResponse = await callAI(genPrompt);
           removeTyping();
           var parsed = extractJSON(aiResponse);
           if (parsed) {
+            // 角色卡一键生成：同样走MVU内容过滤防御
+            var genFiltered = filterMvuEntriesFromParsed(parsed);
+            if (genFiltered._mvuStrippedCount > 0 || genFiltered._mvuRegexScriptStripped) {
+              showToast('⚠️ 一键生成的结果中检测到 ' + genFiltered._mvuStrippedCount + ' 项MVU违规内容，已自动过滤。', 'warning', 5000);
+            }
+            parsed = genFiltered.parsed;
             try {
               var genMergeOk = false;
               if (parsed.spec === 'chara_card_v3' && parsed.data) {
-                // v3 格式：解包 data 字段后走 mergePartial，保证模板默认值和 keys 保留逻辑生效
                 var rV3 = mergePartial(parsed.data, cardData, { returnLog: true });
                 genMergeOk = !!(typeof rV3 === 'object' ? rV3.modified : rV3);
               } else {
@@ -6058,24 +6793,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               updateModFocus();
               renderModDash();
               saveToStorage();
-              addAssistantMsg('🎉 角色卡生成成功！点击「💾 导出」查看完整JSON。');
+              addAssistantMsg('🎉 角色卡生成成功！点击「💾 导出」查看完整JSON。\n\nMVU变量系统和状态栏请切换到「MVU变量状态栏」Tab独立制作。');
             } catch(e) {
               addAssistantMsg('⚠️ 解析失败，请重试。\n\n错误：' + e.message);
             }
           } else {
-            // 兜底：JSON解析失败时，尝试从 ```html 代码块提取状态栏HTML
-            try {
-              var sbSaved = tryExtractStatusBarHtml(aiResponse);
-              if (sbSaved) {
-                showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
-                renderPreview();
-                addAssistantMsg('✅ 已从AI回答中提取状态栏HTML并保存。点击「🔍 预览状态栏」查看效果。');
-              } else {
-                addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
-              }
-            } catch(e) {
-              addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
-            }
+            addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
           }
         } catch(err) {
           removeTyping();
