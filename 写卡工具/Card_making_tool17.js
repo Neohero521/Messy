@@ -408,7 +408,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
   var MVU_STATUS_BAR_HTML = '<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n\n.nested-group { padding-left: 10px; border-left: 2px dashed rgba(148,163,184,0.2); margin-left: 4px; margin-bottom: 4px; }\n.progress-bar { width: 100%; height: 4px; background: rgba(148,163,184,0.15); border-radius: 2px; margin-top: 3px; overflow: hidden; }\n.progress-bar-fill { height: 100%; background: var(--accent-blue); border-radius: 2px; transition: width 0.3s ease; }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\n/* StageDog 标准：消息级变量 + 2秒轮询 + 异步等待就绪 + jQuery(async ready) */\n$(async function() {\n    try {\n        /* 1. 等 MVU 框架挂载 */\n        await waitGlobalInitialized(\'Mvu\');\n\n        /* 2. 读变量：StageDog标准用 getVariables({type:"message"})，fallback 到 getAllVariables() */\n        function _getVars() {\n            try {\n                if (typeof getVariables === \'function\') {\n                    var r = getVariables({ type: \'message\', message_id: \'latest\' });\n                    if (r && typeof r === \'object\') return r;\n                }\n            } catch(e) {}\n            try { return getAllVariables() || {}; } catch(e) { return {}; }\n        }\n\n        /* 3. StageDog waitUntil 模式：等 stat_data 就绪再首次渲染（最多等15秒） */\n        var _waitCount = 0;\n        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) {\n            await new Promise(function(r) { setTimeout(r, 1000); });\n            _waitCount++;\n        }\n\n        function refreshStatus() {\n            var sourceData = _.get(_getVars(), \'stat_data\', {});\n            var htmlStr = \'\';\n\n            function _esc(s) { return String(s == null ? \'\' : s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\').replace(/\'/g, \'&#39;\'); }\n            function renderTree(obj, level) {\n                level = level || 0;\n                var indentClass = \'indent-\' + Math.min(level, 4);\n                var itemsHtml = \'\';\n                var keys = Object.keys(obj || {});\n                for (var k = 0; k < keys.length; k++) {\n                    var key = keys[k];\n                    var value = obj[key];\n                    if (key.indexOf(\'_\') === 0) continue;\n                    if (key.indexOf(\'$\') === 0 && !(/(阶段|状态|等级|名称|称号|时间|日期)$/.test(key))) continue;\n                    var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                        && Object.prototype.toString.call(value) === \'[object Object]\';\n                    if (isPlainObj) {\n                        if (itemsHtml) {\n                            htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                            itemsHtml = \'\';\n                        }\n                        if (level > 0) {\n                            htmlStr += \'<div class="nested-group \' + indentClass + \'"><div class="category-title">\' + _esc(key) + \'</div>\';\n                        } else {\n                            htmlStr += \'<div class="category-title">\' + _esc(key) + \'</div>\';\n                        }\n                        renderTree(value, level + 1);\n                        if (level > 0) htmlStr += \'</div>\';\n                        continue;\n                    }\n                    itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + _esc(key) + \'</span><span class="stat-value">\';\n                    if (typeof value === \'number\') {\n                        itemsHtml += \'<span class="value-number">\' + _esc(value) + \'</span>\';\n                        if (value >= 0 && value <= 100) {\n                            itemsHtml += \'<div class="progress-bar"><div class="progress-bar-fill" style="width:\' + value + \'%"></div></div>\';\n                        }\n                    } else if (typeof value === \'boolean\') {\n                        itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                    } else if (Array.isArray(value)) {\n                        itemsHtml += \'<span class="value-text">[\' + value.map(function(el) { return _esc(el); }).join(\', \') + \']</span>\';\n                    } else {\n                        itemsHtml += \'<span class="value-text">\' + _esc(value) + \'</span>\';\n                    }\n                    itemsHtml += \'</span></div>\';\n                }\n                if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n            }\n\n            renderTree(sourceData, 0);\n\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) {\n                root.innerHTML = htmlStr;\n                try { root.classList.add(\'flash-update\'); } catch(e) {}\n                setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300);\n            }\n        }\n\n        /* 4. 首次渲染 + StageDog标准：2秒轮询同步（主机制，defineMvuDataStore同样策略） */\n        refreshStatus();\n        var _sbTimer = setInterval(refreshStatus, 2000);\n        /* 改进L：页面不可见时暂停轮询，卸载时清理 */\n        document.addEventListener("visibilitychange", function() { if (document.hidden) { clearInterval(_sbTimer); _sbTimer = null; } else if (!_sbTimer) { _sbTimer = setInterval(refreshStatus, 2000); } });\n        window.addEventListener("pagehide", function() { if (_sbTimer) { clearInterval(_sbTimer); _sbTimer = null; } });\n\n        /* 5. 事件绑定：仅作加分兜底，StageDog标准UI不依赖这些事件 */\n        try {\n            if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n            }\n        } catch(e) {}\n    } catch(err) {\n        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n        try {\n            var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n            if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">状态栏初始化失败：\' + _esc(err && err.message ? err.message : String(err)) + \'</div>\';\n        } catch(e) {}\n    }\n});\n</script>\n\n</body>';
 
-  var ENTRY_TEMPLATES = {
+  const ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '核心铁则': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '世界元数据': { constant: true, selective: false, position: 0, depth: 0, order: 240, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -446,7 +446,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   // ===== 权重等级映射（用于权重可视化预览） =====
   // 权重从低到高：极低/低/中低/中/中高/高/极高/最高
   // 注意：核心铁则通过post_history_instructions字段实现（最高权重），不在世界书条目中
-  var WEIGHT_LEVELS = {
+  const WEIGHT_LEVELS = {
     '基础公理': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻，世界元数据锚定' },
     '世界元数据': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻，底层背景' },
     '交互软规则': { level: '低', color: '#8c8472', desc: 'position=1 常驻，角色卡之后注入' },
@@ -596,7 +596,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return '触发体系';
   }
 
-  var MODULE_SYSTEM = {
+  const MODULE_SYSTEM = {
     permanent: [
       { key: 'axiom', name: '基础公理', icon: '🏛️', weight: 35, position: 0, order: 250 },
       { key: 'soft_rules', name: '交互软规则', icon: '🤝', weight: 30, position: 1, order: 150 },
@@ -618,7 +618,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   };
 
   // ===== 系统提示词（ST权重分层8体系 + MVU变量系统） =====
-  var SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
+  const SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
     '=== ⚠️ 【绝对禁止】最高优先级规则 ===\n' +
     '1. 严禁输出任何内部思考过程，包括但不限于：<thinking>标签、<think>标签、[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]、[角色认知迷雾]、[角色活性与自然回应]、[风格适配]、[反思 & 设定校对]、[物理规则]、[正文字数检测]、[输出顺序检查]、<!-- End of The ECoT -->等\n' +
     '2. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
@@ -3000,8 +3000,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   var statusBarCurrentStep = 0;  // 0=未在状态栏模式, 1-6=对应Step, 7/8=全部完成
   var statusBarMode = false;     // 是否在状态栏生成模式
   // Step显示名称（UI展示用，统一常量避免多处重复定义）
-  var SB_STEP_DISPLAY_NAMES = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: 'refreshStatus+renderTree', step6: '事件绑定+入口' };
-  var SB_STEP_ORDER = [2, 3, 4, 5, 6];
+  const SB_STEP_DISPLAY_NAMES = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: 'refreshStatus+renderTree', step6: '事件绑定+入口' };
+  const SB_STEP_ORDER = [2, 3, 4, 5, 6];
   // 按Step号(2-6)获取显示名称
   function sbStepName(stepNum) { return SB_STEP_DISPLAY_NAMES['step' + stepNum]; }
 
@@ -4750,9 +4750,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
           case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
           automation_id: '',
-          group_override: false,
+          group_override: ext.group_override !== undefined ? !!ext.group_override : false, /* 改进S：尊重用户配置，不再硬编码false */
           group_weight: groupWeightVal,
-          delay_until_recursion: ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : defaultDUR,
+          delay_until_recursion: ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : defaultDUR, /* 改进T：保留原值（数字=延迟N轮），不再强制boolean */
           use_group_scoring: false,
           role: roleVal,
           vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
@@ -5643,7 +5643,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   group_weight: ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100),
                   prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : (tmpl ? tmpl.prevent_recursion : false),
                   exclude_recursion: ext.exclude_recursion !== undefined ? ext.exclude_recursion : (tmpl ? tmpl.exclude_recursion : false),
-                  delay_until_recursion: ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : (tmpl ? !!tmpl.delay_until_recursion : false),
+                  delay_until_recursion: ext.delay_until_recursion !== undefined ? ext.delay_until_recursion : (tmpl ? tmpl.delay_until_recursion : false), /* 改进T：保留原值 */
                   use_group_scoring: ext.use_group_scoring !== undefined ? ext.use_group_scoring : false,
                   vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
                   sticky: ext.sticky !== undefined && ext.sticky !== null ? ext.sticky : 0,
@@ -5762,17 +5762,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
           var state = {
             cardData: cardData,
-            // ========== Tab 隔离：chatSessions 对象是唯一真源（优先使用它） ==========
+            // ========== 改进R：chatSessions 对象是唯一真源，不再保存冗余副本字段（减少序列化开销） ==========
             activeTab: activeTab || 'card',
             chatSessions: chatSessions,
-            // 向后兼容：同步保存独立字段 + messages（旧版 / 上一版可读取）
+            // 向后兼容：仅保留 currentTab 别名（旧版 loadFromStorage 读取）
             currentTab: activeTab || 'card',
-            cardMessages: chatSessions.card.messages || [],
-            mvuMessages: chatSessions.mvu.messages || [],
-            mvuTabStatusBarModules: chatSessions.mvu.modules || { step2: null, step3: null, step4: null, step5: null, step6: null },
-            mvuTabStatusBarCurrentStep: chatSessions.mvu.currentStep || 0,
-            mvuTabStatusBarMode: chatSessions.mvu.statusBarMode || false,
-            messages: (activeTab === 'card' ? chatSessions.card.messages : chatSessions.mvu.messages),
             cardGenerated: cardGenerated,
             progress: progress,
             moduleProgress: moduleProgress,
@@ -8406,6 +8400,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 数据源：从 [InitVar]初始变量 世界书条目解析YAML作为 stat_data
       // HTML源：优先用AI生成的正则6 replaceString，回退用 MVU_STATUS_BAR_HTML 默认模板
       function showMvuStatusBarPreview() {
+        /* 改进Q：重复打开去重——若已存在预览模态框，先移除旧实例，避免iframe叠加和定时器累积 */
+        var existingModal = doc.getElementById('mvuPreviewModal');
+        if (existingModal) { existingModal.remove(); }
         var entries = (cardData.character_book || {}).entries || [];
         /* 前置检查：必须存在MVU条目 */
         var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
@@ -9199,7 +9196,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       }
 
       // ===== 预览渲染 =====
+      /* 改进V：renderPreview防抖——合并连续渲染请求（如批量更新entries时），避免16+调用点全量重建卡顿 */
+      var _renderPreviewTimer = null;
       function renderPreview() {
+        if (_renderPreviewTimer) clearTimeout(_renderPreviewTimer);
+        _renderPreviewTimer = setTimeout(_renderPreviewImpl, 80);
+      }
+      function _renderPreviewImpl() {
+        _renderPreviewTimer = null;
         var body = doc.getElementById('previewBody');
         if (!body) return;
         updateProgress();
