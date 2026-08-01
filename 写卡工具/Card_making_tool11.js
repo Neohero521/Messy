@@ -2828,7 +2828,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
 
-    var tabMessages = getCurrentMessages();
+    var tabMessages = (typeof getCurrentMessages === 'function')
+      ? getCurrentMessages()
+      : (typeof window !== 'undefined' && window.__getCurrentMessages)
+        ? window.__getCurrentMessages()
+        : (messages || []);
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
@@ -3081,7 +3085,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '📜 对话历史（MVU Tab专属，与角色卡Tab完全隔离）\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
-    var tabMessages = getCurrentMessages();
+    var tabMessages = (typeof getCurrentMessages === 'function')
+      ? getCurrentMessages()
+      : (typeof window !== 'undefined' && window.__getCurrentMessages)
+        ? window.__getCurrentMessages()
+        : (messages || []);
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
@@ -4676,6 +4684,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           chatSessions.mvu.messages = arr;
           mvuMessages = arr;
         }
+      }
+      // ★ 暴露到 window：让顶层作用域的 buildPrompt / callAIChat 等函数也能访问
+      if (typeof window !== 'undefined') {
+        window.__getCurrentMessages = getCurrentMessages;
+        window.__setCurrentMessages = setCurrentMessages;
+        window.__getChatSessions = function() { return chatSessions; };
+        window.__setChatSessionsCardMessages = function(arr) { chatSessions.card.messages = arr; cardMessages = arr; };
+        window.__setChatSessionsMvuMessages = function(arr) { chatSessions.mvu.messages = arr; mvuMessages = arr; };
       }
       // 所有地方使用 messages 变量时，改为访问当前Tab的数组
       Object.defineProperty(typeof window !== 'undefined' ? window : {}, '_dummy', {value:0});
