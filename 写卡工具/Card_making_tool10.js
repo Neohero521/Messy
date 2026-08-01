@@ -1996,6 +1996,165 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     var modified = false;
     var changeLog = { added: 0, updated: 0, deleted: 0, fieldUpdates: 0 };
 
+    // ======================================================================
+    // ========== Tab 隔离：mergePartial 入口处的双向硬拦截 ==========
+    // ======================================================================
+    // 这是实际写入 cardData 前的最后一道统一防线
+    // 1. 角色卡Tab：拦截所有 MVU/变量/状态栏 相关的写入（comment/content/字段都拦截）
+    // 2. MVU Tab：只允许修改白名单字段，禁止改动角色卡主体
+    // ======================================================================
+    // 注意：这里需要从全局作用域拿到 activeTab/chatSessions
+    var _activeTab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
+    if (typeof window !== 'undefined') {
+      // 优先从window/外层作用域找更精确的变量
+      if (window.__tab_activeTab) _activeTab = window.__tab_activeTab;
+    }
+    var _tabCtx = null;
+    try {
+      if (typeof _getActiveTab === 'function') { _activeTab = _getActiveTab(); }
+      else if (typeof getActiveTab === 'function') { _activeTab = getActiveTab(); }
+    } catch(e) {}
+
+    // ====== MVU关键词库（升级版）：comment 或 content 命中任一即视为MVU内容，角色卡Tab直接丢弃 ======
+    var MVU_KEYWORDS_RE = /(MVU|StatusPlaceHolder|StatusPlaceHolderImpl|UpdateVariable|initvar|\[InitVar\]|format_message_variable|mvu_update|\[mvu_update\]|<updatevariable>|<状态栏>|状态栏|变量系统|变量列表|变量更新规则|变量输出格式|状态变量输出|stat_data|waitGlobalInitialized|eventOn\s*\(\s*['"]variable|变量更新函数|动态状态栏|变量渲染函数)/i;
+    var MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU)/i;
+
+    if (_activeTab === 'card') {
+      // ===================== 角色卡Tab：硬拦截所有MVU写入 =====================
+      // 拦截 entries / character_book.entries
+      var mvuBlockedCounts = { entries: 0, fields: 0, regex_scripts: 0 };
+      ['entries', 'character_book'].forEach(function(blockKey) {
+        if (blockKey === 'entries' && partial.entries && Array.isArray(partial.entries)) {
+          var before = partial.entries.length;
+          partial.entries = partial.entries.filter(function(e) {
+            if (!e) return false;
+            var cmt = String(e.comment || '').toLowerCase();
+            var cnt = String(e.content || '').toLowerCase();
+            var isMvu = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '') || MVU_CONTENT_KEYWORDS_RE.test(e.comment || '') || MVU_CONTENT_KEYWORDS_RE.test(e.content || '');
+            if (isMvu) { console.warn('[Tab隔离·角色卡Tab] 拦截MVU条目: comment=', e.comment); }
+            return !isMvu;
+          });
+          mvuBlockedCounts.entries += (before - partial.entries.length);
+        }
+        if (blockKey === 'character_book' && partial.character_book && partial.character_book.entries && Array.isArray(partial.character_book.entries)) {
+          var beforeC = partial.character_book.entries.length;
+          partial.character_book.entries = partial.character_book.entries.filter(function(e) {
+            if (!e) return false;
+            var isMvu = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '') || MVU_CONTENT_KEYWORDS_RE.test(e.comment || '') || MVU_CONTENT_KEYWORDS_RE.test(e.content || '');
+            if (isMvu) { console.warn('[Tab隔离·角色卡Tab] 拦截character_book MVU条目: comment=', e.comment); }
+            return !isMvu;
+          });
+          mvuBlockedCounts.entries += (beforeC - partial.character_book.entries.length);
+        }
+      });
+      // 拦截 regex_scripts：角色卡Tab绝对不能写 regex_scripts（MVU专属）
+      if (partial.extensions && partial.extensions.regex_scripts) {
+        mvuBlockedCounts.regex_scripts += (Array.isArray(partial.extensions.regex_scripts) ? partial.extensions.regex_scripts.length : 1);
+        console.warn('[Tab隔离·角色卡Tab] 拦截 regex_scripts 写入（MVU Tab专属）：已丢弃', mvuBlockedCounts.regex_scripts, '条正则脚本');
+        delete partial.extensions.regex_scripts;
+      }
+      if (partial.regex_scripts) {
+        mvuBlockedCounts.regex_scripts += (Array.isArray(partial.regex_scripts) ? partial.regex_scripts.length : 1);
+        console.warn('[Tab隔离·角色卡Tab] 拦截顶层 regex_scripts 写入（MVU Tab专属）');
+        delete partial.regex_scripts;
+      }
+      // 拦截顶层 MVU 敏感字段写入（如果AI写了的话）
+      ['status_bar', 'statusbar', 'mvu_variables', 'mvu_config', 'variable_list', 'var_list', 'update_rules', 'output_format'].forEach(function(badKey) {
+        if (partial[badKey] !== undefined) {
+          console.warn('[Tab隔离·角色卡Tab] 拦截MVU敏感字段写入：', badKey);
+          delete partial[badKey];
+          mvuBlockedCounts.fields++;
+        }
+      });
+      if (mvuBlockedCounts.entries > 0 || mvuBlockedCounts.fields > 0 || mvuBlockedCounts.regex_scripts > 0) {
+        changeLog._mvuBlockedOnCardTab = mvuBlockedCounts;
+        if (typeof showToast === 'function') {
+          var _msgParts = [];
+          if (mvuBlockedCounts.entries > 0) _msgParts.push('拦截MVU世界书条目 ' + mvuBlockedCounts.entries + ' 条');
+          if (mvuBlockedCounts.regex_scripts > 0) _msgParts.push('拦截正则脚本 ' + mvuBlockedCounts.regex_scripts + ' 条');
+          if (mvuBlockedCounts.fields > 0) _msgParts.push('拦截MVU字段写入 ' + mvuBlockedCounts.fields + ' 项');
+          if (_msgParts.length > 0) {
+            try { showToast('角色卡Tab已' + _msgParts.join('，') + '（请切换到MVU变量状态栏Tab进行操作）', 'warning'); } catch(e) {}
+          }
+        }
+      }
+    } else if (_activeTab === 'mvu') {
+      // ===================== MVU Tab：只允许修改白名单字段，禁止改动角色卡主体 =====================
+      // 白名单：只有4类允许
+      //   1. character_book.entries 中的4条核心MVU条目（由 MVU_KEYWORDS_RE 判定）
+      //   2. extensions.regex_scripts （状态栏正则）
+      //   3. extensions.tavern_helper.scripts （zod脚本）
+      //   4. extensions.tavern_helper.variables （变量定义，如果有的话）
+      var mvuWlBlocked = { fields: 0, entries: 0 };
+      // 过滤顶层字段（name/description/first_mes等一律禁改）
+      var MVU_ALLOWED_TOP_KEYS = ['entries', 'character_book', 'extensions', 'deleted_entries', 'delete', '_delete', 'deletes', 'remove', 'removes', '_nochange'];
+      Object.keys(partial).forEach(function(topKey) {
+        if (MVU_ALLOWED_TOP_KEYS.indexOf(topKey) < 0) {
+          console.warn('[Tab隔离·MVU Tab] 拦截非白名单顶层字段写入（角色卡主体禁改）：', topKey);
+          delete partial[topKey];
+          mvuWlBlocked.fields++;
+        }
+      });
+      // 过滤 entries/character_book.entries：只允许写入4条MVU条目，其他世界书条目一律丢弃
+      var filterMvuOnlyEntries = function(arr, srcName) {
+        if (!arr || !Array.isArray(arr)) return arr;
+        var before = arr.length;
+        arr = arr.filter(function(e) {
+          if (!e) return false;
+          // 允许：删除动作（_action:delete / delete:true 这类，必须精确删MVU条目）
+          if (e._action === 'delete' || e._action === 'remove' || e.delete === true) {
+            return MVU_KEYWORDS_RE.test(e.comment || '');  // 只允许删MVU条目
+          }
+          var isMvuEntry = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '');
+          if (!isMvuEntry) {
+            console.warn('[Tab隔离·MVU Tab] 拦截非MVU世界书条目（角色卡Tab专属）：', e.comment, '→请切换到角色卡Tab修改普通世界书条目');
+          }
+          return isMvuEntry;
+        });
+        mvuWlBlocked.entries += (before - arr.length);
+        return arr;
+      };
+      if (partial.entries && Array.isArray(partial.entries)) partial.entries = filterMvuOnlyEntries(partial.entries, 'entries');
+      if (partial.character_book && partial.character_book.entries && Array.isArray(partial.character_book.entries)) {
+        partial.character_book.entries = filterMvuOnlyEntries(partial.character_book.entries, 'character_book.entries');
+      }
+      // 过滤 extensions：只允许 regex_scripts / tavern_helper.scripts / tavern_helper.variables
+      if (partial.extensions && typeof partial.extensions === 'object') {
+        var extWhiteList = ['regex_scripts', 'tavern_helper', 'depth_prompt'];
+        Object.keys(partial.extensions).forEach(function(extKey) {
+          if (extWhiteList.indexOf(extKey) < 0) {
+            console.warn('[Tab隔离·MVU Tab] 拦截非白名单 extensions 字段：', extKey);
+            delete partial.extensions[extKey];
+            mvuWlBlocked.fields++;
+          }
+        });
+        // tavern_helper 再细过滤：只允许 scripts / variables
+        if (partial.extensions.tavern_helper && typeof partial.extensions.tavern_helper === 'object') {
+          Object.keys(partial.extensions.tavern_helper).forEach(function(thKey) {
+            if (['scripts', 'variables'].indexOf(thKey) < 0) {
+              console.warn('[Tab隔离·MVU Tab] 拦截非白名单 tavern_helper 字段：', thKey);
+              delete partial.extensions.tavern_helper[thKey];
+              mvuWlBlocked.fields++;
+            }
+          });
+        }
+      }
+      if (mvuWlBlocked.fields > 0 || mvuWlBlocked.entries > 0) {
+        changeLog._mvuWlBlockedOnMvuTab = mvuWlBlocked;
+        if (typeof showToast === 'function') {
+          var _wlParts = [];
+          if (mvuWlBlocked.entries > 0) _wlParts.push('拦截非MVU世界书条目 ' + mvuWlBlocked.entries + ' 条');
+          if (mvuWlBlocked.fields > 0) _wlParts.push('拦截非白名单字段写入 ' + mvuWlBlocked.fields + ' 项');
+          if (_wlParts.length > 0) {
+            try { showToast('MVU Tab已' + _wlParts.join('，') + '（角色卡主体字段/普通世界书条目请切换到角色卡Tab）', 'warning'); } catch(e) {}
+          }
+        }
+      }
+    }
+    // ======================================================================
+    // ========== 硬拦截结束 =================================================
+    // ======================================================================
+
     if (partial.character && !partial.spec) {
       var ch = partial.character;
       delete partial.character;
@@ -2523,7 +2682,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
     // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
-    if (currentTab === 'mvu') {
+    // 优先用 window.__tab_activeTab（mergePartial 也通过它获取一致），再退化到 currentTab/activeTab
+    var __tab = 'card';
+    if (typeof window !== 'undefined' && window.__tab_activeTab) __tab = window.__tab_activeTab;
+    else if (typeof activeTab !== 'undefined') __tab = activeTab;
+    else if (typeof currentTab !== 'undefined') __tab = currentTab;
+    if (__tab === 'mvu') {
       // ===== MVU变量状态栏 Tab：只发角色卡内容 + MVU专属指令，完全不发角色卡生成逻辑 =====
       return buildMvuTabPrompt(cardData, messages);
     }
@@ -4467,17 +4631,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       };
 
       // ========== Tab 隔离系统：角色卡 Tab 与 MVU状态栏 Tab 完全独立 ==========
-      var currentTab = 'card';  // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
-      var cardMessages = [];    // 角色卡 Tab 的独立聊天记录
-      var mvuMessages = [];     // MVU状态栏 Tab 的独立聊天记录
-      // MVU Tab 专属状态栏模块状态（完全独立，不影响角色卡Tab）
-      var mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
-      var mvuTabStatusBarCurrentStep = 0;  // 0=未开始, 1-8=对应Step
-      var mvuTabStatusBarMode = false;     // MVU Tab 是否处于状态栏生成模式
+      // 参考用户建议的 chatSessions 结构化封装，两边会话状态完全隔离
+      var activeTab = 'card';  // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
+      // 暴露到 window：让 mergePartial（全局作用域函数）也能正确取到当前Tab
+      if (typeof window !== 'undefined') {
+        window.__tab_activeTab = activeTab;
+        window.__getActiveTab = function() { return window.__tab_activeTab; };
+      }
+      // 向后兼容别名：activeTab === currentTab，两边代码都能跑
+      var currentTab = activeTab;
+      var chatSessions = {
+        card: {
+          messages: [],          // 角色卡Tab独立聊天历史
+          mode: 'normal'         // 角色卡Tab专属模式：永远是 normal，永远不进入状态栏生成模式
+        },
+        mvu: {
+          messages: [],          // MVU Tab独立聊天历史
+          currentStep: 0,        // MVU状态栏生成当前步骤：0=未开始，1-8=对应Step
+          modules: { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },  // 每步生成的代码模块
+          statusBarMode: false   // MVU Tab 是否处于状态栏生成模式
+        }
+      };
+      // 兼容旧代码的独立变量别名：实际以 chatSessions 为准，切换Tab时同步
+      var cardMessages = chatSessions.card.messages;
+      var mvuMessages = chatSessions.mvu.messages;
+      var mvuTabStatusBarModules = chatSessions.mvu.modules;
+      var mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+      var mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
 
-      // 当前Tab的messages访问器（根据currentTab返回对应数组）
-      function getCurrentMessages() { return currentTab === 'card' ? cardMessages : mvuMessages; }
-      function setCurrentMessages(arr) { if (currentTab === 'card') cardMessages = arr; else mvuMessages = arr; }
+      // 当前Tab的messages访问器（根据activeTab返回对应数组）
+      function getCurrentMessages() {
+        return activeTab === 'card' ? chatSessions.card.messages : chatSessions.mvu.messages;
+      }
+      function setCurrentMessages(arr) {
+        if (activeTab === 'card') {
+          chatSessions.card.messages = arr;
+          cardMessages = arr;
+        } else {
+          chatSessions.mvu.messages = arr;
+          mvuMessages = arr;
+        }
+      }
       // 所有地方使用 messages 变量时，改为访问当前Tab的数组
       Object.defineProperty(typeof window !== 'undefined' ? window : {}, '_dummy', {value:0});
       // 为了兼容现有代码，我们通过消息函数来路由，不直接覆盖messages引用
@@ -4489,15 +4683,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       // ===== Tab 切换函数：保存当前Tab状态 + 切换并恢复另一Tab状态 =====
       function switchTab(targetTab) {
-        if (targetTab === currentTab || isGenerating) return;
-        // 先切到新Tab
-        currentTab = targetTab;
+        if (targetTab === activeTab || isGenerating) return;
+        // ===== 1. 先保存正要离开的Tab状态到 chatSessions（确保不会丢失当前Tab的最新状态栏进度） =====
+        if (activeTab === 'mvu') {
+          // 从模块级变量同步回 chatSessions.mvu（这是唯一真源）
+          chatSessions.mvu.modules = statusBarModules;
+          chatSessions.mvu.currentStep = statusBarCurrentStep;
+          chatSessions.mvu.statusBarMode = statusBarMode;
+          // 同步别名变量，保持引用一致
+          mvuTabStatusBarModules = chatSessions.mvu.modules;
+          mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+          mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
+        }
+        // ===== 2. 正式切到新Tab =====
+        activeTab = targetTab;
+        currentTab = activeTab;  // 向后兼容
+        // 同步到 window：让 mergePartial 也能取到最新Tab
+        if (typeof window !== 'undefined') {
+          window.__tab_activeTab = activeTab;
+        }
         // 更新Tab按钮激活态
         var tabBtns = doc.querySelectorAll('.tab-btn');
         for (var ti = 0; ti < tabBtns.length; ti++) {
           tabBtns[ti].classList.toggle('active', tabBtns[ti].getAttribute('data-tab') === targetTab);
         }
-        // 更新 mod-focus 显示筛选
+        // 更新 mod-focus / mod-dash 显示筛选
         var modFocus = doc.getElementById('modFocus');
         if (modFocus) {
           modFocus.classList.remove('card-only', 'mvu-only');
@@ -4517,16 +4727,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             appendMsg(msgs[mi].role, msgs[mi].content);
           }
         }
-        // 同步状态栏状态到模块级变量（buildPrompt/statusBar处理依赖的是模块级变量）
+        // ===== 3. 恢复新Tab的状态栏状态（chatSessions → 模块级变量） =====
         if (targetTab === 'mvu') {
-          statusBarModules = mvuTabStatusBarModules;
-          statusBarCurrentStep = mvuTabStatusBarCurrentStep;
-          statusBarMode = mvuTabStatusBarMode;
+          statusBarModules = chatSessions.mvu.modules;
+          statusBarCurrentStep = chatSessions.mvu.currentStep;
+          statusBarMode = chatSessions.mvu.statusBarMode;
         } else {
           // 角色卡Tab：强制禁用状态栏生成模式，防止AI生成多余MVU条目
           statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
           statusBarCurrentStep = 0;
           statusBarMode = false;
+          chatSessions.card.mode = 'normal';  // 角色卡Tab永远是normal
         }
         // 刷新快捷动作和UI
         updateQuickActions();
@@ -4538,7 +4749,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (inputEl) {
           inputEl.placeholder = targetTab === 'card'
             ? '描述你想要的世界/角色设定，我来生成角色卡...'
-            : '描述你想要的MVU变量系统或状态栏，如\"做一个好感度+物品栏的状态栏\"...';
+            : '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
         }
         var titleH1 = doc.querySelector('.topbar h1');
         if (titleH1) {
@@ -4931,9 +5142,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         cardGenerated = !!(cardData.name && (cardData.description || (cardData.character_book.entries && cardData.character_book.entries.length > 0)));
         progress = calcProgress();
+        // ========== Tab 隔离：导入角色卡时重置两边聊天记录（回到全新起始状态） ==========
+        chatSessions.card.messages = [];
+        chatSessions.mvu.messages = [];
+        cardMessages = chatSessions.card.messages;
+        mvuMessages = chatSessions.mvu.messages;
+        // 同步到全局 messages 别名（向后兼容）
         messages = [];
+        // 重置MVU Tab状态栏状态（导入新卡，原来的MVU配置不适用）
+        chatSessions.mvu.currentStep = 0;
+        chatSessions.mvu.modules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+        chatSessions.mvu.statusBarMode = false;
+        mvuTabStatusBarCurrentStep = 0;
+        mvuTabStatusBarModules = chatSessions.mvu.modules;
+        mvuTabStatusBarMode = false;
+        // 同步模块级状态栏变量（与当前激活的Tab匹配）
+        if (activeTab === 'mvu') {
+          statusBarModules = chatSessions.mvu.modules;
+          statusBarCurrentStep = 0;
+          statusBarMode = false;
+        } else {
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarCurrentStep = 0;
+          statusBarMode = false;
+        }
+        // 如果当前不在角色卡Tab，自动切回角色卡Tab（导入后默认从角色卡开始）
+        var needSwitchBack = (activeTab !== 'card');
 
         renderChatUI();
+        if (needSwitchBack) {
+          // 如果当前是MVU Tab，则重置回角色卡Tab（导入新角色，MVU需重新配置）
+          activeTab = 'card';
+          currentTab = 'card';
+          if (typeof window !== 'undefined') window.__tab_activeTab = 'card';
+          statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+          statusBarCurrentStep = 0;
+          statusBarMode = false;
+        }
+        // 恢复Tab激活态（renderChatUI 每次会重新生成Tab按钮）
+        var tabBtnsAfter = doc.querySelectorAll('.tab-btn');
+        for (var tbai = 0; tbai < tabBtnsAfter.length; tbai++) {
+          tabBtnsAfter[tbai].classList.toggle('active', tabBtnsAfter[tbai].getAttribute('data-tab') === activeTab);
+        }
+        var modFocusAfter = doc.getElementById('modFocus');
+        if (modFocusAfter) {
+          modFocusAfter.classList.remove('card-only', 'mvu-only');
+          modFocusAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
+        }
+        var modDashAfter = doc.getElementById('modDash');
+        if (modDashAfter) {
+          modDashAfter.classList.remove('card-only', 'mvu-only');
+          modDashAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
+        }
         var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
         var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
           '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
@@ -4942,6 +5202,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           '• 想添加世界书条目？说"添加一个XX的条目"\n' +
           '• 想优化内容？说"优化开场白"或"优化世界书条目"\n' +
           '• 想质检？点击「✅ 质检」按钮\n\n' +
+          '（MVU变量/状态栏请切换到「MVU变量状态栏」Tab重新制作）\n\n' +
           '请告诉我你想做什么！';
         addAssistantMsg(greeting);
         saveToStorage();
@@ -4952,24 +5213,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function saveToStorage() {
         try {
-          // 每次保存前同步 MVU Tab 的状态（如果当前在MVU Tab的话，最新状态已经在模块变量；无论当前在哪个Tab都保存两份）
-          if (currentTab === 'mvu') {
-            mvuTabStatusBarModules = statusBarModules;
-            mvuTabStatusBarCurrentStep = statusBarCurrentStep;
-            mvuTabStatusBarMode = statusBarMode;
+          // 每次保存前同步最新状态（chatSessions 是唯一真源，先从模块级变量回写）
+          if (activeTab === 'mvu') {
+            chatSessions.mvu.modules = statusBarModules;
+            chatSessions.mvu.currentStep = statusBarCurrentStep;
+            chatSessions.mvu.statusBarMode = statusBarMode;
           }
+          // 同步别名引用
+          cardMessages = chatSessions.card.messages;
+          mvuMessages = chatSessions.mvu.messages;
+          mvuTabStatusBarModules = chatSessions.mvu.modules;
+          mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+          mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
+
           var state = {
             cardData: cardData,
-            // ========== Tab 隔离：保存两份独立的聊天记录，不再保存单一 messages 数组 ==========
-            currentTab: currentTab || 'card',
-            cardMessages: cardMessages || [],
-            mvuMessages: mvuMessages || [],
-            // MVU Tab 专属状态栏模块状态（与角色卡Tab的完全隔离）
-            mvuTabStatusBarModules: mvuTabStatusBarModules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
-            mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep || 0,
-            mvuTabStatusBarMode: mvuTabStatusBarMode || false,
-            // 向后兼容：保留 messages 字段，但仅作为旧版数据迁移参考（实际加载时不再使用）
-            messages: currentTab === 'card' ? cardMessages : mvuMessages,
+            // ========== Tab 隔离：chatSessions 对象是唯一真源（优先使用它） ==========
+            activeTab: activeTab || 'card',
+            chatSessions: chatSessions,
+            // 向后兼容：同步保存独立字段 + messages（旧版 / 上一版可读取）
+            currentTab: activeTab || 'card',
+            cardMessages: chatSessions.card.messages || [],
+            mvuMessages: chatSessions.mvu.messages || [],
+            mvuTabStatusBarModules: chatSessions.mvu.modules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
+            mvuTabStatusBarCurrentStep: chatSessions.mvu.currentStep || 0,
+            mvuTabStatusBarMode: chatSessions.mvu.statusBarMode || false,
+            messages: (activeTab === 'card' ? chatSessions.card.messages : chatSessions.mvu.messages),
             cardGenerated: cardGenerated,
             progress: progress,
             moduleProgress: moduleProgress,
@@ -4998,64 +5267,77 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             if (!cardData.character_book.entries) cardData.character_book.entries = [];
             if (!cardData.extensions) cardData.extensions = {};
             if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+            if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = { scripts: [], variables: {} };
+            if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
             if (!cardData.tags) cardData.tags = [];
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
 
-            // ========== Tab 隔离：加载两份独立的聊天记录，处理旧版单一 messages 迁移 ==========
-            if (state.cardMessages && Array.isArray(state.cardMessages)) {
-              // 新版数据：两份独立消息
-              cardMessages = state.cardMessages;
-            } else if (state.messages && Array.isArray(state.messages)) {
-              // 旧版数据迁移：原来的 messages 全部视为角色卡Tab历史
-              cardMessages = state.messages.slice();
+            // ========== Tab 隔离：优先加载 chatSessions 对象，其次从独立字段重建 ==========
+            if (state.chatSessions && typeof state.chatSessions === 'object') {
+              // 最新版：从 chatSessions 对象还原
+              chatSessions.card = Object.assign(
+                { messages: [], mode: 'normal' },
+                state.chatSessions.card || {}
+              );
+              chatSessions.mvu = Object.assign(
+                { messages: [], currentStep: 0, modules: { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null }, statusBarMode: false },
+                state.chatSessions.mvu || {}
+              );
             } else {
-              cardMessages = [];
+              // 上一版/旧版：从独立字段或 messages 字段迁移
+              var migratedCardMsgs = [];
+              if (state.cardMessages && Array.isArray(state.cardMessages)) {
+                migratedCardMsgs = state.cardMessages;
+              } else if (state.messages && Array.isArray(state.messages)) {
+                // 最早的单会话版本：原来的 messages 全部迁移到角色卡Tab
+                migratedCardMsgs = state.messages.slice();
+              }
+              chatSessions.card = { messages: migratedCardMsgs, mode: 'normal' };
+              chatSessions.mvu = {
+                messages: (state.mvuMessages && Array.isArray(state.mvuMessages)) ? state.mvuMessages : [],
+                currentStep: state.mvuTabStatusBarCurrentStep || 0,
+                modules: state.mvuTabStatusBarModules || { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null },
+                statusBarMode: state.mvuTabStatusBarMode || false
+              };
             }
-            if (state.mvuMessages && Array.isArray(state.mvuMessages)) {
-              mvuMessages = state.mvuMessages;
-            } else {
-              mvuMessages = [];  // 旧版没有MVU Tab独立消息，初始为空
-            }
-            // 当前Tab：从保存值恢复，默认回到角色卡Tab
-            currentTab = state.currentTab || 'card';
-            // 当前Tab的 messages 兼容：虽然我们不再使用全局 messages 变量，但为了向后兼容
-            messages = (currentTab === 'card') ? cardMessages.slice() : mvuMessages.slice();
+            // 同步别名引用（保持向后兼容）
+            cardMessages = chatSessions.card.messages;
+            mvuMessages = chatSessions.mvu.messages;
+            mvuTabStatusBarModules = chatSessions.mvu.modules;
+            mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+            mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
 
-            // MVU Tab 专属状态栏状态：从保存值恢复，不存在则初始化
-            if (state.mvuTabStatusBarModules) {
-              mvuTabStatusBarModules = state.mvuTabStatusBarModules;
-            } else {
-              mvuTabStatusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
-            }
-            mvuTabStatusBarCurrentStep = state.mvuTabStatusBarCurrentStep || 0;
-            mvuTabStatusBarMode = state.mvuTabStatusBarMode || false;
+            // 当前Tab：优先 activeTab，其次 currentTab，默认回到角色卡Tab
+            activeTab = state.activeTab || state.currentTab || 'card';
+            currentTab = activeTab;  // 兼容别名
+            // 当前Tab的 messages 兼容：虽然我们不再使用全局 messages 变量，但为了向后兼容
+            messages = (activeTab === 'card') ? chatSessions.card.messages.slice() : chatSessions.mvu.messages.slice();
 
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
             moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
 
             // 状态栏：根据恢复的当前Tab决定加载哪一份
-            if (currentTab === 'mvu') {
-              // 当前在MVU Tab：加载 MVU Tab 专属状态栏状态
-              statusBarModules = mvuTabStatusBarModules;
-              statusBarMode = mvuTabStatusBarMode;
-              statusBarCurrentStep = mvuTabStatusBarCurrentStep;
+            if (activeTab === 'mvu') {
+              // 当前在MVU Tab：加载 MVU Tab 专属状态栏状态（来自 chatSessions.mvu）
+              statusBarModules = chatSessions.mvu.modules;
+              statusBarMode = chatSessions.mvu.statusBarMode;
+              statusBarCurrentStep = chatSessions.mvu.currentStep;
             } else {
-              // 当前在角色卡Tab：优先从 state.statusBarModules 加载（向后兼容）
-              // 但角色卡Tab理论上不应该启用状态栏生成模式，所以强制禁用 statusBarMode 除非它就是MVU的
-              if (state.statusBarModules) {
-                statusBarModules = state.statusBarModules;
-              } else {
+              // 当前在角色卡Tab：强制禁用状态栏生成模式（如果是新版数据有 chatSessions 对象的话）
+              if (state.chatSessions) {
                 statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
-              }
-              // 保存了 mvuTabStatusBarModules 说明是新版数据，角色卡Tab就不进入状态栏模式
-              if (state.mvuTabStatusBarModules) {
                 statusBarMode = false;
                 statusBarCurrentStep = 0;
-              } else {
-                // 旧版数据：直接沿用保存的值（可能进入状态栏模式，向后兼容）
+              } else if (state.statusBarModules) {
+                // 旧版数据：沿用 state.statusBarModules（向后兼容）
+                statusBarModules = state.statusBarModules;
                 statusBarMode = state.statusBarMode || false;
                 statusBarCurrentStep = state.statusBarCurrentStep || 0;
+              } else {
+                statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null, step7: null };
+                statusBarMode = false;
+                statusBarCurrentStep = 0;
               }
             }
             return true;
@@ -5081,7 +5363,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (loadFromStorage()) {
           renderChatUI();
           // ========== Tab 隔离：恢复对应Tab的历史消息到对话区 ==========
-          // 用 getCurrentMessages() 取当前Tab的专属消息数组（currentTab已在loadFromStorage中恢复）
+          // 用 getCurrentMessages() 取当前Tab的专属消息数组（activeTab已在loadFromStorage中恢复）
           var curMsgs = getCurrentMessages();
           var savedMessages = curMsgs.slice();
           setCurrentMessages([]);
@@ -5092,27 +5374,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             arr.push(m);
             appendMsg(m.role, m.content);
           });
+          // 恢复 mod-dash 的 card/mvu-only 样式
+          var modDash = doc.getElementById('modDash');
+          if (modDash) {
+            modDash.classList.remove('card-only', 'mvu-only');
+            modDash.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
+          }
           // 恢复Tab按钮激活态（renderChatUI 默认可能没有选中对应Tab）
           var tabBtns = doc.querySelectorAll('.tab-btn');
           for (var tbi = 0; tbi < tabBtns.length; tbi++) {
-            tabBtns[tbi].classList.toggle('active', tabBtns[tbi].getAttribute('data-tab') === currentTab);
+            tabBtns[tbi].classList.toggle('active', tabBtns[tbi].getAttribute('data-tab') === activeTab);
           }
           // 更新 mod-focus 显示筛选（Card/MVU-only）
           var modFocus = doc.getElementById('modFocus');
           if (modFocus) {
             modFocus.classList.remove('card-only', 'mvu-only');
-            modFocus.classList.add(currentTab === 'card' ? 'card-only' : 'mvu-only');
+            modFocus.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
           }
           // 更新输入框占位符和标题
           var inputEl = doc.getElementById('chatInput');
           if (inputEl) {
-            inputEl.placeholder = currentTab === 'card'
+            inputEl.placeholder = activeTab === 'card'
               ? '描述你想要的世界/角色设定，我来生成角色卡...'
               : '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
           }
           var titleH1 = doc.querySelector('.topbar h1');
           if (titleH1) {
-            titleH1.innerHTML = currentTab === 'card'
+            titleH1.innerHTML = activeTab === 'card'
               ? '⚡ 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:#8c8472">角色卡生成</span>'
               : '🎛️ MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:#8c8472">变量与状态栏</span>';
           }
@@ -5121,7 +5409,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           updateModFocus();
           renderPreview();
           renderModDash();
-          showToast('已恢复上次创作进度（当前：' + (currentTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab') + '）', 'success');
+          showToast('已恢复上次创作进度（当前：' + (activeTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab') + '）', 'success');
         } else {
           showToast('没有找到保存的数据', 'warning');
         }
