@@ -406,7 +406,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   //   8. 深色毛玻璃(backdrop-filter)+柔灰蓝配色护眼，hover高亮+刷新淡入动画
   //   9. <script type="module"> 支持顶层 async/await
   //  10. CSS变量改 :root 即可换主题（var(--accent-blue)等）
-  var MVU_STATUS_BAR_HTML = '```html\n<html>\n<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\nasync function init() {\n    await waitGlobalInitialized(\'Mvu\');\n\n    function refreshStatus() {\n        var allVars = getAllVariables();\n        var sourceData = _.get(allVars, "stat_data", {});\n        var htmlStr = \'\';\n\n        function renderTree(obj, level) {\n            level = level || 0;\n            var indentClass = \'indent-\' + Math.min(level, 4);\n            var itemsHtml = \'\';\n            var keys = Object.keys(obj || {});\n            for (var k = 0; k < keys.length; k++) {\n                var key = keys[k];\n                var value = obj[key];\n                if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                    && Object.prototype.toString.call(value) === \'[object Object]\';\n                if (isPlainObj) {\n                    if (itemsHtml) {\n                        htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                        itemsHtml = \'\';\n                    }\n                    if (level > 0) {\n                        htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                    }\n                    renderTree(value, level + 1);\n                    continue;\n                }\n                itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                if (typeof value === \'number\') {\n                    itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                } else if (typeof value === \'boolean\') {\n                    itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                } else if (Array.isArray(value)) {\n                    itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                } else {\n                    itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                }\n                itemsHtml += \'</span></div>\';\n            }\n            if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n        }\n\n        renderTree(sourceData, 0);\n\n        var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n        if (root) {\n            root.innerHTML = htmlStr;\n            try { root.classList.add(\'flash-update\'); } catch(_) {}\n            setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n        }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n        try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n        try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n}\n\n$(errorCatched(init));\n</script>\n\n</body>\n</html>\n```';;
+  var MVU_STATUS_BAR_HTML = '<html>\n<head>\n<style>\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\n:root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n}\n\n.mvu-status-card {\n    border: 1px solid var(--card-border);\n    border-radius: 8px;\n    background: var(--card-bg);\n    backdrop-filter: blur(6px);\n    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);\n    margin-bottom: 8px;\n    font-family: system-ui, -apple-system, sans-serif;\n    font-size: 12px;\n    color: var(--text-main);\n    overflow: hidden;\n}\n\n.card-body {\n    padding: 10px 12px;\n    line-height: 1.45;\n}\n\n.category-title {\n    font-size: 12px;\n    font-weight: 600;\n    color: var(--accent-blue);\n    margin: 10px 0 6px;\n    padding-bottom: 3px;\n    border-bottom: 1px solid var(--line-divider);\n}\n.category-title:first-child { margin-top: 0; }\n\n.stat-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\n    gap: 4px 16px;\n}\n\n.stat-item {\n    display: flex;\n    align-items: flex-start;\n    justify-content: space-between;\n    padding: 4px 6px;\n    border-radius: 4px;\n    gap: 8px;\n}\n.stat-item:hover { background: var(--hover-bg); }\n\n.indent-1 { padding-left: 8px; }\n.indent-2 { padding-left: 20px; }\n.indent-3 { padding-left: 32px; }\n.indent-4 { padding-left: 44px; }\n\n.stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n.stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n.value-number { color: var(--accent-blue); white-space: nowrap; }\n.value-true { color: var(--accent-green); white-space: nowrap; }\n.value-false { color: var(--accent-red); white-space: nowrap; }\n.value-text { color: var(--text-main); }\n\n.loading-state {\n    text-align: center;\n    padding: 16px 0;\n    color: var(--text-sub);\n    animation: breathe 2s ease-in-out infinite;\n}\n@keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n\n.flash-update { animation: fadeIn 0.3s ease-out; }\n@keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n</style>\n</head>\n<body>\n\n<div class="mvu-status-card">\n    <div class="card-body" id="render-root">\n        <div class="loading-state">正在加载状态数据...</div>\n    </div>\n</div>\n\n<script type="module">\nasync function init() {\n    await waitGlobalInitialized(\'Mvu\');\n\n    function refreshStatus() {\n        var allVars = getAllVariables();\n        var sourceData = _.get(allVars, "stat_data", {});\n        var htmlStr = \'\';\n\n        function renderTree(obj, level) {\n            level = level || 0;\n            var indentClass = \'indent-\' + Math.min(level, 4);\n            var itemsHtml = \'\';\n            var keys = Object.keys(obj || {});\n            for (var k = 0; k < keys.length; k++) {\n                var key = keys[k];\n                var value = obj[key];\n                if (key.indexOf(\'_\') === 0 || key.indexOf(\'$\') === 0) continue;\n                var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value)\n                    && Object.prototype.toString.call(value) === \'[object Object]\';\n                if (isPlainObj) {\n                    if (itemsHtml) {\n                        htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n                        itemsHtml = \'\';\n                    }\n                    if (level > 0) {\n                        htmlStr += \'<div class="category-title \' + indentClass + \'">\' + key + \'</div>\';\n                    }\n                    renderTree(value, level + 1);\n                    continue;\n                }\n                itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n                if (typeof value === \'number\') {\n                    itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n                } else if (typeof value === \'boolean\') {\n                    itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n                } else if (Array.isArray(value)) {\n                    itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n                } else {\n                    itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n                }\n                itemsHtml += \'</span></div>\';\n            }\n            if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';\n        }\n\n        renderTree(sourceData, 0);\n\n        var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;\n        if (root) {\n            root.innerHTML = htmlStr;\n            try { root.classList.add(\'flash-update\'); } catch(_) {}\n            setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(_) {} }, 300);\n        }\n    }\n\n    refreshStatus();\n    setTimeout(refreshStatus, 1000);\n    setTimeout(refreshStatus, 2500);\n    if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) {\n        try { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); } catch(_) {}\n        try { eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } catch(_) {}\n    }\n}\n\n$(errorCatched(init));\n</script>\n\n</body>\n</html>';
 
   var ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -733,7 +733,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
     '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
-    '- 五大核心组件（写卡器自动注入脚本和正则1-5，世界书条目和正则6需AI生成）：\n' +
+    '- 五大核心组件（写卡器自动注入脚本、正则1-5和<状态栏>占位符提醒条目，4条MVU变量条目和正则6需AI生成）：\n' +
     '  1. [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量的初始值\n' +
     '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
     '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
@@ -832,44 +832,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '     · 正则3：[美化]变量完成 - 美化已完成的<UpdateVariable>显示（仅格式显示，折叠样式）【写卡器自动注入】\n' +
     '     · 正则4：[美化]变量更新中 - 美化正在输出的<UpdateVariable>（仅格式显示，流式动画）【写卡器自动注入】\n' +
     '     · 正则5：[不发送]隐藏状态栏标记 - 从提示词移除<StatusPlaceHolderImpl/>占位符（AI不需要看到它）【写卡器自动注入】\n' +
+    '     · <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>占位符【写卡器自动注入】\n' +
     '     · 正则6：[美化]MVU状态栏 - 将<StatusPlaceHolderImpl/>替换为状态栏HTML（仅格式显示，渲染可视化状态栏）【⚠️AI必须根据用户需求生成！】\n' +
     '- 三版正则选择：promptOnly版只影响发送给AI的内容；markdownOnly版只影响显示；全局版（无promptOnly/markdownOnly）影响所有内容\n' +
     '- 开局变量初始化：\n' +
     '  1. [InitVar] 条目定义默认初始值（enabled=false，仅初始化时读取一次）\n' +
     '  2. 若需开局动态设置（根据玩家选择），在alternate_greetings中嵌入<UpdateVariable><initvar>YAML</initvar></UpdateVariable>覆盖\n' +
     '  3. 初始化后变量可在状态栏玩家直接修改（通过酒馆助手UI）\n' +
-    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
-    '- ⚠️【重中之重】正则6（美化状态栏）必须由AI根据用户需求生成！严格配置要求：\n' +
-    '  · findRegex: "/<StatusPlaceHolderImpl\\\\/>/g"\n' +
-    '  · replaceString: 必须是完整HTML结构，用 ```html 代码块包裹\n' +
-    '  · 完整HTML结构：<!doctype html> → <html> → <head><style>全局样式</style></head> → <body>页面DOM + <script type="module">渲染逻辑</script></body> → </html>\n' +
-    '  · 包裹格式: "```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...</style>\\n</head>\\n<body>\\n  ...DOM结构...\\n  <script type="module">...渲染逻辑...</script>\\n</body>\\n</html>\\n```"\n' +
-    '  · placement: [2]（AI输出）\n' +
-    '  · markdownOnly: true, promptOnly: false（仅格式显示，不影响发给AI的提示词）\n' +
-    '  · runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null\n' +
-    '  · ⚠️必须用以下稳定API读取变量（不要用Mvu.getVar，有时序失效问题）：\n' +
-    '    const allVars = getAllVariables();\n' +
-    '    const statData = _.get(allVars, "stat_data", {});\n' +
-    '  · ⚠️必须异步等待MVU就绪后再绑定事件，否则首屏空白：\n' +
-    '    async function init() {\n' +
-    '      await waitGlobalInitialized(\'Mvu\');\n' +
-    '      refreshMvuPanel();\n' +
-    '      eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshMvuPanel);\n' +
-    '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshMvuPanel);\n' +
-    '    }\n' +
-    '    $(errorCatched(init));  // 全局异常捕获，报错不卡死面板\n' +
-    '  · ⚠️必须用递归函数 renderVarTree 渲染任意深度嵌套对象（不要只渲染1层）：\n' +
-    '    for (const [key, val] of Object.entries(obj)) {\n' +
-    '      if (key.startsWith("_") || key.startsWith("$")) continue;  // 跳过隐藏变量\n' +
-    '      if (typeof val === "object" && val !== null) → 递归 renderVarTree(val)\n' +
-    '      else if (typeof val === "number") → 进度条+数值（严格typeof，不要把字符串当数字）\n' +
-    '      else → 布尔显示✅/❌，其他显示文本值\n' +
-    '    }\n' +
-    '  · 数值变量百分比：默认0-100范围；心跳速率用60-180并加❤️跳动图标；体温用35-42；其他特殊变量按真实范围\n' +
-    '  · 布尔变量：仅显示✅/❌图标（不要加"是/否"文字）\n' +
-    '  · <script> 必须用 type="module" 以支持顶层 async/await\n' +
-    '  · 配色用 CSS 变量（:root里定义--c-light/--c-main/--c-dark/--bg-soft/--text-gray），AI改主题只改:root即可\n' +
-    '  · 根据用户需求（如修仙境界、末世生存、校园好感度等）设计匹配主题的状态栏配色和布局\n' +
+    '- 状态栏占位符：<StatusPlaceHolderImpl/> 由写卡器导出时自动追加到开场白末尾；<状态栏>占位符提醒条目（constant=true）常驻提醒AI输出占位符；正则5从提示词移除占位符（自动注入）；正则6在显示时替换为状态栏HTML（监听MVU VARIABLE_UPDATE_ENDED事件动态填充stat_data）\n' +
+    '- ⚠️【Tab隔离】状态栏生成已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成状态栏正则。\n' +
+    '  · 状态栏正则6由MVU Tab的5步分模块流程生成（Step 2-6共5个槽位）\n' +
+    '  · 标准实现模式：refreshStatus()+renderTree() 递归渲染，document.getElementById("render-root")，<script type="module">\n' +
+    '  · 如用户要求生成状态栏，请提示切换到「MVU变量状态栏」Tab\n' +
     '- 更新铁则：AI不得修改 _ 开头的只读字段；使用 delta 操作进行数值增减；使用 replace 进行文本/对象替换；remove 删除物品；insert 添加新物品/条目\n' +
     '- 条目前缀：[InitVar]初始变量、变量列表、变量分段提示（EJS模板）、[mvu_update]变量更新规则、[mvu_update]变量输出格式、[mvu_update]变量输出格式强调\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
@@ -1262,31 +1236,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
     '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】：\n' +
     '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n</html>\\n```\"\n" +
+    "      replaceString=\"```html\\n<html>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n</html>\\n```\"\n" +
     '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0, minDepth=null, maxDepth=null\n' +
     '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
-    "      注意：HTML必须是完整结构（<!doctype html>+html+head(style)+body(script type=module)），用```html包裹\n" +
+    "      注意：HTML必须是完整结构（html+head(style)+body(script type=module)），用```html包裹（无<!doctype html>，参考卡标准）\n" +
     '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成"时可跳过询问）：\n' +
     '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
     '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
     '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的8步分模块流程；⚠️严格每次只生成一个模块，禁止一次生成多个模块，禁止一口气生成完整状态栏）\n' +
+    '        第4步：进入代码生成（⚠️使用下方的5步分模块流程；⚠️严格每次只生成一个模块，禁止一次生成多个模块，禁止一口气生成完整状态栏）\n' +
     '\n' +
     '      ╔══════════════════════════════════════════════════════════════╗\n' +
-    '      ║  ⚠️核心机制：写卡器后台管理 + 6个空槽位 + 逐个填入 + 拼接合并  ║\n' +
+    '      ║  ⚠️核心机制：写卡器后台管理 + 5个空槽位 + 逐个填入 + 拼接合并  ║\n' +
     '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
     '      ║  核心原理：像角色卡一样在后台写入，写卡器维护HTML模板框架     ║\n' +
-    '      ║  6个槽位（Step 2-7）一开始全是空的，AI生成哪个就填哪个       ║\n' +
+    '      ║  5个槽位（Step 2-6）一开始全是空的，AI生成哪个就填哪个       ║\n' +
     '      ║  ⚠️铁律：写卡器知道当前在生成哪个Step，AI只需输出代码块       ║\n' +
     '      ║  ⚠️铁律：不需要输出 /* === Step N === */ 标记，写卡器自动识别 ║\n' +
     '      ║  ⚠️铁律：一次回答只输出一个代码块（当前Step的代码）           ║\n' +
     '      ║  ⚠️铁律：禁止输出其他代码块（条目JSON/脚本/statusblock等）    ║\n' +
-    '      ║  ⚠️铁律：6个模块全部填满后才拼接保存，确保状态栏完整可用     ║\n' +
+    '      ║  ⚠️铁律：5个模块全部填满后才拼接保存，确保状态栏完整可用     ║\n' +
     '      ║  ⚠️铁律：修改模块时先清空对应槽位再重新填入                   ║\n' +
     '      ╚══════════════════════════════════════════════════════════════╝\n' +
     '\n' +
     '      【机制1：后台填入式收集（像角色卡一样在后台写入）】\n' +
-    '      写卡器后台维护一个HTML模板框架，有6个空槽位（Step 2-7）。\n' +
+    '      写卡器后台维护一个HTML模板框架，有5个空槽位（Step 2-6）。\n' +
     '      写卡器知道当前在生成哪个Step，会通过提示词告诉AI"当前Step: N - XXX"。\n' +
     '      AI只需输出当前Step的代码块（一个```代码块），写卡器自动提取并填入对应槽位。\n' +
     '      ⚠️不需要输出 `/* === Step N: 标题 === */` 标记——写卡器自己知道当前是哪个Step\n' +
@@ -1431,8 +1405,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '               - Step 3的class命名 vs Step 4的选择器 → 必须一一对应\n' +
     '               - Step 1的变量路径 vs Step 5的_.get路径 → 必须完全一致\n' +
     '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
-    '        ⚠️禁止在Step 8重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
-    '        ⚠️Step 8不输出任何代码块，仅做文字确认和自查报告\n' +
+    '        ⚠️禁止在Step 7重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
+    '        ⚠️Step 7不输出任何代码块，仅做文字确认和自查报告\n' +
     '\n' +
     '      【机制3：AI触发状态栏预览命令】\n' +
     '        当AI需要向用户展示当前已收集的状态栏效果时，在消息中输出 `<preview_statusbar>` 标记。\n' +
@@ -1456,8 +1430,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '          AI输出：<clear_statusbar>6</clear_statusbar> + Step 6的```javascript代码块\n' +
     '      ⚠️修改前必须与已有模块对照、相互印证，确保修改后的模块与其他模块兼容\n' +
     '      ⚠️修改时同样禁止输出多个代码块，回答中只能有当前修改的那一个Step的代码块\n' +
-    '      ⚠️禁止"因为改一处就重写全部8步"——这是失败模式，会浪费token且引入新bug\n' +
-    '      ⚠️修改后6个模块重新齐全时，写卡器自动拼接覆盖旧状态栏\n' +
+    '      ⚠️禁止"因为改一处就重写全部5步"——这是失败模式，会浪费token且引入新bug\n' +
+    '      ⚠️修改后5个模块重新齐全时，写卡器自动拼接覆盖旧状态栏\n' +
     '\n' +
     '      【机制5：弱模型友好设计 + 完整性保障】\n' +
     '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
@@ -1465,11 +1439,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
     '        · ⚠️每次只做一个Step，禁止一次做多个——弱模型上下文短，单模块输出质量更高\n' +
     '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
-    '        · Step 8由写卡器自动拼接，AI不需要重新输出代码，避免输出长度限制\n' +
+    '        · Step 7由写卡器自动拼接，AI不需要重新输出代码，避免输出长度限制\n' +
     '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
     '        · ⚠️每个Step生成前，AI需在文字中简述"我将对照Step X的XXX来确保一致"，然后再输出代码块\n' +
-    '        · ⚠️不管小型还是大型状态栏，都必须走完Step 2-7全部6个模块\n' +
-    '        · ⚠️6个模块全部齐全后写卡器自动拼接保存，确保最终状态栏结构完整、样式完整、逻辑完整\n' +
+    '        · ⚠️不管小型还是大型状态栏，都必须走完Step 2-6全部5个模块\n' +
+    '        · ⚠️5个模块全部齐全后写卡器自动拼接保存，确保最终状态栏结构完整、样式完整、逻辑完整\n' +
     '        · ⚠️大型状态栏的优势：每个Step可以写很多代码（上百行），不受单次输出限制，复杂度由Step内部承担\n' +
     '\n' +
     '      ⚠️通用关键实现要求（每个Step都适用）：\n' +
@@ -1636,7 +1610,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n' +
     '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
-    '注6：MVU脚本（bundle.js/zod schema）和正则1-5由写卡器自动注入，无需AI生成；正则6（美化状态栏）和世界书条目需AI生成\n\n' +
+    '注6：MVU脚本（bundle.js/zod schema）、正则1-5和<状态栏>占位符提醒条目由写卡器自动注入，无需AI生成；正则6（美化状态栏）和4条MVU变量条目需AI生成\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -1745,7 +1719,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【写卡器自动注入】\n' +
     '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI生成\n' +
     '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
-    '  6. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
+    '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【写卡器自动注入】\n' +
+    '  7. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -1792,10 +1767,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- 设计变量结构（按角色/物品/状态分层嵌套）\n' +
     '- 编写[InitVar]初始变量YAML\n' +
     '- 编写变量更新规则条目\n' +
-    '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需生成\n' +
+    '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）和<状态栏>占位符提醒条目由写卡器自动注入，无需生成\n' +
     '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
     '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-    '  · 【包裹格式】replaceString必须是完整HTML结构（<!doctype html>→html→head(style)→body(script type=module)），用```html代码块包裹\n' +
+    '  · 【包裹格式】replaceString必须是完整HTML结构（html→head(style)→body(script type=module)），用```html代码块包裹（无<!doctype html>，参考卡标准）\n' +
     '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效问题）\n' +
     '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后再绑定 Mvu.events.VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED 两个事件\n' +
     '  · 【异常捕获】$(errorCatched(init)) 包裹，报错不卡死面板\n' +
@@ -1881,7 +1856,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '- [ ] 变量输出格式：定义<UpdateVariable>段的输出格式\n' +
     '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n' +
     '- [ ] 美化状态栏正则：regex_scripts中含StatusPlaceHolderImpl的markdownOnly正则（正则6，AI生成）\n' +
-    '注：脚本（bundle.js/zod schema）、正则1-5、StatusPlaceHolderImpl占位符由写卡器导出时自动注入；正则6（美化状态栏）必须由AI生成\n\n' +
+    '注：脚本（bundle.js/zod schema）、正则1-5、<状态栏>占位符提醒条目、StatusPlaceHolderImpl占位符由写卡器导出时自动注入；正则6（美化状态栏）必须由AI生成\n\n' +
     '=== MVU 酒馆助手脚本 API ===\n\n' +
     '**脚本侧变量约定**：\n' +
     '- 变量名以 `_` 开头：AI 不可更新（仅脚本能改），如 `_internal_state`\n' +
@@ -2410,7 +2385,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       if (!newEntries || !Array.isArray(newEntries)) return;
       cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
-      // ⚠️状态栏模块拦截：AI可能在状态栏分步生成模式下，把Step2-7的代码
+      // ⚠️状态栏模块拦截：AI可能在状态栏分步生成模式下，把Step 2-6的代码
       // 包装成entries条目输出（comment含"<状态栏>...Step N"或"⟦<状态栏>...Step N⟧"）。
       // 这些代码应只保存到extensions.regex_scripts，不能进入character_book.entries，
       // 否则会污染世界书、浪费上下文token、与regex_scripts版本不一致。
@@ -3209,7 +3184,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '   2. 变量列表条目：含{{format_message_variable::stat_data}}宏，在对话中注入当前变量\n' +
       '   3. 变量更新规则条目：定义每个变量在什么对话条件下如何更新\n' +
       '   4. 变量输出格式条目：使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式\n' +
-      'B. 动态HTML状态栏设计与实现：通过8步分模块流程（Step 1-8）生成状态栏正则脚本，写卡器后台管理6个槽位拼接保存\n' +
+      'B. 动态HTML状态栏设计与实现：通过分模块流程（Step 1规划 + Step 2-6共5个槽位 + Step 7确认）生成状态栏正则脚本，写卡器后台管理5个槽位拼接保存\n' +
       'C. MVU系统的修改、调试、预览（可通过<clear_statusbar>N标记清空指定Step槽位重新生成）\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '⚠️ MVU Tab 核心铁律（最高优先级）\n' +
@@ -3223,7 +3198,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '3. ✅所有输出只聚焦在：MVU变量4条目、状态栏Step模块代码块（css/html/javascript）、清空标记<clear_statusbar>N\n' +
       '4. ✅MVU变量系统和状态栏之间要相互配合——变量的路径决定了状态栏的渲染路径，设计时要保证一致\n' +
       '5. ✅修改MVU条目时，使用```json代码块，entries数组里只放需要新增/修改/删除的MVU条目（用_action:delete或comment精确匹配覆盖）\n' +
-      '6. ✅状态栏Step 2-7模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
+      '6. ✅状态栏Step 2-6模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -3237,7 +3212,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '条目4: comment="变量输出格式", constant=true, position=4, depth=0, order=200\n' +
       '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
       '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
-      '【状态栏6步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
+      '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
       'Step 1：变量盘点表（纯文本表格 | 路径 | 类型 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
       'Step 2：配色方案（仅CSS :root变量块：--card-bg/--text-main/--accent-blue等）→ 输出```css\n' +
       'Step 3：HTML结构骨架（.mvu-status-card > .card-body[id=render-root] > .loading-state加载占位）→ 输出```html\n' +
@@ -3292,11 +3267,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '     }\n' +
       '   }\n' +
       '   $(errorCatched(init));\n' +
-      'Step 7/8：拼接合并+自查（AI只做文字确认，不输出代码；写卡器自动从Step 2-6槽位中提取代码拼接成完整正则脚本）\n\n' +
+      'Step 7：全部完成（AI只做文字确认，不输出代码；写卡器自动从Step 2-6槽位中提取代码拼接成完整正则脚本）\n\n' +
       '【按语义精准修改状态栏】\n' +
       '· 先输出清空标记: <clear_statusbar>N1,N2,N3（Step号逗号分隔）→ 写卡器清空对应槽位\n' +
       '· 同一个回答中只输出第一个需要修改的Step的代码块 → 后续Step等用户说"继续"后逐个生成\n' +
-      '· 禁止"改一处就重写全部6步"——只重写需要改的Step\n' +
+      '· 禁止"改一处就重写全部5步"——只重写需要改的Step\n' +
       '\n' +
       '【状态栏预览命令】\n' +
       '· 需要向用户展示当前已收集的状态栏效果时，在消息中输出: <preview_statusbar> 标记\n' +
@@ -3333,7 +3308,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '【MVU条目输出格式提醒（MVU Tab）】\n' +
       '· 修改或新建4条MVU条目时，输出: ```json\\n{"entries":[{"comment":"...","content":"...","constant":true,...}]}\\n```\n' +
       '· 状态栏Step 2-6只输出对应代码块（```css / ```html / ```javascript），不要用JSON包\n' +
-      '· 状态栏Step 7/8不要输出任何代码块，只做自查文字确认\n' +
+      '· 状态栏Step 7不要输出任何代码块，只做自查文字确认\n' +
       '· ⚠️一次只做一个Step，绝对不要一次回答中包含多个Step的代码块\n';
 
     // 4. JSON/输出格式提醒（MVU Tab版：与状态栏Step联动）
@@ -3360,7 +3335,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         '═══════════════════════════════════════════════════════════════════\n' +
         '· 如果用户要求设计/修改4条MVU变量条目：输出一个```json代码块，格式: {"entries": [ { "comment": "[InitVar]初始变量", "content": "...YAML...", "constant": true, "position": 4 }, ... ]}\n' +
         '· 如果在状态栏Step 1：输出纯文本表格（变量盘点表），不写代码块\n' +
-        '· 如果在状态栏Step 8：输出自查文字报告，不输出任何代码块\n' +
+        '· 如果在状态栏Step 7：输出自查文字报告，不输出任何代码块\n' +
         '· 不要生成任何角色卡/世界书相关的JSON（name/description/entries非MVU条目）\n' +
         '· 没有需要修改的内容就输出简短的文字说明，不要输出JSON\n' +
         '· ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n';
@@ -4019,7 +3994,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时自动注入正则1-5（思维链移除/变量更新截断/美化×2/状态栏隐藏）；正则6（美化状态栏）需AI生成' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时自动注入正则1-5和<状态栏>占位符提醒条目；正则6（美化状态栏）需AI生成' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -6017,8 +5992,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。（状态栏和变量系统请去MVU Tab制作）'
         };
         var mvuPrompts = {
-          next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏6个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
-          summary: '帮我梳理MVU系统的当前状态：1) [InitVar]初始变量 2) 变量列表 3) 变量更新规则 4) 变量输出格式 → 4条MVU条目完成情况；状态栏Step2-7共6个模块完成情况；缺失什么；推荐的下一步。',
+          next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
+          summary: '帮我梳理MVU系统的当前状态：1) [InitVar]初始变量 2) 变量列表 3) 变量更新规则 4) 变量输出格式 → 4条MVU条目完成情况；状态栏Step2-6共5个模块完成情况；缺失什么；推荐的下一步。',
           init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段，只放这4条MVU变量条目，不要生成其他世界书条目。',
           var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。输出到```json代码块的 entries 字段。'
         };
@@ -6763,7 +6738,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var blockBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
                               '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
                               'Step 1：', 'Step 2：', 'Step 3：', 'Step 4：', 'Step 5：',
-                              'Step 6：', 'Step 7：', 'Step 8：', '/* === Step',
+                              'Step 6：', 'Step 7：', '/* === Step',
                               '📊 变量系统', '🏛️ 基础公理', '🤝 交互软规则', '🔐 核心铁则',
                               'character_book', 'entries', 'comment', 'insertion_order'];
         // 状态栏HTML专属特征：必须出现HTML结构 + 多个渲染相关特征词才认定
@@ -6808,13 +6783,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return saveStatusBarToCard(statusBarHtml);
       }
 
-      // ===== 模块拼接：写卡器后台维护HTML模板，6个空槽位，AI生成哪个就填哪个 =====
+      // ===== 模块拼接：写卡器后台维护HTML模板，5个空槽位，AI生成哪个就填哪个 =====
       // 核心思路（像角色卡一样在后台写入）：
       //   1. 写卡器后台有一个HTML模板框架（assembleStatusBarFromModules）
-      //   2. 6个模块槽位一开始全是空的（statusBarModules，模块级变量）
+      //   2. 5个模块槽位一开始全是空的（statusBarModules，模块级变量）
       //   3. 写卡器知道当前在生成哪个模块（statusBarCurrentStep，模块级变量）
       //   4. AI只需输出代码片段，写卡器直接填入对应槽位
-      //   5. 6个槽位全部填满后自动拼接保存
+      //   5. 5个槽位全部填满后自动拼接保存
       // 注：statusBarModules、statusBarCurrentStep、statusBarMode 已提升到模块顶层，
       //     以便 buildPrompt 和 openEditor 都能访问
 
@@ -6903,20 +6878,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         step3Body = step3Body.trim();
 
         // ⚠️对齐参考卡存储结构：
-        //   1. 整个HTML用 ```html 代码块包裹（markdownOnly正则需要markdown格式）
+        //   1. 返回RAW HTML（不含 ```html 围栏），由 saveStatusBarToCard 统一包裹
         //   2. <script type="module">（支持顶层await，默认deferred，独立作用域）
         //   3. 无IIFE包装、无ready函数、无polyfill（参考卡就是直接顶层代码）
         //   4. script在body末尾（不是head里）
         //   5. 无<!doctype html>（参考卡没有）
-        var assembledHtml = '```html\n';
-        assembledHtml += '<html>\n<head>\n<style>\n';
+        var assembledHtml = '<html>\n<head>\n<style>\n';
         assembledHtml += cssContent;
         assembledHtml += '\n</style>\n</head>\n<body>\n\n';
         assembledHtml += step3Body;
         assembledHtml += '\n\n<script type="module">\n';
         assembledHtml += jsContent;
-        assembledHtml += '\n</script>\n\n</body>\n</html>\n';
-        assembledHtml += '```';
+        assembledHtml += '\n</script>\n\n</body>\n</html>';
         return assembledHtml;
       }
 
@@ -6995,7 +6968,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         cardData.extensions.regex_scripts = rxList;
 
         // ⚠️清理世界书条目中的状态栏模块残留：历史版本/旧角色卡可能已把状态栏模块
-        // 代码（Step2-7）误写入了character_book.entries。此处保存regex后主动清理，
+        // 代码（Step 2-6）误写入了character_book.entries。此处保存regex后主动清理，
         // 避免条目里的陈旧状态栏代码污染世界书上下文、与regex_scripts版本不一致。
         if (cardData.character_book && Array.isArray(cardData.character_book.entries)) {
           var sbCleanupRe = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
@@ -7125,6 +7098,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             placement: [2], disabled: false, markdownOnly: false, promptOnly: true, runOnEdit: true,
             substituteRegex: 0, minDepth: null, maxDepth: null });
           injected.push('正则5(隐藏状态栏标记)');
+        }
+
+        // === 9. 注入<状态栏>美化样式定义条目（提醒AI每条回复底部输出占位符）===
+        // 参考卡Entry 17：constant=true常驻注入，确保AI始终输出<StatusPlaceHolderImpl/>
+        // 没有此条目，状态栏正则6无内容可替换，后续消息不会显示状态栏
+        var sbEntriesList = (cardData.character_book || {}).entries || [];
+        var hasSbReminder = sbEntriesList.some(function(e) {
+          return e && String(e.comment || '').indexOf('<状态栏>') >= 0 && String(e.content || '').indexOf('StatusPlaceHolderImpl') >= 0;
+        });
+        if (!hasSbReminder) {
+          cardData.character_book = cardData.character_book || { entries: [] };
+          cardData.character_book.entries = cardData.character_book.entries || [];
+          cardData.character_book.entries.push({
+            keys: [], secondary_keys: [],
+            comment: '<状态栏>美化样式定义',
+            content: '你必须在回复底部使用 <StatusPlaceHolderImpl/> 占位符。',
+            constant: true, selective: true, enabled: true,
+            position: 2, depth: 2, order: 35,
+            prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0,
+            cooldown: null, delay: null, sticky: null,
+            use_regex: true, match_whole_words: null, scan_depth: 3,
+            selectiveLogic: 0, probability: 100, useProbability: true,
+            group: '', group_weight: 100
+          });
+          injected.push('<状态栏>占位符提醒条目');
         }
 
         if (injected.length > 0) {
@@ -7468,9 +7466,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 if (statusBarModules[sbpk]) sbCollected2.push(SB_STEP_DISPLAY_NAMES[sbpk]);
               }
               if (sbCollected2.length > 0) {
-                addAssistantMsg('🎛️ 状态栏部分预览（' + sbCollected2.length + '/6 已收集）\n' +
+                addAssistantMsg('🎛️ 状态栏部分预览（' + sbCollected2.length + '/5 已收集）\n' +
                   '  ✅ 已收集：' + sbCollected2.join('、') + '\n' +
-                  '  ⚠️ 需6个模块全部完成才能拼接预览完整效果。请继续生成缺失模块。\n' +
+                  '  ⚠️ 需5个模块全部完成才能拼接预览完整效果。请继续生成缺失模块。\n' +
                   '  📦 已收集的模块代码：');
                 for (var sbck in SB_STEP_DISPLAY_NAMES) {
                   if (statusBarModules[sbck]) {
@@ -8406,13 +8404,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '4. 变量输出格式（comment 含"变量输出格式"，建议加 [mvu_update] 前缀）\n' +
             '   - 定义 <UpdateVariable> 输出格式，采用 JSON Patch (RFC 6902) 标准\n' +
             '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
-            '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
-            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
+            '   - AI 输出示例：{ "op": "replace", "path": "/stat_data/主角/体力值", "value": 80 }, { "op": "delta", "path": "/stat_data/同桌/好感度", "value": 5 }\n' +
+            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<状态栏>占位符提醒条目、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
             '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
             '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-            '  · 【包裹格式】完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)，用```html代码块包裹\n' +
+            '  · 【包裹格式】完整HTML结构：html→head(style)→body(script type=module)，用```html代码块包裹（注意：无<!doctype html>，参考卡标准）\n' +
             '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
-            '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后必须绑定两个事件：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED（缺一不可）\n' +
+            '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后绑定 VARIABLE_UPDATE_ENDED 事件（参考卡标准）；可酌情附加 VARIABLE_INITIALIZED\n' +
             '  · 【异常捕获】$(errorCatched(init)) 包裹\n' +
             '  · 【递归渲染规范（核心！严禁只遍历一层）】function renderTree(obj, level) { level = level || 0; } 跳过 key.startsWith(\'_\')/(\'$\') 隐藏变量\n' +
             '    - typeof==="number" → .value-number 主题色显示；布尔值 → value-true ✓ / value-false ✕（绿/红分色，不用emoji✅❌）\n' +
@@ -8814,7 +8812,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
         // 状态概览
         if (hasMVU) {
-          sH += '<div class="pv-entry"><div class="pv-entry-title">变量系统</div><div class="pv-entry-content">已检测到 MVU 变量系统条目，导出时会自动注入 bundle.js、变量结构脚本与正则1-5。</div></div>';
+          sH += '<div class="pv-entry"><div class="pv-entry-title">变量系统</div><div class="pv-entry-content">已检测到 MVU 变量系统条目，导出时会自动注入 bundle.js、变量结构脚本、正则1-5和&lt;状态栏&gt;占位符提醒条目。</div></div>';
         } else {
           sH += '<div class="pv-entry"><div class="pv-entry-title">变量系统</div><div class="pv-entry-content">未检测到 MVU 变量系统。状态栏依赖 MVU 变量，请先生成「[InitVar]初始变量」等条目。</div></div>';
         }
@@ -8925,7 +8923,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           var entries = (cardData.character_book || {}).entries || [];
           var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
           if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、正则1-5；正则6（美化状态栏）由AI生成或回退默认
+            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、正则1-5、<状态栏>占位符提醒条目；正则6（美化状态栏）由AI生成或回退默认
             var ext = (exportCard.data && exportCard.data.extensions) || {};
             var rxScripts = ext.regex_scripts || [];
             var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
@@ -8934,11 +8932,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
             if (hasBundle && hasSchema && hasUpdRx) {
               setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+正则1-5已自动注入，正则6（美化状态栏）需AI生成', 'success');
+                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+正则1-5+<状态栏>占位符提醒条目已自动注入，正则6（美化状态栏）需AI生成', 'success');
               }, 500);
             } else {
               setTimeout(function() {
-                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本和正则', 'info');
+                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本、正则1-5和<状态栏>占位符提醒条目', 'info');
               }, 500);
             }
           }
