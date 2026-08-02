@@ -217,7 +217,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-send:hover:not(:disabled){background:var(--accent-deep);box-shadow:0 6px 18px rgba(122,100,64,.28)}
 .btn-send:disabled{background:var(--accent-soft);cursor:not-allowed;box-shadow:none}
 .btn-send svg{display:block}
-.send-spinner{animation:spin 0.8s linear infinite;display:none}
+.btn-send .send-spinner{animation:spin .8s linear infinite;display:none}
 .btn-send.is-waiting .send-icon{display:none}
 .btn-send.is-waiting .send-spinner{display:block}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -5603,33 +5603,141 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // 写入世界书条目（si/Ai/ii - 借鉴 javascript-format (7).js）
+  // ===== 修复Bug2：把 v2 角色卡条目格式转换为酒馆助手 WorldbookEntry 新格式 =====
+  // 旧格式用 comment/constant/selective/position(字符串)/extensions；
+  // 酒馆助手 API(createWorldbookEntries 等)用 name/strategy/position(对象)/extra，
+  // 直接传旧格式会导致条目"没有名字"且激活策略/位置参数全部丢失。
+  function _convertToWorldbookEntry(e, i, sourceTag) {
+    var comment = e.comment || e.name || e.title || ('条目' + (i + 1));
+    var ext = e.extensions || {};
+    // position：优先 extensions.position(数字)，其次顶层 position，默认 4(at_depth)
+    var posRaw = (ext.position !== undefined ? ext.position : (e.position !== undefined ? e.position : 4));
+    var posNum = (typeof posRaw === 'string')
+      ? (posRaw === 'before_char' || posRaw === '0' ? 0 : (posRaw === 'after_char' || posRaw === '1' ? 1 : 4))
+      : posRaw;
+    // ST position: 0=before_char, 1=after_char, 2=before_example, 3=after_example, 4=at_depth(作者注释位)
+    var posType = (posNum === 0) ? 'before_character_definition'
+      : (posNum === 1) ? 'after_character_definition'
+      : (posNum === 2) ? 'before_example_messages'
+      : (posNum === 3) ? 'after_example_messages'
+      : 'at_depth';
+    var roleNum = (ext.role !== undefined ? ext.role : 0);
+    var posRole = (roleNum === 1) ? 'user' : (roleNum === 2 ? 'assistant' : 'system');
+    var posDepth = (ext.depth !== undefined ? ext.depth : 4);
+    var order = (e.insertion_order !== undefined ? e.insertion_order : (ext.order || 100));
+    // 激活策略：constant=true→蓝灯; 否则 selective=true→绿灯; 否则默认 constant
+    var isConst = (e.constant !== undefined ? e.constant : false);
+    var isSel = (e.selective !== undefined ? e.selective : true);
+    var stratType = isConst ? 'constant' : (isSel ? 'selective' : 'constant');
+    var keys = Array.isArray(e.keys) ? e.keys.filter(function(k) { return typeof k === 'string' && k; }) : [];
+    var secKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys : [];
+    var selLogic = (ext.selectiveLogic === 1 ? 'and_all' : (ext.selectiveLogic === 2 ? 'not_all' : (ext.selectiveLogic === 3 ? 'not_any' : 'and_any')));
+    var useProb = (ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : true));
+    var probability = useProb ? (ext.probability !== undefined ? ext.probability : 100) : 100;
+    return {
+      name: comment,
+      content: e.content || '',
+      enabled: (e.enabled !== undefined ? e.enabled : true),
+      strategy: {
+        type: stratType,
+        keys: keys,
+        keys_secondary: { logic: selLogic, keys: secKeys },
+        scan_depth: (ext.scan_depth !== undefined && ext.scan_depth !== null) ? ext.scan_depth : 'same_as_global'
+      },
+      position: { type: posType, role: posRole, depth: posDepth, order: order },
+      probability: probability,
+      recursion: {
+        prevent_incoming: !!(ext.prevent_recursion),
+        prevent_outgoing: !!(ext.exclude_recursion),
+        delay_until: (ext.delay_until_recursion || null)
+      },
+      effect: {
+        sticky: (ext.sticky || null),
+        cooldown: (ext.cooldown || null),
+        delay: (ext.delay || null)
+      },
+      extra: { source: sourceTag }
+    };
+  }
+
   async function _tavernWriteWorldbook(worldbookName, entries) {
     var SOURCE_TAG = 'modelo-char-generator';
+    var getWorldbookNames = _tavernFn('getWorldbookNames');
+    var getWorldbook = _tavernFn('getWorldbook');
+    var createWorldbook = _tavernFn('createWorldbook');
     var updateWorldbookWith = _tavernFn('updateWorldbookWith');
     var createWorldbookEntries = _tavernFn('createWorldbookEntries');
 
-    // 先删除本工具标记的旧条目
-    if (updateWorldbookWith) {
-      await updateWorldbookWith(worldbookName, function(oldEntries) {
-        return (oldEntries || []).filter(function(e) {
-          return !(e.extra && e.extra.source === SOURCE_TAG);
-        });
-      }, { render: 'debounced' });
-    }
-
-    // 标记新条目并创建
-    var taggedEntries = entries.map(function(e) {
-      var copy = Object.assign({}, e);
-      if (!copy.extra) copy.extra = {};
-      copy.extra.source = SOURCE_TAG;
-      return copy;
+    // ===== 修复Bug2：转换为酒馆助手 WorldbookEntry 新格式（name 替代 comment） =====
+    var converted = entries.map(function(e, i) {
+      return _convertToWorldbookEntry(e, i, SOURCE_TAG);
     });
 
+    // ===== 修复Bug1：确保世界书存在（createWorldbookEntries / updateWorldbookWith 要求世界书已存在，
+    //                  否则抛错——这正是"只写入开场白和角色描述、不生成世界书、不关联到角色卡"的根因） =====
+    var exists = false;
+    if (getWorldbookNames) {
+      try { var names = await getWorldbookNames(); exists = !!(names && names.indexOf(worldbookName) >= 0); } catch(_e) {}
+    }
+    if (!exists && getWorldbook) {
+      try { await getWorldbook(worldbookName); exists = true; } catch(_e) { exists = false; }
+    }
+    if (!exists) {
+      if (!createWorldbook) throw new Error('酒馆不支持 createWorldbook API，无法创建世界书');
+      // createWorldbook 在世界书已存在时会替换(清空)内容，故仅在不存在时调用
+      await createWorldbook(worldbookName);
+    }
+
+    // 删除本工具标记的旧条目（仅当世界书已存在时；新建的空世界书无需此步）
+    if (exists && updateWorldbookWith) {
+      try {
+        await updateWorldbookWith(worldbookName, function(oldEntries) {
+          return (oldEntries || []).filter(function(e) {
+            return !(e.extra && e.extra.source === SOURCE_TAG);
+          });
+        }, { render: 'debounced' });
+      } catch(_e) { console.warn('[worldbook] 清理旧标记条目失败:', _e && _e.message); }
+    }
+
+    // 新增条目
     if (createWorldbookEntries) {
-      await createWorldbookEntries(worldbookName, taggedEntries, { render: 'immediate' });
+      await createWorldbookEntries(worldbookName, converted, { render: 'immediate' });
     } else {
       throw new Error('酒馆不支持 createWorldbookEntries API');
     }
+  }
+
+  // ===== 修复Bug5：将世界书绑定到当前角色卡（rebindCharWorldbooks） =====
+  // 根因：步骤2仅写了 character.data.world 字段（v3 规范数据），但并未通过酒馆助手 API
+  // 真正激活角色卡与世界书的关联，导致世界书虽已生成却"不关联到角色卡"。
+  // 此函数在切换到角色卡后调用，把 worldbookName 设为主世界书，并保留原有 additional 世界书。
+  async function _tavernBindWorldbookToChar(worldbookName) {
+    var getCharWorldbookNames = _tavernFn('getCharWorldbookNames');
+    var rebindCharWorldbooks = _tavernFn('rebindCharWorldbooks');
+    if (!rebindCharWorldbooks) {
+      console.warn('[worldbook] 酒馆不支持 rebindCharWorldbooks API，跳过角色卡世界书绑定');
+      return;
+    }
+    // 读取当前角色卡已绑定的世界书，保留 additional，仅替换 primary
+    var primary = worldbookName;
+    var additional = [];
+    if (getCharWorldbookNames) {
+      try {
+        var cur = getCharWorldbookNames('current');
+        if (cur) {
+          // 把旧的主世界书降级为 additional（避免丢失之前已绑定的世界书），去重
+          if (cur.primary && cur.primary !== worldbookName && additional.indexOf(cur.primary) < 0) {
+            additional.push(cur.primary);
+          }
+          if (Array.isArray(cur.additional)) {
+            cur.additional.forEach(function(n) {
+              if (n && n !== worldbookName && additional.indexOf(n) < 0) additional.push(n);
+            });
+          }
+        }
+      } catch(_e) {}
+    }
+    await rebindCharWorldbooks('current', { primary: primary, additional: additional });
   }
 
   // 切换到角色卡（Lr）
@@ -6948,6 +7056,41 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
                 statusBarMode = false;
                 statusBarCurrentStep = 0;
+              }
+            }
+            // ===== 修复Bug3：状态栏生成模式一致性校正 =====
+            // 根因：UI「显示状态栏生成」(renderMvuInfoPanel) 依赖 statusBarCurrentStep>0 或存在状态栏正则，
+            // 而生成分支(callAIChat 内 `if (statusBarMode)`) 依赖 statusBarMode。恢复后若二者不一致，
+            // 会出现「UI显示状态栏生成、但实际走卡片生成」。此处校正：MVU Tab 下若存在任何状态栏线索
+            // 却 statusBarMode=false，则补回 true，并校正 currentStep 到第一个空缺 Step。
+            if (activeTab === 'mvu' && !statusBarMode) {
+              var _hasSbSlot = false;
+              for (var _si = 0; _si < SB_STEP_ORDER.length; _si++) {
+                if (statusBarModules['step' + SB_STEP_ORDER[_si]]) { _hasSbSlot = true; break; }
+              }
+              var _hasSbRegex = false;
+              try {
+                var _rxList = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+                for (var _ri = 0; _ri < _rxList.length; _ri++) {
+                  var _fr = _rxList[_ri] && (_rxList[_ri].findRegex || _rxList[_ri].find_regex || '');
+                  if (_fr.indexOf('StatusPlaceHolder') >= 0) { _hasSbRegex = true; break; }
+                }
+              } catch(_e) {}
+              if (statusBarCurrentStep > 0 || _hasSbSlot || _hasSbRegex) {
+                statusBarMode = true;
+                var _allFull = true;
+                for (var _fi = 0; _fi < SB_STEP_ORDER.length; _fi++) {
+                  if (!statusBarModules['step' + SB_STEP_ORDER[_fi]]) { _allFull = false; break; }
+                }
+                if (_allFull) {
+                  statusBarCurrentStep = 7;
+                } else {
+                  for (var _ni = 0; _ni < SB_STEP_ORDER.length; _ni++) {
+                    if (!statusBarModules['step' + SB_STEP_ORDER[_ni]]) { statusBarCurrentStep = SB_STEP_ORDER[_ni]; break; }
+                  }
+                }
+                chatSessions.mvu.statusBarMode = true;
+                chatSessions.mvu.currentStep = statusBarCurrentStep;
               }
             }
             return true;
@@ -10883,6 +11026,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
           // ===== 步骤6：切换到角色卡 =====
           await _tavernSwitchToCharacter(cardData.name);
+
+          // ===== 步骤7：将世界书绑定到当前角色卡（修复：世界书不关联到角色卡）=====
+          // 必须在切换到角色卡之后调用，使该角色卡成为 current，rebindCharWorldbooks('current') 才能生效
+          if (entries.length > 0) {
+            try {
+              await _tavernBindWorldbookToChar(worldbookName);
+            } catch(_be) {
+              console.warn('[时之写卡器] 世界书关联角色卡失败:', _be && _be.message);
+            }
+          }
 
           var mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构+6条正则+状态栏）' : '';
           showToast('✅ 角色卡已成功写入酒馆' + mvuTip, 'success');
