@@ -2899,26 +2899,48 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       for (var k in ch) { if (ch.hasOwnProperty(k)) partial[k] = ch[k]; }
     }
 
-    // ---- 支持多种删除语法 ----
+    // ================================================================
+    // ===== 🐛修复#1：删除声明收集阶段（建立「删除屏障」deletedCommentKeySet） =====
+    // ================================================================
+    // 执行顺序：先收集所有删除意图，再执行条目合并，最后统一删除。
+    // 目的：避免 AI 把"删除声明"写在 entries 而"该条目重写内容"写在 character_book.entries，
+    //       导致"先删掉又被后面 processEntriesFn 重新加回来"的问题。
+    // 同时 processEntriesFn 中命中删除屏障的条目会被直接丢弃（既不新增也不更新）。
+    // ================================================================
     var deletePaths = [];
     if (partial.deleted_entries && Array.isArray(partial.deleted_entries)) {
       partial.deleted_entries.forEach(function(c) { deletePaths.push('character_book.entries.' + c); });
       delete partial.deleted_entries;
     }
-    // 兼容 AI 可能写的其他字段名
     ['_delete', 'delete', 'deletes', 'remove', 'removes'].forEach(function(dk) {
       if (partial[dk] && Array.isArray(partial[dk])) {
         deletePaths = deletePaths.concat(partial[dk]);
         delete partial[dk];
       }
     });
-    // 兼容 entries 内单条的 { ..., "_action":"delete" } 语法（AI最容易写成这样）
+    // 规范化 key：trim + 大小写不敏感（中英文 comment 前后空格/大小写差异导致精确匹配失败）
+    var normKey = function(s) { return String(s || '').trim().toLowerCase(); };
+    var deletedCommentKeySet = {};  // 命中则：新增丢弃 + 更新丢弃（整轮彻底消失）
+    var entryPrefixForScan = 'character_book.entries.';
+    // 从 deletePaths 中提取所有 comment 形式的 key 放入屏障集合
+    deletePaths.forEach(function(p) {
+      var sp = String(p);
+      if (sp.indexOf(entryPrefixForScan) === 0) {
+        var rawKey = sp.slice(entryPrefixForScan.length);
+        if (!/^\d+$/.test(rawKey)) deletedCommentKeySet[normKey(rawKey)] = true;  // 纯数字是索引，不是comment
+      } else if (sp.indexOf('.') < 0) {
+        deletedCommentKeySet[normKey(sp)] = true;
+      }
+    });
     var inlineEntryDeletes = [];
     var scanInlineDeletes = function(arr) {
       if (!arr || !Array.isArray(arr)) return;
       for (var di = arr.length - 1; di >= 0; di--) {
         if (arr[di] && (arr[di]._action === 'delete' || arr[di]._action === 'remove' || arr[di].delete === true)) {
-          if (arr[di].comment) inlineEntryDeletes.push(arr[di].comment);
+          if (arr[di].comment) {
+            inlineEntryDeletes.push(arr[di].comment);
+            deletedCommentKeySet[normKey(arr[di].comment)] = true;  // 加入删除屏障
+          }
           arr.splice(di, 1);
         }
       }
@@ -2927,122 +2949,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (partial.character_book && partial.character_book.entries) scanInlineDeletes(partial.character_book.entries);
     inlineEntryDeletes.forEach(function(ic) { deletePaths.push('character_book.entries.' + ic); });
 
-    // ---- 执行删除 ----
-    if (deletePaths.length > 0) {
-      var entryPrefix = 'character_book.entries.';
-      var fieldDeletes = [];
-      // 收集所有数字索引，稍后降序处理避免位移
-      var numericIndices = [];
-      deletePaths.forEach(function(path) {
-        if (String(path).indexOf(entryPrefix) === 0) {
-          var entryKey = String(path).slice(entryPrefix.length);
-          if (cd.character_book && cd.character_book.entries) {
-            var beforeLen = cd.character_book.entries.length;
-            var idx = parseInt(entryKey);
-            if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
-              // 数字索引：先收集，稍后统一降序删除避免位移
-              numericIndices.push(idx);
-            } else {
-              // 安全删除策略：精确匹配优先，模糊匹配仅作兜底且有严格保护
-              var exactMatches = [];
-              var fuzzyMatches = [];
-              cd.character_book.entries.forEach(function(e, i) {
-                var ec = e.comment || '';
-                if (ec === entryKey) {
-                  exactMatches.push(i);
-                } else if (entryKey.length >= 6 && ec.length >= 6) {
-                  // 模糊匹配：仅「现有comment包含entryKey」单向匹配，不再反向匹配
-                  // 且要求关键词≥6字（避免"基础设定"这种4字短词误删多条）
-                  if (ec.indexOf(entryKey) >= 0) fuzzyMatches.push(i);
-                }
-              });
-              var toDelete = [];
-              if (exactMatches.length > 0) {
-                // 精确匹配命中→只删精确匹配的，不动模糊匹配（防止误删同名前缀的其他条目）
-                toDelete = exactMatches;
-              } else if (fuzzyMatches.length === 1) {
-                // 没有精确匹配，模糊匹配恰好1条→安全删除
-                toDelete = fuzzyMatches;
-              } else if (fuzzyMatches.length > 1) {
-                // 模糊匹配多条→不删！防止多删。记录警告
-                console.warn('[mergePartial] 删除关键词"' + entryKey + '"模糊匹配到' + fuzzyMatches.length + '条条目，为防止误删已跳过。请使用精确comment。');
-              }
-              // 没有精确也没有模糊→静默不删（可能comment拼写错误）
-              if (toDelete.length > 0) {
-                // 降序删除避免索引位移
-                toDelete.sort(function(a, b) { return b - a; });
-                for (var di = 0; di < toDelete.length; di++) {
-                  cd.character_book.entries.splice(toDelete[di], 1);
-                }
-                modified = true;
-                changeLog.deleted += toDelete.length;
-              }
-            }
-          }
-        } else {
-          // 裸字符串（无 character_book.entries. 前缀）
-          // 安全处理：如果看起来像条目名（不含.且非已知顶层字段），尝试作为comment匹配
-          var rawPath = String(path);
-          var knownTopFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','mes_example','post_history_instructions','tags','alternate_greetings'];
-          if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
-            // 当作条目comment处理
-            var foundIdx = -1;
-            for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
-              if ((cd.character_book.entries[fi].comment || '') === rawPath) { foundIdx = fi; break; }
-            }
-            if (foundIdx >= 0) {
-              cd.character_book.entries.splice(foundIdx, 1);
-              modified = true; changeLog.deleted++;
-            }
-          } else {
-            fieldDeletes.push(path);
-          }
-        }
-      });
-      // 数字索引降序删除
-      if (numericIndices.length > 0) {
-        numericIndices.sort(function(a, b) { return b - a; });
-        // 去重
-        var uniqueIdx = [];
-        numericIndices.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
-        uniqueIdx.forEach(function(idx) {
-          if (idx < cd.character_book.entries.length) {
-            cd.character_book.entries.splice(idx, 1);
-            modified = true; changeLog.deleted++;
-          }
-        });
-      }
-      fieldDeletes.forEach(function(p) {
-        var parts = String(p).split('.');
-        var node = cd;
-        for (var i = 0; i < parts.length - 1; i++) {
-          if (!node || typeof node !== 'object' || !(parts[i] in node)) { node = null; break; }
-          node = node[parts[i]];
-        }
-        if (node && typeof node === 'object' && parts[parts.length - 1] in node) {
-          delete node[parts[parts.length - 1]];
-          modified = true; changeLog.deleted++;
-        }
-      });
-    }
-    delete partial._nochange;
-
-    // 世界书名称字段已移除
-    if (partial.character_book) {
-      delete partial.character_book.name;
-      if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
-    }
-
-    // ---- 处理 entries（修复：智能匹配+content过短时也允许更新非content字段） ----
+    // ================================================================
+    // ===== 处理 entries（在删除执行之前先合并，但会过滤掉"删除屏障"命中的条目）=====
+    // ================================================================
+    // ---- 处理 entries（修复：智能匹配+content过短时也允许更新非content字段 + 删除屏障丢弃） ----
     var processEntriesFn = function(newEntries) {
       if (!newEntries || !Array.isArray(newEntries)) return;
       cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
-      // ⚠️状态栏模块拦截：AI可能在状态栏分步生成模式下，把Step 2-6的代码
-      // 包装成entries条目输出（comment含"<状态栏>...Step N"或"⟦<状态栏>...Step N⟧"）。
-      // 这些代码应只保存到extensions.regex_scripts，不能进入character_book.entries，
-      // 否则会污染世界书、浪费上下文token、与regex_scripts版本不一致。
-      // 此处识别并丢弃这类条目，从源头阻断误写入。
       var SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
       newEntries = newEntries.filter(function(ne) {
         if (!ne || typeof ne !== 'object') return true;
@@ -3051,7 +2965,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           console.warn('[statusbar] 拦截状态栏模块条目，不写入世界书:', cmt);
           return false;
         }
-        // 内容侧兜底：comment无标记但content是状态栏代码片段（:root+--xxx变量 / StatusPlaceHolderImpl / waitGlobalInitialized+eventOn 等）
         var cnt = String(ne.content || '');
         if (cnt.length > 50) {
           var hasSbCodeMarker = (cnt.indexOf('StatusPlaceHolderImpl') >= 0) ||
@@ -3066,15 +2979,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       });
       newEntries.forEach(function(ne) {
         if (!ne || typeof ne !== 'object') return;
-        // ===== comment 字段回退：AI 可能用 name/title 替代 comment，或完全漏写 =====
-        // 优先级：comment > name > title > 从 content 首行提取前缀 > 默认"条目N"
         if (!ne.comment || !String(ne.comment).trim()) {
           if (ne.name && String(ne.name).trim()) {
             ne.comment = String(ne.name).trim();
           } else if (ne.title && String(ne.title).trim()) {
             ne.comment = String(ne.title).trim();
           } else if (ne.content && typeof ne.content === 'string') {
-            // 尝试从 content 首行提取 <前缀>名称 作为 comment
             var firstLine = ne.content.split('\n')[0].trim();
             var prefixMatch = firstLine.match(/^(<[^>]+>[^<\n]{0,40})/);
             if (prefixMatch) {
@@ -3088,9 +2998,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             ne.comment = '条目' + (existing.length + 1);
           }
         }
+        // ===== 🐛修复#2：命中删除屏障 → 整轮直接丢弃（既不新增也不更新）=====
+        if (deletedCommentKeySet[normKey(ne.comment)]) {
+          console.warn('[mergePartial·删除屏障] 丢弃命中删除声明的条目（用户已要求删除，即使AI重写内容也不写入）:', ne.comment);
+          return;
+        }
         var hasComment = !!(ne.comment && String(ne.comment).trim());
         var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
-        // 至少要有 comment，或（有 content 且 >20字）—— 两者全无才跳过
         if (!hasComment && !hasMeaningfulContent) return;
 
         var tmpl = getEntryTemplate(ne.comment || '');
@@ -3135,7 +3049,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 更新：深合并content优先（如果新content有内容就覆盖，没内容保留旧content）
           var oldEntry = existing[match.index];
           if (ne.content === undefined || String(ne.content).trim().length === 0) {
-            // 新条目没提供content，保留旧的
             var tmpContent = oldEntry.content;
             existing[match.index] = Object.assign({}, oldEntry, ne);
             existing[match.index].content = tmpContent;
@@ -3156,13 +3069,106 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       processEntriesFn(partial.entries);
       delete partial.entries;
     }
-    // character_book.entries 后处理（避免与顶层重复：如果顶层已处理，此处跳过）
+    // character_book.entries 后处理
     if (partial.character_book && partial.character_book.entries && Array.isArray(partial.character_book.entries)) {
       processEntriesFn(partial.character_book.entries);
-      // 不删除整个 character_book，只删除 entries 字段，避免其他信息丢失
       delete partial.character_book.entries;
       if (Object.keys(partial.character_book).length === 0) delete partial.character_book;
     }
+
+    // ================================================================
+    // ===== 🐛修复#3：条目合并完成后统一执行删除（最后一道防线）=====
+    // ================================================================
+    // - comment 匹配使用规范化比较（trim + 大小写不敏感）
+    // - 先删条目，再删其他字段（字段删除不影响 entries 索引）
+    if (deletePaths.length > 0) {
+      var entryPrefix = 'character_book.entries.';
+      var fieldDeletes = [];
+      var numericIndices = [];
+      deletePaths.forEach(function(path) {
+        if (String(path).indexOf(entryPrefix) === 0) {
+          var entryKey = String(path).slice(entryPrefix.length);
+          if (cd.character_book && cd.character_book.entries) {
+            var beforeLen = cd.character_book.entries.length;
+            var idx = parseInt(entryKey);
+            if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
+              numericIndices.push(idx);
+            } else {
+              // 规范化比较：trim + 大小写不敏感（修复#4：空格/大小写差异导致精确匹配失败）
+              var nk = normKey(entryKey);
+              var exactMatches = [];
+              var fuzzyMatches = [];
+              cd.character_book.entries.forEach(function(e, i) {
+                var ek = normKey(e.comment);
+                if (ek === nk && ek !== '') {
+                  exactMatches.push(i);
+                } else if (nk.length >= 6 && ek.length >= 6) {
+                  if (ek.indexOf(nk) >= 0) fuzzyMatches.push(i);
+                }
+              });
+              var toDelete = [];
+              if (exactMatches.length > 0) {
+                toDelete = exactMatches;
+              } else if (fuzzyMatches.length === 1) {
+                toDelete = fuzzyMatches;
+              } else if (fuzzyMatches.length > 1) {
+                console.warn('[mergePartial] 删除关键词"' + entryKey + '"模糊匹配到' + fuzzyMatches.length + '条条目，为防止误删已跳过。请使用精确comment。');
+              }
+              if (toDelete.length > 0) {
+                toDelete.sort(function(a, b) { return b - a; });
+                for (var di = 0; di < toDelete.length; di++) {
+                  cd.character_book.entries.splice(toDelete[di], 1);
+                }
+                modified = true;
+                changeLog.deleted += toDelete.length;
+              }
+            }
+          }
+        } else {
+          var rawPath = String(path);
+          var knownTopFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','mes_example','post_history_instructions','tags','alternate_greetings'];
+          if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
+            // 裸字符串作为条目comment删除 → 使用规范化比较
+            var nrp = normKey(rawPath);
+            var foundIdx = -1;
+            for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
+              if (normKey(cd.character_book.entries[fi].comment) === nrp) { foundIdx = fi; break; }
+            }
+            if (foundIdx >= 0) {
+              cd.character_book.entries.splice(foundIdx, 1);
+              modified = true; changeLog.deleted++;
+            }
+          } else {
+            fieldDeletes.push(path);
+          }
+        }
+      });
+      if (numericIndices.length > 0) {
+        numericIndices.sort(function(a, b) { return b - a; });
+        var uniqueIdx = [];
+        numericIndices.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
+        uniqueIdx.forEach(function(uIdx) {
+          if (uIdx < cd.character_book.entries.length) {
+            cd.character_book.entries.splice(uIdx, 1);
+            modified = true; changeLog.deleted++;
+          }
+        });
+      }
+      fieldDeletes.forEach(function(p) {
+        var parts = String(p).split('.');
+        var node = cd;
+        for (var i = 0; i < parts.length - 1; i++) {
+          if (!node || typeof node !== 'object' || !(parts[i] in node)) { node = null; break; }
+          node = node[parts[i]];
+        }
+        if (node && typeof node === 'object' && parts[parts.length - 1] in node) {
+          delete node[parts[parts.length - 1]];
+          modified = true; changeLog.deleted++;
+        }
+      });
+    }
+    delete partial._nochange;
+
     var fields = ['name','description','personality','scenario','first_mes','mes_example','creator_notes','system_prompt','post_history_instructions','tags','creator','character_version','alternate_greetings','group_only_greetings'];
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
