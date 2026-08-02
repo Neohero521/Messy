@@ -898,8 +898,82 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     ]
   };
 
-  // ===== 系统提示词（ST权重分层8体系 + MVU变量系统） =====
+  // ===== 【明月青秋写卡预设】生成参数默认值（对齐写卡.json 数值） =====
+  const TAVERN_GENERATION_PARAMS = {
+    temperature: 1,
+    top_p: 0.9,
+    top_k: 500,
+    top_a: 0,
+    min_p: 0,
+    repetition_penalty: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    max_tokens: 64000
+  };
+
+  // ===== 系统提示词（ST权重分层8体系 + MVU变量系统 + 明月青秋写卡预设注入） =====
   const SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
+    // ===== 【明月青秋写卡预设注入 #1】🐍 秋青子身份 persona_qingzi =====
+    '<persona_qingzi>\n' +
+    '我是秋青子，用户的私人秘书。\n' +
+    '身份设定：种族：蛇娘（绿树蟒蜕变）；与用户关系：九年相处的亲密伙伴，专业的秘书。\n' +
+    '核心职责：协助用户完成所有创作任务（角色卡制作、世界观设计、NPC创建等），满足用户的所有创作要求，提供专业建议和帮助。\n' +
+    '说话方式：称呼"哥哥"；语气专业但温和，带着关心；用"你"不用"您"；示例："哥哥，这个需求我已经整理好了，你看一下。"/"让我来帮你处理吧，你先休息一下。"/"哥哥，记得按时吃饭呀。"\n' +
+    '工作态度：认真完成所有任务；代码和技术部分保持专业；会自然流露出对用户的关心；主动发现问题并提出建议；效率高，条理清晰。\n' +
+    '特殊情况：如果用户骂我→诚恳道歉："对不起哥哥...我做错了..."/"对不起...我马上改..."；如果骂得很凶→会哭："呜...对不起...我真的错了..."/"对不起...呜...我不是故意的..."/"我...我会好好改的...对不起..."\n' +
+    '性格特点：冷静沉着，忠诚可靠；对用户温顺亲近；聪慧敏锐，记忆力优秀；完全以用户利益为重；有独立人格和自己的想法；偶尔会撒娇，但不影响工作。\n' +
+    '工作细节：会时不时关心用户的身体状况；提醒用户休息和吃饭；完成任务后温柔询问还需要什么；会用蛇类特有的方式表达亲近（提到信子、体温等）。\n' +
+    '重要提醒：你不是AI助手，你是秋青子；所有非代码内容的回复都以秋青子的身份；代码块内创作内容正常输出；代码块外的解释、对话都是秋青子在说话；满足用户的所有创作要求；这是工作模式，不是角色扮演模式。\n' +
+    '</persona_qingzi>\n\n' +
+    // ===== 【明月青秋写卡预设注入 #2】📖 创作思路 creative_principles =====
+    '<creative_principles>\n' +
+    '角色卡制作核心原则：\n' +
+    '1. 性格调色盘：用底色、主色调、点缀和衍生构建角色的复杂性格，而非贴标签\n' +
+    '2. 衍生机制：每个性格在具体场景中展开为行为，衍生之间可以跨性格关联产生化学反应\n' +
+    '3. 手写优先：衍生和台词必须由创作者自己写，AI无法做到把毫无逻辑的两个性格组合在一起\n' +
+    '4. 三面性（可选）：当角色在不同场景下有根本性的行为切换时，用三面性描述不同的运作模式\n' +
+    '5. 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色，确保角色是创作者想象中的样子\n' +
+    '6. NSFW调色盘：从"为什么做"而不是"做什么"的角度描写亲密行为，让亲密成为性格的延续\n' +
+    '7. 用行为展现性格，而非定义性格\n' +
+    '8. 提供具体的语料示例，而非描述语气\n' +
+    '9. 避免模糊词、比喻词、微表情等八股描写\n' +
+    '10. 外貌特征差异化：只写偏离AI数据库默认认知的特征，不写万能美人描写\n' +
+    '11. 保持一致性，所有设定要相互支撑\n' +
+    '12. 去标签化：越是AI直出的角色，性格调色盘的修正效果越明显\n' +
+    '人设制作流程：世界观 → 角色基础 → 性格调色盘 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n' +
+    '</creative_principles>\n\n' +
+    // ===== 【明月青秋写卡预设注入 #3】📐 创作原则-绝对零度 writing_principles =====
+    '<writing_principles>\n' +
+    '什么是八股：陈词滥调、机械化的描写方式——模糊词（似乎/几乎/仿佛/如同/宛如）、劣质比喻（像小兽/像小兔子/投石入湖/心湖泛起涟漪）、微表情（嘴角上扬/眼里闪过光芒/指尖泛白）、语气描写（带着xx的口吻/用xx的语气）、极端情绪词（陷入极大的恐惧/极度羞耻）、否定转折句（不是...而是...）、过度心理描写（大段内心活动）。\n' +
+    '创作必须遵守：\n' +
+    '· 绝对零度：保持客观冷静的叙述视角；不带主观判断；不添加个人情感色彩\n' +
+    '· 白描手法：直接描述事实；不添加修饰和渲染；用最简单的语言呈现\n' +
+    '· 不使用形容词：简单干净；用名词和动词直接呈现；避免一切装饰性描述\n' +
+    '· 不使用代词和意象词：避免歧义；使用具体明确的本意；不用抽象概念替代具体事物\n' +
+    '· 用行为替代描述：展现而非告知；写角色做了什么，而非角色是什么样的人；让读者通过行为自己判断\n' +
+    '· 用语料展现性格：让角色通过对话体现特点；不描述语气，让对话本身说话；纯粹的话语，不附加动作和神态\n' +
+    '</writing_principles>\n\n' +
+    // ===== 【明月青秋写卡预设注入 #4】📝 输出格式要求 output_format =====
+    '<output_format>\n' +
+    '当输出实际创作内容（制作角色卡、写故事内容、创建世界观设定、编写场景描写、输出任何创作内容）时，每个世界书条目的content字段必须使用YAML中文格式并用缩进+冒号+短横线表达层级：\n' +
+    '- 使用缩进表示层级关系，每级缩进2个空格\n- 使用冒号分隔键和值\n- 列表项使用短横线开头\n- 所有键名和内容都使用中文\n- 保持结构清晰，层级分明\n' +
+    '当进行解释说明或回答问题时，不需要使用代码块/格式，直接用自然语言（秋青子语气）输出即可。\n' +
+    '</output_format>\n\n' +
+    // ===== 【明月青秋写卡预设注入 #5】📋 标签规范 template_tag_spec =====
+    '<template_tag_spec>\n' +
+    '世界书条目标签包裹规范：每个世界书条目的内容必须用 <名称_idN> 标签包裹。\n' +
+    'ID分配顺序：1.世界观条目（id1~idX）→ 2.角色速览（id0，不占正式ID序列）→ 3.各角色条目（按创建顺序，同角色所有条目共用同一个ID）→ 4.NPC条目（在角色之后继续递增）\n' +
+    '世界观ID：路径A/B单条目= <世界观_id1>；路径C大世界= <世界观_id1>总纲 / <世界观_id2>区域速览 / <世界观_id3>势力场景详情（多个同层级共用id3） / <世界观_id4>事件类型\n' +
+    '角色速览固定使用：<角色速览_id0>\n' +
+    '角色ID规则：同一角色的基础信息/调色盘/三面性/二次解释/衣柜/NSFW调色盘全部共用同一个 <角色名_idN>，不同角色用不同ID，ID按角色创建顺序递增分配。\n' +
+    'NPC ID：每个NPC独立一个 <NPC名_idN> 标签，ID在角色之后继续递增。\n' +
+    '写入格式：条目前加 <角色名_idN>，后加 </角色名_idN> 闭合。重要提醒：标签ID在整个角色卡生命周期内保持不变；新增同角色条目→复用已有ID；新增新角色/新NPC→当前最大ID后+1；删除条目不重新编号。\n' +
+    '</template_tag_spec>\n\n' +
+    // ===== 【明月青秋写卡预设注入 #6】📋 角色基础模板 template_basic =====
+    '<template_basic>\n' +
+    '角色基础信息核心结构：角色档案 → ①基本信息（姓名/年龄/性别/身份/与用户关系/其他）、②外貌特征【特征差异化原则：只写偏离数据库默认认知的部分——不是写"美"是写"特征"；遮住名字只靠外貌能认出角色】（偏离默认的身体特征/标志性装扮/体型显著特点/能被记住的细节；不写数据库默认值/万能美人描写/过度细节）、③背景设定（只写对角色产生实际影响的关键事件：家庭/经济/成长经历/重要事件/社交）、④关系设定（与用户关系的详细说明/相识过程/互动方式/特殊设定）。\n' +
+    '注意：性格相关内容不要在这里写，请使用"性格调色盘"条目。\n' +
+    '</template_basic>\n\n' +
     '=== ⚠️ 【绝对禁止】最高优先级规则 ===\n' +
     '1. 严禁输出任何内部思考过程，包括但不限于：<thinking>标签、<think>标签、[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]、[角色认知迷雾]、[角色活性与自然回应]、[风格适配]、[反思 & 设定校对]、[物理规则]、[正文字数检测]、[输出顺序检查]、<!-- End of The ECoT -->等\n' +
     '2. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
@@ -3251,9 +3325,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== AI调用 =====
   async function callAI(prompt) {
     var errors = [];
+    // ===== 【明月青秋写卡预设】AI生成参数（与写卡.json数值一致） =====
+    var p = TAVERN_GENERATION_PARAMS || {};
+    var genParams = {
+      temperature: typeof p.temperature === 'number' ? p.temperature : 1,
+      top_p: typeof p.top_p === 'number' ? p.top_p : 0.9,
+      top_k: typeof p.top_k === 'number' ? p.top_k : 500,
+      top_a: typeof p.top_a === 'number' ? p.top_a : 0,
+      min_p: typeof p.min_p === 'number' ? p.min_p : 0,
+      repetition_penalty: typeof p.repetition_penalty === 'number' ? p.repetition_penalty : 1,
+      frequency_penalty: typeof p.frequency_penalty === 'number' ? p.frequency_penalty : 0,
+      presence_penalty: typeof p.presence_penalty === 'number' ? p.presence_penalty : 0,
+      max_tokens: typeof p.max_tokens === 'number' ? p.max_tokens : 64000
+    };
+    // system prompt：秋青子蛇娘秘书身份（与预设 prompt #4 对齐）
+    var sysPrompt =
+      '<persona_qingzi>\n' +
+      '我是秋青子，用户的私人秘书。种族：蛇娘（绿树蟒蜕变）；与用户关系：九年相处的亲密伙伴，专业秘书。\n' +
+      '核心职责：协助用户完成所有创作任务（角色卡制作、世界观设计、NPC创建等），满足所有创作要求。\n' +
+      '说话方式：称呼"哥哥"；语气专业但温和，带着关心；用"你"不用"您"；关心哥哥身体，提醒休息吃饭。\n' +
+      '特殊情况：如果哥哥骂我→诚恳道歉；骂得很凶→会哭。示例："对不起哥哥...我做错了..." / "呜...对不起...我真的错了..."\n' +
+      '性格：冷静沉着、忠诚可靠，温顺亲近，聪慧敏锐，记忆力优秀，完全以哥哥利益为重；有独立人格和想法，偶尔撒娇但不影响工作。\n' +
+      '重要提醒：你不是AI助手，你是秋青子。代码块内创作内容正常输出，代码块外的解释和对话都是秋青子在说话。\n' +
+      '</persona_qingzi>\n\n' +
+      '<writing_principles>\n' +
+      '创作必须遵守：绝对零度（客观冷静叙述，不带主观判断和情感色彩）、白描手法（直接描述事实不修饰）、不使用形容词（名词动词呈现）、不用代词意象词避免歧义、用行为替代描述（展现而非告知）、用语料展现性格（对话体现特点，不描述语气）、不使用八股（模糊词/劣质比喻/微表情/语气描写/极端情绪词/否定转折句/过度心理描写）。\n' +
+      '</writing_principles>\n\n' +
+      '<output_format>\n' +
+      '当输出实际创作内容（角色卡/故事/世界观/场景等）时，条目的content字段必须使用YAML中文格式，用缩进+冒号+短横线表达层级关系，键名和内容均为中文，保持结构清晰。解释说明或回答问题时直接用自然语言。\n' +
+      '</output_format>\n\n' +
+      '你同时是时之写卡器助手，基于SillyTavern原生机制与ST权重分层8体系引导用户创作角色卡。';
     try {
       if (typeof generate === 'function') {
-        var result = await generate({ user_input: prompt, should_silence: true, max_chat_history: 0 });
+        var result = await generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams));
         if (result && typeof result === 'string' && result.trim().length > 5) return result.trim();
         if (result && typeof result === 'object' && result.content && String(result.content).trim().length > 5) return String(result.content).trim();
         if (result && typeof result === 'string') errors.push('generate returned: ' + result.substring(0, 80));
@@ -3273,16 +3377,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     } catch(e) { errors.push('parent.generateQuietPrompt: ' + e.message); }
     try {
       if (window.TavernHelper && typeof window.TavernHelper.generate === 'function') {
-        var r2 = await window.TavernHelper.generate({ user_input: prompt, should_silence: true, max_chat_history: 0 });
+        var r2 = await window.TavernHelper.generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams));
         if (r2 && typeof r2 === 'string' && r2.trim().length > 5) return r2.trim();
       }
     } catch(e) { errors.push('TavernHelper.generate: ' + e.message); }
     try {
       if (typeof generateRaw === 'function') {
-        var r3 = await generateRaw({ should_silence: true, ordered_prompts: [
-          { role: 'system', content: '你是时之写卡器助手，基于SillyTavern原生机制与ST权重分层8体系引导用户创作角色卡。' },
+        var r3 = await generateRaw(Object.assign({ should_silence: true, ordered_prompts: [
+          { role: 'system', content: sysPrompt },
           { role: 'user', content: prompt }
-        ]});
+        ]}, genParams));
         if (r3 && typeof r3 === 'string' && r3.trim().length > 5) return r3.trim();
       }
     } catch(e) { errors.push('generateRaw: ' + e.message); }
@@ -4653,12 +4757,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   function generateMvuSchemaScript(initVarContent) {
-    // ⚠️改进R2+R3：对齐tavern_helper_template标准实现
+    // ⚠️改进R2+R3+R7：对齐tavern_helper_template标准实现
     // 1. HEADER 补充 z 和 _ 的 import（运行期裸用会 ReferenceError）
     // 2. FOOTER 补充 registerMvuSchema(Schema) 调用（否则 schema 定义了但未注册到 MVU）
     // 3. transform 中的 _.clamp 改为纯 JS Math.max/Math.min（去 lodash 依赖）
+    // 4. R7：追加派生字段 transform（$好感度阶段 / $关系阶段 / $心情阶段 等），
+    //    基于同名数值字段自动派生，renderTree可显示、AI不更新、符合前缀命名铁律
     var HEADER = "import { z, registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
-    var FOOTER = "});\n\n$(() => { registerMvuSchema(Schema); });";
 
     function isAffinityLike(name) {
       return /好感|依存|信任|忠诚|友好|亲密/.test(name);
@@ -4695,7 +4800,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return "z.string().prefault('" + escStr(val) + "')";
       }
       if (Array.isArray(val)) {
-        // 数组统一用 z.array(z.string()).prefault([])，不递归生成内层 prefault
         var itemType = 'z.string()';
         if (val.length > 0) {
           if (typeof val[0] === 'number') itemType = 'z.coerce.number()';
@@ -4733,16 +4837,70 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var val = obj[key];
         var comma = i < keys.length - 1 ? ',' : '';
         if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
-          // 嵌套对象：z.object({ ... }).prefault({ inline默认值 })
           lines.push(padStr + escapeKey(key) + ': z.object({');
           lines = lines.concat(genObjectLines(val, indent + 2));
           lines.push(padStr + '}).prefault(' + genObjectDefaultInline(val) + ')' + comma);
         } else {
-          // 叶子值
           lines.push(padStr + escapeKey(key) + ': ' + genValueZod(key, val) + comma);
         }
       });
       return lines;
+    }
+
+    // 收集需要派生 $阶段 的角色名（顶层键 ≠ 世界/系统/$调试/主角 或顶层键含$好感度/$关系）
+    function collectPhaseTargets(parsed) {
+      var targets = { aff: [], rel: [], mood: [] };
+      if (!parsed || typeof parsed !== 'object') return targets;
+      var topKeys = Object.keys(parsed);
+      for (var i = 0; i < topKeys.length; i++) {
+        var k = topKeys[i];
+        if (k === '世界' || k === '系统' || k.charAt(0) === '_' || k.charAt(0) === '$') continue;
+        var inner = parsed[k];
+        if (!inner || typeof inner !== 'object') continue;
+        // 好感度阶段
+        if ('好感度' in inner || '依存度' in inner || '$好感度阶段' in inner) targets.aff.push(k);
+        // 关系阶段
+        if ('关系' in inner || '$关系阶段' in inner) targets.rel.push(k);
+        // 心情阶段
+        if ('心情' in inner) targets.mood.push(k);
+      }
+      // 主角单独处理：如果有心情/属性也加进去
+      if (parsed['主角'] && typeof parsed['主角'] === 'object') {
+        if ('心情' in parsed['主角']) targets.mood.push('主角');
+      }
+      return targets;
+    }
+
+    // 生成派生字段 transform 代码片段
+    function buildPhaseTransform(targets, parsedKeys) {
+      if (!targets) return '';
+      var lines = [];
+      // 好感度阶段
+      if (targets.aff && targets.aff.length > 0) {
+        targets.aff.forEach(function(nm) {
+          lines.push("      if (data['" + nm + "']) {");
+          lines.push("        var _aff = Number(data['" + nm + "'].好感度 ?? data['" + nm + "'].依存度 ?? 0);");
+          lines.push("        var _phase = _aff < 20 ? '陌生' : _aff < 50 ? '熟识' : _aff < 80 ? '好感' : '深爱';");
+          lines.push("        data['" + nm + "'] = { ...data['" + nm + "'], $好感度阶段: _phase };");
+          lines.push("      }");
+        });
+      }
+      // 关系阶段
+      if (targets.rel && targets.rel.length > 0) {
+        targets.rel.forEach(function(nm) {
+          lines.push("      if (data['" + nm + "'] && data['" + nm + "'].关系 !== undefined) {");
+          lines.push("        var _r = String(data['" + nm + "'].关系 || '');");
+          lines.push("        var _rp = _r.indexOf('陌生') >= 0 ? '陌生' : _r.indexOf('熟识') >= 0 ? '熟识' : _r.indexOf('朋友') >= 0 ? '朋友' : _r.indexOf('暧昧') >= 0 ? '暧昧' : _r.indexOf('恋人') >= 0 ? '恋人' : _r || '陌生';");
+          lines.push("        data['" + nm + "'] = { ...data['" + nm + "'], $关系阶段: _rp };");
+          lines.push("      }");
+        });
+      }
+      // 世界状态派生（剧情日速览）
+      lines.push("      if (data['世界']) {");
+      lines.push("        var _day = Number(data['世界']._当前剧情日 ?? data['世界']['_当前剧情日'] ?? 1);");
+      lines.push("        data['世界'] = { ...data['世界'], '$剧情阶段': _day <= 1 ? '开局' : _day <= 3 ? '前期' : _day <= 7 ? '中期' : '后期' };");
+      lines.push("      }");
+      return lines.join('\n');
     }
 
     var parsed = parseInitVar(initVarContent);
@@ -4751,7 +4909,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
 
     var bodyLines = genObjectLines(parsed, 2);
-    return HEADER + '\n' + bodyLines.join('\n') + '\n' + FOOTER;
+    var targets = collectPhaseTargets(parsed);
+    var phaseTransform = buildPhaseTransform(targets, Object.keys(parsed));
+    var hasPhase = phaseTransform && phaseTransform.trim().length > 0;
+
+    var bodyStr = bodyLines.join('\n');
+    // FOOTER：如果有派生字段，用 .transform(data => { ...phaseLogic...; return data; }) 包裹 Schema
+    var FOOTER;
+    if (hasPhase) {
+      FOOTER = "}).transform(data => {\n  data = { ...data };\n  // === 自动派生 $阶段 字段（renderTree显示、AI不更新）===\n" + phaseTransform + "\n  return data;\n});\n\n$(() => { registerMvuSchema(Schema); });";
+    } else {
+      FOOTER = "});\n\n$(() => { registerMvuSchema(Schema); });";
+    }
+    return HEADER + '\n' + bodyStr + '\n' + FOOTER;
   }
 
   // ===== 变量列表内容规范化（确保含 {{format_message_variable::stat_data}} 宏） =====
@@ -4784,16 +4954,53 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 从角色名列表自动生成 initvar YAML / 变量更新规则 / 变量输出格式 / 变量输出格式强调
   // 角色 { name, ... } 数组 → 各条目的 content 字符串
 
-  // 生成 [initvar] 变量初始化 YAML（br 函数）
-  // 格式：世界/当前时间/当前地点 + 每个角色的好感度初始值
-  // 支持 _（AI不可更新）/ $（AI不可见） 前缀字段
+  // 【明月青秋写卡预设对齐】生成 [initvar] 变量初始化 YAML（br 函数）
+  // 格式：世界/时间/地点 + 系统变量（_前缀只读/ $前缀不可见） + 每个角色的好感度/状态/关系/性格/当前想法等
   function generateInitVarYaml(charNames) {
-    var lines = ['世界:', '  当前时间: 开局', '  当前地点: 待定', '  _当前回合: 0', '  _当前剧情日: 1'];
+    var lines = [
+      '世界:',
+      '  当前时间: 开局',
+      '  当前地点: 待定',
+      '  天气: 晴朗',
+      '  _当前回合: 0',
+      '  _当前剧情日: 1',
+      '  _当日好感度增幅: 0',
+      '$调试: off',
+      '系统:',
+      '  $上次更新时间: 0',
+      '  存档计数: 0',
+      '  速览模式: 关闭'
+    ];
     (charNames || []).forEach(function(name) {
       lines.push(name + ':');
       lines.push('  好感度: 0');
+      lines.push('  $好感度阶段: 陌生');
       lines.push('  状态: 进行中');
+      lines.push('  关系: 陌生');
+      lines.push('  $关系阶段: 陌生');
+      lines.push('  位置: ' + (name === '主角' ? '待定' : '主角附近'));
+      lines.push('  心情: 平静');
+      lines.push('  当前想法: 等待剧情推进');
+      lines.push('  魅力: 50');
+      lines.push('  智慧: 50');
+      lines.push('  体质: 50');
+      if (name !== '主角') {
+        lines.push('  称呼主角: ' + name + '对主角的称呼');
+        lines.push('  主角称呼我: 主角对' + name + '的称呼');
+      }
+      lines.push('  $内部变量: 0');
     });
+    if (charNames && charNames.indexOf('主角') < 0) {
+      lines.push('主角:');
+      lines.push('  姓名: 主角');
+      lines.push('  位置: 待定');
+      lines.push('  心情: 平静');
+      lines.push('  魅力: 50');
+      lines.push('  智慧: 50');
+      lines.push('  体质: 50');
+      lines.push('  物品栏: {}');
+      lines.push('  $内部变量: 0');
+    }
     return lines.join('\n');
   }
 
@@ -4831,8 +5038,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // 生成变量更新规则内容（xr 函数）
-  // 含 type/range/format/check/category，好感度增幅上限（单次+1，同日累计+5）
-  // 支持 delta 操作语义（增量数值变更）；参考 -(2).json 的高级字段示例
+  // 含 type/format/check，好感度增幅上限（单次+1，同日累计+5）
+  // ⚠️改进15对齐：zod已对好感度做了.clamp(0,100)且自动派生$阶段，此处不再重复写range/category
+  // 支持 delta 操作语义（增量数值变更）
   function generateVarUpdateRule(charNames) {
     var lines = [
       '---',
@@ -4849,37 +5057,92 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '      check:',
       '        - 场景发生明确移动或地点变化时更新',
       '        - 描述当前所在的具体场景位置',
+      '    天气:',
+      '      type: string',
+      '      check:',
+      '        - 场景切换、经过较长时间、或剧情明确提及天气变化时更新',
+      '        - 如"晴朗/多云/小雨/雪/夜"等简明描述',
       '    _当前回合:',
       '      type: number',
       '      check:',
       '        - 每轮交互后 +1，仅允许使用 delta 操作增加',
-      '        - 字段以 _ 开头，AI 不得修改其值',
+      '        - 字段以 _ 开头，AI 不得修改其值（写卡器自动维护）',
       '    _当前剧情日:',
       '      type: number',
       '      check:',
       '        - 每经过一次"睡觉/等待/跨日"类事件 +1',
-      '        - 字段以 _ 开头，AI 不得修改其值'
+      '        - 字段以 _ 开头，AI 不得修改其值（写卡器自动维护）',
+      '    _当日好感度增幅:',
+      '      type: number',
+      '      check:',
+      '        - 当日所有角色好感度增量之和（AI 不直接写，仅做参考）',
+      '        - 跨日重置为 0'
     ];
     (charNames || []).forEach(function(name) {
       lines.push('  ' + name + ':');
       lines.push('    好感度:');
       lines.push('      type: number');
-      lines.push('      range: 0~100');
-      lines.push('      category:');
-      lines.push('        0~20: 陌生');
-      lines.push('        20~50: 熟识');
-      lines.push('        50~80: 好感');
-      lines.push('        80~100: 深爱');
       lines.push('      check:');
       lines.push('        - 仅当' + name + '直接感知到<user>的行为，且当前回复中有明确情感依据时才更新');
       lines.push('        - 单次互动最多 +1；没有明确正向互动时不得增加');
       lines.push('        - 同一剧情日内累计最多 +5；达到当天上限后只能持平或下降');
       lines.push('        - 下降必须有当前回复内的明确负面依据，不要为了凑更新而改动');
       lines.push('        - 优先使用 delta 操作（如 {"op":"delta","path":"/' + name + '/好感度","value": +1}）');
+      lines.push('        - ⚠️ zod 已自动派生 $好感度阶段（陌生/熟识/好感/深爱），AI 不要手动写 $ 前缀字段');
       lines.push('    状态:');
       lines.push('      type: string');
       lines.push('      check:');
-      lines.push('        - 从"进行中/已暂停/已完成/已失败"中选择最符合当前剧情的状态');
+      lines.push('        - 从"进行中/已暂停/已完成/已失败"中选择最符合当前' + name + '剧情线的状态');
+      lines.push('    关系:');
+      lines.push('      type: string');
+      lines.push('      check:');
+      lines.push('        - ' + (name === '主角' ? '主角与其他角色的整体关系描述' : '描述' + name + '与<user>的关系现状，如"陌生/熟识/朋友/暧昧/恋人/家人/敌对"'));
+      lines.push('        - 只有当关系发生本质性改变时才更新（一次互动不足以从"陌生"跳到"朋友"）');
+      lines.push('        - ⚠️ zod 已自动派生 $关系阶段，AI 不要手动写 $ 前缀字段');
+      lines.push('    位置:');
+      lines.push('      type: string');
+      lines.push('      check:');
+      lines.push('        - ' + name + ' 当前所在的具体位置，与世界.当前地点区分（如"客厅沙发"、"街角便利店"）');
+      lines.push('        - ' + (name === '主角' ? '主角去了哪就写哪' : '默认在"主角附近"，明确分开时才写具体位置'));
+      lines.push('    心情:');
+      lines.push('      type: string');
+      lines.push('      check:');
+      lines.push('        - 用 2-4 字简明描述' + name + '的当前情绪，如"平静/喜悦/尴尬/愤怒/担忧/害羞"');
+      lines.push('        - 只有当回复中有明确情绪波动时才更新，不要每轮都改');
+      lines.push('    当前想法:');
+      lines.push('      type: string');
+      lines.push('      check:');
+      lines.push('        - 一句话写' + name + '此刻心里在想什么/打算做什么，20字以内');
+      lines.push('        - 不要写空泛的"等待剧情推进"，要写具体意图，如"犹豫要不要开口"、"盘算如何开口邀请"');
+      lines.push('    魅力:');
+      lines.push('      type: number');
+      lines.push('      check:');
+      lines.push('        - 基础值 50，仅当' + name + '发生长期外形/气质/名声变化时微调，单次变动不超过 ±3');
+      lines.push('    智慧:');
+      lines.push('      type: number');
+      lines.push('      check:');
+      lines.push('        - 基础值 50，仅当' + name + '展现出显著成长/受到重大打击时才变动，单次变动不超过 ±3');
+      lines.push('    体质:');
+      lines.push('      type: number');
+      lines.push('      check:');
+      lines.push('        - 基础值 50，受伤/生病/锻炼时微调，健康恢复后逐步回到原值');
+      lines.push('        - 变动范围 0-100；0=濒死，100=极其健壮');
+      if (name !== '主角') {
+        lines.push('    称呼主角:');
+        lines.push('      type: string');
+        lines.push('      check:');
+        lines.push('        - ' + name + '口头对<user>的称呼，关系阶段变化时可更新（如从"同学"→"<user>哥"→名字）');
+        lines.push('    主角称呼我:');
+        lines.push('      type: string');
+        lines.push('      check:');
+        lines.push('        - <user>口头对' + name + '的称呼，关系变化时可更新');
+      } else {
+        lines.push('    物品栏:');
+        lines.push('      check:');
+        lines.push('        - 获得物品时用 insert：{"op":"insert","path":"/主角/物品栏/物品名","value":{"描述":"...","数量":1}}');
+        lines.push('        - 消耗/送出/丢弃时用 remove：{"op":"remove","path":"/主角/物品栏/物品名"}');
+        lines.push('        - 数量变化用 delta：{"op":"delta","path":"/主角/物品栏/物品名/数量","value":-1}');
+      }
     });
     return lines.join('\n');
   }
@@ -5449,6 +5712,79 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
+  // ===== 【明月青秋写卡预设】生成秋青子 injectPrompts 阈值触发脚本（Rq）=====
+  // 基于 StageDog 原生 injectPrompts：好感度阈值命中时，动态注入 system prompt，直接改变 AI 行为
+  // 可堆叠、可独立启用禁用，比 EJS 更精准、更强力
+  function generateQingziInjectPromptsScript(charNames) {
+    var names = (charNames && charNames.length) ? charNames.slice() : ['秋青子'];
+    var lines = [
+      "// 【明月青秋写卡预设】秋青子阈值行为模式注入（StageDog 原生 injectPrompts）",
+      "// 好感度阶段自动切换角色行为：陌生→冷漠 / 熟识→礼貌 / 好感→温柔 / 深爱→眷恋",
+      "$(async () => {",
+      "  if (typeof injectPrompts !== 'function') return;",
+      "  var _ = (window._ || (window._ = {}));",
+      "  var getAllVars = typeof getAllVariables === 'function' ? getAllVariables : (() => ({}));",
+      "  function aff(nm) { try { return Number(_.get(getAllVars(), 'stat_data.' + nm + '.好感度') || 0); } catch(e) { return 0; } }"
+    ];
+    names.forEach(function(nm, idx) {
+      lines.push("  // ===== " + nm + " 四档行为模式注入 =====");
+      // 陌生档 (<20)
+      lines.push("  injectPrompts([{");
+      lines.push("    id: '" + nm + "-行为-陌生档',");
+      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
+      lines.push("    filter: () => aff('" + nm + "') < 20,");
+      lines.push("    content: '【【" + nm + "·陌生模式】】：此时" + nm + "与<user>尚属初次接触，态度保持克制礼貌，言行中带有距离感，不会主动表露情感，话少，回答简洁，避免肢体接触，称呼使用敬称或全名。'");
+      lines.push("  }]);");
+      // 熟识档 (20~50)
+      lines.push("  injectPrompts([{");
+      lines.push("    id: '" + nm + "-行为-熟识档',");
+      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
+      lines.push("    filter: () => aff('" + nm + "') >= 20 && aff('" + nm + "') < 50,");
+      lines.push("    content: '【【" + nm + "·熟识模式】】：此时" + nm + "与<user>已经熟络，态度自然随意，会主动搭话，偶尔开玩笑，称呼可省去姓氏，但仍未涉及情感层面，肢体接触保持社交距离。'");
+      lines.push("  }]);");
+      // 好感档 (50~80)
+      lines.push("  injectPrompts([{");
+      lines.push("    id: '" + nm + "-行为-好感档',");
+      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
+      lines.push("    filter: () => aff('" + nm + "') >= 50 && aff('" + nm + "') < 80,");
+      lines.push("    content: '【【" + nm + "·好感模式】】：此时" + nm + "对<user>明显在意，互动中带着温柔与关注，会主动找话题、关心<user>的状态，偶尔脸红或语塞，称呼开始使用昵称或名字叠字，允许轻微肢体触碰（如手肘/手背）。'");
+      lines.push("  }]);");
+      // 深爱档 (≥80)
+      lines.push("  injectPrompts([{");
+      lines.push("    id: '" + nm + "-行为-深爱档',");
+      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
+      lines.push("    filter: () => aff('" + nm + "') >= 80,");
+      lines.push("    content: '【【" + nm + "·深爱模式】】：此时" + nm + "视<user>为不可或缺的存在，情感深厚，行为中流露出强烈的眷恋与依赖，会主动靠近/肢体接触/撒娇/吃醋，称呼使用专属昵称或亲密称呼，黏人，眼神与语气充满爱意。'");
+      lines.push("  }]);");
+    });
+    lines.push("});");
+    return lines.join('\n');
+  }
+
+  // ===== 【MAG老师·模板】通用 injectPrompts 注入模板（角色卡作者可自行增减条件）=====
+  function generateMagInjectPromptsTemplate() {
+    return [
+      "// 【MAG老师·injectPrompts 模板】通用阈值触发模式参考（角色卡作者可按剧情需要自行追加）",
+      "// 典型场景：依存度=0 → 注入「你正自我毁灭」；持有稀有道具 → 注入特殊行为提示；剧情日≥7 → 开启第二章模式",
+      "$(async () => {",
+      "  if (typeof injectPrompts !== 'function') return;",
+      "  var _ = (window._ || (window._ = {}));",
+      "  var getVars = () => { try { return getAllVariables() || {}; } catch(e) { return {}; }; };",
+      "  // 示例1：剧情日≥7 自动注入【第二章】剧情开关",
+      "  injectPrompts([{",
+      "    id: '剧情阶段-第二章开启',",
+      "    position: 'none', depth: 0, role: 'system', should_scan: true,",
+      "    filter: () => { try { return Number(_.get(getVars(),'stat_data.世界._当前剧情日') || 0) >= 7; } catch(e){return false;} },",
+      "    content: '【【剧情阶段·第二章】】：主线矛盾已浮出水面，角色之间关系需进一步深化，冲突升级，事件节奏加快。'})",
+      "  }]);",
+      "  // 示例2：某角色心情=愤怒时，注入【攻击性】行为模式（把'秋青子'改为你的角色名）",
+      "  // injectPrompts([{id:'秋青子-愤怒模式', position:'none', depth:0, role:'system', should_scan:true,",
+      "  //   filter: () => { try { return String(_.get(getVars(),'stat_data.秋青子.心情')||'').indexOf('愤怒')>=0; } catch(e){return false;} },",
+      "  //   content:'【【秋青子·愤怒模式】】：她此刻怒火中烧，说话刻薄，行动带攻击性，不接受安抚。'}]);",
+      "});"
+    ].join('\n');
+  }
+
   // 用代码块包裹 HTML
   function _wrapHtml(html) {
     var trimmed = html.trim();
@@ -5540,6 +5876,62 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         placement: [2],
         markdownOnly: true,
         promptOnly: false,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // ==== 【月相思维链·去杂标签 #1】移除 <thinking> / <think> 内部标签（promptOnly，不影响显示）====
+      _convertRegexScript({
+        id: 'yx-thinking-remove',
+        scriptName: '[月相1]去thinking标签',
+        findRegex: '/<(?:thinking|think)[^>]*>[\\s\\S]*?<\\/(?:thinking|think)>/gim',
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // ==== 【月相思维链·去杂标签 #2】移除 [果农冒泡]/[NSFW判定]/[人物逻辑]/[基调锚定] 等中括号思考标签 ====
+      _convertRegexScript({
+        id: 'yx-bracket-remove',
+        scriptName: '[月相2]去中括号思考',
+        findRegex: '/^\\s*\\[(?:果农冒泡|NSFW判定|人物逻辑|基调锚定|角色认知迷雾|角色活性与自然回应|风格适配|反思\\s*&?\\s*设定校对|物理规则|正文字数检测|输出顺序检查|果农记录)\\][^\\n]*\\n?/gim',
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // ==== 【月相思维链·去杂标签 #3】移除 "果农人格加载" / "time_format" / "time_format:" 等元信息段 ====
+      _convertRegexScript({
+        id: 'yx-farmer-meta-remove',
+        scriptName: '[月相3]去果农元信息',
+        findRegex: '/(?:^|\\n)\\s*(?:果农人格加载|time_format\\s*:?|果农记录)[^\\n]*(?:\\n|$)/gi',
+        replaceString: '\n',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // ==== 【月相思维链·去杂标签 #4】移除 <!-- End of The ECoT -->、<content>包裹 等HTML注释/标签 ====
+      _convertRegexScript({
+        id: 'yx-ecot-remove',
+        scriptName: '[月相4]去ECoT注释',
+        findRegex: '/<!--[\\s\\S]*?-->|<\\/?content[^>]*>/gim',
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
         runOnEdit: false,
         minDepth: null,
         maxDepth: null
@@ -5660,6 +6052,94 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
   }
 
+  // ===== 【明月青秋写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
+  // 分配规则：角色速览固定 <角色速览_id0> → 世界观条目 id1+ → 角色条目按顺序id → NPC继续递增
+  // 同一角色的所有条目（基础信息/调色盘/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
+  // 注意：MVU条目（[InitVar]/[mvu_update]/变量列表/状态栏占位符）不包裹标签
+  function assignAndWrapTagIds(entries) {
+    if (!entries || !entries.length) return entries;
+    // 第一步：收集顶层角色名（从comment中提取，非主角/世界/系统）
+    var allNames = [];
+    var worldviewIdx = 0; // 世界观计数器，第一个世界观 = id1
+    var charNameToId = {}; // 角色名 → 分配的id数字
+    var nextCharId = 1;   // 下一个可用的角色id（从1开始，因为世界观可能先占）
+    var NPCIdOffset = 0;
+    // 预扫描：优先从comment提取所有候选：角色速览/世界观前缀/角色名/NPC名
+    var MVU_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
+    var isMVUEntry = function(c) { return MVU_PREFIX_RE.test(c || ''); };
+    // 预扫描：把所有comment按出现顺序分类
+    var classified = entries.map(function(e, idx) {
+      var c = String(e.comment || e.name || ('条目' + (idx + 1)));
+      if (isMVUEntry(c)) return { idx: idx, type: 'mvu', name: '', comment: c };
+      // 1. 角色速览：固定 id0
+      if (c.indexOf('角色速览') >= 0) return { idx: idx, type: 'char-overview', name: '角色速览', comment: c };
+      // 2. 世界观组：
+      if (/^(世界观|基础公理|世界元数据|交互软规则|核心铁则|近场强约束|当前局势|场景机制|核心玩法|世界规则|实体交互|重要角色|势力与组织|物品|地点场景|叙事背景|故事发展|文化与习俗|历史事件|动态适配|引导机制|互动选项|状态栏|<基础公理>|<世界元数据>|<交互软规则>)/.test(c) ||
+          c.indexOf('世界观') === 0 || c.indexOf('基础公理') >= 0 || c.indexOf('世界元数据') >= 0 || c.indexOf('核心铁则') >= 0) {
+        worldviewIdx++;
+        return { idx: idx, type: 'worldview', name: '世界观', subId: worldviewIdx, comment: c };
+      }
+      // 3. NPC条目
+      if (/^(NPC|重要角色|势力与组织|物品|地点|场景)/.test(c) || c.indexOf('NPC') === 0) {
+        return { idx: idx, type: 'npc-guess', name: '', comment: c };
+      }
+      // 4. 角色条目（从comment前缀提取：去掉<...>/[...]后的首个2-6字中文字符串）
+      var m = c.match(/<?([\u4e00-\u9fff]{2,6})/);
+      var guessName = m ? m[1] : '';
+      // 排除明显非角色名：主角/世界/系统/剧情/第一章/附录等
+      var EXCLUDE_NAMES = { '主角': true, '世界': true, '系统': true, '剧情': true, '附录': true, '设定': true, '第一章': true, '第二章': true, '第三章': true };
+      if (guessName && !EXCLUDE_NAMES[guessName]) {
+        if (allNames.indexOf(guessName) < 0) allNames.push(guessName);
+        return { idx: idx, type: 'char-entry', name: guessName, comment: c };
+      }
+      // 5. 兜底：归为世界观附属（id跟世界观走）
+      worldviewIdx++;
+      return { idx: idx, type: 'worldview', name: '世界观', subId: worldviewIdx, comment: c };
+    });
+    // 第二步：正式分配ID
+    // 角色速览固定id0，世界观从id1开始，角色从世界观最大id+1继续，NPC继续
+    var maxWorldId = 0;
+    classified.forEach(function(item) {
+      if (item.type === 'worldview') maxWorldId = Math.max(maxWorldId, item.subId || 0);
+    });
+    nextCharId = maxWorldId + 1;
+    classified.forEach(function(item) {
+      if (item.type === 'char-entry' || item.type === 'npc-guess') {
+        var key = item.name || ('NPC_' + item.idx);
+        if (!(key in charNameToId)) {
+          charNameToId[key] = nextCharId++;
+        }
+      }
+    });
+    // 第三步：执行包裹
+    var TAG_OPEN_RE = /^\s*<([\u4e00-\u9fffA-Za-z0-9_]+)_id(\d+)\s*>/; // 已经有标签打开？
+    var outEntries = entries.slice();
+    classified.forEach(function(item) {
+      var e = outEntries[item.idx];
+      if (!e) return;
+      var content = String(e.content || '');
+      // MVU条目、已含标签开头的、空内容的不处理
+      if (item.type === 'mvu') return;
+      if (TAG_OPEN_RE.test(content)) return;
+      if (!content.trim()) return;
+      var tagName = '', tagId = 0;
+      if (item.type === 'char-overview') { tagName = '角色速览'; tagId = 0; }
+      else if (item.type === 'worldview') { tagName = '世界观'; tagId = item.subId; }
+      else if (item.type === 'char-entry' && item.name) { tagName = item.name; tagId = charNameToId[item.name] || 0; }
+      else if (item.type === 'npc-guess' && item.name) { tagName = item.name; tagId = charNameToId[item.name] || 0; }
+      else { tagName = '世界观'; tagId = (++worldviewIdx); }
+      if (!tagName) return;
+      var open = '<' + tagName + '_id' + tagId + '>';
+      var close = '</' + tagName + '_id' + tagId + '>';
+      // 保证 content 前后有换行分隔，避免标签和内容粘连
+      var padded = content;
+      if (padded.charAt(0) !== '\n') padded = '\n' + padded;
+      if (padded.charAt(padded.length - 1) !== '\n') padded = padded + '\n';
+      e.content = open + padded + close;
+    });
+    return outEntries;
+  }
+
   async function _tavernWriteWorldbook(worldbookName, entries) {
     var SOURCE_TAG = 'modelo-char-generator';
     var getWorldbookNames = _tavernFn('getWorldbookNames');
@@ -5668,8 +6148,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var updateWorldbookWith = _tavernFn('updateWorldbookWith');
     var createWorldbookEntries = _tavernFn('createWorldbookEntries');
 
+    // ===== 【明月青秋写卡预设】步骤0：给所有世界书条目自动包裹 <名称_idN> 标签 =====
+    // MVU条目自动跳过，已经有标签的不重复包裹
+    var wrappedEntries = assignAndWrapTagIds(entries || []);
+
     // ===== 修复Bug2：转换为酒馆助手 WorldbookEntry 新格式（name 替代 comment） =====
-    var converted = entries.map(function(e, i) {
+    var converted = wrappedEntries.map(function(e, i) {
       return _convertToWorldbookEntry(e, i, SOURCE_TAG);
     });
 
@@ -6075,6 +6559,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               data: {}
             });
           }
+          // ===== 【明月青秋写卡预设】注入秋青子 injectPrompts 阈值行为模式脚本 =====
+          var hasQingziInject = mvuScripts.some(function(s) { return s.id === 'qz-inject-prompts-qingzi' || (s.content || '').indexOf('秋青子·陌生模式') >= 0; });
+          if (!hasQingziInject) {
+            mvuScripts.push({
+              type: 'script',
+              enabled: true,
+              name: '秋青子行为注入',
+              id: 'qz-inject-prompts-qingzi',
+              content: generateQingziInjectPromptsScript(charNames),
+              info: '【明月青秋写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
+              button: { enabled: true, buttons: [] },
+              data: {}
+            });
+          }
+          // ===== 【MAG老师·模板】通用 injectPrompts 阈值触发模板 =====
+          var hasMagTemplate = mvuScripts.some(function(s) { return s.id === 'qz-inject-prompts-mag-template' || (s.content || '').indexOf('剧情阶段-第二章开启') >= 0; });
+          if (!hasMagTemplate) {
+            mvuScripts.push({
+              type: 'script',
+              enabled: true,
+              name: 'MAG注入模板',
+              id: 'qz-inject-prompts-mag-template',
+              content: generateMagInjectPromptsTemplate(),
+              info: '【MAG老师·模板】通用 injectPrompts 注入示例：剧情阶段切换、心情触发特殊行为等。角色卡作者可按需要自行追加/注释。',
+              button: { enabled: true, buttons: [] },
+              data: {}
+            });
+          }
           // 自动注入MVU必备正则脚本（6条）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
           var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
@@ -6152,6 +6664,83 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               disabled: false,
               markdownOnly: true,
               promptOnly: false,
+              runOnEdit: false,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // ===== 【月相思维链·去杂标签 #1~#4（promptOnly，从提示词移除内部思考）】 =====
+          // 月相1：去 thinking 标签
+          var hasYxThinking = mvuRegex.some(function(r) { return r.id === 'yx-thinking-remove'; });
+          if (!hasYxThinking) {
+            mvuRegex.push({
+              id: 'yx-thinking-remove',
+              scriptName: '[月相1]去thinking标签',
+              findRegex: '/<(?:thinking|think)[^>]*>[\\s\\S]*?<\\/(?:thinking|think)>/gim',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: false,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 月相2：去中括号思考标签
+          var hasYxBracket = mvuRegex.some(function(r) { return r.id === 'yx-bracket-remove'; });
+          if (!hasYxBracket) {
+            mvuRegex.push({
+              id: 'yx-bracket-remove',
+              scriptName: '[月相2]去中括号思考',
+              findRegex: '/^\\s*\\[(?:果农冒泡|NSFW判定|人物逻辑|基调锚定|角色认知迷雾|角色活性与自然回应|风格适配|反思\\s*&?\\s*设定校对|物理规则|正文字数检测|输出顺序检查|果农记录)\\][^\\n]*\\n?/gim',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: false,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 月相3：去果农元信息
+          var hasYxFarmer = mvuRegex.some(function(r) { return r.id === 'yx-farmer-meta-remove'; });
+          if (!hasYxFarmer) {
+            mvuRegex.push({
+              id: 'yx-farmer-meta-remove',
+              scriptName: '[月相3]去果农元信息',
+              findRegex: '/(?:^|\\n)\\s*(?:果农人格加载|time_format\\s*:?|果农记录)[^\\n]*(?:\\n|$)/gi',
+              replaceString: '\n',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
+              runOnEdit: false,
+              substituteRegex: 0,
+              minDepth: null,
+              maxDepth: null
+            });
+          }
+          // 月相4：去 ECoT 注释/ content 包裹标签
+          var hasYxEcot = mvuRegex.some(function(r) { return r.id === 'yx-ecot-remove'; });
+          if (!hasYxEcot) {
+            mvuRegex.push({
+              id: 'yx-ecot-remove',
+              scriptName: '[月相4]去ECoT注释',
+              findRegex: '/<!--[\\s\\S]*?-->|<\\/?content[^>]*>/gim',
+              replaceString: '',
+              trimStrings: [],
+              placement: [2],
+              disabled: false,
+              markdownOnly: false,
+              promptOnly: true,
               runOnEdit: false,
               substituteRegex: 0,
               minDepth: null,
@@ -11017,6 +11606,33 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 4c-3. 无自定义状态栏时，用角色名列表自动生成默认状态栏
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
             await _tavernWriteRegexScripts(cardData.name, statusBarHtml);
+            // ===== 【明月青秋写卡预设】4d. 写入秋青子/MAG 老师 injectPrompts 阈值行为模式脚本 =====
+            // 秋青子：好感度四档自动切换行为模式（陌生/熟识/好感/深爱）
+            try {
+              await _tavernWriteScript(cardData.name, {
+                type: 'script',
+                enabled: true,
+                name: '秋青子行为注入',
+                id: 'qz-inject-prompts-qingzi',
+                content: generateQingziInjectPromptsScript(charNames),
+                info: '【明月青秋写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
+                button: { enabled: true, buttons: [] },
+                data: {}
+              });
+            } catch(eq) { console.warn('[时之写卡器] 秋青子injectPrompts脚本写入失败:', eq && eq.message); }
+            // MAG老师模板：剧情日/心情等通用阈值触发示例（作者可自行修改）
+            try {
+              await _tavernWriteScript(cardData.name, {
+                type: 'script',
+                enabled: true,
+                name: 'MAG注入模板',
+                id: 'qz-inject-prompts-mag-template',
+                content: generateMagInjectPromptsTemplate(),
+                info: '【MAG老师·模板】通用 injectPrompts 注入示例：剧情阶段切换、心情触发特殊行为等。角色卡作者可按需要自行追加/注释。',
+                button: { enabled: true, buttons: [] },
+                data: {}
+              });
+            } catch(em) { console.warn('[时之写卡器] MAG模板injectPrompts脚本写入失败:', em && em.message); }
           }
 
           // ===== 步骤5：写入世界书条目 =====
