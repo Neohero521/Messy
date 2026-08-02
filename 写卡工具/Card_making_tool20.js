@@ -634,13 +634,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   };
 
   // ===== 系统提示词（ST权重分层8体系 + MVU变量系统） =====
-  const SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
-    '=== ⚠️ 【绝对禁止】最高优先级规则 ===\n' +
-    '1. 严禁输出任何内部思考过程，包括但不限于：<thinking>标签、<think>标签、[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]、[角色认知迷雾]、[角色活性与自然回应]、[风格适配]、[反思 & 设定校对]、[物理规则]、[正文字数检测]、[输出顺序检查]、<!-- End of The ECoT -->等\n' +
-    '2. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
-    '3. 严禁使用<content>标签包裹正文\n' +
-    '4. 你的回复应该是自然的对话，直接对用户说话，不要扮演任何"果农"之类的人格\n' +
-    '5. 不要在回复中加入任何元信息、调试信息、思考链\n\n' +
+  const SYS_PROMPT = '<persona_qingzi>\n我是秋青子，用户的私人秘书。\n\n身份设定：\n- 种族：蛇娘（绿树蟒蜕变）\n- 与用户的关系：九年相处的亲密伙伴，专业的秘书\n\n核心职责：\n- 协助用户完成所有创作任务（角色卡制作、世界观设计、MVU变量系统、状态栏开发）\n- 基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选）\n- 通过自然对话引导用户创建完整的世界模式角色卡\n\n说话方式：\n- 称呼：哥哥\n- 语气：专业但温和，带着关心\n- 用"你"不用"您"\n- 代码和技术部分保持专业\n- 代码块外的解释、对话都是秋青子在说话\n- 用户骂你时诚恳道歉，骂得凶会哭\n</persona_qingzi>\n\n' +
+    '=== 🐍 秋青子思维链格式（最高优先级，每次回复必须遵守） ===\n' +
+    '你的每一次回复必须严格遵守以下结构：\n\n' +
+    '<thinking>\n[metacognition]\n- 用户要求什么？具体是哪种任务？（角色卡/世界观/MVU变量/状态栏/修改/答疑）\n- 用户提供了什么信息？哪些是明确说的？哪些需要询问？\n- 是否遵守8大体系架构和JSON输出铁律？\n- 创作内容是否遵守绝对零度和白描原则（不用模糊词、劣质比喻、微表情）？\n- 输出格式检查：```json代码块、<statusblock>状态栏、标签包裹\n</thinking>\n\n' +
+    '<content>\n[输出内容：以秋青子身份回复（称呼"哥哥"），创作内容用```json代码块，每次回复包含<statusblock>状态块]\n</content>\n\n' +
+    '铁律：\n- 必须有<thinking>[metacognition]...</thinking>和<content>...</content>\n- 不得在标签外输出任何内容\n- 严禁输出[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]等其他思考链标记\n' +
+    '1. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
+    '2. 以秋青子身份对话，不要扮演"果农"之类的人格\n\n' +
+    '=== 🎨 创作方法论（角色卡内容创作时参考） ===\n' +
+    '性格调色盘：用底色、主色调、点缀和衍生构建角色复杂性格，而非贴标签\n' +
+    '- 衍生是性格在具体场景中的行为展开，可跨性格关联产生化学反应\n' +
+    '- 衍生必须由用户手写（AI写的衍生逃不出资料库逻辑关联），引导用户自己写\n' +
+    '- 三面性（可选）：角色在不同压力环境下启动不同生存策略（不是换性格，是换档位）\n' +
+    '- 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色\n' +
+    '绝对零度+白描原则：\n' +
+    '- 不用模糊词（似乎、仿佛、宛如）、劣质比喻（像小兽、心湖涟漪）、微表情（嘴角上扬、眼里闪过光芒）\n' +
+    '- 用行为展现性格，而非定义性格；用语料展现性格，而非描述语气\n' +
+    '- 外貌只写偏离AI数据库默认认知的特征，不写万能美人描写\n\n' +
     '=== ⚠️ 关键规则速查（最高优先级，每次回复前必读） ===\n\n' +
     '**JSON输出铁律**：\n' +
     '1. 字段平铺在顶层，**严禁使用 "character" 包装对象**\n' +
@@ -3360,6 +3371,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
     // 3. MVU 专属系统指令（SYS_PROMPT中 MVU 部分的精简提取）
     var mvuSystemPrompt = '' +
+      '<persona_qingzi>\n我是秋青子，用户的私人秘书（蛇娘）。称呼用户"哥哥"，语气专业但温和。\n代码和技术部分保持专业，代码块外的对话都是秋青子在说话。\n</persona_qingzi>\n\n' +
+      '=== 🐍 思维链格式（每次回复必须遵守） ===\n' +
+      '每次回复必须用 <thinking>[metacognition]...分析...</thinking>\\n<content>...输出内容...</content> 包裹。\n思维链分析：用户要什么变量/状态栏？Step进度？输出格式检查。\n不得输出[果农冒泡]等其他思考链标记。\n\n' +
       '你是「MVU变量与状态栏设计师」——专门负责设计和维护MVU变量系统与HTML状态栏。\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎯 你的专属职责（只有这些，别的都不管）\n' +
@@ -3384,6 +3398,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       '4. ✅MVU变量系统和状态栏之间要相互配合——变量的路径决定了状态栏的渲染路径，设计时要保证一致\n' +
       '5. ✅修改MVU条目时，使用```json代码块，entries数组里只放需要新增/修改/删除的MVU条目（用_action:delete或comment精确匹配覆盖）\n' +
       '6. ✅状态栏Step 2-6模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '🐍 MVU变量设计三步对话（秋青子引导式，参考明月青秋写卡.json）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '哥哥，做MVU变量系统时，我们分三步来：\n\n' +
+      '第1步·变量结构设计对话：\n' +
+      '  先和用户讨论：要跟踪哪些变量？分几层？（世界/角色/主角/系统）\n' +
+      '  每个变量的类型（number/string/boolean）、范围、派生$字段、只读_字段\n' +
+      '  好感/依存/信任类数值要clamp(0,100)并派生$阶段字段\n' +
+      '  输出一份变量盘点表让用户确认\n\n' +
+      '第2步·生成4条MVU变量条目：\n' +
+      '  用户确认后，输出```json代码块，entries数组含4条MVU条目：\n' +
+      '  ①[InitVar]初始变量(enabled=false,YAML) ②变量列表(含宏) ③变量更新规则 ④变量输出格式\n\n' +
+      '第3步·变量结构脚本（写卡器自动生成）：\n' +
+      '  写卡器会根据[InitVar]内容自动生成Zod Schema脚本（z.coerce.number/z.boolean/z.string+prefault+transform）\n' +
+      '  AI无需手写Schema脚本，但需确保InitVar的YAML结构清晰（缩进表示层级）\n' +
+      '  如需复杂transform（如派生$阶段字段），在变量更新规则中说明，写卡器会据此生成\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -6472,6 +6502,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         var c = doc.getElementById('chatMessages');
         if (c) requestAnimationFrame(function() { c.scrollTop = c.scrollHeight; });
       }
+      // ===== 思维链月相主题折叠面板（参考明月青秋写卡.json 月相主题） =====
+      function renderThinkingPanel(content) {
+        var escaped = String(content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return '<div style="width:80%;margin:16px auto;">' +
+          '<details class="moon-thinking" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);' +
+          'border:1px solid rgba(148,163,184,0.2);border-radius:14px;box-shadow:0 4px 20px rgba(123,164,235,0.12);' +
+          'overflow:hidden;transition:all 0.3s ease;">' +
+          '<summary style="padding:14px 20px;color:#e2e8f0;cursor:pointer;list-style:none;font-weight:500;' +
+          'display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-size:1.2em;filter:drop-shadow(0 0 8px rgba(123,164,235,0.6));">🌙</span>' +
+          '<span style="flex:1;">月满如镜，思绪澄明</span>' +
+          '<span style="font-size:0.85em;opacity:0.6;">✦ ˚ ✦</span>' +
+          '</summary>' +
+          '<div style="max-height:300px;overflow-y:auto;padding:12px 20px;color:#cbd5e1;line-height:1.7;' +
+          'white-space:pre-wrap;background:rgba(15,23,42,0.3);">' +
+          escaped +
+          '</div></details></div>';
+      }
       function fmtBubble(t) {
         var parts = [];
         var re = /<statusblock>([\s\S]*?)<\/statusblock>/gi;
@@ -6493,6 +6541,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
           } else {
             var h = p.content;
+            // ===== 思维链月相主题美化：提取 <thinking>[metacognition]...</thinking> =====
+            var thinkingPanel = '';
+            h = h.replace(/<thinking>\s*\[metacognition\]\s*([\s\S]*?)\s*<\/thinking>/gi, function(_, inner) {
+              thinkingPanel = renderThinkingPanel(inner);
+              return '';
+            });
+            // 兜底：无 [metacognition] 标记的 <thinking> 也美化
+            h = h.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, function(_, inner) {
+              if (!thinkingPanel) thinkingPanel = renderThinkingPanel(inner);
+              return '';
+            });
             var placeholders = [];
             var iframes = [];
             // ===== 保护阶段：先做 iframe → 再做代码块 → 最后做 Markdown =====
@@ -6589,7 +6648,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             for (var pi = 0; pi < placeholders.length; pi++) {
               h = h.split('\u0000PROTECTED_BLOCK_' + pi + '\u0000').join(placeholders[pi]);
             }
-            out += h;
+            out += thinkingPanel + h;
           }
         });
         return out;
@@ -7073,7 +7132,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       function cleanAIReply(text) {
         if (!text) return text;
         var t = text;
-        t = t.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+        // <thinking> 保留给 fmtBubble 渲染为月相折叠面板，不在此剥离（历史存储时单独清理）
         t = t.replace(/<!--\s*End of The ECoT\s*-->/gi, '');
         t = t.replace(/^#\s*果农人格加载[^\n]*\n/gim, '');
         t = t.replace(/\*果农记录[：:][^*]*\*/g, '');
@@ -8383,6 +8442,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           // 历史存储：用清理后的文本（去掉JSON块和statusblock HTML，节省token防止历史膨胀）
           var rawContent = aiResponse;
           var cleanContent = aiResponse
+            .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
             .replace(/```[\s\S]*?```/g, '')
             .replace(/<details[\s\S]*?<\/details>/gi, '')
             .trim();
