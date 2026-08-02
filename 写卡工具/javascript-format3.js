@@ -8470,16 +8470,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!c) return;
         var div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
+        var msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        div.setAttribute('data-msg-id', msgId);
         var avatarHtml = buildAvatarHtml(role);
         var bubbleHtml;
-        try {
-          bubbleHtml = fmtBubble(content);
-        } catch(e) {
-          console.warn('fmtBubble error:', e);
-          bubbleHtml = '';
+        // AI 消息：使用 section 分区渲染（思维链/正文/代码块可折叠）
+        if (role === 'assistant') {
+          try {
+            var sections = parseMessageSections(content);
+            bubbleHtml = renderMessageSections(sections, msgId);
+          } catch(e) {
+            console.warn('section render error:', e);
+            try { bubbleHtml = fmtBubble(content); } catch(e2) { bubbleHtml = ''; }
+          }
+        } else {
+          try {
+            bubbleHtml = fmtBubble(content);
+          } catch(e) {
+            console.warn('fmtBubble error:', e);
+            bubbleHtml = '';
+          }
         }
         if (bubbleHtml) {
-          div.innerHTML = avatarHtml + '<div class="bubble">' + bubbleHtml + '</div>';
+          div.innerHTML = avatarHtml + '<div class="bubble" data-raw-text="' + content.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">' + bubbleHtml + '</div>';
         } else {
           div.innerHTML = avatarHtml + '<div class="bubble"></div>';
           var bubbleEl = div.querySelector('.bubble');
@@ -8488,6 +8501,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         c.appendChild(div);
         var avEl = div.querySelector('.avatar-clickable');
         if (avEl) avEl.addEventListener('click', function() { triggerAvatarUpload(role); });
+        // AI 消息：绑定 section 折叠交互
+        if (role === 'assistant') {
+          var bubbleDiv = div.querySelector('.bubble');
+          if (bubbleDiv) bindSectionToggles(bubbleDiv);
+        }
         scrollChat();
       }
       function buildAvatarHtml(role) {
@@ -8563,6 +8581,114 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function scrollChat() {
         var c = doc.getElementById('chatMessages');
         if (c) requestAnimationFrame(function() { c.scrollTop = c.scrollHeight; });
+      }
+      // ===== 消息 section 分区渲染（参考专家工作区设计）=====
+      var cpSectionStates = {};
+      function parseMessageSections(text) {
+        var sections = [];
+        var thinkingRe = /(?:<thinking>|<reasoning>|<think>)([\s\S]*?)(?:<\/thinking>|<\/reasoning>|<\/think>)|(?:\[metacognition\]|\[思维链\]|\[果农冒泡\]|\[love_qkll\])([\s\S]*?)(?:\[\/metacognition\]|\[\/思维链\]|\[\/果农冒泡\]|\[\/love_qkll\])/gi;
+        var match, lastEnd = 0;
+        while ((match = thinkingRe.exec(text)) !== null) {
+          if (match.index > lastEnd) {
+            var before = text.slice(lastEnd, match.index).trim();
+            if (before) sections.push({ type: 'content', content: before });
+          }
+          var thinkContent = (match[1] || match[2] || '').trim();
+          if (thinkContent) sections.push({ type: 'thinking', content: thinkContent });
+          lastEnd = match.index + match[0].length;
+        }
+        if (lastEnd < text.length) {
+          var after = text.slice(lastEnd).trim();
+          if (after) sections.push({ type: 'content', content: after });
+        }
+        if (!sections.length) sections.push({ type: 'content', content: text });
+        // 对 content section 进一步拆分代码块
+        var expanded = [];
+        sections.forEach(function(sec) {
+          if (sec.type !== 'content') { expanded.push(sec); return; }
+          var codeRe = /```(\w*)\s*\n?([\s\S]*?)```/g;
+          var lastPos = 0, m2;
+          while ((m2 = codeRe.exec(sec.content)) !== null) {
+            if (m2.index > lastPos) {
+              var before2 = sec.content.slice(lastPos, m2.index).trim();
+              if (before2) expanded.push({ type: 'content', content: before2 });
+            }
+            expanded.push({ type: 'code', content: m2[2] || '', lang: m2[1] || '' });
+            lastPos = m2.index + m2[0].length;
+          }
+          if (lastPos < sec.content.length) {
+            var after2 = sec.content.slice(lastPos).trim();
+            if (after2) expanded.push({ type: 'content', content: after2 });
+          }
+        });
+        // 合并连续 content
+        var merged = [];
+        expanded.forEach(function(s) {
+          var last = merged[merged.length - 1];
+          if (last && last.type === 'content' && s.type === 'content') { last.content += '\n' + s.content; }
+          else { merged.push(s); }
+        });
+        return merged;
+      }
+      function renderMessageSections(sections, msgId) {
+        if (!sections || (sections.length === 1 && sections[0].type === 'content')) {
+          return fmtBubble(sections ? sections[0].content : '');
+        }
+        var html = '';
+        sections.forEach(function(sec, idx) {
+          var stateKey = msgId + '-' + idx;
+          var isCollapsed = cpSectionStates[stateKey] === false;
+          if (cpSectionStates[stateKey] === undefined && sec.type === 'thinking') isCollapsed = true;
+          var icon, label, cls;
+          if (sec.type === 'thinking') { icon = '思'; label = '思维链'; cls = 'cp-section-thinking'; }
+          else if (sec.type === 'code') { icon = '{}'; label = sec.lang || '代码'; cls = 'cp-section-code'; }
+          else { icon = '答'; label = '正文'; cls = 'cp-section-content'; }
+          var preview = (sec.content || '').slice(0, 60).replace(/\n/g, ' ').replace(/</g, '&lt;');
+          html += '<div class="cp-section ' + cls + '">';
+          html += '<div class="cp-section-header" data-section-key="' + stateKey + '">';
+          html += '<span class="cp-section-icon">' + icon + '</span>';
+          html += '<span class="cp-section-label">' + label + '</span>';
+          if (isCollapsed && preview) html += '<span class="cp-section-preview">' + preview + '...</span>';
+          html += '<span class="cp-section-toggle">' + (isCollapsed ? '展开' : '收起') + '</span>';
+          html += '</div>';
+          if (!isCollapsed) {
+            if (sec.type === 'code') {
+              var esc = sec.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+              html += '<div class="cp-section-body">' + esc + '</div>';
+            } else if (sec.type === 'thinking') {
+              html += '<div class="cp-section-body">' + sec.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br>') + '</div>';
+            } else {
+              html += '<div class="cp-section-body">' + fmtBubble(sec.content) + '</div>';
+            }
+          }
+          html += '</div>';
+        });
+        return html;
+      }
+      function bindSectionToggles(container) {
+        if (!container) return;
+        var headers = container.querySelectorAll('.cp-section-header');
+        for (var i = 0; i < headers.length; i++) {
+          (function(h) {
+            h.addEventListener('click', function() {
+              var key = h.getAttribute('data-section-key');
+              if (!key) return;
+              var wasCollapsed = cpSectionStates[key] === false || (cpSectionStates[key] === undefined && h.closest('.cp-section-thinking'));
+              cpSectionStates[key] = wasCollapsed ? true : false;
+              var msgEl = h.closest('.chat-msg');
+              if (msgEl) {
+                var msgId = msgEl.getAttribute('data-msg-id');
+                var bubble = msgEl.querySelector('.bubble');
+                var raw = bubble ? bubble.getAttribute('data-raw-text') : '';
+                if (bubble && raw) {
+                  var secs = parseMessageSections(raw);
+                  bubble.innerHTML = renderMessageSections(secs, msgId);
+                  bindSectionToggles(bubble);
+                }
+              }
+            });
+          })(headers[i]);
+        }
       }
       function fmtBubble(t) {
         var parts = [];
