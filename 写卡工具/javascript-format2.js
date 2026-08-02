@@ -79,7 +79,11 @@
     layers:     'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
     circle:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
     user:       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-    bot:        'M12 4v4M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM9 13h.01M15 13h.01M9 17h6'
+    bot:        'M12 4v4M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM9 13h.01M15 13h.01M9 17h6',
+    // 工作区图标
+    menu:       'M3 12h18M3 6h18M3 18h18',
+    folder:     'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
+    dot:        'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0'
   };
 
   /**
@@ -129,13 +133,32 @@ html,body{height:100%;width:100%;overflow:hidden}
   --surface-sink:#f3eee2;  /* 下沉面：浅麦 */
   --ink:#4a4234;           /* 主文字：暖墨 */
   --ink-soft:#6b6353;      /* 次文字：灰褐 */
-  --muted:#9a9081;         /* 弱文字：浅灰褐 */
-  --accent:#9c8157;        /* 主色：温金棕（替代过深 #8a6d3b）*/
+  --muted:#8a8074;         /* 弱文字：提升对比度（原#9a9081）*/
+  --accent:#9c8157;        /* 主色：温金棕 */
   --accent-deep:#7a6440;   /* 主色深：沉棕 */
   --accent-soft:#e7dcc6;   /* 主色浅：奶麦 */
+  --accent-soft-strong:rgba(156,129,87,.18);
+  --accent-border:rgba(156,129,87,.30);
+  --accent-border-strong:rgba(156,129,87,.50);
+  --accent-text:#7a6440;
   --sage:#88a584;          /* 成功：鼠尾草绿 */
+  --sage-soft:rgba(136,165,132,.10);
+  --sage-soft-strong:rgba(136,165,132,.16);
+  --sage-border:rgba(136,165,132,.30);
+  --sage-border-strong:rgba(136,165,132,.50);
+  --sage-text:#5e7d5a;
   --amber:#c8a26a;         /* 提醒：琥珀 */
+  --amber-soft:rgba(200,162,106,.10);
+  --amber-soft-strong:rgba(200,162,106,.16);
+  --amber-border:rgba(200,162,106,.30);
+  --amber-border-strong:rgba(200,162,106,.50);
+  --amber-text:#8a6d3b;
   --terra:#c08b7a;         /* 危险/强调：赤陶 */
+  --terra-soft:rgba(192,139,122,.10);
+  --terra-soft-strong:rgba(192,139,122,.16);
+  --terra-border:rgba(192,139,122,.30);
+  --terra-border-strong:rgba(192,139,122,.50);
+  --terra-text:#9c6555;
   --line:#e8e0cf;          /* 描边：浅麦 */
   --line-soft:#efe9dc;     /* 弱描边 */
   --radius:14px;           /* 圆角基线（柔和）*/
@@ -143,8 +166,14 @@ html,body{height:100%;width:100%;overflow:hidden}
   --radius-lg:18px;
   --shadow-soft:0 6px 20px rgba(122,100,64,.08);
   --shadow-card:0 12px 32px rgba(122,100,64,.10);
+  --shadow-float:0 20px 60px rgba(122,100,64,.16);
   --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei UI','Hiragino Sans GB',sans-serif;
   --font-mono:'Sarasa Mono SC','Cascadia Code','JetBrains Mono','Consolas',Menlo,monospace;
+  /* 滚动条 */
+  --scrollbar-thumb:rgba(156,129,87,.25);
+  --scrollbar-track:transparent;
+  /* 链接色（走变量，便于主题化）*/
+  --link:#7a9eb8;
 }
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
 /* SVG 图标基线：统一对齐、currentColor 继承 */
@@ -167,7 +196,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .chat-msg.assistant .avatar{background:var(--accent-soft);color:var(--accent-deep)}
 .chat-msg.user .avatar{background:var(--surface-sink);color:var(--ink-soft)}
 .chat-msg .bubble{max-width:82%;padding:10px 14px;border-radius:var(--radius);font-size:.85em;line-height:1.65;word-break:break-word}
-.chat-msg.assistant .bubble{background:transparent;border:none;color:var(--ink);font-size:1em;padding:2px 0;max-width:100%;width:100%}
+.chat-msg.assistant .bubble{background:var(--surface);border:1px solid var(--line-soft);color:var(--ink);font-size:1em;padding:12px 16px;max-width:100%;width:100%;border-radius:var(--radius);box-shadow:0 2px 8px rgba(122,100,64,.04)}
 .chat-msg.user .bubble{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:6px;box-shadow:var(--shadow-soft)}
 .chat-msg .bubble b{color:var(--accent-deep)}
 .chat-msg .bubble code{background:var(--surface-sink);padding:1px 6px;border-radius:5px;font-size:.82em;color:var(--accent-deep);font-family:var(--font-mono)}
@@ -187,7 +216,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .chat-msg .bubble hr{border:none;border-top:1px solid var(--line-soft);margin:8px 0}
 .chat-msg .bubble i{font-style:italic;color:var(--ink-soft)}
 .chat-msg .bubble del{color:var(--muted);text-decoration:line-through}
-.chat-msg .bubble a{color:#5b8db8;text-decoration:underline}
+.chat-msg .bubble a{color:var(--link);text-decoration:underline}
 .html-render-frame{display:block;margin:6px 0}
 .typing{color:var(--muted);font-style:italic;font-size:.8em;padding:4px 8px}
 .typing span{display:inline-block;animation:blink 1.4s infinite;color:var(--accent)}
@@ -612,9 +641,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .chat-msg .bubble{max-width:80%}
 }
 ::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#d4c4a4;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#c9b48f}
+::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(156,129,87,.40)}
 
 /* MVU Tab：隐藏非 MVU 的模块按钮和进度项 */
 .mod-focus.mvu-only{display:none}
@@ -624,6 +653,104 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 /* MVU Tab 专属面板：角色卡Tab 时隐藏 */
 .mvu-info-panel{display:none}
 .mvu-info-panel.mvu-only{display:block}
+
+/* ===== 消息 section 分区（参考专家工作区设计）===== */
+.cp-section{margin:6px 0;border-radius:var(--radius-sm);overflow:hidden}
+.cp-section-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none;transition:background .15s;border-radius:var(--radius-sm)}
+.cp-section-header:hover{background:var(--surface-sink)}
+.cp-section-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;background:var(--surface-sink);color:var(--muted)}
+.cp-section-label{font-size:.78em;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-section-preview{font-size:.72em;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.cp-section-toggle{font-size:.68em;color:var(--accent);flex-shrink:0;padding:0 4px}
+.cp-section-body{padding:8px 12px 10px 28px;font-size:.88em;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.cp-section-body.collapsed{display:none}
+/* section 类型着色 */
+.cp-section-thinking .cp-section-header{background:var(--amber-soft)}
+.cp-section-thinking .cp-section-label,.cp-section-thinking .cp-section-icon{color:var(--amber-text)}
+.cp-section-thinking .cp-section-body{color:var(--ink-soft);font-size:.85em;font-style:italic}
+.cp-section-content .cp-section-header{background:var(--sage-soft)}
+.cp-section-content .cp-section-label,.cp-section-content .cp-section-icon{color:var(--sage-text)}
+.cp-section-toolcall .cp-section-header{background:var(--amber-soft)}
+.cp-section-toolcall .cp-section-label,.cp-section-toolcall .cp-section-icon{color:var(--amber-text)}
+.cp-section-code .cp-section-body{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto}
+
+/* ===== Work Toast 顶部工作提示 ===== */
+.work-toast-layer{position:fixed;top:56px;left:50%;transform:translateX(-50%);width:min(340px,calc(100% - 32px));display:flex;flex-direction:column;gap:8px;z-index:200;pointer-events:none}
+.work-toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius);border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-card);backdrop-filter:blur(8px);opacity:0;transform:translateY(-8px);transition:opacity .24s ease,transform .24s ease}
+.work-toast.show{opacity:1;transform:translateY(0)}
+.work-toast.is-working{border-color:var(--accent-border);background:color-mix(in srgb,var(--surface) 84%,var(--accent-soft));color:var(--accent-text)}
+.work-toast.is-done{border-color:var(--sage-border);background:color-mix(in srgb,var(--surface) 84%,var(--sage-soft));color:var(--sage-text)}
+.work-toast .wt-icon{width:18px;height:18px;flex-shrink:0}
+.work-toast .wt-text{flex:1;font-size:.85em;font-weight:500}
+
+/* ===== 工作区下拉菜单 ===== */
+.ws-dropdown-wrap{position:relative;display:inline-block}
+.ws-dropdown{position:absolute;top:100%;left:0;margin-top:4px;min-width:200px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-float);z-index:150;padding:4px 0;opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.ws-dropdown.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.ws-dropdown-section{padding:6px 14px 4px;font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ws-dropdown-divider{height:1px;background:var(--line-soft);margin:4px 0}
+.ws-dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:.82em;color:var(--ink-soft);cursor:pointer;transition:background .12s;border-radius:0}
+.ws-dropdown-item:hover{background:var(--surface-sink);color:var(--ink)}
+.ws-dropdown-item.active{color:var(--accent-deep);background:var(--accent-soft)}
+.ws-dropdown-item svg{width:15px;height:15px;flex-shrink:0;opacity:.7}
+.ws-dropdown-item:hover svg{opacity:1}
+.ws-dropdown-item .ws-item-badge{margin-left:auto;font-size:.72em;padding:1px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent-deep)}
+.ws-dropdown-item .ws-item-badge.done{background:var(--sage-soft);color:var(--sage-text)}
+
+/* ===== 工作台模态浮窗 ===== */
+.ws-panel-backdrop{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(74,67,56,.32);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s ease}
+.ws-panel-backdrop.show{opacity:1}
+.ws-panel{display:flex;flex-direction:column;width:min(1080px,calc(100vw - 36px));height:min(680px,calc(100vh - 36px));overflow:hidden;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--bg);box-shadow:var(--shadow-float);transform:translateY(8px) scale(.985);transition:transform .2s ease}
+.ws-panel-backdrop.show .ws-panel{transform:translateY(0) scale(1)}
+.ws-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.ws-panel-head .ws-title{display:flex;align-items:center;gap:8px;font-size:.92em;font-weight:600;color:var(--accent-deep)}
+.ws-panel-head .ws-title svg{width:18px;height:18px;color:var(--accent)}
+.ws-panel-head .ws-close{width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ws-panel-head .ws-close:hover{background:var(--terra-soft);color:var(--terra-text)}
+.ws-panel-head .ws-close svg{width:18px;height:18px}
+.ws-panel-tabs{display:none;overflow-x:auto;border-bottom:1px solid var(--line-soft);background:var(--surface)}
+.ws-panel-tab{flex:1;padding:10px 14px;border:none;background:transparent;color:var(--muted);font-size:.82em;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.ws-panel-tab.active{color:var(--accent-deep);border-bottom-color:var(--accent)}
+.ws-panel-body{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr) minmax(280px,0.8fr);min-height:0;overflow:hidden}
+.ws-tree{border-right:1px solid var(--line-soft);overflow-y:auto;background:var(--surface-soft);padding:6px}
+.ws-tree-group{margin-bottom:4px}
+.ws-tree-group-head{display:flex;align-items:center;gap:4px;padding:6px 8px;font-size:.74em;font-weight:600;color:var(--ink-soft);cursor:pointer;user-select:none;border-radius:6px;transition:background .12s}
+.ws-tree-group-head:hover{background:var(--surface-sink)}
+.ws-tree-group-head .ws-tree-arrow{display:inline-block;transition:transform .15s;font-size:.85em}
+.ws-tree-group.collapsed .ws-tree-arrow{transform:rotate(-90deg)}
+.ws-tree-items{overflow:hidden;transition:max-height .2s ease}
+.ws-tree-group.collapsed .ws-tree-items{max-height:0}
+.ws-tree-item{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 22px;font-size:.78em;color:var(--ink-soft);cursor:pointer;border-radius:6px;transition:background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-tree-item:hover{background:var(--surface-sink);color:var(--ink)}
+.ws-tree-item.selected{background:var(--accent-soft-strong);color:var(--accent-deep);border-left:2px solid var(--accent-border-strong)}
+.ws-tree-item .ws-tree-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;opacity:.5}
+.ws-tree-item.selected .ws-tree-dot{background:var(--accent);opacity:1}
+.ws-editor{border-right:1px solid var(--line-soft);overflow-y:auto;background:var(--surface);padding:14px 16px}
+.ws-editor-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.88em;font-style:italic}
+.ws-editor-title{font-size:.92em;font-weight:600;color:var(--accent-deep);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.ws-editor-content{font-size:.82em;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--ink);font-family:var(--font-mono)}
+.ws-editor-meta{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.ws-editor-meta .ws-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:.72em;font-weight:500}
+.ws-editor-meta .ws-tag.enabled{background:var(--sage-soft);color:var(--sage-text)}
+.ws-editor-meta .ws-tag.disabled{background:var(--surface-sink);color:var(--muted)}
+.ws-editor-meta .ws-tag.position{background:var(--accent-soft);color:var(--accent-deep)}
+.ws-artifact{overflow-y:auto;background:var(--surface-soft);padding:14px}
+.ws-artifact-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.88em;font-style:italic}
+.ws-artifact-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px}
+.ws-artifact-card .ws-ac-title{font-size:.78em;font-weight:600;color:var(--accent-deep);margin-bottom:4px}
+.ws-artifact-card .ws-ac-content{font-size:.74em;color:var(--ink-soft);line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto}
+.ws-artifact-card .ws-ac-diff{font-family:var(--font-mono);font-size:.72em;white-space:pre}
+.ws-artifact-card .ws-ac-diff .diff-add{color:var(--sage-text);background:var(--sage-soft)}
+.ws-artifact-card .ws-ac-diff .diff-del{color:var(--terra-text);background:var(--terra-soft)}
+.ws-artifact-card .ws-ac-diff .diff-same{color:var(--muted)}
+/* 移动端工作台单栏 */
+@media(max-width:768px){
+  .ws-panel{width:100vw;height:100vh;border-radius:0}
+  .ws-panel-tabs{display:flex}
+  .ws-panel-body{display:block;position:relative}
+  .ws-tree,.ws-editor,.ws-artifact{display:none}
+  .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
+}
 `;
             d.head.appendChild(s);
             // viewport meta：确保移动端正确渲染（禁止缩放，支持 dvh）
@@ -7081,7 +7208,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="app">' +
             '<div class="topbar">' +
               '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span></h1>' +
-              '<span class="phase" id="phaseLabel">0%</span>' +
+              '<div style="display:flex;align-items:center;gap:6px">' +
+                '<span class="phase" id="phaseLabel">0%</span>' +
+                '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
+                  '<button class="quick-btn hl" id="wsMenuBtn" style="padding:5px 10px">' + svgIcon('menu', 15) + ' 工作区</button>' +
+                  '<div class="ws-dropdown" id="wsDropdown"></div>' +
+                '</div>' +
+              '</div>' +
             '</div>' +
             // ========== Tab 切换器：角色卡 Tab ↔ MVU状态栏 Tab，两边完全隔离 ==========
             '<div class="tab-switcher" id="tabSwitcher">' +
@@ -7138,14 +7271,235 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '<div class="preview-body" id="previewBody"></div>' +
               '</div>' +
             '</div>' +
-          '</div>';
+          '</div>' +
+          '<div class="work-toast-layer" id="workToastLayer"></div>' +
+          '<div id="wsPanelContainer"></div>';
         bindEvents();
+        initWorkspaceMenu();
         updateModFocus();
         updateQuickActions();
         renderPreview();
         renderModDash();
         renderMvuInfoPanel();
         updateCharCount();
+      }
+
+      // ===== Work Toast 工作提示系统 =====
+      var workToastSeed = 0;
+      function pushWorkToast(text, kind) {
+        var layer = doc.getElementById('workToastLayer');
+        if (!layer) return;
+        var id = ++workToastSeed;
+        var toast = doc.createElement('div');
+        toast.className = 'work-toast ' + (kind === 'done' ? 'is-done' : 'is-working');
+        toast.innerHTML = svgIcon(kind === 'done' ? 'checkCircle' : 'spinner', 18, 'wt-icon' + (kind !== 'done' ? ' ic-spin' : '')) +
+          '<span class="wt-text">' + text + '</span>';
+        layer.appendChild(toast);
+        // 触发动画
+        setTimeout(function() { toast.classList.add('show'); }, 10);
+        // 3秒后自动消失
+        setTimeout(function() {
+          toast.classList.remove('show');
+          setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+        }, 3000);
+      }
+
+      // ===== 工作区下拉菜单 =====
+      function initWorkspaceMenu() {
+        var btn = doc.getElementById('wsMenuBtn');
+        var dropdown = doc.getElementById('wsDropdown');
+        if (!btn || !dropdown) return;
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          dropdown.classList.toggle('show');
+          if (dropdown.classList.contains('show')) renderWorkspaceMenuItems();
+        });
+        doc.addEventListener('click', function(e) {
+          if (!e.target.closest('#wsMenuWrap')) dropdown.classList.remove('show');
+        });
+      }
+      function renderWorkspaceMenuItems() {
+        var dropdown = doc.getElementById('wsDropdown');
+        if (!dropdown) return;
+        var items = '';
+        // 工作台
+        items += '<div class="ws-dropdown-section">工作台</div>';
+        items += '<div class="ws-dropdown-item" data-action="open-workspace">' + svgIcon('folder', 15) + ' 打开工作台 <span class="ws-item-badge">Tab</span></div>';
+        // 模块导航
+        items += '<div class="ws-dropdown-divider"></div>';
+        items += '<div class="ws-dropdown-section">模块导航</div>';
+        var mods = [
+          ['axiom', '基础公理'], ['soft_rules', '交互软规则'], ['core_rules', '核心铁则'],
+          ['near_constraint', '近场强约束'], ['scene_mechanics', '场景机制'],
+          ['entity_interact', '实体交互'], ['narrative_bg', '叙事背景'], ['dynamic_adapt', '动态适配']
+        ];
+        mods.forEach(function(m) {
+          var done = (progress[m[0]] && progress[m[0]].completed) ? ' done' : '';
+          var badge = done ? '<span class="ws-item-badge' + done + '">&#10003;</span>' : '';
+          items += '<div class="ws-dropdown-item" data-action="focus-mod" data-mod="' + m[0] + '">' + svgIcon('dot', 15) + ' ' + m[1] + badge + '</div>';
+        });
+        // MVU
+        items += '<div class="ws-dropdown-divider"></div>';
+        items += '<div class="ws-dropdown-section">MVU 变量</div>';
+        items += '<div class="ws-dropdown-item" data-action="switch-tab" data-tab="mvu">' + svgIcon('sliders', 15) + ' MVU变量·状态栏</div>';
+        // 工具
+        items += '<div class="ws-dropdown-divider"></div>';
+        items += '<div class="ws-dropdown-section">工具</div>';
+        items += '<div class="ws-dropdown-item" data-action="export-log">' + svgIcon('fileExport', 15) + ' 导出聊天记录</div>';
+        items += '<div class="ws-dropdown-item" data-action="import-card">' + svgIcon('download', 15) + ' 导入角色卡</div>';
+        dropdown.innerHTML = items;
+        // 绑定点击
+        dropdown.querySelectorAll('.ws-dropdown-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            var action = this.getAttribute('data-action');
+            dropdown.classList.remove('show');
+            if (action === 'open-workspace') openWorkspacePanel();
+            else if (action === 'focus-mod') focusModule(this.getAttribute('data-mod'));
+            else if (action === 'switch-tab') switchTab('mvu');
+            else if (action === 'export-log') {
+              var btn = doc.getElementById('exportLogBtn');
+              if (btn) btn.click();
+            } else if (action === 'import-card') showImportModal();
+          });
+        });
+      }
+
+      // ===== 工作台模态浮窗 =====
+      var wsPanelTab = 'files';
+      var wsSelectedEntry = null;
+      function openWorkspacePanel() {
+        var container = doc.getElementById('wsPanelContainer');
+        if (!container) return;
+        container.innerHTML =
+          '<div class="ws-panel-backdrop show" id="wsBackdrop">' +
+            '<div class="ws-panel">' +
+              '<header class="ws-panel-head">' +
+                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件 / 编辑 / 预览</span></div>' +
+                '<button class="ws-close" id="wsCloseBtn" title="关闭">' + svgIcon('close', 18) + '</button>' +
+              '</header>' +
+              '<nav class="ws-panel-tabs">' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'files' ? 'active' : '') + '" data-wstab="files">文件</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'editor' ? 'active' : '') + '" data-wstab="editor">编辑</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'artifacts' ? 'active' : '') + '" data-wstab="artifacts">预览</button>' +
+              '</nav>' +
+              '<div class="ws-panel-body">' +
+                '<aside class="ws-tree" id="wsTree">' + buildWorkspaceTree() + '</aside>' +
+                '<main class="ws-editor" id="wsEditor">' + buildWorkspaceEditor() + '</main>' +
+                '<section class="ws-artifact" id="wsArtifact">' + buildWorkspaceArtifact() + '</section>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        // 关闭
+        doc.getElementById('wsCloseBtn').addEventListener('click', closeWorkspacePanel);
+        doc.getElementById('wsBackdrop').addEventListener('click', function(e) {
+          if (e.target === this) closeWorkspacePanel();
+        });
+        // Tab 切换（移动端）
+        container.querySelectorAll('.ws-panel-tab').forEach(function(tab) {
+          tab.addEventListener('click', function() {
+            wsPanelTab = this.getAttribute('data-wstab');
+            container.querySelectorAll('.ws-panel-tab').forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            container.querySelector('#wsTree').classList.toggle('active', wsPanelTab === 'files');
+            container.querySelector('#wsEditor').classList.toggle('active', wsPanelTab === 'editor');
+            container.querySelector('#wsArtifact').classList.toggle('active', wsPanelTab === 'artifacts');
+          });
+        });
+        // 树节点点击
+        container.querySelectorAll('.ws-tree-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            wsSelectedEntry = this.getAttribute('data-entry');
+            container.querySelectorAll('.ws-tree-item').forEach(function(i) { i.classList.remove('selected'); });
+            this.classList.add('selected');
+            var editorEl = container.querySelector('#wsEditor');
+            if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
+            if (wsPanelTab === 'files') {
+              wsPanelTab = 'editor';
+              container.querySelector('.ws-panel-tab[data-wstab="files"]').classList.remove('active');
+              var et = container.querySelector('.ws-panel-tab[data-wstab="editor"]');
+              if (et) et.classList.add('active');
+              container.querySelector('#wsTree').classList.remove('active');
+              if (editorEl) editorEl.classList.add('active');
+            }
+          });
+        });
+        // 树分组折叠
+        container.querySelectorAll('.ws-tree-group-head').forEach(function(head) {
+          head.addEventListener('click', function() {
+            this.parentElement.classList.toggle('collapsed');
+          });
+        });
+      }
+      function closeWorkspacePanel() {
+        var container = doc.getElementById('wsPanelContainer');
+        if (container) container.innerHTML = '';
+      }
+      function buildWorkspaceTree() {
+        var groups = [
+          { name: '角色卡', entries: [] },
+          { name: '世界书', entries: [] },
+          { name: 'MVU', entries: [] }
+        ];
+        // 从 progress 收集条目
+        Object.keys(progress).forEach(function(key) {
+          var p = progress[key];
+          if (!p || !p.entries || !p.entries.length) return;
+          var grp = groups[0]; // 默认归角色卡
+          if (key === 'init_var' || key === 'var_update_rule') grp = groups[2];
+          else if (key === 'core_rules' || key === 'soft_rules' || key === 'axiom') grp = groups[1];
+          p.entries.forEach(function(e) {
+            grp.entries.push({ name: e.name || e.comment || e.title || key, path: key + '::' + (e.name || ''), key: key });
+          });
+        });
+        var html = '';
+        groups.forEach(function(g, idx) {
+          if (!g.entries.length) return;
+          html += '<div class="ws-tree-group' + (idx > 0 ? ' collapsed' : '') + '">';
+          html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + g.name + ' <span style="color:var(--muted);font-weight:400">(' + g.entries.length + ')</span></div>';
+          html += '<div class="ws-tree-items">';
+          g.entries.forEach(function(e) {
+            html += '<div class="ws-tree-item" data-entry="' + e.path + '"><span class="ws-tree-dot"></span>' + e.name + '</div>';
+          });
+          html += '</div></div>';
+        });
+        if (!html) html = '<div style="padding:14px;color:var(--muted);font-size:.82em;text-align:center">暂无条目<br>开始创作后这里会显示已生成的条目</div>';
+        return html;
+      }
+      function buildWorkspaceEditor() {
+        if (!wsSelectedEntry) return '<div class="ws-editor-empty">从左侧选择一个条目查看内容</div>';
+        var parts = wsSelectedEntry.split('::');
+        var key = parts[0];
+        var p = progress[key];
+        if (!p || !p.entries || !p.entries.length) return '<div class="ws-editor-empty">未找到条目</div>';
+        var entry = p.entries.find(function(e) { return (e.name || '') === (parts[1] || ''); }) || p.entries[0];
+        var content = entry.content || entry.value || '(无内容)';
+        var enabled = entry.enabled !== false;
+        var pos = entry.position || 'before_char';
+        return '<div class="ws-editor-title">' + (entry.name || entry.comment || key) + '</div>' +
+          '<div class="ws-editor-meta">' +
+            '<span class="ws-tag ' + (enabled ? 'enabled' : 'disabled') + '">' + (enabled ? '已启用' : '已禁用') + '</span>' +
+            '<span class="ws-tag position">' + pos + '</span>' +
+          '</div>' +
+          '<div class="ws-editor-content">' + content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+      }
+      function buildWorkspaceArtifact() {
+        var html = '';
+        var keys = Object.keys(progress);
+        if (!keys.length) return '<div class="ws-artifact-empty">暂无产物预览<br>开始创作后这里会显示已生成的产物</div>';
+        keys.forEach(function(key) {
+          var p = progress[key];
+          if (!p || !p.entries || !p.entries.length) return;
+          p.entries.forEach(function(e) {
+            var name = e.name || e.comment || key;
+            var content = String(e.content || e.value || '');
+            var preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
+            html += '<div class="ws-artifact-card">' +
+              '<div class="ws-ac-title">' + name + '</div>' +
+              '<div class="ws-ac-content">' + preview.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +
+            '</div>';
+          });
+        });
+        return html || '<div class="ws-artifact-empty">暂无产物</div>';
       }
 
       function bindEvents() {
@@ -7159,6 +7513,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.addEventListener('input', function() {
           updateCharCount();
           updateSendBtnPulse();
+        });
+        // Esc 关闭工作台面板
+        doc.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            var backdrop = doc.getElementById('wsBackdrop');
+            if (backdrop) { closeWorkspacePanel(); e.preventDefault(); }
+          }
         });
         var exportLogBtn = doc.getElementById('exportLogBtn');
         if (exportLogBtn) {
@@ -9651,6 +10012,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         isGenerating = true;
         setEnabled(false);
         addTyping();
+        pushWorkToast('正在思考...', 'working');
         try {
           // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
           var curTabMessages = getCurrentMessages();
@@ -10240,9 +10602,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } catch(err) {
           removeTyping();
           addAssistantMsg('生成出错：' + err.message);
+          pushWorkToast('生成出错', 'done');
         } finally {
           isGenerating = false;
           setEnabled(true);
+          pushWorkToast('完成', 'done');
         }
       }
 
