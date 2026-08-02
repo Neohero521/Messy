@@ -332,11 +332,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 }
 @media(orientation:landscape) and (max-height:600px){
   .app{height:100%;height:100vh}
-  .topbar{padding:5px 8px;min-height:32px}
+  .topbar{padding:5px 8px;min-height:32px;padding-top:max(5px,env(safe-area-inset-top));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
   .topbar h1{font-size:.85em}
   .mod-focus{padding:3px 6px;gap:3px}
   .mod-focus-btn{font-size:.65em;padding:3px 6px}
-  .chat-input-area{padding:4px 8px;gap:3px}
+  .chat-input-area{padding:4px 8px;gap:3px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
   .chat-input{min-height:32px;padding:5px;font-size:.85em}
   .btn-send{width:34px;height:34px}
   .quick-actions{gap:3px;max-height:60px}
@@ -348,6 +348,98 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   .welcome{padding:16px}
   .welcome h2{font-size:1.1em;margin-bottom:6px}
   .welcome p{font-size:.8em;margin-bottom:8px}
+}
+/* ===== 平板端精细适配（481px-768px）===== */
+@media(min-width:481px) and (max-width:768px){
+  .chat-panel{flex:1.3 1 0}
+  .preview-panel{flex:1 1 0}
+  .chat-msg .bubble{max-width:80%}
+  .quick-actions{gap:5px;padding:6px 10px}
+  .quick-btn{font-size:11px;padding:5px 10px}
+  .qa-mini{font-size:11px;padding:5px 10px}
+  .pv-section .pv-entry{padding:6px 10px}
+  .pv-section .pv-entry-content{font-size:.72em}
+  .welcome-features{grid-template-columns:repeat(2,1fr);gap:12px}
+  .wf-item{padding:12px}
+}
+/* ===== 手机端精细适配（≤480px）：追求"好用"而非"能用" ===== */
+@media(max-width:480px){
+  /* 安全区适配（刘海屏/全面屏）*/
+  .app{padding-top:env(safe-area-inset-top,0);padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0);padding-bottom:env(safe-area-inset-bottom,0)}
+  .topbar{padding:8px 12px;min-height:42px}
+  .topbar h1{font-size:.88em}
+  .topbar .phase{font-size:.68em}
+  /* 聊天气泡：手机端更宽，提升阅读体验 */
+  .chat-messages{padding:10px 6px}
+  .chat-msg .bubble{max-width:88%;font-size:.88em;padding:8px 11px}
+  .chat-msg.assistant .bubble{font-size:.92em}
+  .chat-msg .avatar{width:32px;height:32px;font-size:16px;border-radius:9px}
+  /* 输入区：防止 iOS 聚焦缩放（≥16px），增大触摸区 */
+  .chat-input-area{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  .chat-input{font-size:16px;min-height:42px;padding:10px 14px;border-radius:12px}
+  .btn-send{width:42px;height:42px;border-radius:12px}
+  /* 快捷按钮：手机端横向滚动，避免拥挤换行 */
+  .quick-actions{gap:5px;padding:6px 8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;-webkit-overflow-scrolling:touch}
+  .quick-actions::-webkit-scrollbar{display:none}
+  .quick-btn{font-size:11.5px;padding:6px 12px;min-height:32px;white-space:nowrap}
+  .qa-mini{font-size:11.5px;padding:6px 10px;min-height:32px}
+  /* 预览面板：手机端全屏切换 */
+  .preview-panel .pv-header{padding:8px 10px;font-size:.82em}
+  .pv-section{padding:8px 10px}
+  .pv-section h3{font-size:.8em}
+  .pv-section .pv-entry{padding:6px 8px}
+  .pv-section .pv-entry-title{font-size:.74em}
+  .pv-section .pv-entry-content{font-size:.72em;line-height:1.5}
+  .pv-section .pv-code{font-size:.7em;padding:6px}
+  .pv-section .pv-tag{font-size:.64em;padding:2px 7px}
+  .pv-section .pv-mini-btn{font-size:.68em;padding:4px 10px;min-height:30px}
+  /* 欢迎页：手机端单列 */
+  .welcome{padding:16px 12px}
+  .welcome h2{font-size:1.15em;margin-bottom:10px}
+  .welcome p{font-size:.82em;line-height:1.7;max-width:100%}
+  .welcome .start-btn{padding:14px 36px;font-size:1em;border-radius:28px}
+  .welcome-features{grid-template-columns:1fr;gap:8px;max-width:100%}
+  .wf-item{padding:10px}
+  .wf-icon{font-size:1.2em}
+  .wf-title{font-size:.82em}
+  .wf-desc{font-size:.7em}
+  /* 选项对比：手机端单列 */
+  .opt-compare{grid-template-columns:1fr;gap:6px}
+  .opt-pane{max-height:240px;font-size:.74em}
+  /* 关闭按钮：避开刘海 */
+  .close-btn{top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:34px;height:34px;font-size:1.05em}
+  /* 模块进度：手机端2列 */
+  .module-progress{grid-template-columns:repeat(2,1fr);gap:5px}
+  .module-item{font-size:.68em;padding:4px 6px}
+  /* 模态框：手机端全屏化 */
+  .json-modal-content,.modal-content{width:96%;max-width:none;padding:12px;border-radius:10px;max-height:92vh}
+  .json-modal-content textarea{font-size:.78em;min-height:200px}
+  .modal-body{max-height:70vh}
+  /* 群组管理：手机端紧凑 */
+  .group-mgr-item{padding:6px 8px}
+  .group-mgr-item .gm-name{font-size:.88em}
+  .group-mgr-item .gm-count{font-size:.78em}
+  .group-mgr-item .gm-toggle{font-size:.78em;padding:3px 9px;min-height:30px}
+  /* mobile-tabs：更大触摸区 */
+  .mobile-tab{padding:11px 12px;font-size:.82em}
+  /* 代码块/表格：手机端可横向滚动 */
+  .chat-msg .bubble pre{font-size:.85em;max-height:180px}
+  .chat-msg .bubble table{font-size:.85em}
+  .chat-msg .bubble th,.chat-msg .bubble td{padding:4px 7px;min-width:50px}
+}
+/* ===== 触摸设备优化（pointer:coarse）===== */
+@media(pointer:coarse){
+  .quick-btn,.qa-mini,.btn,.pv-section .pv-mini-btn,.pv-book-name,.group-mgr-item .gm-toggle,.mobile-tab{cursor:default;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+  .quick-btn:active:not(:disabled),.qa-mini:active:not(:disabled),.btn:active:not(:disabled){transform:scale(.96);transition:transform .1s}
+  .close-btn{cursor:default}
+  .close-btn:active{transform:scale(.9) rotate(90deg)}
+  .chat-msg .bubble a{-webkit-tap-highlight-color:rgba(91,141,184,.2)}
+}
+/* ===== 大屏平板/桌面端优化（≥769px）===== */
+@media(min-width:769px){
+  .chat-panel{flex:1.4 1 0}
+  .preview-panel{flex:1.1 1 0}
+  .chat-msg .bubble{max-width:80%}
 }
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -371,6 +463,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .mvu-info-panel.mvu-only{display:block}
 `;
             d.head.appendChild(s);
+            // viewport meta：确保移动端正确渲染（禁止缩放，支持 dvh）
+            try {
+              var vp = d.createElement('meta');
+              vp.name = 'viewport';
+              vp.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+              d.head.appendChild(vp);
+              var charset = d.createElement('meta');
+              charset.setAttribute('charset', 'UTF-8');
+              d.head.appendChild(charset);
+            } catch(e) {}
             resolve(d);
           } catch (e) { reject(e); }
         });
@@ -4669,6 +4771,694 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     return names.slice(0, 5); // 最多5个角色
   }
 
+  // ===== Neko 猫咪美化模板（借鉴 javascript-format (7).js 的三明日喵样式）=====
+  var NEKO_COMPLETE_HTML = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="neko-complete" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-block;width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(70,115,175,0.5);box-shadow:0 0 10px rgba(70,115,175,0.25),0 0 20px rgba(110,150,200,0.15);flex-shrink:0;z-index:3;position:relative;animation:neko-happy 1.5s ease-in-out infinite;background:#dae3f0">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width:100%;height:100%;object-fit:cover;display:block" alt="喵~" />\n      </span>\n      <span style="display:flex;align-items:center;height:34px;margin-left:-12px;padding:0 24px 0 22px;background:linear-gradient(135deg,#e6edf5 0%,#cdd8ea 50%,#dae3f0 100%);border:1.5px solid rgba(80,120,180,0.35);border-radius:0 17px 17px 0;box-shadow:0 3px 15px rgba(80,120,180,0.15),inset 0 1px 0 rgba(255,255,255,0.5);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#5a82b5,#3d6098,#4d75aa,#5a82b5);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:text-shimmer 3s linear infinite">喵喵喵~ 变量完成了喵~</span>\n        <small style="color:#3d6098;font-size:0.75em;opacity:0.7"><span class="neko-toggle" data-close="展开喵 ▶" data-open="收起喵 ▼"></span></small>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:26px;margin-top:6px;padding:12px 20px;color:#4a5568;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(230,237,245,0.6) 0%,rgba(205,216,234,0.4) 100%);border:1.5px solid rgba(80,120,180,0.25);border-radius:14px;font-size:0.9em;box-shadow:0 2px 10px rgba(80,120,180,0.08);max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .neko-complete summary::marker{display:none}\n  .neko-complete[open]>div{animation:neko-slide-in 0.4s ease forwards}\n  .neko-complete[open] .neko-toggle::after{content:attr(data-open)}\n  .neko-complete:not([open]) .neko-toggle::after{content:attr(data-close)}\n  @keyframes neko-happy{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-3px) rotate(-3deg)}75%{transform:translateY(-3px) rotate(3deg)}}\n  @keyframes text-shimmer{0%{background-position:0% center}100%{background-position:200% center}}\n  @keyframes neko-slide-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n</style>';
+
+  var NEKO_THINKING_HTML = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="neko-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-block;width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(90,130,190,0.45);box-shadow:0 0 10px rgba(90,130,190,0.2),0 0 20px rgba(130,165,210,0.12);flex-shrink:0;z-index:3;position:relative;animation:neko-bounce 2s ease-in-out infinite;background:#dde6f0">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width:100%;height:100%;object-fit:cover;display:block" alt="喵~" />\n      </span>\n      <span style="display:flex;align-items:center;height:34px;margin-left:-12px;padding:0 24px 0 22px;background:linear-gradient(135deg,#e8eef5 0%,#d0dcea 50%,#dde6f0 100%);border:1.5px solid rgba(120,150,200,0.35);border-radius:0 17px 17px 0;box-shadow:0 3px 15px rgba(100,140,200,0.15),inset 0 1px 0 rgba(255,255,255,0.5);position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#4a6fa5,#6b8ec2,#7a9dcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">喵喵喵~ 正在变量中~</span>\n        <span style="font-size:0.9em;opacity:0.6;animation:paw-wiggle 1.5s ease-in-out infinite">🐾</span>\n        <span class="blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:0 17px 17px 0;background:linear-gradient(90deg,transparent 0%,rgba(130,165,210,0.06) 20%,rgba(100,140,195,0.1) 50%,rgba(130,165,210,0.06) 80%,transparent 100%);animation:blue-sweep 3s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:26px;margin-top:6px;padding:12px 20px;color:#4a5568;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(232,238,245,0.6) 0%,rgba(208,220,234,0.4) 100%);border:1.5px solid rgba(120,150,200,0.25);border-radius:14px;font-size:0.9em;box-shadow:0 2px 10px rgba(100,140,200,0.08);max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .neko-thinking summary::marker{display:none}\n  .neko-thinking[open]>div{animation:neko-content-in 0.4s ease forwards}\n  .neko-thinking[open] summary .blue-glow{animation:none!important;opacity:0}\n  @keyframes neko-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}\n  @keyframes paw-wiggle{0%,100%{transform:rotate(0deg) scale(1)}25%{transform:rotate(-10deg) scale(1.1)}75%{transform:rotate(10deg) scale(1.1)}}\n  @keyframes blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}\n  @keyframes neko-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n</style>';
+
+  // ===== MVU 状态栏 HTML 生成（借鉴 javascript-format (7).js 的 hr 函数）=====
+  // 生成自包含的 HTML 文档，含 CSS 变量、好感度进度条、心跳SVG、分页器
+  // 运行时监听 Mvu.events.VARIABLE_INITIALIZED / VARIABLE_UPDATE_ENDED 事件自动刷新
+  function generateMvuStatusBarHtml(roleNames) {
+    var roles = (roleNames || []).map(function(name) {
+      return {
+        name: name,
+        affectionPath: 'stat_data.' + name + '.好感度',
+        avatarUrl: '',
+        backgroundUrl: ''
+      };
+    });
+    var rolesJson = JSON.stringify(roles);
+    var html = [
+      '<!doctype html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '  <meta charset="UTF-8">',
+      '  <style>',
+      '    :root { --qz-cold: #325c9d; --qz-sky: #4eb9e7; --qz-soft: #f5b7c9; --qz-hot: #bd2d3a; }',
+      '    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #18211f; }',
+      '    .qz-card-status { width: 100%; box-sizing: border-box; border: 1px solid rgba(31,45,42,.13); border-radius: 8px; background: linear-gradient(135deg, rgba(247,245,239,.96), rgba(230,236,232,.96)); padding: 10px; box-shadow: 0 12px 30px rgba(21,29,27,.12); }',
+      '    .qz-card-status-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }',
+      '    .qz-card-status-head h3 { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; }',
+      '    .qz-card-status-head p { margin: 3px 0 0; color: #66736d; font-size: 11px; line-height: 1.4; }',
+      '    .qz-card-status-scene { display: grid; gap: 3px; min-width: 96px; color: #66736d; font-size: 11px; text-align: right; }',
+      '    .qz-role-list { display: grid; gap: 8px; }',
+      '    .qz-status-role { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr; align-items: center; min-height: 82px; overflow: hidden; border: 1px solid rgba(255,255,255,.58); border-radius: 8px; background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(238,242,239,.72)); box-shadow: inset 0 0 0 1px rgba(31,45,42,.05); }',
+      '    .qz-status-role.has-avatar { grid-template-columns: auto 1fr; }',
+      '    .qz-status-role.has-bg { color: #fff; background-size: cover; background-position: center; border-color: rgba(255,255,255,.22); }',
+      '    .qz-status-role::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgba(255,255,255,.12), transparent 34%), linear-gradient(180deg, rgba(255,255,255,.14), transparent 52%); }',
+      '    .qz-status-avatar { width: 78px; padding: 10px 0 10px 10px; }',
+      '    .qz-status-avatar img { display: block; width: 58px; height: 58px; object-fit: cover; border: 1px solid rgba(255,255,255,.68); border-radius: 8px; background: rgba(255,255,255,.18); box-shadow: 0 8px 18px rgba(18,26,24,.18); }',
+      '    .qz-status-role-body { display: grid; gap: 9px; min-width: 0; padding: 12px; }',
+      '    .qz-role-name { margin: 0; overflow: hidden; color: currentColor; font-size: 16px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }',
+      '    .qz-affection-row { display: grid; grid-template-columns: 58px minmax(88px,1fr) 40px; align-items: center; gap: 9px; min-width: 0; }',
+      '    .qz-heartline { display: block; width: 58px; height: 24px; color: color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 88%, currentColor); filter: drop-shadow(0 2px 7px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 40%, transparent)); }',
+      '    .qz-progress { position: relative; min-width: 0; height: 10px; overflow: hidden; border-radius: 999px; background: rgba(31,45,42,.1); box-shadow: inset 0 0 0 1px rgba(31,45,42,.09); }',
+      '    .qz-status-role.has-bg .qz-progress { background: rgba(255,255,255,.28); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }',
+      '    .qz-progress-fill { position: relative; display: block; width: calc(var(--qz-affection, 0) * 1%); height: 100%; overflow: hidden; border-radius: inherit; box-shadow: 0 0 16px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 34%, transparent); }',
+      '    .qz-progress-fill::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--qz-gradient-width, 100%); min-width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--qz-cold) 0%, var(--qz-sky) 40%, var(--qz-soft) 72%, var(--qz-hot) 100%); }',
+      '    .qz-affection-value { min-width: 40px; color: var(--qz-affection-color, #4eb9e7); font-size: 21px; font-weight: 700; line-height: 1; text-align: right; text-shadow: 0 6px 18px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 22%, transparent); }',
+      '    .qz-role-foot { color: color-mix(in srgb, currentColor 58%, transparent); font-size: 11px; }',
+      '    .qz-status-pager { display: none; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 9px; }',
+      '    .qz-status-pager.active { display: flex; }',
+      '    .qz-status-pager button { min-width: 30px; height: 26px; border: 0; border-radius: 6px; background: rgba(50,92,157,.12); color: #325c9d; font: inherit; cursor: pointer; }',
+      '    .qz-status-pager button:disabled { cursor: default; opacity: .45; }',
+      '    .qz-status-pager span { color: #66736d; font-size: 11px; }',
+      '    @media (max-width: 480px) { .qz-card-status { padding: 8px; } .qz-card-status-scene { display: none; } .qz-status-role.has-avatar { grid-template-columns: 1fr; } .qz-status-avatar { width: auto; padding: 10px 10px 0; } .qz-status-avatar img { width: 52px; height: 52px; } .qz-affection-row { grid-template-columns: 48px minmax(80px,1fr) 34px; gap: 7px; } .qz-heartline { width: 48px; } .qz-affection-value { font-size: 19px; min-width: 34px; } }',
+      '  </style>',
+      '  <script type="module">',
+      '    const QZ_STATUS_ROLES = ' + rolesJson + ';',
+      '    const QZ_PAGE_SIZE = 4;',
+      '    let qzStatusPage = 0;',
+      '    function qzClampNumber(value, min, max) {',
+      '      const number = Number(value);',
+      '      if (!Number.isFinite(number)) return min;',
+      '      return Math.min(max, Math.max(min, number));',
+      '    }',
+      '    function qzAffectionColor(value) {',
+      '      if (value <= 33) return \'#325c9d\';',
+      '      if (value <= 58) return \'#4eb9e7\';',
+      '      if (value <= 82) return \'#f5b7c9\';',
+      '      return \'#bd2d3a\';',
+      '    }',
+      '    function qzHeartbeatSvg() {',
+      '      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");',
+      '      svg.setAttribute("class", "qz-heartline");',
+      '      svg.setAttribute("viewBox", "0 0 120 40");',
+      '      svg.setAttribute("aria-label", "好感度");',
+      '      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");',
+      '      path.setAttribute("d", "M4 22 H22 L31 8 L42 33 L55 16 L66 22 H84");',
+      '      path.setAttribute("fill", "none");',
+      '      path.setAttribute("stroke", "currentColor");',
+      '      path.setAttribute("stroke-width", "3.2");',
+      '      path.setAttribute("stroke-linecap", "round");',
+      '      path.setAttribute("stroke-linejoin", "round");',
+      '      svg.append(path);',
+      '      return svg;',
+      '    }',
+      '    function qzSetText(selector, value) {',
+      '      const node = document.querySelector(selector);',
+      '      if (node) node.textContent = value;',
+      '    }',
+      '    function qzCreateRoleCard(role, variables) {',
+      '      const value = qzClampNumber(_.get(variables, role.affectionPath, 0), 0, 100);',
+      '      const card = document.createElement("article");',
+      '      card.className = "qz-status-role";',
+      '      if (role.avatarUrl) card.classList.add("has-avatar");',
+      '      if (role.backgroundUrl) {',
+      '        card.classList.add("has-bg");',
+      '        card.style.backgroundImage = `linear-gradient(90deg, rgba(9,14,18,.74), rgba(9,14,18,.52) 48%, rgba(9,14,18,.24)), url("${String(role.backgroundUrl).replaceAll(\'"\', \'\\\\\\"\')}")`;',
+      '      }',
+      '      card.style.setProperty("--qz-affection", String(value));',
+      '      card.style.setProperty("--qz-gradient-width", `${10000 / Math.max(value, 1)}%`);',
+      '      card.style.setProperty("--qz-affection-color", qzAffectionColor(value));',
+      '      if (role.avatarUrl) {',
+      '        const avatar = document.createElement("aside");',
+      '        avatar.className = "qz-status-avatar";',
+      '        const image = document.createElement("img");',
+      '        image.src = role.avatarUrl;',
+      '        image.alt = "";',
+      '        avatar.append(image);',
+      '        card.append(avatar);',
+      '      }',
+      '      const body = document.createElement("div");',
+      '      body.className = "qz-status-role-body";',
+      '      const title = document.createElement("h4");',
+      '      title.className = "qz-role-name";',
+      '      title.textContent = role.name;',
+      '      const row = document.createElement("div");',
+      '      row.className = "qz-affection-row";',
+      '      const progress = document.createElement("div");',
+      '      progress.className = "qz-progress";',
+      '      const fill = document.createElement("span");',
+      '      fill.className = "qz-progress-fill";',
+      '      progress.append(fill);',
+      '      const valueNode = document.createElement("strong");',
+      '      valueNode.className = "qz-affection-value";',
+      '      valueNode.textContent = String(value);',
+      '      row.append(qzHeartbeatSvg(), progress, valueNode);',
+      '      const foot = document.createElement("div");',
+      '      foot.className = "qz-role-foot";',
+      '      foot.textContent = "好感度";',
+      '      body.append(title, row, foot);',
+      '      card.append(body);',
+      '      return card;',
+      '    }',
+      '    function populateCharacterData() {',
+      '      const variables = getAllVariables();',
+      '      qzSetText("#qz-status-time", String(_.get(variables, "stat_data.世界.当前时间", "开局")));',
+      '      qzSetText("#qz-status-place", String(_.get(variables, "stat_data.世界.当前地点", "待定")));',
+      '      const list = document.querySelector("#qz-role-list");',
+      '      if (!list) return;',
+      '      list.textContent = "";',
+      '      const totalPages = Math.max(1, Math.ceil(QZ_STATUS_ROLES.length / QZ_PAGE_SIZE));',
+      '      qzStatusPage = Math.min(qzStatusPage, totalPages - 1);',
+      '      const pageRoles = QZ_STATUS_ROLES.slice(qzStatusPage * QZ_PAGE_SIZE, (qzStatusPage + 1) * QZ_PAGE_SIZE);',
+      '      pageRoles.forEach(role => list.append(qzCreateRoleCard(role, variables)));',
+      '      const pager = document.querySelector("#qz-status-pager");',
+      '      const pageInfo = document.querySelector("#qz-page-info");',
+      '      const prev = document.querySelector("#qz-page-prev");',
+      '      const next = document.querySelector("#qz-page-next");',
+      '      if (pager) pager.classList.toggle("active", totalPages > 1);',
+      '      if (pageInfo) pageInfo.textContent = `${qzStatusPage + 1}/${totalPages}`;',
+      '      if (prev) prev.disabled = qzStatusPage <= 0;',
+      '      if (next) next.disabled = qzStatusPage >= totalPages - 1;',
+      '    }',
+      '    async function init() {',
+      '      await waitGlobalInitialized(\'Mvu\');',
+      '      document.querySelector("#qz-page-prev")?.addEventListener("click", () => { qzStatusPage -= 1; populateCharacterData(); });',
+      '      document.querySelector("#qz-page-next")?.addEventListener("click", () => { qzStatusPage += 1; populateCharacterData(); });',
+      '      populateCharacterData();',
+      '      eventOn(Mvu.events.VARIABLE_INITIALIZED, populateCharacterData);',
+      '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, populateCharacterData);',
+      '    }',
+      '    $(errorCatched(init));',
+      '  <\/script>',
+      '</head>',
+      '<body>',
+      '  <section class="qz-card-status">',
+      '    <div class="qz-card-status-head">',
+      '      <div>',
+      '        <h3>角色状态</h3>',
+      '        <p>CURRENT STATUS</p>',
+      '      </div>',
+      '      <div class="qz-card-status-scene">',
+      '        <span id="qz-status-time">开局</span>',
+      '        <span id="qz-status-place">待定</span>',
+      '      </div>',
+      '    </div>',
+      '    <div id="qz-role-list" class="qz-role-list">',
+      '    </div>',
+      '    <div id="qz-status-pager" class="qz-status-pager">',
+      '      <button id="qz-page-prev" type="button">‹</button>',
+      '      <span id="qz-page-info">1/1</span>',
+      '      <button id="qz-page-next" type="button">›</button>',
+      '    </div>',
+      '  </section>',
+      '</body>',
+      '</html>'
+    ].join('\n');
+    return html;
+  }
+
+  // ===== 酒馆直接写入 API 适配层（借鉴 javascript-format (7).js）=====
+  // 在 iframe 内通过 window.parent 访问酒馆原生 API，实现角色卡直接写入
+
+  // 获取酒馆 API 函数（兼容 iframe 上下文）
+  function _tavernFn(name) {
+    try {
+      if (typeof window[name] === 'function') return window[name];
+      if (window.parent && typeof window.parent[name] === 'function') return window.parent[name];
+    } catch(e) {}
+    return null;
+  }
+
+  // 获取 SillyTavern 对象
+  function _tavern() {
+    try {
+      if (typeof SillyTavern !== 'undefined') return SillyTavern;
+      if (window.parent && window.parent.SillyTavern) return window.parent.SillyTavern;
+    } catch(e) {}
+    return null;
+  }
+
+  // 生成唯一 ID
+  function _genId(prefix) {
+    return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  // 判断是否为中止错误
+  function _isAbortError(err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return true;
+    if (err instanceof Error && err.name === 'AbortError') return true;
+    var msg = err instanceof Error ? err.message : String(err);
+    return /(?:operation was aborted|request was aborted|\baborted\b)/iu.test(msg);
+  }
+
+  // 带重试的异步操作（应对酒馆中止）
+  async function _tavernRetry(label, fn) {
+    var lastErr;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try { return await fn(); }
+      catch(e) {
+        if (!_isAbortError(e)) throw e;
+        lastErr = e;
+        console.warn('[时之写卡器] ' + label + '被中止，准备重试（' + attempt + '/3）', e);
+        if (attempt < 3) await new Promise(function(r) { setTimeout(r, 350 * attempt); });
+      }
+    }
+    var msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    throw new Error(label + '连续被中止，请确认页面没有刷新或断开后重试（原始错误：' + msg + '）');
+  }
+
+  // 刷新角色列表
+  async function _refreshCharacterList() {
+    var st = _tavern();
+    if (st && typeof st.getCharacters === 'function') {
+      await _tavernRetry('刷新角色列表', function() { return st.getCharacters(); });
+    }
+  }
+
+  // 验证角色卡名称
+  function _tavernValidateName(name) {
+    var e = (name || '').trim();
+    if (!e) throw new Error('角色卡名称不能为空');
+    if (e === 'current') throw new Error('角色卡名称不能是 current');
+    var lower = e.replace(/\s+/g, ' ').toLowerCase();
+    if (lower === 'sillytavern system') throw new Error('SillyTavern System 是系统占位角色，请填写新的角色卡名称');
+    return e;
+  }
+
+  // 确保角色卡存在并补全 alternate_greetings 兼容字段（Wr）
+  async function _tavernEnsureCharacter(name) {
+    var validated = _tavernValidateName(name);
+    var st = _tavern();
+    if (!st || !st.characters) throw new Error('无法访问酒馆角色列表');
+    var idx = -1;
+    if (typeof st.characters.findIndex === 'function') {
+      idx = st.characters.findIndex(function(c) { return c.name === validated; });
+    } else {
+      for (var i = 0; i < st.characters.length; i++) {
+        if (st.characters[i].name === validated) { idx = i; break; }
+      }
+    }
+    if (idx < 0) {
+      await _refreshCharacterList();
+      if (typeof st.characters.findIndex === 'function') {
+        idx = st.characters.findIndex(function(c) { return c.name === validated; });
+      } else {
+        for (var j = 0; j < st.characters.length; j++) {
+          if (st.characters[j].name === validated) { idx = j; break; }
+        }
+      }
+    }
+    if (idx < 0) throw new Error('角色卡不存在：' + validated);
+    var char = st.characters[idx];
+    if (char.data && Array.isArray(char.data.alternate_greetings)) return;
+    if (typeof st.unshallowCharacter === 'function') {
+      await _tavernRetry('读取角色卡详情', function() { return st.unshallowCharacter(String(idx)); });
+    }
+    if (typeof st.characters.findIndex === 'function') {
+      idx = st.characters.findIndex(function(c) { return c.name === validated; });
+    }
+    if (idx < 0) throw new Error('读取详情后角色卡从列表中消失：' + validated);
+    char = st.characters[idx];
+    if (!char.data) char.data = {};
+    var altG = char.data.alternate_greetings;
+    if (Array.isArray(altG)) return;
+    var greetings = (typeof altG === 'string' && altG.trim()) ? [altG] : [];
+    if (greetings.length === 0) greetings = ['\u200b'];
+    char.data.alternate_greetings = greetings;
+    var firstMes = char.first_mes || (char.data && char.data.first_mes) || '';
+    var replaceCharacter = _tavernFn('replaceCharacter');
+    if (replaceCharacter) {
+      await _tavernRetry('补全角色卡兼容字段', function() {
+        return replaceCharacter(validated, { first_messages: [firstMes].concat(greetings) }, { render: 'none' });
+      });
+    }
+    var updated = st.characters.find(function(c) { return c.name === validated; });
+    if (updated) {
+      if (!updated.data) updated.data = {};
+      if (!Array.isArray(updated.data.alternate_greetings)) updated.data.alternate_greetings = greetings;
+    }
+  }
+
+  // 创建或获取角色卡（Nr）
+  async function _tavernCreateOrGet(name) {
+    var validated = _tavernValidateName(name);
+    var getCharacterNames = _tavernFn('getCharacterNames');
+    var names = getCharacterNames ? getCharacterNames() : [];
+    var created = false;
+
+    if (names.indexOf(validated) >= 0) {
+      await _tavernEnsureCharacter(validated);
+    } else {
+      var createCharacter = _tavernFn('createCharacter');
+      if (!createCharacter) throw new Error('酒馆不支持 createCharacter API，无法直接创建角色卡');
+      var lastErr;
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await createCharacter(validated, { first_messages: ['', '\u200b'] });
+          created = true;
+          break;
+        } catch(e) {
+          if (!_isAbortError(e)) throw e;
+          lastErr = e;
+          console.warn('[时之写卡器] 创建角色卡被中止，正在确认（' + attempt + '/3）', e);
+          await new Promise(function(r) { setTimeout(r, 350 * attempt); });
+          try { await _refreshCharacterList(); } catch(_) {}
+          names = getCharacterNames ? getCharacterNames() : [];
+          if (names.indexOf(validated) >= 0) { break; }
+        }
+      }
+      await _tavernEnsureCharacter(validated);
+      if (!created) {
+        var getCharacter = _tavernFn('getCharacter');
+        if (getCharacter) {
+          try { await getCharacter(validated); } catch(e) {
+            throw new Error('创建角色卡失败：' + validated);
+          }
+        }
+      }
+    }
+    return { name: validated, created: created };
+  }
+
+  // 写入开场白（Yr）
+  async function _tavernWriteFirstMes(name, firstMes) {
+    var validated = _tavernValidateName(name);
+    var content = (firstMes || '').trim();
+    if (!content) throw new Error('开场白不能为空');
+    await _tavernEnsureCharacter(validated);
+    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
+    await updateCharacterWith(validated, function(charData) {
+      var msgs = charData.first_messages || [];
+      charData.first_messages = [content].concat(msgs.slice(1));
+      return charData;
+    });
+  }
+
+  // 写入角色卡基础字段（name/description/personality/scenario/system_prompt 等）
+  async function _tavernWriteCharacterData(name, data) {
+    var validated = _tavernValidateName(name);
+    await _tavernEnsureCharacter(validated);
+    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
+    await updateCharacterWith(validated, function(charData) {
+      if (data.description !== undefined) charData.description = data.description;
+      if (data.personality !== undefined) charData.personality = data.personality;
+      if (data.scenario !== undefined) charData.scenario = data.scenario;
+      if (data.mes_example !== undefined) charData.mes_example = data.mes_example;
+      if (data.system_prompt !== undefined) charData.system_prompt = data.system_prompt;
+      if (data.post_history_instructions !== undefined) charData.post_history_instructions = data.post_history_instructions;
+      if (data.creator_notes !== undefined) charData.creator_notes = data.creator_notes;
+      if (data.tags !== undefined) charData.tags = data.tags;
+      if (data.creator !== undefined) charData.creator = data.creator;
+      if (data.character_version !== undefined) charData.character_version = data.character_version;
+      if (data.alternate_greetings !== undefined) charData.alternate_greetings = data.alternate_greetings;
+      if (data.depth_prompt !== undefined) charData.depth_prompt = data.depth_prompt;
+      return charData;
+    });
+  }
+
+  // 规范化脚本对象（Hr）
+  function _normalizeScript(s) {
+    return {
+      type: s.type || 'script',
+      enabled: true,
+      name: s.name,
+      id: s.id || _genId('qz-character-script'),
+      content: s.content,
+      info: s.info || '',
+      button: {
+        enabled: (s.button && s.button.enabled !== undefined) ? s.button.enabled : true,
+        buttons: (s.button && s.button.buttons) || []
+      },
+      data: s.data || {}
+    };
+  }
+
+  // 按 id 或 name 去重后更新脚本（Qr）
+  function _upsertScript(scripts, newScript) {
+    var arr = scripts.slice();
+    var idx = -1;
+    for (var i = 0; i < arr.length; i++) {
+      var s = arr[i];
+      if (s.type !== 'script' && !s.name) continue;
+      var sName = String(s.name || s.scriptName || '');
+      if (s.id === newScript.id || sName.toLowerCase() === newScript.name.toLowerCase()) {
+        idx = i;
+        break;
+      }
+    }
+    var merged = Object.assign({}, arr[idx] || {}, newScript, { name: newScript.name, content: newScript.content, enabled: true });
+    if (idx >= 0) { arr[idx] = _normalizeScript(merged); }
+    else { arr.push(_normalizeScript(newScript)); }
+    return arr;
+  }
+
+  // 写入 tavern_helper 脚本（Rr）
+  async function _tavernWriteScript(name, script) {
+    var validated = _tavernValidateName(name);
+    await _tavernEnsureCharacter(validated);
+    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
+    var normalized = _normalizeScript(script);
+    await updateCharacterWith(validated, function(charData) {
+      if (!charData.extensions) charData.extensions = { regex_scripts: [], tavern_helper: { scripts: [], variables: {} } };
+      if (!charData.extensions.regex_scripts) charData.extensions.regex_scripts = [];
+      if (!charData.extensions.tavern_helper) charData.extensions.tavern_helper = { scripts: [], variables: {} };
+      if (!charData.extensions.tavern_helper.scripts) charData.extensions.tavern_helper.scripts = [];
+      if (!charData.extensions.tavern_helper.variables) charData.extensions.tavern_helper.variables = {};
+      charData.extensions.tavern_helper.scripts = _upsertScript(charData.extensions.tavern_helper.scripts, normalized);
+      return charData;
+    });
+    var getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
+    var updateScriptTreesWith = _tavernFn('updateScriptTreesWith');
+    if (getCurrentCharacterName && updateScriptTreesWith && getCurrentCharacterName() === validated) {
+      await updateScriptTreesWith(function(scripts) { return _upsertScript(scripts, normalized); }, { type: 'character' });
+    }
+  }
+
+  // 写入 MVU schema 脚本（Dr）
+  async function _tavernWriteMvuSchema(name, schemaContent) {
+    await _tavernWriteScript(name, {
+      name: '变量结构',
+      id: _genId('qz-mvu-schema'),
+      content: schemaContent,
+      info: '自动生成的 MVU 变量结构脚本。',
+      button: { enabled: true, buttons: [] },
+      data: {}
+    });
+  }
+
+  // 写入 MVU 运行时 bundle.js 脚本
+  async function _tavernWriteMvuRuntime(name) {
+    await _tavernWriteScript(name, {
+      type: 'script',
+      enabled: true,
+      name: 'MVU',
+      id: '961f366d-e403-45c2-8155-3d14ec86de53',
+      content: "import'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';",
+      info: '',
+      button: {
+        enabled: true,
+        buttons: [
+          { name: '重新处理变量', visible: false },
+          { name: '重新读取初始变量', visible: false },
+          { name: '快照楼层', visible: false },
+          { name: '重演楼层', visible: false },
+          { name: '重试额外模型解析', visible: false },
+          { name: '清除旧楼层变量', visible: false }
+        ]
+      },
+      data: {}
+    });
+  }
+
+  // 用代码块包裹 HTML
+  function _wrapHtml(html) {
+    var trimmed = html.trim();
+    if (/^```/.test(trimmed)) return trimmed;
+    return '```html\n' + trimmed + '\n```';
+  }
+
+  // 转换内部正则格式到 SillyTavern 正则脚本格式（ri）
+  function _convertRegexScript(s) {
+    var placement = s.placement || [];
+    return {
+      id: s.id,
+      script_name: s.scriptName,
+      enabled: true,
+      scope: 'character',
+      find_regex: s.findRegex,
+      replace_string: s.replaceString,
+      trim_strings: Array.isArray(s.trimStrings) ? s.trimStrings.join('') : (s.trimStrings || ''),
+      source: {
+        user_input: placement.indexOf(1) >= 0,
+        ai_output: placement.indexOf(2) >= 0,
+        slash_command: false,
+        world_info: false
+      },
+      destination: {
+        display: s.markdownOnly === true,
+        prompt: s.promptOnly === true
+      },
+      run_on_edit: s.runOnEdit !== undefined ? s.runOnEdit : false,
+      min_depth: s.minDepth !== undefined ? s.minDepth : null,
+      max_depth: s.maxDepth !== undefined ? s.maxDepth : null
+    };
+  }
+
+  // 写入正则脚本（含状态栏 HTML）（oi - 借鉴 javascript-format (7).js）
+  async function _tavernWriteRegexScripts(name, statusBarHtml) {
+    var validated = _tavernValidateName(name);
+
+    var scripts = [
+      // 1. 仅格式思维链 - 从提示词移除 <Analysis> 段
+      _convertRegexScript({
+        id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36',
+        scriptName: '仅格式思维链',
+        findRegex: '/<Analysis>[\\s\\S]+?<\\/Analysis>/gm',
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: true,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // 2. 只发送最新2楼的变量更新
+      _convertRegexScript({
+        id: '5bb4b588-23ca-4564-8df5-882104eff764',
+        scriptName: '只发送最新2楼的变量更新',
+        findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
+        replaceString: '',
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: false,
+        promptOnly: true,
+        runOnEdit: true,
+        minDepth: 4,
+        maxDepth: null
+      }),
+      // 3. [美化]变量完成-三明月喵
+      _convertRegexScript({
+        id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5',
+        scriptName: '[美化]变量完成-三明月喵',
+        findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+        replaceString: NEKO_COMPLETE_HTML,
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: true,
+        promptOnly: false,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // 4. [美化]变量更新中-三明日喵
+      _convertRegexScript({
+        id: 'bf1b7441-5cf1-426d-bd6c-911332be9923',
+        scriptName: '[美化]变量更新中-三明月喵',
+        findRegex: '/<UpdateVariable(?:variable)?>(?!.*<\\/UpdateVariable(?:variable)?>)\\s*(.*)\\s*$/gsi',
+        replaceString: NEKO_THINKING_HTML,
+        trimStrings: [],
+        placement: [2],
+        markdownOnly: true,
+        promptOnly: false,
+        runOnEdit: false,
+        minDepth: null,
+        maxDepth: null
+      }),
+      // 5. 一键生卡_隐藏状态栏标记（display:false, prompt:true）
+      {
+        id: _genId('qz-card-status-hide'),
+        script_name: '一键生卡_隐藏状态栏标记',
+        enabled: true,
+        scope: 'character',
+        find_regex: '/<StatusPlaceHolderImpl\\/>/g',
+        replace_string: '',
+        trim_strings: '',
+        source: { user_input: false, ai_output: true, slash_command: false, world_info: false },
+        destination: { display: false, prompt: true },
+        run_on_edit: true,
+        min_depth: null,
+        max_depth: null
+      },
+      // 6. 一键生卡_MVU状态栏（display:true, prompt:false）
+      {
+        id: _genId('qz-card-status'),
+        script_name: '一键生卡_MVU状态栏',
+        enabled: true,
+        scope: 'character',
+        find_regex: '/<StatusPlaceHolderImpl\\/>/g',
+        replace_string: _wrapHtml(statusBarHtml),
+        trim_strings: '',
+        source: { user_input: false, ai_output: true, slash_command: false, world_info: false },
+        destination: { display: true, prompt: false },
+        run_on_edit: true,
+        min_depth: null,
+        max_depth: null
+      }
+    ];
+
+    // 按 script_name 去重旧脚本后追加新脚本
+    var nameSet = {};
+    scripts.forEach(function(s) { nameSet[s.script_name] = true; });
+
+    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
+    await _tavernEnsureCharacter(validated);
+    await updateCharacterWith(validated, function(charData) {
+      if (!charData.extensions) charData.extensions = { regex_scripts: [], tavern_helper: { scripts: [], variables: {} } };
+      var existing = charData.extensions.regex_scripts || [];
+      var filtered = existing.filter(function(r) { return !nameSet[r.script_name]; });
+      charData.extensions.regex_scripts = filtered.concat(scripts);
+      return charData;
+    });
+
+    // 同步当前角色的正则树
+    var getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
+    var updateTavernRegexesWith = _tavernFn('updateTavernRegexesWith');
+    if (getCurrentCharacterName && updateTavernRegexesWith && getCurrentCharacterName() === validated) {
+      await updateTavernRegexesWith(function(existing) {
+        var filtered = existing.filter(function(r) { return !nameSet[r.script_name]; });
+        return filtered.concat(scripts);
+      }, { scope: 'character' });
+    }
+  }
+
+  // 写入世界书条目（si/Ai/ii - 借鉴 javascript-format (7).js）
+  async function _tavernWriteWorldbook(worldbookName, entries) {
+    var SOURCE_TAG = 'modelo-char-generator';
+    var updateWorldbookWith = _tavernFn('updateWorldbookWith');
+    var createWorldbookEntries = _tavernFn('createWorldbookEntries');
+
+    // 先删除本工具标记的旧条目
+    if (updateWorldbookWith) {
+      await updateWorldbookWith(worldbookName, function(oldEntries) {
+        return (oldEntries || []).filter(function(e) {
+          return !(e.extra && e.extra.source === SOURCE_TAG);
+        });
+      }, { render: 'debounced' });
+    }
+
+    // 标记新条目并创建
+    var taggedEntries = entries.map(function(e) {
+      var copy = Object.assign({}, e);
+      if (!copy.extra) copy.extra = {};
+      copy.extra.source = SOURCE_TAG;
+      return copy;
+    });
+
+    if (createWorldbookEntries) {
+      await createWorldbookEntries(worldbookName, taggedEntries, { render: 'immediate' });
+    } else {
+      throw new Error('酒馆不支持 createWorldbookEntries API');
+    }
+  }
+
+  // 切换到角色卡（Lr）
+  async function _tavernSwitchToCharacter(name) {
+    var validated = _tavernValidateName(name);
+    var st = _tavern();
+    if (!st || !st.characters) throw new Error('无法访问酒馆角色列表');
+    var idx = -1;
+    for (var n = 0; n < 20 && idx < 0; n++) {
+      idx = -1;
+      for (var i = 0; i < st.characters.length; i++) {
+        if (st.characters[i].name === validated) { idx = i; break; }
+      }
+      if (idx < 0) await new Promise(function(r) { setTimeout(r, 100); });
+    }
+    if (idx < 0) throw new Error('已完成写入，但无法在角色列表中找到：' + validated);
+    if (typeof st.selectCharacterById === 'function') {
+      await st.selectCharacterById(idx, { switchMenu: true });
+    }
+  }
+
   // ===== 生成完整角色卡 =====
   function buildExportCard(cd) {
     // 兼容 V3 格式：条目和扩展可能在 data 对象内
@@ -5868,7 +6658,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             } catch(e2) {
               console.error('[storage] 精简重试仍失败:', e2 && e2.message);
               if (typeof showToast === 'function') {
-                try { showToast('⚠️存储空间不足，数据未能保存！请导出角色卡到文件避免丢失', 'error'); } catch(_) {}
+                try { showToast('⚠️存储空间不足，数据未能保存！请尽快写入酒馆避免丢失', 'error'); } catch(_) {}
               }
             }
           } else {
@@ -6157,7 +6947,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + a.label + '</button>';
         });
         // 导出 / 清空 作为小按钮放在快捷按钮右下角
-        h += '<button class="qa-mini" id="saveBtn" title="导出角色卡">💾 导出</button>';
+        h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">💾 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">🗑️ 清空</button>';
         qa.innerHTML = h;
         var btns = qa.querySelectorAll('.quick-btn');
@@ -7058,7 +7848,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (!text || isGenerating) return;
         input.value = '';
         lastUserInput = text;
-        var genKw = ['生成角色卡','生成完整角色卡','导出角色卡','完整生成'];
+        var genKw = ['生成角色卡','生成完整角色卡','导出角色卡','写入酒馆','完整生成'];
         var isGenCmd = genKw.some(function(k) { return text === k || text.indexOf(k) >= 0; });
         if (isGenCmd && progress >= 30) {
           addUserMsg(text);
@@ -8199,7 +8989,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     var _finalHtml = assembleStatusBarFromModules();
                     if (_finalHtml && saveStatusBarToCard(_finalHtml)) {
                       addAssistantMsg('🎉 状态栏5模块全部齐全，已拼接保存到角色卡！\n' +
-                        '  ✅ 点击右侧「预览」可查看效果，或点击「导出角色卡」得到最终卡json。');
+                        '  ✅ 点击右侧「预览」可查看效果，或点击「💾 写入酒馆」直接保存到酒馆角色卡。');
                     }
                   } catch(_e4) { console.warn('[statusbar] final assemble save:', _e4.message); }
                 }
@@ -9781,202 +10571,119 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         }
       }
 
-      function saveCharacter() {
+      async function saveCharacter() {
         if (!cardData.name || !cardData.name.trim()) {
           showToast('请先确定世界/角色名称', 'error');
           return;
         }
+        // 检测酒馆 API 可用性（必须在 try 之前判断，给出清晰提示）
+        var st = (typeof _tavern === 'function') ? _tavern() : null;
+        if (!st) {
+          showToast('未检测到酒馆环境，无法直接写入角色卡', 'error');
+          return;
+        }
+        var saveBtn = doc.getElementById('saveBtn');
+        var originalText = saveBtn ? saveBtn.textContent : '';
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ 写入中…'; }
         try {
+          // 复用 buildExportCard 完成MVU条目检测/填充、StatusPlaceHolderImpl注入、CRLF规范化等逻辑
           var exportCard = buildExportCard(cardData);
-          // 检测是否包含MVU变量系统条目（复用 isMVUEntry 保持判定一致性）
-          var entries = (cardData.character_book || {}).entries || [];
-          var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
+          var data = exportCard.data || {};
+          var worldbookName = data.world || exportCard.name || cardData.name;
+          var entries = (data.character_book && data.character_book.entries) || [];
+
+          // MVU 系统检测（与 buildExportCard 内部判定保持一致）
+          var filledForMvu = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
+          var hasMVU = !!(filledForMvu || entries.some(function(e) {
+            var c = (e.comment || '').toLowerCase();
+            return c.indexOf('[initvar]') >= 0 || c.indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量列表') >= 0 || (e.comment || '').indexOf('变量输出格式') >= 0;
+          }));
+
+          // 提取角色名列表（用于状态栏 HTML 生成）
+          var charNames = extractCharNames(cardData, (cardData.character_book || {}).entries || []);
+
+          // ===== 步骤1：创建或获取角色卡 =====
+          await _tavernCreateOrGet(cardData.name);
+
+          // ===== 步骤2：写入角色卡基础字段（description/personality/scenario/system_prompt 等）=====
+          await _tavernWriteCharacterData(cardData.name, {
+            description: data.description,
+            personality: data.personality,
+            scenario: data.scenario,
+            mes_example: data.mes_example,
+            system_prompt: data.system_prompt,
+            post_history_instructions: data.post_history_instructions,
+            creator_notes: data.creator_notes,
+            tags: data.tags,
+            creator: data.creator,
+            character_version: data.character_version,
+            alternate_greetings: data.alternate_greetings,
+            depth_prompt: data.depth_prompt
+          });
+
+          // ===== 步骤3：写入开场白 =====
+          if (data.first_mes && data.first_mes.trim()) {
+            await _tavernWriteFirstMes(cardData.name, data.first_mes);
+          }
+
+          // ===== 步骤4：MVU 变量系统（仅在检测到 MVU 条目时写入）=====
           if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、正则1-5、<状态栏>占位符提醒条目；正则6（美化状态栏）由AI生成或回退默认
-            var ext = (exportCard.data && exportCard.data.extensions) || {};
-            var rxScripts = ext.regex_scripts || [];
-            var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
-            var hasBundle = helperScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0; });
-            var hasSchema = helperScripts.some(function(s) { return (s.content || '').indexOf('registerMvuSchema') >= 0; });
-            var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
-            if (hasBundle && hasSchema && hasUpdRx) {
-              setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+正则1-5+<状态栏>占位符提醒条目已自动注入，正则6（美化状态栏）需AI生成', 'success');
-              }, 500);
-            } else {
-              setTimeout(function() {
-                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本、正则1-5和<状态栏>占位符提醒条目', 'info');
-              }, 500);
-            }
-          }
-          showJsonModal(JSON.stringify(exportCard, null, 2));
-        } catch(e) {
-          showToast('保存失败: ' + e.message, 'error');
-        }
-      }
-
-      function showJsonModal(jsonStr) {
-        var modal = doc.createElement('div');
-        modal.className = 'json-modal';
-        modal.innerHTML =
-          '<div class="json-modal-content">' +
-            '<h2 style="color:#8a6d3b;margin-bottom:8px;font-size:1em">✨ 角色卡已生成</h2>' +
-            '<p style="color:#8c8472;margin-bottom:8px;font-size:.78em">复制JSON导入酒馆，或下载文件后导入。</p>' +
-            '<div style="display:flex;gap:4px;margin-bottom:8px">' +
-              '<button class="btn btn-ghost" id="formatV3" style="font-size:.75em;padding:4px 10px">📦 v3格式</button>' +
-              '<button class="btn btn-ghost" id="formatV2" style="font-size:.75em;padding:4px 10px">📦 v2格式</button>' +
-              '<button class="btn btn-ghost" id="formatLorebook" style="font-size:.75em;padding:4px 10px">📖 世界书</button>' +
-            '</div>' +
-            '<textarea id="jsonOutput" readonly></textarea>' +
-            '<div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">' +
-              '<button class="btn btn-ghost" id="closeJsonModal">关闭</button>' +
-              '<button class="btn btn-primary" id="copyJson">📋 复制</button>' +
-              '<button class="btn btn-success" id="downloadJson">💾 下载</button>' +
-            '</div>' +
-          '</div>';
-        doc.body.appendChild(modal);
-        var jsonOutput = doc.getElementById('jsonOutput');
-        jsonOutput.value = jsonStr;
-        var currentFormat = 'v3';
-
-        function buildV2Card(cd) {
-          // 复用 buildExportCard 确保 MVU 正则/脚本/StatusPlaceHolderImpl 等自动注入逻辑一致
-          var v3Card = buildExportCard(cd);
-          var data = v3Card.data;
-          return JSON.stringify({
-            spec: 'chara_card_v2',
-            spec_version: '2.0',
-            data: {
-              name: data.name,
-              description: data.description,
-              personality: data.personality,
-              scenario: data.scenario,
-              first_mes: data.first_mes,
-              mes_example: data.mes_example,
-              system_prompt: data.system_prompt,
-              post_history_instructions: data.post_history_instructions,
-              tags: data.tags,
-              creator_notes: data.creator_notes,
-              creator: data.creator,
-              character_version: data.character_version,
-              alternate_greetings: data.alternate_greetings,
-              group_only_greetings: data.group_only_greetings,
-              extensions: data.extensions,
-              character_book: data.character_book
-            }
-          }, null, 2);
-        }
-
-        function buildLorebook(cd) {
-          // 复用 buildExportCard 确保条目 enabled/position/depth 等字段与 V3 一致（如 [InitVar] enabled=false）
-          var v3Card = buildExportCard(cd);
-          var book = v3Card.data.character_book || {};
-          return JSON.stringify({
-            name: cd.name || '世界设定集',
-            description: cd.description || '',
-            entries: book.entries || []
-          }, null, 2);
-        }
-
-        doc.getElementById('formatV3').addEventListener('click', function() {
-          currentFormat = 'v3';
-          jsonOutput.value = jsonStr;
-        });
-        doc.getElementById('formatV2').addEventListener('click', function() {
-          currentFormat = 'v2';
-          jsonOutput.value = buildV2Card(cardData);
-        });
-        doc.getElementById('formatLorebook').addEventListener('click', function() {
-          currentFormat = 'lorebook';
-          jsonOutput.value = buildLorebook(cardData);
-        });
-
-        function closeModal() {
-          try { modal.remove(); } catch(e) {}
-          doc.removeEventListener('keydown', escHandler);
-        }
-        function escHandler(e) { if (e.key === 'Escape') closeModal(); }
-        doc.addEventListener('keydown', escHandler);
-        modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
-        doc.getElementById('closeJsonModal').addEventListener('click', closeModal);
-        doc.getElementById('copyJson').addEventListener('click', function() {
-          var ta = doc.getElementById('jsonOutput');
-          ta.select();
-          try { doc.execCommand('copy'); showToast('已复制到剪贴板', 'success'); }
-          catch(e) { showToast('复制失败，请手动选择', 'error'); }
-        });
-        doc.getElementById('downloadJson').addEventListener('click', function() {
-          var ta = doc.getElementById('jsonOutput');
-          var content = ta ? ta.value : jsonStr;
-          if (!content || content.length === 0) {
-            showToast('内容为空，无法下载', 'error');
-            return;
-          }
-          var fileName = (cardData.name || '时之写卡器导出').replace(/[<>:"/\\|?*]/g, '_') + '.json';
-
-          var done = false;
-
-          function tryDownload() {
-            if (done) return;
-            try {
-              var blob = new Blob([content], {type: 'application/json;charset=utf-8'});
-              var url = URL.createObjectURL(blob);
-              var a = doc.createElement('a');
-              a.href = url;
-              a.download = fileName;
-              a.style.display = 'none';
-              doc.body.appendChild(a);
-              a.click();
-              setTimeout(function() {
-                try { doc.body.removeChild(a); } catch(_) {}
-                try { URL.revokeObjectURL(url); } catch(_) {}
-              }, 5000);
-              done = true;
-              showToast('下载已开始', 'success');
-            } catch(e) { console.warn('blob download failed:', e); }
-          }
-
-          function tryParentBlob() {
-            if (done) return;
-            try {
-              var pw = window.parent;
-              if (pw && pw !== window) {
-                var pBlob = new (pw.Blob)([content], {type: 'application/json;charset=utf-8'});
-                var pUrl = (pw.URL || pw.webkitURL).createObjectURL(pBlob);
-                var pa = pw.document.createElement('a');
-                pa.href = pUrl;
-                pa.download = fileName;
-                pa.style.display = 'none';
-                pw.document.body.appendChild(pa);
-                pa.click();
-                setTimeout(function() {
-                  try { pw.document.body.removeChild(pa); } catch(_) {}
-                  try { (pw.URL || pw.webkitURL).revokeObjectURL(pUrl); } catch(_) {}
-                }, 5000);
-                done = true;
-                showToast('下载已开始', 'success');
+            // 4a. 写入 MVU bundle.js 运行时脚本
+            await _tavernWriteMvuRuntime(cardData.name);
+            // 4b. 写入变量结构 zod schema 脚本（从 [InitVar] 条目内容生成）
+            var initVarEntry = entries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
+            var schemaInitContent = initVarEntry ? (initVarEntry.content || '') : '';
+            var schemaContent = generateMvuSchemaScript(schemaInitContent);
+            await _tavernWriteMvuSchema(cardData.name, schemaContent);
+            // 4c. 写入 6 条正则脚本（含状态栏 HTML）
+            // 优先使用用户在 MVU Tab 自定义生成的状态栏 HTML，其次自动生成
+            var statusBarHtml = '';
+            // 4c-1. 检查 cardData 中是否已保存自定义状态栏正则（来自 saveStatusBarToCard）
+            var existingRx = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+            var customSb = null;
+            for (var si = 0; si < existingRx.length; si++) {
+              var rxs = existingRx[si];
+              if (!rxs) continue;
+              var isSb = (rxs.id === 'mvu-status-bar') ||
+                         ((rxs.findRegex || rxs.find_regex || '').indexOf('StatusPlaceHolder') >= 0 &&
+                          (rxs.markdownOnly || (rxs.destination && rxs.destination.display)) &&
+                          !(rxs.promptOnly || (rxs.destination && rxs.destination.prompt)));
+              if (isSb && (rxs.replaceString || rxs.replace_string)) {
+                customSb = rxs.replaceString || rxs.replace_string;
+                break;
               }
-            } catch(e) { console.warn('parent blob download failed:', e); }
+            }
+            if (customSb) {
+              // 解包 ``` 围栏（saveStatusBarToCard 用 ``` 包裹，_tavernWriteRegexScripts 会重新包裹）
+              statusBarHtml = customSb.replace(/^```[a-z]*\n?/m, '').replace(/\n?```$/m, '').trim();
+            } else if (typeof statusBarModules !== 'undefined' && statusBarModules && Object.keys(statusBarModules).some(function(k) { return statusBarModules[k]; })) {
+              // 4c-2. 当前会话有模块数据但尚未保存到 cardData，现场拼接
+              try { statusBarHtml = assembleStatusBarFromModules(); } catch(e) { statusBarHtml = ''; }
+            }
+            // 4c-3. 无自定义状态栏时，用角色名列表自动生成默认状态栏
+            if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
+            await _tavernWriteRegexScripts(cardData.name, statusBarHtml);
           }
 
-          function tryDataUrl() {
-            if (done) return;
-            try {
-              var dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(content);
-              window.open(dataUrl, '_blank');
-              done = true;
-              showToast('已在新窗口打开，请另存为', 'info');
-            } catch(e) { console.warn('dataUrl open failed:', e); }
+          // ===== 步骤5：写入世界书条目 =====
+          if (entries.length > 0) {
+            await _tavernWriteWorldbook(worldbookName, entries);
           }
 
-          tryParentBlob();
-          if (!done) tryDownload();
-          if (!done) tryDataUrl();
-          if (!done) {
-            showToast('下载失败，请使用复制按钮', 'error');
-          }
-        });
+          // ===== 步骤6：切换到角色卡 =====
+          await _tavernSwitchToCharacter(cardData.name);
+
+          var mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构+6条正则+状态栏）' : '';
+          showToast('✅ 角色卡已成功写入酒馆' + mvuTip, 'success');
+        } catch(e) {
+          console.error('[时之写卡器] 写入酒馆失败:', e);
+          showToast('保存失败: ' + (e.message || String(e)), 'error');
+        } finally {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalText; }
+        }
       }
+
+      // showJsonModal 已移除：导出功能改为直接写入酒馆角色卡（见 saveCharacter）
 
       renderWelcome();
 
