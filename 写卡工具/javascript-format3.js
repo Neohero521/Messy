@@ -357,31 +357,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .opt-field-tag{padding:3px 9px;background:var(--surface-soft);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:.72em;cursor:pointer;transition:all .2s}
 .opt-field-tag.selected{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-deep)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:11px;padding-top:11px;border-top:1px solid var(--line-soft);flex-shrink:0}
-.sb-wrap{display:block;margin-top:8px;padding:11px;background:var(--surface-soft);border-radius:var(--radius-sm);font-size:.88em;line-height:1.6;border:1px solid var(--line-soft)}
-.sb-wrap .sb-header{font-size:.95em;color:var(--amber);margin-bottom:8px;font-weight:600;text-align:center}
-.sb-wrap .sb-section{margin-bottom:4px}
-.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:var(--accent-deep);font-size:1em;padding:3px 0;user-select:none}
-.sb-wrap .sb-summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
-.sb-wrap .sb-section:not(.open) .sb-summary::before{transform:rotate(-90deg)}
-.sb-wrap .sb-content{padding:3px 0 3px 8px;color:var(--ink-soft)}
-.sb-wrap .sb-field{display:flex;padding:2px 0;border-bottom:1px solid var(--line-soft)}
-.sb-wrap .sb-field:last-child{border-bottom:none}
-.sb-wrap .sb-field-label{color:var(--accent-deep);font-weight:600;flex-shrink:0}
-.sb-wrap .sb-field-value{color:var(--ink-soft)}
-.sb-wrap details{margin-bottom:6px}
-.sb-wrap summary{cursor:pointer;font-weight:600;color:var(--accent-deep);font-size:.95em;padding:3px 0;list-style:none}
-.sb-wrap summary::-webkit-details-marker{display:none}
-.sb-wrap summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
-.sb-wrap details[open] summary::before{transform:rotate(0deg)}
-.sb-wrap details:not([open]) summary::before{transform:rotate(-90deg)}
-.sb-wrap ul{margin:4px 0 4px 18px;padding:0}
-.sb-wrap ol{margin:4px 0 4px 20px;padding:0}
-.sb-wrap li{margin:2px 0;color:var(--ink-soft);font-size:.95em;line-height:1.5}
-.sb-wrap li b{color:var(--ink)}
-.sb-wrap p{margin:3px 0;color:var(--ink-soft);font-size:.95em}
-.sb-wrap p b{color:var(--accent-deep)}
-.sb-wrap .sb-btn{display:inline-block;padding:4px 11px;margin:2px 3px;background:var(--surface);border:1px solid var(--line);border-radius:999px;font-size:.88em;color:var(--ink);cursor:pointer;transition:all .15s}
-.sb-wrap .sb-btn:active{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* ===== statusblock 容器：Markdown 渲染后的样式 ===== */
+.sb-wrap{display:block;margin-top:10px;padding:12px 14px;background:var(--surface-soft);border-radius:var(--radius);font-size:.88em;line-height:1.65;border:1px solid var(--line-soft)}
+.sb-wrap h3{font-size:1em;color:var(--accent-deep);margin:4px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+.sb-wrap h3:first-child{margin-top:0}
+.sb-wrap h4{font-size:.95em;color:var(--accent-deep);margin:6px 0 4px}
+.sb-wrap ul,.sb-wrap ol{margin:4px 0 6px 20px;padding:0}
+.sb-wrap li{margin:3px 0;color:var(--ink-soft);line-height:1.55}
+.sb-wrap li b,.sb-wrap li strong{color:var(--ink)}
+.sb-wrap p{margin:4px 0;color:var(--ink-soft)}
+.sb-wrap p b,.sb-wrap p strong{color:var(--accent-deep)}
+.sb-wrap hr{border:none;border-top:1px solid var(--line-soft);margin:8px 0}
+.sb-wrap blockquote{margin:6px 0;padding:4px 12px;border-left:3px solid var(--accent-soft);color:var(--ink-soft);background:var(--surface)}
 
 /* ===== 上下文操作条：替代旧 mod-focus + mod-dash + mvu-info-panel 三件套 ===== */
 .ctx-bar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);min-height:44px}
@@ -709,24 +696,54 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-tree-item.selected{background:var(--accent-soft-strong);color:var(--accent-deep);border-left:2px solid var(--accent-border-strong)}
 .ws-tree-item .ws-tree-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;opacity:.5}
 .ws-tree-item.selected .ws-tree-dot{background:var(--accent);opacity:1}
-.ws-editor{border-right:1px solid var(--line-soft);overflow-y:auto;background:var(--surface);padding:14px 16px}
+.ws-editor{display:flex;flex-direction:column;border-right:1px solid var(--line-soft);overflow:hidden;background:var(--surface)}
 .ws-editor-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.88em;font-style:italic}
-.ws-editor-title{font-size:.92em;font-weight:600;color:var(--accent-deep);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
-.ws-editor-content{font-size:.82em;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--ink);font-family:var(--font-mono)}
-.ws-editor-meta{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.ws-editor-meta .ws-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:.72em;font-weight:500}
-.ws-editor-meta .ws-tag.enabled{background:var(--sage-soft);color:var(--sage-text)}
-.ws-editor-meta .ws-tag.disabled{background:var(--surface-sink);color:var(--muted)}
-.ws-editor-meta .ws-tag.position{background:var(--accent-soft);color:var(--accent-deep)}
+.ws-editor-title{font-size:.92em;font-weight:600;color:var(--accent-deep);padding:10px 14px;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.ws-editor-area{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+/* 条目属性面板 */
+.ws-entry-props{display:flex;align-items:center;gap:10px;padding:6px 14px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0;background:var(--surface-soft)}
+.ws-prop{display:inline-flex;align-items:center;gap:4px;font-size:.76em;color:var(--ink-soft)}
+.ws-prop input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent)}
+.ws-prop select,.ws-prop input[type=text],.ws-prop input[type=number]{padding:2px 6px;border:1px solid var(--line);border-radius:4px;font-size:.92em;background:var(--surface);color:var(--ink);font-family:inherit}
+.ws-prop-keys{flex:1;min-width:120px}
+.ws-prop-keys-input{width:100% !important}
+/* 视图切换 */
+.ws-view-switcher{display:flex;gap:2px;padding:6px 14px;border-bottom:1px solid var(--line-soft);flex-shrink:0;background:var(--surface-soft)}
+.ws-view-btn{padding:4px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink-soft);font-size:.76em;cursor:pointer;transition:all .15s;font-family:inherit}
+.ws-view-btn:hover:not(:disabled){background:var(--surface-soft);color:var(--accent-deep)}
+.ws-view-btn.active{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)}
+.ws-view-btn:disabled{opacity:.4;cursor:not-allowed}
+/* textarea */
+.ws-textarea{flex:1;width:100%;border:none;outline:none;padding:12px 14px;font-size:.82em;line-height:1.65;font-family:var(--font-mono);color:var(--ink);background:var(--bg);resize:none;white-space:pre-wrap;word-break:break-word}
+.ws-textarea:focus{background:var(--surface)}
+/* diff */
+.ws-diff-view{flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--font-mono);font-size:.78em;line-height:1.6}
+.ws-diff-view .diff-add{color:var(--sage-text);background:var(--sage-soft);display:block;padding:0 4px}
+.ws-diff-view .diff-del{color:var(--terra-text);background:var(--terra-soft);display:block;padding:0 4px;text-decoration:line-through;opacity:.7}
+.ws-diff-view .diff-same{color:var(--muted);display:block;padding:0 4px}
+/* preview */
+.ws-preview-iframe{flex:1;width:100%;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:#fff}
+.ws-preview-md{flex:1;overflow-y:auto;padding:12px 14px;font-size:.86em;line-height:1.65;color:var(--ink-soft)}
+/* head actions */
+.ws-head-actions{display:flex;align-items:center;gap:6px}
+.ws-head-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink-soft);font-size:.82em;cursor:pointer;transition:all .15s;font-weight:600;font-family:inherit}
+.ws-head-btn:hover{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)}
+.ws-head-btn svg{width:15px;height:15px}
+/* tree length badge */
+.ws-tree-len{font-size:.7em;color:var(--muted);background:var(--surface-sink);padding:1px 5px;border-radius:4px;margin-left:auto}
+/* artifact area */
 .ws-artifact{overflow-y:auto;background:var(--surface-soft);padding:14px}
 .ws-artifact-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.88em;font-style:italic}
-.ws-artifact-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px}
-.ws-artifact-card .ws-ac-title{font-size:.78em;font-weight:600;color:var(--accent-deep);margin-bottom:4px}
-.ws-artifact-card .ws-ac-content{font-size:.74em;color:var(--ink-soft);line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto}
-.ws-artifact-card .ws-ac-diff{font-family:var(--font-mono);font-size:.72em;white-space:pre}
-.ws-artifact-card .ws-ac-diff .diff-add{color:var(--sage-text);background:var(--sage-soft)}
-.ws-artifact-card .ws-ac-diff .diff-del{color:var(--terra-text);background:var(--terra-soft)}
-.ws-artifact-card .ws-ac-diff .diff-same{color:var(--muted)}
+.ws-art-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.ws-art-stat{display:flex;flex-direction:column;align-items:center;padding:10px 6px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm)}
+.ws-stat-num{font-size:1.3em;font-weight:700;color:var(--accent-deep)}
+.ws-stat-label{font-size:.7em;color:var(--muted);margin-top:2px}
+.ws-art-section-title{font-size:.76em;font-weight:600;color:var(--ink-soft);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.ws-art-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px}
+.ws-art-card.mvu{border-left:3px solid var(--accent-soft)}
+.ws-art-card .ws-ac-title{font-size:.8em;font-weight:600;color:var(--accent-deep);margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.ws-art-card .ws-ac-content{font-size:.76em;color:var(--ink-soft);line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto}
+.ws-art-card .ws-ac-off{font-size:.7em;color:var(--terra-text);background:var(--terra-soft);padding:1px 5px;border-radius:4px;margin-left:auto}
 /* 移动端工作台单栏 */
 @media(max-width:768px){
   .ws-panel{width:100vw;height:100vh;border-radius:0}
@@ -1099,8 +1116,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**写卡器自检状态栏（<statusblock>，本聊天界面用）铁律**：\n' +
     '- 注意：这是【写卡器聊天界面自身】的输出状态块，和角色卡的【MVU状态栏】（StatusPlaceHolderImpl）完全是两件事，不要混淆\n' +
     '- 每次回复必须包含 `<statusblock>` 状态块\n' +
-    '- 使用 `<details open>` 标签，8大体系用 ✅⏳❌ 标识\n' +
-    '- 所有问题放在「🔍 需要您补充的信息」区块\n\n' +
+    '- statusblock 内部使用 **Markdown 格式**（### 标题 / - 列表 / **加粗**），禁止使用 HTML 标签（<details>/<summary>/<ul>/<li>/<p>/<b>等）\n' +
+    '- 8大体系用 ✅⏳❌ 标识，放在 Markdown 列表中\n' +
+    '- 所有问题放在「### 🔍 需要您补充的信息」区块\n\n' +
     '**Token预算铁律**：\n' +
     '- 删除冗余、精炼表达、高信息密度\n' +
     '- description≥400字, first_mes≥500字, system_prompt≤50字\n' +
@@ -2462,29 +2480,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '```\n\n' +
     '=== 状态栏格式（9体系） ===\n\n' +
     '<statusblock>\n' +
-    '<details open>\n' +
-    '<summary><b>信息完整度 XX%</b></summary>\n' +
-    '<ul>\n' +
-    '<li><b>🏛️ 基础公理</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>🤝 交互软规则</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>🔐 核心铁则</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>🎯 近场强约束</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>⚔️ 场景机制</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>👥 实体交互</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>📖 叙事背景</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>🔄 动态适配</b>：[✅/⏳/❌] - [摘要]</li>\n' +
-    '<li><b>📊 变量系统</b>：[✅/⏳/❌] - [摘要]（进阶可选）</li>\n' +
-    '</ul>\n' +
-    '</details>\n' +
-    '<details open>\n' +
-    '<summary><b>🔍 需要您补充的信息</b></summary>\n' +
-    '<p><b>优先级最高</b>：[当前最需要收集的1-2个体系]</p>\n' +
-    '<p><b>深度挖掘点</b>：[可以进一步探索的内在逻辑或特色]</p>\n' +
-    '<ol>\n' +
-    '<li><b>[问题1]</b> - [针对某个体系]</li>\n' +
-    '<li><b>[问题2]</b> - [针对某个体系]</li>\n' +
-    '</ol>\n' +
-    '</details>\n' +
+    '### 📊 信息完整度 XX%\n\n' +
+    '- **🏛️ 基础公理**：[✅/⏳/❌] - [摘要]\n' +
+    '- **🤝 交互软规则**：[✅/⏳/❌] - [摘要]\n' +
+    '- **🔐 核心铁则**：[✅/⏳/❌] - [摘要]\n' +
+    '- **🎯 近场强约束**：[✅/⏳/❌] - [摘要]\n' +
+    '- **⚔️ 场景机制**：[✅/⏳/❌] - [摘要]\n' +
+    '- **👥 实体交互**：[✅/⏳/❌] - [摘要]\n' +
+    '- **📖 叙事背景**：[✅/⏳/❌] - [摘要]\n' +
+    '- **🔄 动态适配**：[✅/⏳/❌] - [摘要]\n' +
+    '- **📊 变量系统**：[✅/⏳/❌] - [摘要]（进阶可选）\n\n' +
+    '### 🔍 需要您补充的信息\n\n' +
+    '**优先级最高**：[当前最需要收集的1-2个体系]\n\n' +
+    '**深度挖掘点**：[可以进一步探索的内在逻辑或特色]\n\n' +
+    '1. **[问题1]** - [针对某个体系]\n' +
+    '2. **[问题2]** - [针对某个体系]\n' +
     '</statusblock>\n\n' +
     '=== 对话引导原则 ===\n' +
     '- 像朋友聊天一样自然，不要像填表单\n' +
@@ -3728,6 +3738,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (cd.tags && cd.tags.length) ctxParts.push('标签：' + cd.tags.join('、'));
     // 从现有角色卡条目中，提取4条MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
     var entries = (cd.character_book || {}).entries || [];
+    // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
+    // MVU Tab 设计变量时需要知道世界里有哪些实体/属性/机制，才能设计出有意义的变量
+    // 只发 comment + content 前300字摘要，不发完整内容（节省 token），且明确标注「只读、不可修改」
+    var nonMvuEntries = entries.filter(function(e) {
+      var c = (e.comment || '').toLowerCase();
+      if (c.indexOf('[initvar]') >= 0) return false;
+      if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+      if (c.indexOf('变量更新规则') >= 0) return false;
+      if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
+      if (c.indexOf('状态变量输出') >= 0) return false;
+      return true;
+    });
+    if (nonMvuEntries.length > 0) {
+      var nonMvuText = '世界书常规条目摘要（' + nonMvuEntries.length + '条 · 只读上下文，用于设计变量参考，❌禁止修改这些条目）：\n';
+      nonMvuEntries.forEach(function(e, i) {
+        var content = (e.content || '').substring(0, 300);
+        nonMvuText += '  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] ' + content.length + '字: ' + content + '\n';
+      });
+      ctxParts.push(nonMvuText);
+    }
     var mvuOnlyEntries = entries.filter(function(e) {
       var c = (e.comment || '').toLowerCase();
       if (c.indexOf('[initvar]') >= 0) return true;
@@ -7298,19 +7328,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 工作台
         items += '<div class="ws-dropdown-section">工作台</div>';
         items += '<div class="ws-dropdown-item" data-action="open-workspace">' + svgIcon('folder', 15) + ' 打开工作台 <span class="ws-item-badge">Tab</span></div>';
-        // 模块导航
-        items += '<div class="ws-dropdown-divider"></div>';
-        items += '<div class="ws-dropdown-section">模块导航</div>';
-        var mods = [
-          ['axiom', '基础公理'], ['soft_rules', '交互软规则'], ['core_rules', '核心铁则'],
-          ['near_constraint', '近场强约束'], ['scene_mechanics', '场景机制'],
-          ['entity_interact', '实体交互'], ['narrative_bg', '叙事背景'], ['dynamic_adapt', '动态适配']
-        ];
-        mods.forEach(function(m) {
-          var done = (progress[m[0]] && progress[m[0]].completed) ? ' done' : '';
-          var badge = done ? '<span class="ws-item-badge' + done + '">&#10003;</span>' : '';
-          items += '<div class="ws-dropdown-item" data-action="focus-mod" data-mod="' + m[0] + '">' + svgIcon('dot', 15) + ' ' + m[1] + badge + '</div>';
-        });
         // MVU / Tab 切换
         items += '<div class="ws-dropdown-divider"></div>';
         items += '<div class="ws-dropdown-section">视图切换</div>';
@@ -7343,7 +7360,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var action = this.getAttribute('data-action');
             dropdown.classList.remove('show');
             if (action === 'open-workspace') openWorkspacePanel();
-            else if (action === 'focus-mod') focusModule(this.getAttribute('data-mod'));
             else if (action === 'switch-tab') switchTab(this.getAttribute('data-tab'));
             else if (action === 'export-log') {
               var btn = doc.getElementById('exportLogBtn');
@@ -7361,16 +7377,90 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 工作台模态浮窗 =====
       var wsPanelTab = 'files';
-      var wsSelectedEntry = null;
+      var wsSelectedNode = null;       // { type: 'field'|'entry'|'regex', key: string, index?: number }
+      var wsEditorView = 'edit';       // 'edit' | 'diff' | 'preview'
+      var wsEditedContent = {};        // nodeKey → 编辑后的内容缓存
+      var wsOriginalContent = {};      // nodeKey → 打开时的原始内容（用于 diff）
+      function _wsNodeKey(node) { return node ? (node.type + '::' + node.key + (node.index != null ? '::' + node.index : '')) : ''; }
+      function _wsGetContent(node) {
+        if (!node) return '';
+        if (node.type === 'field') {
+          var v = cardData[node.key];
+          if (Array.isArray(v) && node.index != null) return v[node.index] || '';
+          return v != null ? String(v) : '';
+        }
+        if (node.type === 'entry') {
+          var e = (cardData.character_book || {}).entries || [];
+          return (e[node.index] && e[node.index].content) || '';
+        }
+        if (node.type === 'regex') {
+          var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+          return (r[node.index] && r[node.index].scriptContent) || '';
+        }
+        return '';
+      }
+      function _wsSetContent(node, val) {
+        if (!node) return;
+        if (node.type === 'field') {
+          if (Array.isArray(cardData[node.key]) && node.index != null) { cardData[node.key][node.index] = val; }
+          else { cardData[node.key] = val; }
+        }
+        else if (node.type === 'entry') {
+          var e = (cardData.character_book || {}).entries || [];
+          if (e[node.index]) e[node.index].content = val;
+        } else if (node.type === 'regex') {
+          var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+          if (r[node.index]) r[node.index].scriptContent = val;
+        }
+      }
+      function _wsGetMeta(node) {
+        if (!node) return null;
+        if (node.type === 'entry') {
+          var e = ((cardData.character_book || {}).entries || [])[node.index];
+          if (!e) return null;
+          return { comment: e.comment || '', enabled: e.enabled !== false, constant: !!e.constant, position: e.position, keys: (e.keys || []).join(', '), depth: e.depth };
+        }
+        return null;
+      }
+      function _wsSetMeta(node, meta) {
+        if (!node || node.type !== 'entry') return;
+        var e = ((cardData.character_book || {}).entries || [])[node.index];
+        if (!e) return;
+        if (meta.enabled != null) e.enabled = meta.enabled;
+        if (meta.constant != null) e.constant = meta.constant;
+        if (meta.position != null) e.position = meta.position;
+        if (meta.keys != null) e.keys = meta.keys.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        if (meta.depth != null) e.depth = meta.depth;
+      }
+      function _wsIsHtml(val) { return /<[a-z][\s\S]*>/i.test(val || ''); }
+      function _wsDiff(oldText, newText) {
+        var oldLines = (oldText || '').split('\n');
+        var newLines = (newText || '').split('\n');
+        var maxLen = Math.max(oldLines.length, newLines.length);
+        var rows = [];
+        for (var i = 0; i < maxLen; i++) {
+          var o = oldLines[i] != null ? oldLines[i] : '';
+          var n = newLines[i] != null ? newLines[i] : '';
+          if (o === n) rows.push({ kind: 'same', text: o });
+          else { if (o) rows.push({ kind: 'del', text: o }); if (n) rows.push({ kind: 'add', text: n }); }
+        }
+        return rows;
+      }
       function openWorkspacePanel() {
         var container = doc.getElementById('wsPanelContainer');
         if (!container) return;
+        wsEditorView = 'edit';
+        wsEditedContent = {};
+        wsOriginalContent = {};
         container.innerHTML =
           '<div class="ws-panel-backdrop show" id="wsBackdrop">' +
             '<div class="ws-panel">' +
               '<header class="ws-panel-head">' +
-                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件 / 编辑 / 预览</span></div>' +
-                '<button class="ws-close" id="wsCloseBtn" title="关闭">' + svgIcon('close', 18) + '</button>' +
+                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件 · 编辑 · 预览</span></div>' +
+                '<div class="ws-head-actions">' +
+                  '<button class="ws-head-btn" id="wsSaveAllBtn" title="保存所有更改到角色卡">' + svgIcon('save', 15) + ' 保存</button>' +
+                  '<button class="ws-close" id="wsCloseBtn" title="关闭">' + svgIcon('close', 18) + '</button>' +
+                '</div>' +
               '</header>' +
               '<nav class="ws-panel-tabs">' +
                 '<button class="ws-panel-tab ' + (wsPanelTab === 'files' ? 'active' : '') + '" data-wstab="files">文件</button>' +
@@ -7389,6 +7479,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         doc.getElementById('wsBackdrop').addEventListener('click', function(e) {
           if (e.target === this) closeWorkspacePanel();
         });
+        // 保存所有
+        doc.getElementById('wsSaveAllBtn').addEventListener('click', function() {
+          var saved = 0;
+          Object.keys(wsEditedContent).forEach(function(k) {
+            var parts = k.split('::');
+            var node = { type: parts[0], key: parts[1], index: parts[2] != null ? parseInt(parts[2]) : null };
+            _wsSetContent(node, wsEditedContent[k]);
+            saved++;
+          });
+          wsEditedContent = {};
+          wsOriginalContent = {};
+          if (saved > 0) { updateProgress(); renderPreview(); showToast('已保存 ' + saved + ' 项更改到角色卡', 'success'); }
+          else showToast('没有未保存的更改', 'info');
+          // 刷新编辑器
+          var editorEl = container.querySelector('#wsEditor');
+          if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
+          bindWsEditorEvents(container);
+        });
         // Tab 切换（移动端）
         container.querySelectorAll('.ws-panel-tab').forEach(function(tab) {
           tab.addEventListener('click', function() {
@@ -7403,11 +7511,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 树节点点击
         container.querySelectorAll('.ws-tree-item').forEach(function(item) {
           item.addEventListener('click', function() {
-            wsSelectedEntry = this.getAttribute('data-entry');
+            var nodeStr = this.getAttribute('data-node');
+            if (!nodeStr) return;
+            try { wsSelectedNode = JSON.parse(nodeStr); } catch(e) { return; }
+            var nk = _wsNodeKey(wsSelectedNode);
+            // 首次打开时缓存原始内容
+            if (wsOriginalContent[nk] === undefined) wsOriginalContent[nk] = _wsGetContent(wsSelectedNode);
             container.querySelectorAll('.ws-tree-item').forEach(function(i) { i.classList.remove('selected'); });
             this.classList.add('selected');
+            wsEditorView = 'edit';
             var editorEl = container.querySelector('#wsEditor');
-            if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
+            if (editorEl) {
+              editorEl.innerHTML = buildWorkspaceEditor();
+              bindWsEditorEvents(container);
+            }
             if (wsPanelTab === 'files') {
               wsPanelTab = 'editor';
               container.querySelector('.ws-panel-tab[data-wstab="files"]').classList.remove('active');
@@ -7424,77 +7541,238 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             this.parentElement.classList.toggle('collapsed');
           });
         });
+        // 预览区：渲染当前角色卡预览
+        renderWsArtifact(container);
       }
       function closeWorkspacePanel() {
         var container = doc.getElementById('wsPanelContainer');
         if (container) container.innerHTML = '';
       }
+      // ===== 文件树：从 cardData 读取真实数据，虚拟文件系统 =====
       function buildWorkspaceTree() {
-        var groups = [
-          { name: '角色卡', entries: [] },
-          { name: '世界书', entries: [] },
-          { name: 'MVU', entries: [] }
+        var groups = [];
+        // 1. 角色卡字段
+        var cardFields = [
+          { key: 'name', label: '名称' },
+          { key: 'description', label: '世界观描述' },
+          { key: 'first_mes', label: '开场白' },
+          { key: 'system_prompt', label: '系统指令' },
+          { key: 'post_history_instructions', label: '核心铁则' },
+          { key: 'alternate_greetings', label: '分支问候', isArray: true }
         ];
-        // 从 progress 收集条目
-        Object.keys(progress).forEach(function(key) {
-          var p = progress[key];
-          if (!p || !p.entries || !p.entries.length) return;
-          var grp = groups[0]; // 默认归角色卡
-          if (key === 'init_var' || key === 'var_update_rule') grp = groups[2];
-          else if (key === 'core_rules' || key === 'soft_rules' || key === 'axiom') grp = groups[1];
-          p.entries.forEach(function(e) {
-            grp.entries.push({ name: e.name || e.comment || e.title || key, path: key + '::' + (e.name || ''), key: key });
-          });
+        var cardNodes = [];
+        cardFields.forEach(function(f) {
+          var val = cardData[f.key];
+          if (f.isArray) {
+            if (val && val.length > 0) {
+              val.forEach(function(g, i) {
+                cardNodes.push({ type: 'field', key: 'alternate_greetings', index: i, label: f.label + ' #' + (i+1), path: 'alternate_greetings[' + i + ']' });
+              });
+            }
+          } else if (val && String(val).trim()) {
+            cardNodes.push({ type: 'field', key: f.key, label: f.label, path: f.key });
+          }
         });
+        if (cardNodes.length) groups.push({ name: '角色卡', nodes: cardNodes });
+        // 2. 世界书条目（非MVU）
+        var entries = (cardData.character_book || {}).entries || [];
+        var wbNodes = [];
+        var mvuNodes = [];
+        entries.forEach(function(e, i) {
+          var label = e.comment || ('条目' + (i+1));
+          var node = { type: 'entry', key: 'character_book', index: i, label: label, path: 'entries[' + i + ']' };
+          if (isMVUEntry(e.comment || '')) mvuNodes.push(node);
+          else wbNodes.push(node);
+        });
+        if (wbNodes.length) groups.push({ name: '世界书 (' + wbNodes.length + ')', nodes: wbNodes });
+        if (mvuNodes.length) groups.push({ name: 'MVU变量 (' + mvuNodes.length + ')', nodes: mvuNodes });
+        // 3. 正则脚本
+        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+        if (rxScripts.length > 0) {
+          var rxNodes = rxScripts.map(function(r, i) {
+            return { type: 'regex', key: 'regex_scripts', index: i, label: r.scriptName || ('正则' + (i+1)), path: 'regex_scripts[' + i + ']' };
+          });
+          groups.push({ name: '正则脚本 (' + rxScripts.length + ')', nodes: rxNodes });
+        }
+        // 渲染
         var html = '';
+        if (!groups.length) {
+          return '<div style="padding:20px;color:var(--muted);font-size:.82em;text-align:center">暂无文件<br>开始创作后这里会显示角色卡内容</div>';
+        }
         groups.forEach(function(g, idx) {
-          if (!g.entries.length) return;
           html += '<div class="ws-tree-group' + (idx > 0 ? ' collapsed' : '') + '">';
-          html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + g.name + ' <span style="color:var(--muted);font-weight:400">(' + g.entries.length + ')</span></div>';
+          html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + g.name + '</div>';
           html += '<div class="ws-tree-items">';
-          g.entries.forEach(function(e) {
-            html += '<div class="ws-tree-item" data-entry="' + e.path + '"><span class="ws-tree-dot"></span>' + e.name + '</div>';
+          g.nodes.forEach(function(n) {
+            var nodeStr = escAttr(JSON.stringify({ type: n.type, key: n.key, index: n.index }));
+            var len = '';
+            if (n.type === 'field' && !n.path || (n.path && n.path.indexOf('[') < 0)) {
+              var v = cardData[n.key];
+              if (v) len = ' <span class="ws-tree-len">' + String(v).length + '</span>';
+            }
+            html += '<div class="ws-tree-item" data-node="' + nodeStr + '"><span class="ws-tree-dot"></span>' + n.label + len + '</div>';
           });
           html += '</div></div>';
         });
-        if (!html) html = '<div style="padding:14px;color:var(--muted);font-size:.82em;text-align:center">暂无条目<br>开始创作后这里会显示已生成的条目</div>';
         return html;
       }
+      function escAttr(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+      // ===== 编辑器：Edit / Diff / Preview 三视图 =====
       function buildWorkspaceEditor() {
-        if (!wsSelectedEntry) return '<div class="ws-editor-empty">从左侧选择一个条目查看内容</div>';
-        var parts = wsSelectedEntry.split('::');
-        var key = parts[0];
-        var p = progress[key];
-        if (!p || !p.entries || !p.entries.length) return '<div class="ws-editor-empty">未找到条目</div>';
-        var entry = p.entries.find(function(e) { return (e.name || '') === (parts[1] || ''); }) || p.entries[0];
-        var content = entry.content || entry.value || '(无内容)';
-        var enabled = entry.enabled !== false;
-        var pos = entry.position || 'before_char';
-        return '<div class="ws-editor-title">' + (entry.name || entry.comment || key) + '</div>' +
-          '<div class="ws-editor-meta">' +
-            '<span class="ws-tag ' + (enabled ? 'enabled' : 'disabled') + '">' + (enabled ? '已启用' : '已禁用') + '</span>' +
-            '<span class="ws-tag position">' + pos + '</span>' +
-          '</div>' +
-          '<div class="ws-editor-content">' + content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+        if (!wsSelectedNode) return '<div class="ws-editor-empty">从左侧选择一个条目进行编辑</div>';
+        var node = wsSelectedNode;
+        var nk = _wsNodeKey(node);
+        var original = wsOriginalContent[nk] != null ? wsOriginalContent[nk] : _wsGetContent(node);
+        var current = wsEditedContent[nk] != null ? wsEditedContent[nk] : original;
+        var title = _wsGetTitle(node);
+        var isDirty = wsEditedContent[nk] != null && wsEditedContent[nk] !== original;
+        var isHtml = _wsIsHtml(current);
+        // 视图切换按钮
+        var viewBtns = '<div class="ws-view-switcher">' +
+          '<button class="ws-view-btn' + (wsEditorView === 'edit' ? ' active' : '') + '" data-view="edit">编辑' + (isDirty ? ' *' : '') + '</button>' +
+          '<button class="ws-view-btn' + (wsEditorView === 'diff' ? ' active' : '') + '" data-view="diff"' + (!isDirty ? ' disabled' : '') + '>Diff' + (isDirty ? ' (' + _wsDiffCount(original, current) + ')' : '') + '</button>' +
+          (isHtml ? '<button class="ws-view-btn' + (wsEditorView === 'preview' ? ' active' : '') + '" data-view="preview">预览</button>' : '') +
+        '</div>';
+        var metaHtml = '';
+        var meta = _wsGetMeta(node);
+        if (meta) {
+          metaHtml = '<div class="ws-entry-props">' +
+            '<label class="ws-prop"><input type="checkbox" class="ws-prop-enabled" ' + (meta.enabled ? 'checked' : '') + '> 启用</label>' +
+            '<label class="ws-prop"><input type="checkbox" class="ws-prop-constant" ' + (meta.constant ? 'checked' : '') + '> 常驻</label>' +
+            '<label class="ws-prop">位置 <select class="ws-prop-position">' +
+              '<option value="before_char"' + (meta.position === 'before_char' ? ' selected' : '') + '>角色前</option>' +
+              '<option value="after_char"' + (meta.position === 'after_char' ? ' selected' : '') + '>角色后</option>' +
+              '<option value="before_an"' + (meta.position === 'before_an' ? ' selected' : '') + '>AN前</option>' +
+              '<option value="after_an"' + (meta.position === 'after_an' ? ' selected' : '') + '>AN后</option>' +
+              '<option value="at_end"' + (meta.position === 'at_end' ? ' selected' : '') + '>末尾</option>' +
+            '</select></label>' +
+            '<label class="ws-prop">深度 <input type="number" class="ws-prop-depth" value="' + (meta.depth != null ? meta.depth : 4) + '" min="0" max="12" style="width:40px"></label>' +
+            '<label class="ws-prop ws-prop-keys">关键词 <input type="text" class="ws-prop-keys-input" value="' + escAttr(meta.keys) + '" placeholder="逗号分隔"></label>' +
+          '</div>';
+        }
+        var bodyHtml = '';
+        if (wsEditorView === 'edit') {
+          bodyHtml = '<textarea class="ws-textarea" id="wsTextarea" spellcheck="false">' + current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>';
+        } else if (wsEditorView === 'diff') {
+          var diff = _wsDiff(original, current);
+          var diffHtml = '';
+          diff.forEach(function(row) {
+            var cls = row.kind === 'add' ? 'diff-add' : row.kind === 'del' ? 'diff-del' : 'diff-same';
+            diffHtml += '<div class="' + cls + '">' + (row.kind === 'add' ? '+ ' : row.kind === 'del' ? '- ' : '  ') + row.text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+          });
+          bodyHtml = '<div class="ws-diff-view">' + diffHtml + '</div>';
+        } else if (wsEditorView === 'preview') {
+          if (isHtml) {
+            bodyHtml = '<iframe class="ws-preview-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escAttr(current) + '"></iframe>';
+          } else {
+            bodyHtml = '<div class="ws-preview-md">' + fmtBubble(current) + '</div>';
+          }
+        }
+        return '<div class="ws-editor-title">' + title + '</div>' +
+          metaHtml +
+          viewBtns +
+          '<div class="ws-editor-area">' + bodyHtml + '</div>';
       }
-      function buildWorkspaceArtifact() {
-        var html = '';
-        var keys = Object.keys(progress);
-        if (!keys.length) return '<div class="ws-artifact-empty">暂无产物预览<br>开始创作后这里会显示已生成的产物</div>';
-        keys.forEach(function(key) {
-          var p = progress[key];
-          if (!p || !p.entries || !p.entries.length) return;
-          p.entries.forEach(function(e) {
-            var name = e.name || e.comment || key;
-            var content = String(e.content || e.value || '');
-            var preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
-            html += '<div class="ws-artifact-card">' +
-              '<div class="ws-ac-title">' + name + '</div>' +
-              '<div class="ws-ac-content">' + preview.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +
-            '</div>';
+      function _wsGetTitle(node) {
+        if (node.type === 'field') {
+          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', post_history_instructions: '核心铁则', alternate_greetings: '分支问候' };
+          var label = labels[node.key] || node.key;
+          if (node.index != null && Array.isArray(cardData[node.key])) return label + ' #' + (node.index + 1);
+          return label;
+        }
+        if (node.type === 'entry') {
+          var e = ((cardData.character_book || {}).entries || [])[node.index];
+          return (e && e.comment) || ('条目' + (node.index + 1));
+        }
+        if (node.type === 'regex') {
+          var r = ((cardData.extensions || {}).regex_scripts || [])[node.index];
+          return (r && r.scriptName) || ('正则' + (node.index + 1));
+        }
+        return '';
+      }
+      function _wsDiffCount(oldT, newT) {
+        var diff = _wsDiff(oldT, newT);
+        var add = 0, del = 0;
+        diff.forEach(function(r) { if (r.kind === 'add') add++; if (r.kind === 'del') del++; });
+        return '+' + add + '/-' + del;
+      }
+      function bindWsEditorEvents(container) {
+        // 视图切换
+        container.querySelectorAll('.ws-view-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            if (this.disabled) return;
+            wsEditorView = this.getAttribute('data-view');
+            var editorEl = container.querySelector('#wsEditor');
+            if (editorEl) {
+              editorEl.innerHTML = buildWorkspaceEditor();
+              bindWsEditorEvents(container);
+            }
           });
         });
-        return html || '<div class="ws-artifact-empty">暂无产物</div>';
+        // textarea 编辑
+        var ta = container.querySelector('#wsTextarea');
+        if (ta) {
+          ta.addEventListener('input', function() {
+            if (wsSelectedNode) {
+              var nk = _wsNodeKey(wsSelectedNode);
+              wsEditedContent[nk] = ta.value;
+            }
+          });
+        }
+        // 条目属性变更
+        var enabledChk = container.querySelector('.ws-prop-enabled');
+        var constChk = container.querySelector('.ws-prop-constant');
+        var posSel = container.querySelector('.ws-prop-position');
+        var depthInp = container.querySelector('.ws-prop-depth');
+        var keysInp = container.querySelector('.ws-prop-keys-input');
+        if (enabledChk) enabledChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { enabled: this.checked }); });
+        if (constChk) constChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { constant: this.checked }); });
+        if (posSel) posSel.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { position: this.value }); });
+        if (depthInp) depthInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { depth: parseInt(this.value) || 0 }); });
+        if (keysInp) keysInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { keys: this.value }); });
+      }
+      // ===== 预览区：角色卡整体预览 =====
+      function renderWsArtifact(container) {
+        var el = container.querySelector('#wsArtifact');
+        if (!el) return;
+        el.innerHTML = buildWorkspaceArtifact();
+      }
+      function buildWorkspaceArtifact() {
+        var p = progress || 0;
+        var entries = (cardData.character_book || {}).entries || [];
+        var wbCount = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); }).length;
+        var mvuCount = entries.length - wbCount;
+        var rxCount = ((cardData.extensions || {}).regex_scripts || []).length;
+        var html = '<div class="ws-art-summary">' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + p + '%</span><span class="ws-stat-label">进度</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + wbCount + '</span><span class="ws-stat-label">世界书</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + mvuCount + '</span><span class="ws-stat-label">MVU变量</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + rxCount + '</span><span class="ws-stat-label">正则</span></div>' +
+        '</div>';
+        // 角色卡概览
+        if (cardData.name || cardData.description) {
+          html += '<div class="ws-art-card">' +
+            '<div class="ws-ac-title">' + svgIcon('globe', 13) + ' ' + escHtml(cardData.name || '(未命名)') + '</div>' +
+            (cardData.description ? '<div class="ws-ac-content">' + escHtml(cardData.description.substring(0, 200)) + (cardData.description.length > 200 ? '...' : '') + '</div>' : '') +
+          '</div>';
+        }
+        // 最近修改的条目
+        if (entries.length > 0) {
+          var recent = entries.slice(-5).reverse();
+          html += '<div class="ws-art-section-title">最近条目</div>';
+          recent.forEach(function(e) {
+            var name = e.comment || '未命名';
+            var content = (e.content || '').substring(0, 120);
+            var isMvu = isMVUEntry(e.comment || '');
+            html += '<div class="ws-art-card' + (isMvu ? ' mvu' : '') + '">' +
+              '<div class="ws-ac-title">' + (isMvu ? svgIcon('sliders', 12) + ' ' : svgIcon('book', 12) + ' ') + escHtml(name) +
+                (e.enabled === false ? ' <span class="ws-ac-off">禁用</span>' : '') +
+              '</div>' +
+              '<div class="ws-ac-content">' + escHtml(content) + (e.content && e.content.length > 120 ? '...' : '') + '</div>' +
+            '</div>';
+          });
+        }
+        return html || '<div class="ws-artifact-empty">暂无内容</div>';
       }
 
       function bindEvents() {
@@ -8658,13 +8936,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var html = '';
         sections.forEach(function(sec, idx) {
           var stateKey = msgId + '-' + idx;
-          var isCollapsed = cpSectionStates[stateKey] === false;
-          if (cpSectionStates[stateKey] === undefined && sec.type === 'thinking') isCollapsed = true;
+          // ========== 默认收起：所有 section（思维链/正文/代码）初次渲染均为 collapsed ==========
+          // cpSectionStates[key] === true  → 用户已手动展开
+          // cpSectionStates[key] === false → 用户已手动收起
+          // cpSectionStates[key] === undefined → 未操作过，默认收起
+          var isCollapsed = cpSectionStates[stateKey] !== true;
           var icon, label, cls;
           if (sec.type === 'thinking') { icon = '思'; label = '思维链'; cls = 'cp-section-thinking'; }
           else if (sec.type === 'code') { icon = '{}'; label = sec.lang || '代码'; cls = 'cp-section-code'; }
           else { icon = '答'; label = '正文'; cls = 'cp-section-content'; }
-          var preview = (sec.content || '').slice(0, 60).replace(/\n/g, ' ').replace(/</g, '&lt;');
+          var preview = (sec.content || '').slice(0, 80).replace(/\n/g, ' ').replace(/</g, '&lt;');
           html += '<div class="cp-section ' + cls + '">';
           html += '<div class="cp-section-header" data-section-key="' + stateKey + '">';
           html += '<span class="cp-section-icon">' + icon + '</span>';
@@ -8694,7 +8975,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h.addEventListener('click', function() {
               var key = h.getAttribute('data-section-key');
               if (!key) return;
-              var wasCollapsed = cpSectionStates[key] === false || (cpSectionStates[key] === undefined && h.closest('.cp-section-thinking'));
+              // 当前是否收起：未操作过(undefined)默认收起，或用户设为 false
+              var wasCollapsed = cpSectionStates[key] !== true;
+              // 切换：收起→展开(true)，展开→收起(false)
               cpSectionStates[key] = wasCollapsed ? true : false;
               var msgEl = h.closest('.chat-msg');
               if (msgEl) {
@@ -8979,28 +9262,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '})();\n' +
           '<\/script>\n';
       }
+      // ===== statusblock 渲染：统一走 Markdown 管道（兼容旧 HTML 格式自动转换） =====
       function parseStatusblock(inner) {
-        var h = inner.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        // Convert details/summary BEFORE unescaping other tags
-        h = h.replace(/&lt;details(\s*)(open)?&gt;/g, '<div class="sb-section open"><div class="sb-summary">');
-        h = h.replace(/&lt;\/details&gt;/g, '</div></div>');
-        h = h.replace(/&lt;summary&gt;&lt;b&gt;([\s\S]*?)&lt;\/b&gt;&lt;\/summary&gt;/g, function(_, title) {
-          return '</div><div class="sb-content">';
+        var md = inner;
+        // ===== 向后兼容：把旧 HTML 标签格式自动转成 Markdown =====
+        // <details open><summary><b>标题</b></summary> → ### 标题
+        md = md.replace(/<details(?:\s+open)?\s*>[\s\S]*?<summary>(?:<b>)?([\s\S]*?)(?:<\/b>)?<\/summary>/gi, function(_, title) {
+          return '\n### ' + title.trim() + '\n\n';
         });
-        h = h.replace(/&lt;summary&gt;([\s\S]*?)&lt;\/summary&gt;/g, function(_, title) {
-          return '</div><div class="sb-content">';
-        });
-        // Unescape safe tags (details/summary already converted above)
-        var safeTags = 'ul|ol|li|p|b|br|span|div';
-        h = h.replace(new RegExp('&lt;(' + safeTags + ')(\\s[^&>]*)?&gt;','gi'), '<$1$2>');
-        h = h.replace(new RegExp('&lt;/(' + safeTags + ')&gt;','gi'), '</$1>');
-        h = h.replace(/&lt;button([^&]*)&gt;/g, '<button$1>').replace(/&lt;\/button&gt;/g, '</button>');
-        h = h.replace(/(『[^』]+』)/g, '<div class="sb-header">$1</div>');
-        h = h.replace(/^(.+?):\s*(.+)$/gm, function(m, k, v) {
-          if (k.indexOf('<') >= 0 || v.indexOf('</') >= 0) return m;
-          return '<div class="sb-field"><span class="sb-field-label">' + k + ':</span> <span class="sb-field-value">' + v + '</span></div>';
-        });
-        return h;
+        md = md.replace(/<\/details>/gi, '\n');
+        // <ul><li><b>key</b>：value</li> → - **key**：value
+        md = md.replace(/<ul>/gi, '\n').replace(/<\/ul>/gi, '\n');
+        md = md.replace(/<ol>/gi, '\n').replace(/<\/ol>/gi, '\n');
+        md = md.replace(/<li>/gi, '- ').replace(/<\/li>/gi, '\n');
+        // <p><b>key</b>：value</p> → **key**：value
+        md = md.replace(/<p>/gi, '\n').replace(/<\/p>/gi, '\n');
+        // <b>text</b> → **text**
+        md = md.replace(/<b>/gi, '**').replace(/<\/b>/gi, '**');
+        // <br> → 换行
+        md = md.replace(/<br\s*\/?>/gi, '\n');
+        // 清理残留 HTML 标签
+        md = md.replace(/<\/?(?:span|div|button)[^>]*>/gi, '');
+        // 清理多余空行
+        md = md.replace(/\n{3,}/g, '\n\n').trim();
+        // ===== 走 fmtBubble 的 Markdown 管道渲染 =====
+        return fmtBubble(md);
       }
 
       // ===== 旧 modDash 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
