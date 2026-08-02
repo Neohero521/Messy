@@ -180,10 +180,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color .2s}
 .ic-spin{animation:spin 0.8s linear infinite}
 .app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
-.topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:11px 18px;background:var(--surface);border-bottom:1px solid var(--line);min-height:48px;box-shadow:0 1px 0 rgba(255,255,255,.6) inset}
-.topbar h1{font-size:1em;color:var(--accent-deep);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+.topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--line);min-height:48px}
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.topbar h1{font-size:.95em;color:var(--accent-deep);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .topbar h1 .topbar-ic{color:var(--accent)}
-.topbar .phase{font-size:.75em;color:var(--accent);margin-left:8px;flex-shrink:0;background:var(--accent-soft);padding:2px 9px;border-radius:999px;font-weight:600}
+.topbar .phase{font-size:.8em;color:var(--accent-text);background:var(--accent-soft);padding:3px 11px;border-radius:999px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 11px;background:var(--surface-soft);border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-size:.82em;font-weight:600;font-family:inherit;white-space:nowrap}
+.icon-btn svg{width:15px;height:15px}
+.icon-btn:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-border)}
+.icon-btn.icon-btn-square{width:32px;padding:0}
+.icon-btn.icon-btn-square svg{width:16px;height:16px}
+.icon-btn.danger:hover:not(:disabled){background:var(--terra-soft);color:var(--terra-text);border-color:var(--terra-border)}
 .main{flex:1 1 0;display:flex;min-height:0;overflow:hidden}
 .chat-panel{flex:1.4 1 0;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);min-height:0;overflow:hidden;background:var(--bg)}
 .preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--surface-soft)}
@@ -223,16 +231,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .typing span:nth-child(2){animation-delay:.2s}
 .typing span:nth-child(3){animation-delay:.4s}
 @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
-.quick-actions{flex-shrink:0;display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line-soft);background:var(--surface);max-height:100px;overflow-y:auto}
-.quick-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:.72em;transition:all .2s;white-space:nowrap;flex-shrink:0;font-weight:500}
-.quick-btn svg{width:13px;height:13px}
+.quick-actions{flex-shrink:0;display:flex;gap:8px;padding:9px 14px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line-soft);background:var(--surface);max-height:110px;overflow-y:auto}
+.quick-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:.82em;transition:all .2s;white-space:nowrap;flex-shrink:0;font-weight:500}
+.quick-btn svg{width:14px;height:14px}
 .quick-btn:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-soft);box-shadow:var(--shadow-soft)}
-.quick-btn.hl{border-color:var(--accent-soft);color:var(--accent-deep);background:var(--accent-soft)}
+.quick-btn.hl{border-color:var(--accent-border);color:var(--accent-deep);background:var(--accent-soft)}
 .quick-btn.hl:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent)}
 .quick-btn:disabled{opacity:.4;cursor:not-allowed}
-.qa-mini{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:.72em;line-height:1;transition:all .2s;flex-shrink:0;font-weight:500}
+.qa-mini{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:.82em;line-height:1;transition:all .2s;flex-shrink:0;font-weight:500}
 .qa-mini svg{width:14px;height:14px}
-.qa-mini+.qa-mini{margin-left:6px}
+.qa-mini+.qa-mini{margin-left:8px}
 .qa-mini:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-soft);box-shadow:var(--shadow-soft)}
 .qa-mini:disabled{opacity:.4;cursor:not-allowed}
 .chat-input-area{flex-shrink:0;padding:11px 14px;border-top:1px solid var(--line-soft);background:var(--surface)}
@@ -264,48 +272,53 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-warn:hover:not(:disabled){background:var(--amber-text)}
 .btn-danger{background:var(--terra);color:#fff}
 .btn-danger:hover:not(:disabled){background:var(--terra-text)}
-.preview-header{flex-shrink:0;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);font-size:.78em;color:var(--accent-deep);display:flex;justify-content:space-between;align-items:center;gap:8px}
-.preview-header .pv-title{display:inline-flex;align-items:center;gap:6px}
+.preview-header{flex-shrink:0;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);font-size:.86em;color:var(--accent-deep);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.preview-header .pv-title{display:inline-flex;align-items:center;gap:6px;font-weight:600}
 .preview-header .pv-title svg{width:15px;height:15px;color:var(--accent)}
-.preview-body{flex:1;overflow-y:auto;padding:12px;min-height:0;-webkit-overflow-scrolling:touch}
-.pv-section{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:9px;transition:box-shadow .2s}
+.preview-header .pv-export{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);cursor:pointer;transition:all .15s}
+.preview-header .pv-export:hover{background:var(--surface);color:var(--accent-deep);border-color:var(--accent-border)}
+.preview-header .pv-export svg{width:15px;height:15px}
+.preview-body{flex:1;overflow-y:auto;padding:14px;min-height:0;-webkit-overflow-scrolling:touch}
+.pv-section{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;transition:box-shadow .2s}
 .pv-section:hover{box-shadow:var(--shadow-soft)}
-.pv-section h3{font-size:.78em;color:var(--accent-deep);margin-bottom:6px;display:flex;align-items:center;gap:5px;justify-content:space-between}
-.pv-section h3 .sec-left{display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pv-section h3 .sec-right{font-size:.72em;color:var(--muted);font-weight:400;flex-shrink:0}
-.pv-section .pv-content{font-size:.78em;color:var(--ink-soft);line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.pv-section h3{font-size:.86em;color:var(--accent-deep);margin-bottom:8px;display:flex;align-items:center;gap:6px;justify-content:space-between}
+.pv-section h3 .sec-left{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-section h3 .sec-right{font-size:.82em;color:var(--muted);font-weight:400;flex-shrink:0}
+.pv-section .pv-content{font-size:.86em;color:var(--ink-soft);line-height:1.65;white-space:pre-wrap;word-break:break-word}
 .pv-section.collapsed .pv-content,.pv-section.collapsed .pv-entry-list,.pv-section.collapsed .pv-sub{max-height:0;overflow:hidden;margin:0;padding:0}
-.pv-section .pv-toggle{cursor:pointer;font-size:.72em;color:var(--muted);user-select:none;flex-shrink:0;padding:0 4px}
+.pv-section .pv-toggle{cursor:pointer;font-size:.82em;color:var(--muted);user-select:none;flex-shrink:0;padding:0 4px}
 .pv-section .pv-toggle::before{content:'▾';display:inline-block;transition:transform .2s}
 .pv-section.collapsed .pv-toggle::before{transform:rotate(-90deg)}
-.pv-section .pv-empty{color:var(--muted);font-style:italic;font-size:.75em}
-.pv-section .pv-entry{background:var(--surface-soft);padding:8px 11px;border-radius:var(--radius-sm);margin-bottom:5px;border-left:3px solid var(--accent-soft)}
-.pv-section .pv-entry-title{font-size:.75em;color:var(--accent-deep);font-weight:600;margin-bottom:2px}
-.pv-section .pv-entry-content{font-size:.73em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.55}
-.pv-section .pv-code{font-family:var(--font-mono);font-size:.72em;color:var(--ink);background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:8px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.5;max-height:260px;overflow:auto}
+.pv-section .pv-empty{color:var(--muted);font-style:italic;font-size:.82em}
+.pv-section .pv-entry{background:var(--surface-soft);padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:8px;border-left:3px solid var(--accent-soft)}
+.pv-section .pv-entry:last-child{margin-bottom:0}
+.pv-section .pv-entry-title{font-size:.84em;color:var(--accent-deep);font-weight:600;margin-bottom:3px}
+.pv-section .pv-entry-content{font-size:.82em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.pv-section .pv-code{font-family:var(--font-mono);font-size:.8em;color:var(--ink);background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:9px 11px;white-space:pre-wrap;word-break:break-all;line-height:1.55;max-height:260px;overflow:auto}
 .pv-section .pv-code.muted{color:var(--ink-soft);background:var(--surface-soft)}
-.pv-section .pv-tag{display:inline-block;font-size:.72em;padding:2px 8px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-deep);border:1px solid var(--accent-soft);margin:0 4px 4px 0;white-space:nowrap}
+.pv-section .pv-tag{display:inline-block;font-size:.78em;padding:2px 9px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-deep);border:1px solid var(--accent-soft);margin:0 5px 5px 0;white-space:nowrap}
 .pv-section .pv-tag.off{color:var(--muted);background:var(--surface-soft);border-color:var(--line-soft)}
 .pv-section .pv-tag.ok{color:var(--sage-text);background:var(--sage-soft);border-color:var(--sage-border)}
-.pv-section .pv-mini-btn{font-size:.72em;padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--surface-soft);color:var(--accent-deep);cursor:pointer;flex-shrink:0;transition:all .15s}
+.pv-section .pv-mini-btn{font-size:.8em;padding:5px 11px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--surface-soft);color:var(--accent-deep);cursor:pointer;flex-shrink:0;transition:all .15s}
 .pv-section .pv-mini-btn:hover{background:var(--surface);border-color:var(--accent-soft)}
-.pv-sub{margin-top:4px}
-.pv-book-name{font-size:.75em;color:var(--accent-deep);background:var(--accent-soft);padding:3px 9px;border-radius:var(--radius-sm);cursor:pointer;border:1px dashed transparent;transition:all .2s;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-sub{margin-top:6px}
+.pv-book-name{font-size:.82em;color:var(--accent-deep);background:var(--accent-soft);padding:3px 10px;border-radius:var(--radius-sm);cursor:pointer;border:1px dashed transparent;transition:all .2s;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pv-book-name:hover{border-color:var(--accent)}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .dot.full{background:var(--sage)}
 .dot.empty{background:var(--accent-soft)}
 .progress-bar{height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;margin:4px 0}
 .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--amber));transition:width .3s;border-radius:2px}
-.module-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}
-.module-item{font-size:.72em;padding:4px 7px;background:var(--surface-soft);border-radius:var(--radius-sm);text-align:center;display:inline-flex;align-items:center;justify-content:center;gap:3px;line-height:1.4}
-.module-item svg{width:11px;height:11px;flex-shrink:0}
+.module-progress{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
+.module-item{font-size:.82em;padding:6px 8px;background:var(--surface-soft);border-radius:var(--radius-sm);text-align:center;display:inline-flex;align-items:center;justify-content:center;gap:4px;line-height:1.4;transition:all .15s}
+.module-item svg{width:12px;height:12px;flex-shrink:0}
+.module-item:hover{background:var(--surface);box-shadow:var(--shadow-soft)}
 .module-item.done{color:var(--sage-text);border:1px solid var(--sage-border)}
 .module-item.partial{color:var(--amber-text);border:1px solid var(--amber-border)}
 .module-item.todo{color:var(--muted);border:1px solid var(--line-soft)}
-.close-btn{position:fixed;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;z-index:100000;display:flex;align-items:center;justify-content:center;transition:all .3s;flex-shrink:0;box-shadow:var(--shadow-soft)}
-.close-btn svg{width:17px;height:17px}
-.close-btn:hover{background:var(--terra);color:#fff;border-color:var(--terra);transform:rotate(90deg)}
+.close-btn{width:32px;height:32px;border-radius:8px;background:var(--surface-soft);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.close-btn svg{width:16px;height:16px}
+.close-btn:hover{background:var(--terra-soft);color:var(--terra-text);border-color:var(--terra-border)}
 .json-modal,.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.32);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:100001}
 .json-modal-content,.modal-content{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-card)}
 .json-modal-content textarea{width:100%;flex:1;background:var(--surface-soft);border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink);font-family:var(--font-mono);font-size:.75em;padding:10px;resize:none;min-height:250px}
@@ -370,28 +383,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .sb-wrap .sb-btn{display:inline-block;padding:4px 11px;margin:2px 3px;background:var(--surface);border:1px solid var(--line);border-radius:999px;font-size:.88em;color:var(--ink);cursor:pointer;transition:all .15s}
 .sb-wrap .sb-btn:active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
-.mod-dash{display:block;margin:8px 0;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden}
-.mod-dash .md-header{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;cursor:pointer;user-select:none;font-size:.75em;color:var(--accent-deep)}
-.mod-dash .md-analyze-btn{font-size:.72em;padding:4px 10px;border-radius:var(--radius-sm);background:var(--accent-soft);border:1px solid var(--accent-soft);color:var(--accent-deep);cursor:pointer;transition:all .15s;white-space:nowrap}
-.mod-dash .md-analyze-btn:hover{background:var(--surface);border-color:var(--accent)}
-.mod-dash .md-analyze-btn:active{background:var(--accent-soft)}
-.mod-dash .md-header .md-arrow{font-size:.72em;transition:transform .2s;color:var(--ink-soft)}
-.mod-dash.collapsed .md-header .md-arrow{transform:rotate(-90deg)}
-.mod-dash .md-body{padding:0 11px 9px;transition:max-height .3s ease;max-height:420px;overflow-y:auto}
-.mod-dash.collapsed .md-body{max-height:0;padding-top:0;padding-bottom:0}
-.mod-dash-item{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:.75em;cursor:pointer;padding:5px 7px;border-radius:var(--radius-sm);transition:background .15s}
-.mod-dash-item:hover{background:var(--surface-soft)}
-.mod-dash-item .m-icon{width:16px;text-align:center;flex-shrink:0;color:var(--accent)}
-.mod-dash-item .m-icon svg{width:14px;height:14px}
-.mod-dash-item .m-name{width:52px;flex-shrink:0;color:var(--ink-soft);font-size:.72em}
-.mod-dash-item .m-bar-wrap{flex:1;height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;display:block}
-.mod-dash-item .m-bar{height:100%;border-radius:2px;transition:width .4s ease;display:block}
-.mod-dash-item .m-bar.done{background:var(--sage)}
-.mod-dash-item .m-bar.prog{background:var(--amber)}
-.mod-dash-item .m-bar.empty{background:var(--accent-soft)}
-.mod-dash-item .m-pct{width:28px;text-align:right;font-size:.68em;color:var(--ink-soft);flex-shrink:0}
+/* ===== 上下文操作条：替代旧 mod-focus + mod-dash + mvu-info-panel 三件套 ===== */
+.ctx-bar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);min-height:44px}
+.ctx-stage{font-size:.8em;color:var(--muted);white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:5px}
+.ctx-stage svg{width:13px;height:13px;color:var(--accent)}
+.ctx-stage strong{color:var(--accent-deep);font-weight:600}
+.ctx-actions{display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ctx-actions::-webkit-scrollbar{display:none}
+.ctx-mod{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--surface-soft);border:1px solid var(--line);border-radius:999px;font-size:.82em;color:var(--ink-soft);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;font-weight:500;font-family:inherit}
+.ctx-mod svg{width:13px;height:13px}
+.ctx-mod:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-border)}
+.ctx-mod.done{color:var(--sage-text);background:var(--sage-soft);border-color:var(--sage-border)}
+.ctx-mod.prog{color:var(--amber-text);background:var(--amber-soft);border-color:var(--amber-border)}
+.ctx-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;font-size:.78em;font-weight:500;white-space:nowrap;flex-shrink:0}
+.ctx-chip.ok{color:var(--sage-text);background:var(--sage-soft)}
+.ctx-chip.todo{color:var(--muted);background:var(--surface-soft);border:1px solid var(--line)}
+.ctx-chip.info{color:var(--accent-text);background:var(--accent-soft)}
 
-.chat-input-char-count{font-size:.72em;color:var(--muted);text-align:right;padding:2px 6px 0;transition:color .2s}
+.chat-input-char-count{font-size:.78em;color:var(--muted);text-align:right;padding:3px 6px 0;transition:color .2s}
 .chat-input-char-count.warn{color:var(--amber)}
 .chat-input-char-count.over{color:var(--terra)}
 
@@ -422,21 +431,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .entry-detail .ext-item{text-align:center}
 .entry-detail .ext-item label{display:block;color:var(--muted);font-size:.68em;margin-bottom:2px}
 .entry-detail .ext-item input,.entry-detail .ext-item select{width:100%;padding:3px 4px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm);color:var(--ink);font-size:.72em;text-align:center;outline:none}
-.mod-focus{display:flex;flex-wrap:nowrap;gap:5px;padding:6px 12px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--line-soft);background:var(--surface)}
-.mod-focus::-webkit-scrollbar{height:0}
-.mod-focus-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--surface-soft);border:1px solid var(--line);border-radius:999px;font-size:.72em;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;font-weight:500}
-.mod-focus-btn svg{width:13px;height:13px}
-.mod-focus-btn:active,.mod-focus-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:var(--shadow-soft)}
-
 /* Tab 切换器（角色卡 / MVU）*/
-.tab-switcher{display:flex;gap:5px;padding:7px 12px;background:var(--surface);border-bottom:1px solid var(--line-soft)}
-.tab-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:1px solid transparent;border-radius:999px;font-size:.78em;color:var(--ink-soft);cursor:pointer;transition:all .2s;font-weight:500;font-family:inherit}
+.tab-switcher{display:flex;gap:3px;padding:3px;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;flex-shrink:0}
+.tab-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:transparent;border:none;border-radius:5px;font-size:.78em;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-weight:600;font-family:inherit;white-space:nowrap}
 .tab-btn .tab-icon{display:inline-flex;color:inherit}
-.tab-btn .tab-icon svg{width:15px;height:15px}
-.tab-btn:hover:not(.active){background:var(--surface-soft);color:var(--accent-deep)}
-.tab-btn.active{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-soft);font-weight:600}
-
-.mvu-info-panel{background:var(--surface-soft);color:var(--ink-soft)}
+.tab-btn .tab-icon svg{width:14px;height:14px}
+.tab-btn:hover:not(.active){color:var(--accent-deep)}
+.tab-btn.active{background:var(--surface);color:var(--accent-deep);box-shadow:var(--shadow-soft)}
 
 .wv-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
 .wv-stat{background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:7px 9px;text-align:center}
@@ -483,19 +484,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .chat-msg .bubble{max-width:78%}
   .opt-compare{grid-template-columns:1fr}
   .quick-actions{max-height:70px}
-  .mod-focus-btn{font-size:.65em;padding:3px 8px}
 }
 @media(max-height:500px){
   .topbar{padding:6px 10px}
   .topbar h1{font-size:.85em;margin:0}
   .topbar .phase{font-size:.7em}
-  .mod-focus{padding:4px 8px;gap:4px}
-  .mod-focus-btn{font-size:.7em;padding:3px 6px}
+  .ctx-bar{padding:5px 10px;min-height:36px}
+  .ctx-mod{font-size:.72em;padding:4px 8px}
   .chat-input-area{padding:6px 10px;gap:4px}
   .chat-input{min-height:36px;padding:6px}
   .quick-actions{gap:4px}
   .quick-btn{font-size:.7em;padding:4px 8px}
-  .preview-panel .pv-header{padding:6px 10px;font-size:.8em}
+  .preview-panel .preview-header{padding:6px 10px;font-size:.8em}
   .pv-section h3{font-size:.78em;margin-bottom:2px}
   .pv-section{padding:6px 10px}
   .pv-content{font-size:.72em;line-height:1.4}
@@ -506,8 +506,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .app{height:100%;height:100vh}
   .topbar{padding:5px 8px;min-height:32px;padding-top:max(5px,env(safe-area-inset-top));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
   .topbar h1{font-size:.85em}
-  .mod-focus{padding:3px 6px;gap:3px}
-  .mod-focus-btn{font-size:.65em;padding:3px 6px}
+  .ctx-bar{padding:4px 8px;min-height:34px}
+  .ctx-mod{font-size:.7em;padding:3px 8px}
   .chat-input-area{padding:4px 8px;gap:3px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
   .chat-input{min-height:32px;padding:5px;font-size:.85em}
   .btn-send{width:34px;height:34px}
@@ -534,16 +534,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .welcome-features{grid-template-columns:repeat(2,1fr);gap:12px}
   .wf-item{padding:12px}
   /* tab-switcher：平板端适中 */
-  .tab-switcher{padding:6px 10px;gap:5px}
-  .tab-btn{padding:7px 12px;font-size:.8em}
-  /* mod-focus：平板端适中 */
-  .mod-focus{padding:5px 10px;gap:4px}
-  .mod-focus-btn{font-size:.68em;padding:4px 10px}
-  /* mvu-info-panel：平板端 */
-  .mvu-info-panel{padding:6px 12px !important;font-size:.7em}
-  /* 模块进度：平板端3列保持 */
-  .module-progress{grid-template-columns:repeat(3,1fr);gap:5px}
-  .module-item{font-size:.7em;padding:4px 6px}
+  .tab-switcher{padding:4px 8px;gap:3px}
+  .tab-btn{padding:5px 10px;font-size:.78em}
+  /* ctx-bar：平板端适中 */
+  .ctx-bar{padding:6px 12px}
+  .ctx-mod{font-size:.76em;padding:4px 10px}
+  /* 模块进度：平板端4列保持 */
+  .module-progress{grid-template-columns:repeat(4,1fr);gap:6px}
+  .module-item{font-size:.76em;padding:5px 6px}
   .module-item svg{width:11px;height:11px}
 }
 /* ===== 手机端精细适配（≤480px）：追求"好用"而非"能用" ===== */
@@ -568,15 +566,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .quick-btn{font-size:11.5px;padding:6px 12px;min-height:32px;white-space:nowrap}
   .qa-mini{font-size:11.5px;padding:6px 10px;min-height:32px}
   /* 预览面板：手机端全屏切换 */
-  .preview-panel .pv-header{padding:8px 10px;font-size:.82em}
-  .pv-section{padding:8px 10px}
-  .pv-section h3{font-size:.8em}
-  .pv-section .pv-entry{padding:6px 8px}
-  .pv-section .pv-entry-title{font-size:.74em}
-  .pv-section .pv-entry-content{font-size:.72em;line-height:1.5}
-  .pv-section .pv-code{font-size:.7em;padding:6px}
-  .pv-section .pv-tag{font-size:.7em;padding:2px 7px}
-  .pv-section .pv-mini-btn{font-size:.68em;padding:4px 10px;min-height:30px}
+  .preview-panel .preview-header{padding:8px 10px;font-size:.86em}
+  .pv-section{padding:10px 11px}
+  .pv-section h3{font-size:.84em}
+  .pv-section .pv-entry{padding:7px 9px}
+  .pv-section .pv-entry-title{font-size:.8em}
+  .pv-section .pv-entry-content{font-size:.78em;line-height:1.55}
+  .pv-section .pv-code{font-size:.76em;padding:7px}
+  .pv-section .pv-tag{font-size:.74em;padding:2px 7px}
+  .pv-section .pv-mini-btn{font-size:.74em;padding:5px 10px;min-height:30px}
   /* 欢迎页：手机端单列 */
   .welcome{padding:16px 12px}
   .welcome h2{font-size:1.15em;margin-bottom:10px}
@@ -593,8 +591,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   /* 关闭按钮：避开刘海 */
   .close-btn{top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:34px;height:34px;font-size:1.05em}
   /* 模块进度：手机端2列 */
-  .module-progress{grid-template-columns:repeat(2,1fr);gap:5px}
-  .module-item{font-size:.68em;padding:4px 6px}
+  .module-progress{grid-template-columns:repeat(2,1fr);gap:6px}
+  .module-item{font-size:.76em;padding:5px 6px}
   /* 模态框：手机端全屏化 */
   .json-modal-content,.modal-content{width:96%;max-width:none;padding:12px;border-radius:10px;max-height:92vh}
   .json-modal-content textarea{font-size:.78em;min-height:200px}
@@ -607,20 +605,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   /* mobile-tabs：更大触摸区 */
   .mobile-tab{padding:11px 12px;font-size:.82em}
   /* tab-switcher：手机端紧凑 + 更大触摸区 */
-  .tab-switcher{padding:6px 8px;gap:4px}
-  .tab-btn{flex:1;padding:9px 8px;font-size:.78em;justify-content:center}
-  .tab-btn .tab-icon svg{width:14px;height:14px}
-  /* mod-focus：手机端更小但可滚动 */
-  .mod-focus{padding:5px 8px;gap:4px}
-  .mod-focus-btn{font-size:.7em;padding:5px 10px;min-height:30px}
-  /* mod-dash 仪表盘：手机端紧凑 */
-  .mod-dash .md-header{padding:6px 8px;font-size:.78em}
-  .mod-dash-item{padding:5px 6px;gap:5px}
-  .mod-dash-item .m-name{width:46px;font-size:.7em}
-  .mod-dash-item .m-pct{width:24px;font-size:.7em}
-  .mod-dash-item .m-icon svg{width:13px;height:13px}
-  /* mvu-info-panel：手机端紧凑 */
-  .mvu-info-panel{padding:6px 10px !important;font-size:.7em}
+  .tab-switcher{padding:3px 6px;gap:3px}
+  .tab-btn{padding:6px 10px;font-size:.76em}
+  .tab-btn .tab-icon svg{width:13px;height:13px}
+  /* ctx-bar：手机端紧凑 */
+  .ctx-bar{padding:6px 10px;min-height:40px}
+  .ctx-mod{font-size:.74em;padding:5px 9px;min-height:30px}
+  .ctx-chip{font-size:.7em;padding:3px 8px}
   /* 代码块/表格：手机端可横向滚动 */
   .chat-msg .bubble pre{font-size:.85em;max-height:180px}
   .chat-msg .bubble table{font-size:.85em}
@@ -645,14 +636,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 ::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--accent-border-strong)}
 
-/* MVU Tab：隐藏非 MVU 的模块按钮和进度项 */
-.mod-focus.mvu-only{display:none}
-.mod-dash.mvu-only{display:none}
-/* 角色卡 Tab：隐藏 MVU 按钮（如果标记了）*/
-.mod-focus.card-only .mod-focus-btn[data-mvu="1"]{display:none}
-/* MVU Tab 专属面板：角色卡Tab 时隐藏 */
-.mvu-info-panel{display:none}
-.mvu-info-panel.mvu-only{display:block}
+/* Tab 隔离已由 updateCtxBar 按 activeTab 分支渲染，无需 CSS 切换 */
 
 /* ===== 消息 section 分区（参考专家工作区设计）===== */
 .cp-section{margin:6px 0;border-radius:var(--radius-sm);overflow:hidden}
@@ -7160,17 +7144,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         var titleH1 = doc.querySelector('.topbar h1');
         if (titleH1) {
-          titleH1.innerHTML = targetTab === 'card'
-            ? svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span>'
-            : svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">变量与状态栏</span>';
+          titleH1.innerHTML = svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器';
         }
         showToast('已切换到：' + (targetTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab'), 'info');
       }
 
       function renderWelcome() {
         doc.body.innerHTML =
-          '<button class="close-btn" id="closeBtn" aria-label="关闭">' + svgIcon('close', 17) + '</button>' +
           '<div class="app">' +
+            '<div class="topbar">' +
+              '<div class="topbar-left">' +
+                '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器</h1>' +
+              '</div>' +
+              '<div class="topbar-right">' +
+                '<button class="icon-btn icon-btn-square danger" id="closeBtn" aria-label="关闭" title="关闭">' + svgIcon('close', 16) + '</button>' +
+              '</div>' +
+            '</div>' +
             '<div class="welcome">' +
               '<h2>' + svgIcon('sparkle', 22, 'welcome-ic') + ' 时之写卡器</h2>' +
               '<p>基于SillyTavern原生机制与ST权重分层8体系，通过AI对话逐步引导你创建专业级世界模式角色卡。<br>和AI聊天就能生成符合ST规范的角色卡！</p>' +
@@ -7204,22 +7193,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function renderChatUI() {
         doc.body.innerHTML =
-          '<button class="close-btn" id="closeBtn" aria-label="关闭">' + svgIcon('close', 17) + '</button>' +
           '<div class="app">' +
             '<div class="topbar">' +
-              '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span></h1>' +
-              '<div style="display:flex;align-items:center;gap:6px">' +
-                '<span class="phase" id="phaseLabel">0%</span>' +
-                '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
-                  '<button class="quick-btn hl" id="wsMenuBtn" style="padding:5px 10px">' + svgIcon('menu', 15) + ' 工作区</button>' +
-                  '<div class="ws-dropdown" id="wsDropdown"></div>' +
+              '<div class="topbar-left">' +
+                '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器</h1>' +
+                '<div class="tab-switcher" id="tabSwitcher">' +
+                  '<button class="tab-btn active" data-tab="card"><span class="tab-icon">' + svgIcon('mask', 14) + '</span>角色卡</button>' +
+                  '<button class="tab-btn" data-tab="mvu"><span class="tab-icon">' + svgIcon('sliders', 14) + '</span>MVU</button>' +
                 '</div>' +
               '</div>' +
-            '</div>' +
-            // ========== Tab 切换器：角色卡 Tab ↔ MVU状态栏 Tab，两边完全隔离 ==========
-            '<div class="tab-switcher" id="tabSwitcher">' +
-              '<button class="tab-btn active" data-tab="card"><span class="tab-icon">' + svgIcon('mask', 15) + '</span>角色卡生成</button>' +
-              '<button class="tab-btn" data-tab="mvu"><span class="tab-icon">' + svgIcon('sliders', 15) + '</span>MVU变量·状态栏</button>' +
+              '<div class="topbar-right">' +
+                '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
+                  '<button class="icon-btn" id="wsMenuBtn">' + svgIcon('menu', 15) + ' 工作区</button>' +
+                  '<div class="ws-dropdown" id="wsDropdown"></div>' +
+                '</div>' +
+                '<span class="phase" id="phaseLabel">0%</span>' +
+                '<button class="icon-btn icon-btn-square danger" id="closeBtn" aria-label="关闭" title="关闭">' + svgIcon('close', 16) + '</button>' +
+              '</div>' +
             '</div>' +
             '<div class="main">' +
               '<div class="mobile-tabs">' +
@@ -7227,26 +7217,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '<button class="mobile-tab" data-tab="preview">' + svgIcon('clipboard', 16) + ' 预览</button>' +
               '</div>' +
               '<div class="chat-panel" style="position:relative">' +
-                // data-mvu="1" 标记 MVU 专属按钮，CSS根据Tab控制显示/隐藏
-                '<div class="mod-focus card-only" id="modFocus">' +
-                  '<button class="mod-focus-btn" data-mod="axiom">' + svgIcon('axiom', 13) + ' 基础公理</button>' +
-                  '<button class="mod-focus-btn" data-mod="soft_rules">' + svgIcon('handshake', 13) + ' 交互软规则</button>' +
-                  '<button class="mod-focus-btn" data-mod="core_rules">' + svgIcon('lock', 13) + ' 核心铁则</button>' +
-                  '<button class="mod-focus-btn" data-mod="near_constraint">' + svgIcon('target', 13) + ' 近场强约束</button>' +
-                  '<button class="mod-focus-btn" data-mod="scene_mechanics">' + svgIcon('sword', 13) + ' 场景机制</button>' +
-                  '<button class="mod-focus-btn" data-mod="entity_interact">' + svgIcon('users', 13) + ' 实体交互</button>' +
-                  '<button class="mod-focus-btn" data-mod="narrative_bg">' + svgIcon('book', 13) + ' 叙事背景</button>' +
-                  '<button class="mod-focus-btn" data-mod="dynamic_adapt">' + svgIcon('refreshCycle', 13) + ' 动态适配</button>' +
-                  '<button class="mod-focus-btn" data-mod="init_var" data-mvu="1">' + svgIcon('chart', 13) + ' 初始变量</button>' +
-                  '<button class="mod-focus-btn" data-mod="var_update_rule" data-mvu="1">' + svgIcon('docVar', 13) + ' 变量更新规则</button>' +
-                '</div>' +
-                '<div class="mod-dash card-only" id="modDash" style="margin:0;border-left:none;border-right:none;border-radius:0">' +
-                  '<div class="md-header" id="modDashHeader"><span style="display:inline-flex;align-items:center;gap:5px">' + svgIcon('gauge', 15) + ' 模块进度仪表盘</span><span class="md-arrow">▼</span></div>' +
-                  '<div class="md-body"></div>' +
-                '</div>' +
-                // ========== MVU Tab 专属信息面板（角色卡Tab隐藏）==========
-                '<div class="mvu-info-panel card-only" id="mvuInfoPanel" style="margin:0;padding:8px 12px;border-bottom:1px solid var(--line-soft);font-size:.72em;color:var(--ink-soft)">' +
-                  '<div id="mvuInfoBody">MVU变量系统就绪</div>' +
+                // ========== 上下文操作条（合并旧 mod-focus + mod-dash + mvu-info-panel）==========
+                '<div class="ctx-bar" id="ctxBar">' +
+                  '<span class="ctx-stage" id="ctxStage">' + svgIcon('info', 13) + ' <strong>就绪</strong></span>' +
+                  '<div class="ctx-actions" id="ctxActions"></div>' +
                 '</div>' +
                 '<div class="chat-messages" id="chatMessages"></div>' +
                 '<div class="scroll-btns" id="scrollBtns"><button id="scrollBottomBtn" title="到底部" aria-label="到底部">' + svgIcon('arrowDown', 14) + '</button></div>' +
@@ -7265,8 +7239,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               '<div class="preview-panel">' +
                 '<div class="preview-header">' +
                   '<span class="pv-title">' + svgIcon('clipboard', 15) + ' 预览</span>' +
-                  '<span id="completionLabel" style="font-size:.72em;color:var(--sage)">0%</span>' +
-                  '<span id="exportLogBtn" title="导出聊天记录和后台记录" style="margin-left:auto;cursor:pointer;color:var(--muted);opacity:.7;display:inline-flex;align-items:center">' + svgIcon('fileExport', 15) + '</span>' +
+                  '<button class="pv-export" id="exportLogBtn" title="导出聊天记录和后台记录" aria-label="导出聊天记录">' + svgIcon('fileExport', 15) + '</button>' +
                 '</div>' +
                 '<div class="preview-body" id="previewBody"></div>' +
               '</div>' +
@@ -7279,8 +7252,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         updateModFocus();
         updateQuickActions();
         renderPreview();
-        renderModDash();
-        renderMvuInfoPanel();
         updateCharCount();
       }
 
@@ -7322,6 +7293,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var dropdown = doc.getElementById('wsDropdown');
         if (!dropdown) return;
         var items = '';
+        var hasFirstDef = cardData.first_mes && cardData.first_mes.length > 50;
+        var hasEntriesDef = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
         // 工作台
         items += '<div class="ws-dropdown-section">工作台</div>';
         items += '<div class="ws-dropdown-item" data-action="open-workspace">' + svgIcon('folder', 15) + ' 打开工作台 <span class="ws-item-badge">Tab</span></div>';
@@ -7338,13 +7311,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var badge = done ? '<span class="ws-item-badge' + done + '">&#10003;</span>' : '';
           items += '<div class="ws-dropdown-item" data-action="focus-mod" data-mod="' + m[0] + '">' + svgIcon('dot', 15) + ' ' + m[1] + badge + '</div>';
         });
-        // MVU
+        // MVU / Tab 切换
         items += '<div class="ws-dropdown-divider"></div>';
-        items += '<div class="ws-dropdown-section">MVU 变量</div>';
-        items += '<div class="ws-dropdown-item" data-action="switch-tab" data-tab="mvu">' + svgIcon('sliders', 15) + ' MVU变量·状态栏</div>';
-        // 工具
+        items += '<div class="ws-dropdown-section">视图切换</div>';
+        if (currentTab === 'card') {
+          items += '<div class="ws-dropdown-item" data-action="switch-tab" data-tab="mvu">' + svgIcon('sliders', 15) + ' 切到 MVU变量·状态栏</div>';
+        } else {
+          items += '<div class="ws-dropdown-item" data-action="switch-tab" data-tab="card">' + svgIcon('bolt', 15) + ' 切到 角色卡生成</div>';
+        }
+        // 工具（质检/优化/进度总览/开场白/权重/分组）
         items += '<div class="ws-dropdown-divider"></div>';
         items += '<div class="ws-dropdown-section">工具</div>';
+        items += '<div class="ws-dropdown-item" data-action="qa-summary">' + svgIcon('chart', 15) + ' 进度总览</div>';
+        items += '<div class="ws-dropdown-item" data-action="qa-qc">' + svgIcon('checkCircle', 15) + ' 质检</div>';
+        items += '<div class="ws-dropdown-item" data-action="qa-optimize">' + svgIcon('wrench', 15) + ' 优化</div>';
+        if (currentTab === 'card' && !hasFirstDef && progress >= 20) {
+          items += '<div class="ws-dropdown-item" data-action="qa-opening">' + svgIcon('film', 15) + ' 生成开场白</div>';
+        }
+        if (hasEntriesDef) {
+          items += '<div class="ws-dropdown-item" data-action="qa-weight">' + svgIcon('gauge', 15) + ' 权重可视化</div>';
+          items += '<div class="ws-dropdown-item" data-action="qa-group">' + svgIcon('layers', 15) + ' 分组管理</div>';
+        }
+        items += '<div class="ws-dropdown-divider"></div>';
+        items += '<div class="ws-dropdown-section">导入导出</div>';
         items += '<div class="ws-dropdown-item" data-action="export-log">' + svgIcon('fileExport', 15) + ' 导出聊天记录</div>';
         items += '<div class="ws-dropdown-item" data-action="import-card">' + svgIcon('download', 15) + ' 导入角色卡</div>';
         dropdown.innerHTML = items;
@@ -7355,11 +7344,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             dropdown.classList.remove('show');
             if (action === 'open-workspace') openWorkspacePanel();
             else if (action === 'focus-mod') focusModule(this.getAttribute('data-mod'));
-            else if (action === 'switch-tab') switchTab('mvu');
+            else if (action === 'switch-tab') switchTab(this.getAttribute('data-tab'));
             else if (action === 'export-log') {
               var btn = doc.getElementById('exportLogBtn');
               if (btn) btn.click();
             } else if (action === 'import-card') showImportModal();
+            else if (action === 'qa-summary') handleQuickAction('summary');
+            else if (action === 'qa-qc') handleQuickAction('qc');
+            else if (action === 'qa-optimize') handleQuickAction('optimize');
+            else if (action === 'qa-opening') handleQuickAction('opening');
+            else if (action === 'qa-weight') handleQuickAction('weight');
+            else if (action === 'qa-group') handleQuickAction('group');
           });
         });
       }
@@ -7383,9 +7378,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '<button class="ws-panel-tab ' + (wsPanelTab === 'artifacts' ? 'active' : '') + '" data-wstab="artifacts">预览</button>' +
               '</nav>' +
               '<div class="ws-panel-body">' +
-                '<aside class="ws-tree" id="wsTree">' + buildWorkspaceTree() + '</aside>' +
-                '<main class="ws-editor" id="wsEditor">' + buildWorkspaceEditor() + '</main>' +
-                '<section class="ws-artifact" id="wsArtifact">' + buildWorkspaceArtifact() + '</section>' +
+                '<aside class="ws-tree' + (wsPanelTab === 'files' ? ' active' : '') + '" id="wsTree">' + buildWorkspaceTree() + '</aside>' +
+                '<main class="ws-editor' + (wsPanelTab === 'editor' ? ' active' : '') + '" id="wsEditor">' + buildWorkspaceEditor() + '</main>' +
+                '<section class="ws-artifact' + (wsPanelTab === 'artifacts' ? ' active' : '') + '" id="wsArtifact">' + buildWorkspaceArtifact() + '</section>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -7514,12 +7509,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           updateCharCount();
           updateSendBtnPulse();
         });
-        // Esc 关闭工作台面板
+        // Esc：优先关闭弹窗（模态框），其次关闭工作台浮窗
         doc.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape') {
-            var backdrop = doc.getElementById('wsBackdrop');
-            if (backdrop) { closeWorkspacePanel(); e.preventDefault(); }
+          if (e.key !== 'Escape') return;
+          // 1) 先尝试关闭最上层模态框（json-modal / modal）
+          var modals = doc.querySelectorAll('.json-modal, .modal');
+          for (var i = modals.length - 1; i >= 0; i--) {
+            if (modals[i].parentNode) { modals[i].remove(); e.preventDefault(); return; }
           }
+          // 2) 再关闭工作台浮窗
+          var backdrop = doc.getElementById('wsBackdrop');
+          if (backdrop) { closeWorkspacePanel(); e.preventDefault(); }
         });
         var exportLogBtn = doc.getElementById('exportLogBtn');
         if (exportLogBtn) {
@@ -7538,6 +7538,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var mod = this.getAttribute('data-mod');
             handleModFocus(mod);
           });
+        }
+        // ctx-bar 模块按钮（updateCtxBar 内部已绑定，这里兜底）
+        var ctxMods = doc.querySelectorAll('.ctx-mod');
+        for (var cm = 0; cm < ctxMods.length; cm++) {
+          if (!ctxMods[cm].getAttribute('data-bound')) {
+            ctxMods[cm].setAttribute('data-bound', '1');
+            ctxMods[cm].addEventListener('click', function() {
+              var mod = this.getAttribute('data-mod');
+              if (mod) handleModFocus(mod);
+            });
+          }
         }
         var sbBtn = doc.getElementById('scrollBottomBtn');
         if (sbBtn) {
@@ -7574,6 +7585,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (var tbi = 0; tbi < tabBtns.length; tbi++) {
           tabBtns[tbi].addEventListener('click', function() {
             var targetTab = this.getAttribute('data-tab');
+            if (isGenerating && targetTab !== activeTab) {
+              showToast('AI 正在生成中，请稍候再切换 Tab', 'warning');
+              return;
+            }
             switchTab(targetTab);
           });
         }
@@ -8146,117 +8161,122 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         handleQuickAction(mod);
       }
 
-      function updateModFocus() {
-        var modBtns = doc.querySelectorAll('.mod-focus-btn');
-        if (!modBtns || !modBtns.length) return;
-        var mp = getModuleProgress();
-        var modMap = { 'axiom': 0, 'soft_rules': 0, 'core_rules': 0, 'near_constraint': 0, 'scene_mechanics': 0, 'entity_interact': 0, 'narrative_bg': 0, 'dynamic_adapt': 0, 'init_var': 0, 'var_update_rule': 0 };
-        Object.keys(mp).forEach(function(k) { if (mp[k]) modMap[k] = 100; });
-        var aiMp = moduleProgress || {};
-        Object.keys(aiMp).forEach(function(k) { if (aiMp[k] > 0) modMap[k] = Math.max(modMap[k] || 0, aiMp[k]); });
-        modBtns.forEach(function(btn) {
-          var mod = btn.getAttribute('data-mod');
-          var val = modMap[mod] || 0;
-          btn.classList.remove('active');
-          if (val >= 100) { btn.style.background = 'rgba(139,168,136,.15)'; btn.style.color = '#15803d'; btn.style.borderColor = 'rgba(139,168,136,.3)'; }
-          else if (val > 0) { btn.style.background = 'rgba(207,159,94,.15)'; btn.style.color = '#ca8a04'; btn.style.borderColor = 'rgba(207,159,94,.3)'; }
-          else { btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }
-        });
+      // ===== 上下文操作条：合并旧 mod-focus + mod-dash + mvu-info-panel =====
+      function updateModFocus() { updateCtxBar(); }
+      function updateCtxBar() {
+        var stage = doc.getElementById('ctxStage');
+        var actions = doc.getElementById('ctxActions');
+        if (!stage || !actions) return;
+        var __tab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
+        var p = progress || 0;
+        // ===== 阶段提示 =====
+        var stageName = __tab === 'card'
+          ? (p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可生成角色卡')
+          : 'MVU变量系统';
+        stage.innerHTML = svgIcon('info', 13) + ' <strong>' + stageName + '</strong>';
+        // ===== 操作区内容 =====
+        var h = '';
+        if (__tab === 'card') {
+          // 角色卡Tab：8个模块导航胶囊（done/prog 状态）
+          var mp = getModuleProgress();
+          var aiMp = moduleProgress || {};
+          var labels = [
+            { key: 'core_rules', icon: 'lock', name: '核心铁则' },
+            { key: 'axiom', icon: 'axiom', name: '世界基底' },
+            { key: 'soft_rules', icon: 'handshake', name: '交互软规则' },
+            { key: 'near_constraint', icon: 'target', name: '近场强约束' },
+            { key: 'scene_mechanics', icon: 'sword', name: '场景机制' },
+            { key: 'entity_interact', icon: 'users', name: '实体交互' },
+            { key: 'narrative_bg', icon: 'book', name: '叙事背景' },
+            { key: 'dynamic_adapt', icon: 'refreshCycle', name: '动态适配' }
+          ];
+          labels.forEach(function(l) {
+            var val = (mp[l.key] ? 100 : 0);
+            if (aiMp[l.key] > 0) val = Math.max(val, aiMp[l.key]);
+            var cls = val >= 100 ? 'done' : val > 0 ? 'prog' : '';
+            h += '<button class="ctx-mod ' + cls + '" data-mod="' + l.key + '">' + svgIcon(l.icon, 13) + ' ' + l.name + '</button>';
+          });
+        } else {
+          // MVUTab：4条目状态 + 状态栏进度 chip
+          var entries = (cardData.character_book || {}).entries || [];
+          var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
+          var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+          var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+          var hasUpdateRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
+          var hasOutputFmt = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
+          var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+          var hasStatusBar = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
+          var step = chatSessions.mvu.currentStep || 0;
+          function _chip(has, label) {
+            return '<span class="ctx-chip ' + (has ? 'ok' : 'todo') + '">' + svgIcon(has ? 'checkCircle' : 'circle', 11) + ' ' + label + '</span>';
+          }
+          h += _chip(hasInitVar, '初始变量');
+          h += _chip(hasVarList, '变量列表');
+          h += _chip(hasUpdateRule, '更新规则');
+          h += _chip(hasOutputFmt, '输出格式');
+          if (step > 0 || hasStatusBar) {
+            var stepNames = ['', 'Step1', 'Step2', 'Step3', 'Step4', 'Step5', 'Step6', 'Step7'];
+            h += '<span class="ctx-chip info">' + svgIcon('chart', 11) + ' 状态栏: ' + (step > 0 ? (stepNames[step] || ('Step' + step)) : '未开始') + (hasStatusBar ? ' ✓' : '') + '</span>';
+          }
+          // MVU 模块导航（2个）
+          h += '<button class="ctx-mod" data-mod="init_var">' + svgIcon('chart', 13) + ' 初始变量</button>';
+          h += '<button class="ctx-mod" data-mod="var_update_rule">' + svgIcon('docVar', 13) + ' 更新规则</button>';
+        }
+        actions.innerHTML = h;
+        // 绑定模块按钮点击
+        var modBtns = actions.querySelectorAll('.ctx-mod');
+        for (var i = 0; i < modBtns.length; i++) {
+          modBtns[i].addEventListener('click', function() {
+            var mod = this.getAttribute('data-mod');
+            if (mod) handleModFocus(mod);
+          });
+        }
       }
 
       function updateQuickActions() {
         var qa = doc.getElementById('quickActions');
         if (!qa) return;
         var p = progress || 0;
-        var hasDesc = cardData.description && cardData.description.length > 50;
         var hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
         var hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
-        /* MVU状态栏检测：仅当用户已配置MVU变量系统（存在[InitVar]或核心MVU条目）时标记 */
         var hasMVU = hasEntries && cardData.character_book.entries.some(function(e) {
           return isMVUEntry(e.comment || '');
         });
 
-        // ========== Tab 隔离：根据当前 Tab 显示完全不同的快捷动作按钮 ==========
+        // ========== 精简版：仅留「阶段主操作」+「生成」+ 2 mini（写入/清空）==========
+        // 模块导航/质检/优化/权重/分组/进度总览等已迁至「工作区」下拉菜单，避免拥挤
         var actions = [];
         if (currentTab === 'card') {
-          // ===== 角色卡Tab快捷动作：专注于角色卡/世界书生成，绝对不含MVU变量制作 =====
-          // 引导流程6步（规范4.5，去掉了MVU变量系统 - MVU独立到另一个Tab）
-          if (p < 20) {
-            actions.push({ action: 'core_rules', icon: 'lock', label: '定核心铁则', hl: true });
-            actions.push({ action: 'axiom', icon: 'axiom', label: '搭世界基底' });
-          } else if (p < 40) {
-            actions.push({ action: 'axiom', icon: 'axiom', label: '搭世界基底', hl: true });
-            actions.push({ action: 'soft_rules', icon: 'handshake', label: '交互软规则' });
-          } else if (p < 60) {
-            actions.push({ action: 'entity_interact', icon: 'users', label: '做实体内容', hl: true });
-            actions.push({ action: 'scene_mechanics', icon: 'sword', label: '加场景规则' });
-          } else if (p < 80) {
-            actions.push({ action: 'narrative_bg', icon: 'book', label: '补叙事背景' });
-            actions.push({ action: 'dynamic_adapt', icon: 'refreshCycle', label: '做动态适配', hl: true });
-          } else if (p < 95) {
-            // p>=80 <95：角色卡内容已比较完整，提示用户可以去MVU Tab做变量系统
-            actions.push({ action: 'goto_mvu', icon: 'sliders', label: '去做MVU变量/状态栏', hl: true });
-          } else {
-            // p>=95：生成角色卡与优化在下方常驻区展示
-          }
-          // 常驻快捷动作（角色卡Tab）
-          actions.push({ action: 'next', icon: 'info', label: '下一步' });
-          actions.push({ action: 'summary', icon: 'chart', label: '当前进度' });
-          if (!hasFirst && p >= 20) actions.push({ action: 'opening', icon: 'film', label: '生成开场白' });
-          actions.push({ action: 'qc', icon: 'checkCircle', label: '质检' });
-          actions.push({ action: 'optimize', icon: 'wrench', label: '优化' });
-          if (hasEntries) {
-            actions.push({ action: 'weight', icon: 'gauge', label: '权重可视化' });
-            actions.push({ action: 'group', icon: 'layers', label: '分组管理' });
-          }
-          // 如果已经有MVU内容，提供一个跳转到MVU Tab查看的入口
-          if (hasMVU) actions.push({ action: 'goto_mvu', icon: 'sliders', label: 'MVU变量/状态栏 →' });
+          // 阶段主操作（hl）
+          if (p < 20)        actions.push({ action: 'core_rules',      icon: 'lock',         label: '定核心铁则',   hl: true });
+          else if (p < 40)   actions.push({ action: 'axiom',           icon: 'axiom',        label: '搭世界基底',   hl: true });
+          else if (p < 60)   actions.push({ action: 'entity_interact', icon: 'users',        label: '做实体内容',   hl: true });
+          else if (p < 80)   actions.push({ action: 'dynamic_adapt',   icon: 'refreshCycle', label: '做动态适配',   hl: true });
+          else if (p < 95)   actions.push({ action: 'goto_mvu',        icon: 'sliders',      label: '去做MVU变量/状态栏', hl: true });
+          // 生成角色卡（p>=95 时高亮）
           actions.push({ action: 'generate', icon: 'sparkle', label: '生成角色卡', hl: p >= 95 });
         } else {
-          // ===== MVU变量状态栏Tab快捷动作：完全专注于MVU变量4条目 + 8步状态栏生成 =====
-          // 根据当前状态栏生成进度推荐动作
+          // MVU Tab：阶段主操作
           var sbProgress = 0;
-          for (var sk in SB_STEP_DISPLAY_NAMES) {
-            if (statusBarModules[sk]) sbProgress++;
-          }
-          // MVU专属引导
-          if (!hasMVU && !statusBarMode) {
-            actions.push({ action: 'init_var', icon: 'chart', label: '设计MVU变量4条目', hl: true });
-          } else if (!statusBarMode) {
-            // 已有变量但没进入状态栏模式
-            if (sbProgress < 5) {
-              actions.push({ action: 'start_sb', icon: 'sliders', label: '开始制作状态栏', hl: true });
-            } else {
-              actions.push({ action: 'mvuPreview', icon: 'eye', label: '预览状态栏效果', hl: true });
-            }
-          } else {
-            // 状态栏制作中：显示当前进度
-            actions.push({ action: 'continue_sb', icon: 'skip', label: '继续下一步 (' + sbProgress + '/5)', hl: true });
-          }
-          actions.push({ action: 'init_var', icon: 'chart', label: '变量4条目（修改/完善）' });
-          actions.push({ action: 'var_update_rule', icon: 'wrench', label: '变量更新规则/格式' });
-
-          // MVU Tab常驻动作
-          actions.push({ action: 'summary', icon: 'chart', label: 'MVU进度总览' });
-          if (hasMVU) actions.push({ action: 'mvuPreview', icon: 'sliders', label: '状态栏预览' });
-
-          // 提供跳转回角色卡Tab的入口（方便切换）
-          actions.push({ action: 'goto_card', icon: 'bolt', label: '去角色卡生成Tab →' });
+          for (var sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[sk]) sbProgress++; }
+          if (!hasMVU && !statusBarMode)        actions.push({ action: 'init_var',    icon: 'chart',  label: '设计MVU变量4条目',    hl: true });
+          else if (!statusBarMode && sbProgress < 5) actions.push({ action: 'start_sb', icon: 'sliders', label: '开始制作状态栏',    hl: true });
+          else if (statusBarMode)               actions.push({ action: 'continue_sb', icon: 'skip',   label: '继续下一步(' + sbProgress + '/5)', hl: true });
+          else                                  actions.push({ action: 'mvuPreview', icon: 'eye',    label: '预览状态栏效果',     hl: true });
         }
         var h = '';
         actions.forEach(function(a) {
-          var icHtml = a.icon ? svgIcon(a.icon, 13) + ' ' : '';
+          var icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + icHtml + a.label + '</button>';
         });
-        // 导出 / 清空 作为小按钮放在快捷按钮右下角
+        // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
         qa.innerHTML = h;
         var btns = qa.querySelectorAll('.quick-btn');
         for (var i = 0; i < btns.length; i++) {
           btns[i].addEventListener('click', function() {
-            var act = this.getAttribute('data-action');
-            handleQuickAction(act);
+            handleQuickAction(this.getAttribute('data-action'));
           });
         }
         bindToolbarButtons();
@@ -8527,7 +8547,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.style.display = 'none';
         doc.body.appendChild(input);
         input.addEventListener('change', function(e) {
-          var file = e.target.files[0];
+          var file = e.target.files && e.target.files[0];
+          // 无论是否选中文件都移除临时 input，避免 DOM 节点泄漏
+          if (input.parentNode) doc.body.removeChild(input);
           if (!file) return;
           var reader = new FileReader();
           reader.onload = function(ev) {
@@ -8547,7 +8569,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             img.src = ev.target.result;
           };
           reader.readAsDataURL(file);
-          doc.body.removeChild(input);
         });
         input.click();
       }
@@ -8982,129 +9003,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return h;
       }
 
-      function renderModDash() {
-        var dash = doc.getElementById('modDash');
-        if (!dash) return;
-        var mp = getDetailedModuleProgress();
-        var labels = [
-          { key: 'axiom', icon: 'axiom', name: '基础公理', group: '常驻' },
-          { key: 'soft_rules', icon: 'handshake', name: '交互软规则', group: '常驻' },
-          { key: 'core_rules', icon: 'lock', name: '核心铁则', group: '常驻' },
-          { key: 'near_constraint', icon: 'target', name: '近场强约束', group: '触发' },
-          { key: 'scene_mechanics', icon: 'sword', name: '场景机制', group: '触发' },
-          { key: 'entity_interact', icon: 'users', name: '实体交互', group: '触发' },
-          { key: 'narrative_bg', icon: 'book', name: '叙事背景', group: '触发' },
-          { key: 'dynamic_adapt', icon: 'refreshCycle', name: '动态适配', group: '动态' },
-          { key: 'init_var', icon: 'chart', name: '初始变量', group: '变量', mvuOnly: true },
-          { key: 'var_update_rule', icon: 'docVar', name: '变量更新规则', group: '变量', mvuOnly: true }
-        ];
-        // ========== Tab 隔离：角色卡Tab 隐藏 MVU 变量模块 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
-        if (__tab === 'card') {
-          labels = labels.filter(function(l) { return !l.mvuOnly; });
-        }
-        // 计算总进度（用于仪表盘头部展示）
-        var totalPct = 0;
-        var doneCount = 0;
-        labels.forEach(function(l) {
-          var v = mp[l.key] || 0;
-          totalPct += v;
-          if (v >= 100) doneCount++;
-        });
-        var avgPct = Math.round(totalPct / labels.length);
-        var groups = { '常驻': '#15803d', '触发': '#a16207', '动态': '#ca8a04', '变量': '#2563eb' };
-        // 角色卡Tab 隐藏「变量」体系标签
-        if (__tab === 'card') delete groups['变量'];
-        var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(15,23,42,.10)">' +
-          '<div style="display:flex;flex-wrap:wrap;gap:4px">';
-        Object.keys(groups).forEach(function(g) {
-          h += '<span style="font-size:.62em;color:' + groups[g] + ';background:rgba(255,255,255,.03);padding:1px 6px;border-radius:3px">' + g + '体系</span>';
-        });
-        h += '</div>' +
-          '<span style="font-size:.65em;color:' + (avgPct >= 100 ? '#15803d' : avgPct >= 50 ? '#a16207' : '#667085') + '">' + doneCount + '/' + labels.length + ' 完成 · 均' + avgPct + '%</span>' +
-          '</div>';
-        labels.forEach(function(l) {
-          var val = mp[l.key] || 0;
-          var cls = val >= 100 ? 'done' : val > 0 ? 'prog' : 'empty';
-          var groupColor = groups[l.group] || '#667085';
-          h += '<div class="mod-dash-item" data-mod="' + l.key + '" title="' + l.group + '体系 · 点击让AI完善此模块">' +
-            '<span class="m-icon">' + svgIcon(l.icon, 13) + '</span>' +
-            '<span class="m-name" style="color:' + groupColor + '">' + l.name + '</span>' +
-            '<span class="m-bar-wrap"><span class="m-bar ' + cls + '" style="width:' + val + '%"></span></span>' +
-            '<span class="m-pct">' + val + '%</span>' +
-          '</div>';
-        });
-        var body = dash.querySelector('.md-body');
-        if (body) body.innerHTML = h;
-        // 仪表盘条目点击：让AI完善对应模块
-        var items = dash.querySelectorAll('.mod-dash-item');
-        for (var i = 0; i < items.length; i++) {
-          items[i].addEventListener('click', function() {
-            var mod = this.getAttribute('data-mod');
-            if (mod) handleModFocus(mod);
-          });
-        }
-        // 头部：折叠/展开 + AI分析按钮（避免重复绑定）
-        var header = dash.querySelector('.md-header');
-        if (header) {
-          if (!header.getAttribute('data-bound')) {
-            header.setAttribute('data-bound', '1');
-            header.addEventListener('click', function(e) {
-              // 点击 AI分析按钮不触发挥折叠
-              if (e.target.closest('.md-analyze-btn')) return;
-              toggleDash();
-            });
-          }
-          var btn = header.querySelector('.md-analyze-btn');
-          if (!btn) {
-            btn = doc.createElement('button');
-            btn.className = 'md-analyze-btn';
-            btn.type = 'button';
-            btn.innerHTML = svgIcon('search', 13) + ' AI分析';
-            btn.addEventListener('click', function(e) {
-              e.stopPropagation();
-              handleAnalyzeProgress();
-            });
-            header.appendChild(btn);
-          }
-        }
-      }
+      // ===== 旧 modDash 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
+      function renderModDash() { updateCtxBar(); }
 
-      // ========== MVU Tab 专属信息面板渲染 ==========
-      function renderMvuInfoPanel() {
-        var panelBody = doc.getElementById('mvuInfoBody');
-        if (!panelBody) return;
-        var entries = (cardData.character_book || {}).entries || [];
-        var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
-        var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-        var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-        var hasUpdateRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
-        var hasOutputFmt = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
-        var mvuCount = mvuEntries.length;
-        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-        var hasStatusBar = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
-        var step = chatSessions.mvu.currentStep || 0;
-        var stepNames = ['', 'Step1:规划', 'Step2:配色', 'Step3:HTML骨架', 'Step4:CSS样式', 'Step5:refreshStatus+renderTree', 'Step6:入口', 'Step7:完成'];
-
-        var h = '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center">';
-        // MVU 4条核心条目状态（SVG 图标，颜色随状态变化）
-        function _mvuStat(has, label) {
-          var ic = has ? svgIcon('checkCircle', 11) : svgIcon('circle', 11);
-          var col = has ? '#15803d' : '#c98b7a';
-          return '<span style="color:' + col + ';display:inline-flex;align-items:center;gap:3px">' + ic + ' ' + label + '</span>';
-        }
-        h += _mvuStat(hasInitVar, '[InitVar]初始变量');
-        h += _mvuStat(hasVarList, '变量列表');
-        h += _mvuStat(hasUpdateRule, '变量更新规则');
-        h += _mvuStat(hasOutputFmt, '变量输出格式');
-        h += '</div>';
-        // 状态栏进度
-        if (step > 0 || hasStatusBar) {
-          h += '<div style="margin-top:4px;color:#2563eb;display:flex;align-items:center;gap:4px">' + svgIcon('chart', 11) + ' 状态栏: ' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + (hasStatusBar ? ' · ' + svgIcon('checkCircle', 11) + ' 正则已注入' : '') + '</div>';
-        }
-        h += '<div style="margin-top:3px;font-size:.95em;opacity:.7">MVU条目 ' + mvuCount + ' 条 · 正则脚本 ' + rxScripts.length + ' 条 · 角色卡: ' + (cardData.name || '(未命名)') + '</div>';
-        panelBody.innerHTML = h;
-      }
+      // ===== 旧 mvuInfoPanel 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
+      function renderMvuInfoPanel() { updateCtxBar(); }
 
       async function handleAnalyzeProgress() {
         if (isGenerating) return;
@@ -10736,21 +10639,33 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       }
 
+      // 记录禁用前输入框是否聚焦，避免恢复时抢焦点打断用户阅读
+      var _inputWasFocused = false;
       function setEnabled(enabled) {
         var sendBtn = doc.getElementById('sendBtn');
         var saveBtn = doc.getElementById('saveBtn');
         var input = doc.getElementById('chatInput');
         if (sendBtn) sendBtn.disabled = !enabled;
         if (saveBtn) saveBtn.disabled = !enabled;
-        if (input) { input.disabled = !enabled; if (enabled) { try { input.focus(); } catch(e){} } }
+        if (input) {
+          // 禁用前记录焦点状态；恢复时仅当原本聚焦才重新聚焦
+          if (!enabled) {
+            _inputWasFocused = (doc.activeElement === input);
+            input.disabled = true;
+          } else {
+            input.disabled = false;
+            if (_inputWasFocused) { try { input.focus(); } catch(e){} }
+            _inputWasFocused = false;
+          }
+        }
         // 发送按钮图标切换：生成中显示等待（转圈）图标，空闲显示发送图标
         if (sendBtn) {
           var waiting = !enabled;
           if (waiting) sendBtn.classList.add('is-waiting');
           else sendBtn.classList.remove('is-waiting');
         }
-        // 快捷按钮、模块聚焦按钮、仪表盘条目统一禁用/启用，避免生成中误触
-        var sels = ['.quick-btn', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
+        // 快捷按钮、上下文模块按钮统一禁用/启用，避免生成中误触
+        var sels = ['.quick-btn', '.ctx-mod', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
         for (var s = 0; s < sels.length; s++) {
           var nodes = doc.querySelectorAll(sels[s]);
           for (var i = 0; i < nodes.length; i++) {
@@ -10838,15 +10753,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         progress = calcProgress();
         var pl = doc.getElementById('phaseLabel');
         if (pl) pl.textContent = progress + '%';
-        var cl = doc.getElementById('completionLabel');
-        if (cl) cl.textContent = progress + '%';
       }
       function setProgress(val) {
         progress = Math.max(0, Math.min(100, val));
         var pl = doc.getElementById('phaseLabel');
         if (pl) pl.textContent = progress + '%';
-        var cl = doc.getElementById('completionLabel');
-        if (cl) cl.textContent = progress + '%';
       }
 
       // ===== 质检弹窗 =====
@@ -11825,20 +11736,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         h += sec('globe', '世界名称', cardData.name);
         h += sec('scroll', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '');
 
-        // 模块进度（角色卡Tab：隐藏MVU模块）
+        // 模块进度（独立 pv-section，角色卡Tab：隐藏MVU模块）
         var mp = getModuleProgress();
-        var modLabels = { axiom: { ic:'axiom', txt:'公理' }, soft_rules: { ic:'handshake', txt:'软规则' }, core_rules: { ic:'lock', txt:'铁则' }, near_constraint: { ic:'target', txt:'近场' }, scene_mechanics: { ic:'sword', txt:'机制' }, entity_interact: { ic:'users', txt:'实体' }, narrative_bg: { ic:'book', txt:'叙事' }, dynamic_adapt: { ic:'refreshCycle', txt:'动态' }, init_var: { ic:'chart', txt:'变量' }, var_update_rule: { ic:'docVar', txt:'更新' } };
-        // 角色卡Tab 移除 MVU 模块标签
-        var modLabelsFiltered = {};
-        Object.keys(modLabels).forEach(function(k) {
-          if (k !== 'init_var' && k !== 'var_update_rule') modLabelsFiltered[k] = modLabels[k];
-        });
+        var modLabels = { axiom: { ic:'axiom', txt:'公理' }, soft_rules: { ic:'handshake', txt:'软规则' }, core_rules: { ic:'lock', txt:'铁则' }, near_constraint: { ic:'target', txt:'近场' }, scene_mechanics: { ic:'sword', txt:'机制' }, entity_interact: { ic:'users', txt:'实体' }, narrative_bg: { ic:'book', txt:'叙事' }, dynamic_adapt: { ic:'refreshCycle', txt:'动态' } };
+        var modDone = 0, modTotal = Object.keys(modLabels).length;
         var modH = '<div class="module-progress">';
-        Object.keys(modLabelsFiltered).forEach(function(k) {
+        Object.keys(modLabels).forEach(function(k) {
           var cls = mp[k] ? 'done' : 'todo';
-          modH += '<div class="module-item ' + cls + '">' + svgIcon(modLabelsFiltered[k].ic, 11) + ' ' + modLabelsFiltered[k].txt + '</div>';
+          if (mp[k]) modDone++;
+          modH += '<div class="module-item ' + cls + '" data-mod="' + k + '" title="点击让AI完善此模块">' + svgIcon(modLabels[k].ic, 11) + ' ' + modLabels[k].txt + '</div>';
         });
         modH += '</div>';
+        h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (modDone > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('layers', 14) + ' 模块进度</span><span class="sec-right">' + modDone + '/' + modTotal + ' 完成</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + modH + '</div>';
 
         var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
         // 角色卡Tab：过滤掉 MVU 条目
@@ -11849,7 +11758,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // 世界书条目：完整显示全部条目（不再限制6条/截断100字），每个条目独立折叠
         if (entries.length > 0) {
-          var eH = modH + '<div class="pv-entry-list">';
+          var eH = '<div class="pv-entry-list">';
           for (var i = 0; i < entries.length; i++) {
             var e = entries[i];
             var label = e.comment || ('条目' + (i+1));
@@ -11968,9 +11877,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var heads = body.querySelectorAll('.pv-section > h3');
         for (var j = 0; j < heads.length; j++) {
           heads[j].addEventListener('click', function(e) {
-            if (e.target.closest('.pv-mini-btn') || e.target.closest('.pv-book-name') || e.target.closest('.pv-toggle')) return;
+            if (e.target.closest('.pv-mini-btn') || e.target.closest('.pv-book-name') || e.target.closest('.pv-toggle') || e.target.closest('.module-item')) return;
             var section = this.closest('.pv-section');
             if (section) section.classList.toggle('collapsed');
+          });
+        }
+        // 模块进度项点击：让 AI 完善对应模块
+        var modItems = body.querySelectorAll('.module-item[data-mod]');
+        for (var mi = 0; mi < modItems.length; mi++) {
+          modItems[mi].style.cursor = 'pointer';
+          modItems[mi].addEventListener('click', function(e) {
+            e.stopPropagation();
+            var mod = this.getAttribute('data-mod');
+            if (mod) handleModFocus(mod);
           });
         }
         // 状态栏按钮
