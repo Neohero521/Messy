@@ -383,10 +383,8 @@
       }
 
       /* CSS Modules 作用域类名生成器：每个组件分配一个短ID前缀 */
-      var _scopeCounter = 0;
       function createStyleScope(componentName) {
-        _scopeCounter++;
-        var prefix = 'mcg_' + (componentName || 'c') + _scopeCounter + '_';
+        var prefix = (componentName || 'c') + '_';
         return function _(className) {
           if (!className) return '';
           if (Array.isArray(className)) return className.filter(Boolean).map(_).join(' ');
@@ -719,13 +717,13 @@
           '.'+s+'messages{flex:1 1 0;overflow-y:auto;padding:12px 10px;min-height:0;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;position:relative}',
           '.'+s+'msg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;align-items:flex-start;animation:mcg-msg-in .25s var(--mcg-ease-standard)}',
           '@keyframes mcg-msg-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}',
-          '.'+s+'msg.user{align-items:flex-end}',
+          '.'+s+'msg.'+s+'user{align-items:flex-end}',
           '.'+s+'avatar{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;min-width:38px}',
-          '.'+s+'msg.assistant .mcg_cp_avatar{background:var(--mcg-bg-muted)}',
-          '.'+s+'msg.user .mcg_cp_avatar{background:var(--mcg-accent-primary-light)}',
+          '.'+s+'msg.'+s+'assistant .'+s+'avatar{background:var(--mcg-bg-muted)}',
+          '.'+s+'msg.'+s+'user .'+s+'avatar{background:var(--mcg-accent-primary-light)}',
           '.'+s+'bubble{max-width:82%;padding:9px 13px;border-radius:var(--mcg-radius-lg);font-size:.88em;line-height:1.65;word-break:break-word}',
-          '.'+s+'msg.assistant .mcg_cp_bubble{background:transparent;border:none;color:var(--mcg-text-primary);font-size:.92em;padding:2px 0;max-width:100%;width:100%}',
-          '.'+s+'msg.user .mcg_cp_bubble{background:var(--mcg-bg-surface);border:1px solid var(--mcg-border-default);color:var(--mcg-text-primary);border-bottom-right-radius:4px}',
+          '.'+s+'msg.'+s+'assistant .'+s+'bubble{background:transparent;border:none;color:var(--mcg-text-primary);font-size:.92em;padding:2px 0;max-width:100%;width:100%}',
+          '.'+s+'msg.'+s+'user .'+s+'bubble{background:var(--mcg-bg-surface);border:1px solid var(--mcg-border-default);color:var(--mcg-text-primary);border-bottom-right-radius:4px}',
           '.'+s+'bubble b{color:var(--mcg-text-accent)}',
           '.'+s+'bubble code{background:var(--mcg-bg-muted);padding:1px 5px;border-radius:var(--mcg-radius-xs);font-size:.84em;color:var(--mcg-text-accent)}',
           '.'+s+'bubble pre{background:var(--mcg-bg-elevated);border:1px solid var(--mcg-border-default);border-radius:var(--mcg-radius-md);padding:8px;overflow-x:auto;font-size:.9em;margin:6px 0;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch}',
@@ -768,7 +766,7 @@
           '.'+s+'modFocus{display:flex;flex-wrap:nowrap;gap:4px;padding:6px 10px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--mcg-border-subtle);background:var(--mcg-bg-surface);scrollbar-width:none}',
           '.'+s+'modFocus::-webkit-scrollbar{height:0;display:none}',
           '.'+s+'modBtn{min-height:32px;padding:5px 12px;background:var(--mcg-bg-elevated);border:1px solid var(--mcg-border-default);border-radius:var(--mcg-radius-pill);font-size:.72em;color:var(--mcg-text-muted);cursor:pointer;white-space:nowrap;transition:all .15s var(--mcg-ease-standard);flex-shrink:0}',
-          '.'+s+'modBtn:active,.mcg_cp_modBtn.active{background:var(--mcg-accent-primary);color:#fff;border-color:var(--mcg-accent-primary)}'
+          '.'+s+'modBtn:active,.'+s+'modBtn.'+s+'active{background:var(--mcg-accent-primary);color:#fff;border-color:var(--mcg-accent-primary)}'
         ].join('\n');
       }
 
@@ -782,10 +780,10 @@
           '.'+s+'section h3 .secLeft{display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
           '.'+s+'section h3 .secRight{font-size:.7em;color:var(--mcg-text-muted);font-weight:400;flex-shrink:0}',
           '.'+s+'section .pvContent{font-size:.76em;color:var(--mcg-text-secondary);line-height:1.6;white-space:pre-wrap;word-break:break-word}',
-          '.'+s+'section.collapsed .mcg_pv_pvContent,.mcg_pv_section.collapsed .mcg_pv_entryList,.mcg_pv_section.collapsed .mcg_pv_sub{max-height:0;overflow:hidden;margin:0;padding:0;opacity:0}',
+          '.'+s+'section.'+s+'collapsed .'+s+'pvContent,.'+s+'section.'+s+'collapsed .'+s+'entryList,.'+s+'section.'+s+'collapsed .'+s+'sub{max-height:0;overflow:hidden;margin:0;padding:0;opacity:0}',
           '.'+s+'toggle{cursor:pointer;font-size:.68em;color:var(--mcg-text-muted);user-select:none;flex-shrink:0;padding:0 6px;min-height:22px;display:flex;align-items:center}',
           '.'+s+'toggle::before{content:"▾";display:inline-block;transition:transform .2s var(--mcg-ease-standard)}',
-          '.'+s+'section.collapsed .mcg_pv_toggle::before{transform:rotate(-90deg)}',
+          '.'+s+'section.'+s+'collapsed .'+s+'toggle::before{transform:rotate(-90deg)}',
           '.'+s+'entry{background:var(--mcg-bg-elevated);padding:6px 9px;border-radius:var(--mcg-radius-sm);margin-bottom:5px;border-left:2px solid var(--mcg-border-highlight)}',
           '.'+s+'entryTitle{font-size:.74em;color:var(--mcg-text-accent);font-weight:600;margin-bottom:2px}',
           '.'+s+'entryContent{font-size:.72em;color:var(--mcg-text-secondary);white-space:pre-wrap;word-break:break-word;line-height:1.55}',
@@ -832,7 +830,7 @@
           '.'+s+'textarea{width:100%;flex:1;background:var(--mcg-bg-elevated);border:1px solid var(--mcg-border-default);border-radius:var(--mcg-radius-md);color:var(--mcg-text-primary);font-family:Consolas,Menlo,monospace;font-size:.78em;padding:10px;resize:none;min-height:280px;line-height:1.5}',
           '.'+s+'textarea:focus{outline:none;border-color:var(--mcg-border-highlight);box-shadow:0 0 0 3px rgba(184,153,104,.12)}',
           '.'+s+'dropzone{padding:22px;text-align:center;border:2px dashed var(--mcg-border-strong);border-radius:var(--mcg-radius-lg);margin-bottom:10px;cursor:pointer;transition:all .2s var(--mcg-ease-standard)}',
-          '.'+s+'dropzone:hover,.mcg_md_dropzone.drag{border-color:var(--mcg-accent-primary);background:rgba(184,153,104,.05)}',
+          '.'+s+'dropzone:hover,.'+s+'dropzone.'+s+'drag{border-color:var(--mcg-accent-primary);background:rgba(184,153,104,.05)}',
           '.'+s+'dzIcon{font-size:2.2em;margin-bottom:6px}',
           '.'+s+'dzText{font-size:.82em;color:var(--mcg-text-secondary)}',
           '.'+s+'tabs{display:flex;gap:4px;margin-bottom:10px}',
@@ -847,9 +845,9 @@
           '.'+s+'header{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;user-select:none;font-size:.78em;color:var(--mcg-text-accent);min-height:38px}',
           '.'+s+'analyzeBtn{font-size:.68em;min-height:26px;padding:3px 8px;border-radius:var(--mcg-radius-xs);background:var(--mcg-bg-muted);border:1px solid var(--mcg-border-default);color:var(--mcg-text-accent);cursor:pointer;transition:all .15s;white-space:nowrap}',
           '.'+s+'arrow{font-size:.68em;transition:transform .2s var(--mcg-ease-standard);color:var(--mcg-text-muted)}',
-          '.'+s+'wrap.collapsed .mcg_mdsh_arrow{transform:rotate(-90deg)}',
+          '.'+s+'wrap.'+s+'collapsed .'+s+'arrow{transform:rotate(-90deg)}',
           '.'+s+'body{padding:0 10px 8px;transition:max-height .3s var(--mcg-ease-standard), padding .3s;max-height:480px;overflow-y:auto;-webkit-overflow-scrolling:touch}',
-          '.'+s+'wrap.collapsed .mcg_mdsh_body{max-height:0;padding-top:0;padding-bottom:0}',
+          '.'+s+'wrap.'+s+'collapsed .'+s+'body{max-height:0;padding-top:0;padding-bottom:0}',
           '.'+s+'item{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:.72em;cursor:pointer;padding:4px 6px;border-radius:var(--mcg-radius-xs);transition:background .15s;min-height:32px}',
           '.'+s+'item:hover{background:var(--mcg-bg-elevated)}',
           '.'+s+'itemIcon{width:18px;text-align:center;flex-shrink:0}',
@@ -983,7 +981,7 @@
         title: String,
         phase: String,
         showExport: Boolean,
-        onExport: Function,
+        onSaveToTavern: Function,
         onImport: Function,
         onReset: Function
       },
@@ -1003,9 +1001,9 @@
               }, ['📥', h('span', { style: 'display:inline' }, ' 导入')]),
               h('button', {
                 class: $({ iconBtn: true, primary: props.showExport }),
-                onClick: props.onExport,
-                title: '导出角色卡'
-              }, ['📤', h('span', { style: 'display:inline' }, ' 导出')])
+                onClick: props.onSaveToTavern,
+                title: '写入酒馆'
+              }, ['💾', h('span', { style: 'display:inline' }, ' 写入酒馆')])
             ])
           ]);
         };
@@ -1275,6 +1273,7 @@
       name: 'WelcomeView',
       setup: function() {
         var $_ = Utils.createStyleScope('mcg_wc');
+        var $cp = Utils.createStyleScope('mcg_cp');
         var store = inject('store');
         var features = [
           { icon: '🎯', title: 'ST权重8体系', desc: '精准分层架构：常驻3阶+触发4层+动态1套' },
@@ -1300,8 +1299,8 @@
             })),
             h('button', { class: $_('startBtn'), onClick: onStart }, '🚀 开始创作'),
             h('div', { class: $_('actions') }, [
-              h('button', { class: 'mcg_cp_btn mcg_cp_ghost', onClick: function() { store.state.ui.showImportModal = true; } }, '📥 导入已有'),
-              h('button', { class: 'mcg_cp_btn mcg_cp_ghost', onClick: onStart }, '📄 查看模板')
+              h('button', { class: $cp({ btn: true, ghost: true }), onClick: function() { store.state.ui.showImportModal = true; } }, '📥 导入已有'),
+              h('button', { class: $cp({ btn: true, ghost: true }), onClick: onStart }, '📄 查看模板')
             ])
           ]);
         };
@@ -1474,6 +1473,7 @@
       name: 'StatusBarPanel',
       setup: function() {
         var $ = Utils.createStyleScope('mcg_sb');
+        var $cp = Utils.createStyleScope('mcg_cp');
         var store = inject('store');
         var stepMetas = [
           { step: 2, name: '配色方案',  icon: '🎨' },
@@ -1494,7 +1494,7 @@
             h('div', { style: 'font-size:.9em;font-weight:600;color:var(--mcg-text-accent);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--mcg-border-subtle);display:flex;align-items:center;gap:6px' }, [
               '📊 MVU 变量状态栏构建器',
               sb.mode ? h('span', {
-                class: 'mcg_cp_tag',
+                class: $cp('tag'),
                 style: 'padding:2px 8px;background:var(--mcg-success-soft);color:var(--mcg-success);border-radius:12px;font-size:.68em;font-weight:500'
               }, '构建模式') : null
             ]),
@@ -1718,6 +1718,8 @@
       setup: function() {
         var store = createStore();
         var $_app = Utils.createStyleScope('mcg_app');
+        var $cp = Utils.createStyleScope('mcg_cp');
+        var $pv = Utils.createStyleScope('mcg_pv');
 
         /* 注入全局依赖 */
         provide('store', store);
@@ -1835,31 +1837,42 @@
           store.state.mobileView = 'chat';
         });
 
-        /* 导出 */
-        function onExport() {
+        /* 写入酒馆 */
+        function onSaveToTavern() {
           try {
-            var exportObj = Services.buildExportCard(store.state.cardData);
-            store.state.ui.jsonOutput = JSON.stringify(exportObj, null, 2);
-            store.state.ui.showJsonModal = true;
-            (win.__modalMode = 'export');
-          } catch(e) { showToast('导出失败: ' + e.message, 'error'); }
+            var result = Services.saveToTavern(store.state);
+            if (result && result.then) {
+              /* Promise (fetch 方式) */
+              result.then(function(r) {
+                if (r.success) {
+                  showToast(r.message, 'success');
+                  var sess = store.getters.currentSession.value;
+                  sess.messages.push({
+                    id: 'a_' + Date.now(), role: 'assistant',
+                    content: '✅ **角色卡已写入酒馆！**\n\n- 名称：' + store.state.cardData.data.name + '\n- 条目：' + ((store.state.cardData.data.character_book || {}).entries || []).length + ' 条\n\n可以在酒馆角色列表中找到了。'
+                  });
+                } else {
+                  showToast(r.error || '写入失败', 'error');
+                }
+              }).catch(function(e) {
+                showToast('写入失败: ' + e.message, 'error');
+              });
+            } else if (result && result.success) {
+              showToast(result.message, 'success');
+              var sess2 = store.getters.currentSession.value;
+              sess2.messages.push({
+                id: 'a_' + Date.now(), role: 'assistant',
+                content: '✅ **角色卡已写入酒馆！**\n\n- 名称：' + store.state.cardData.data.name + '\n- 条目：' + ((store.state.cardData.data.character_book || {}).entries || []).length + ' 条\n\n可以在酒馆角色列表中找到了。'
+              });
+            } else {
+              showToast((result && result.error) || '写入失败', 'error');
+            }
+          } catch(e) { showToast('写入失败: ' + e.message, 'error'); }
         }
         function onImportModal() {
           store.state.ui.jsonOutput = '';
           store.state.ui.showImportModal = true;
           (win.__modalMode = 'import');
-        }
-        function onJsonModalClose() {
-          store.state.ui.showJsonModal = false;
-          store.state.ui.showImportModal = false;
-          store.state.ui.jsonOutput = '';
-          win.__modalMode = null;
-        }
-        function onImportData(parsed) {
-          try {
-            Services.mergeImportedCard(parsed, store.state);
-            store.state.chatSessions.card.phase = 'chat';
-          } catch(e) { showToast('导入失败: ' + e.message, 'error'); }
         }
 
         /* 聊天消息发送 / 快捷操作 */
@@ -1933,7 +1946,7 @@
             h(TopBar, {
               title: activeTab === 'card' ? '🎴 角色卡创作' : '📊 MVU 变量状态栏',
               phase: (sess && phaseLabelMap[sess.phase]) || '',
-              onExport: onExport,
+              onSaveToTavern: onSaveToTavern,
               onImport: onImportModal
             }),
             /* Tab 切换（顶部） */
@@ -1976,17 +1989,17 @@
                     }),
                     /* MVU 预览侧：状态栏构建器 */
                     h('div', {
-                      class: 'mcg_pv_panel',
+                      class: $pv('panel'),
                       key: 'sb-panel',
                       style: 'flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--mcg-bg-elevated)'
                     }, [
                       h('div', {
-                        class: 'mcg_pv_header',
+                        class: $pv('header'),
                         style: 'flex-shrink:0;padding:8px 14px;background:var(--mcg-bg-surface);border-bottom:1px solid var(--mcg-border-subtle);font-size:.82em;color:var(--mcg-text-accent);display:flex;justify-content:space-between;align-items:center;'
                       }, [
                         h('span', null, '🖼️ 状态栏构建'),
                         h('button', {
-                          class: 'mcg_cp_btn mcg_cp_ghost',
+                          class: $cp({ btn: true, ghost: true }),
                           style: 'font-size:.75em;padding:3px 10px;min-height:28px',
                           onClick: function() { Services.previewStatusBar(store.state); }
                         }, '👁️ 预览拼接结果')
@@ -2000,13 +2013,18 @@
               modelValue: store.state.mobileView,
               'onUpdate:modelValue': function(v) { store.state.mobileView = v; }
             }),
-            /* JSON 导出弹窗 */
+            /* JSON 导入弹窗 */
             h(JsonModal, {
-              visible: store.state.ui.showJsonModal || store.state.ui.showImportModal,
-              mode: store.state.ui.showImportModal ? 'import' : 'export',
+              visible: store.state.ui.showImportModal,
+              mode: 'import',
               jsonOutput: store.state.ui.jsonOutput,
-              onClose: onJsonModalClose,
-              onImport: onImportData
+              onClose: function() { store.state.ui.showImportModal = false; store.state.ui.jsonOutput = ''; win.__modalMode = null; },
+              onImport: function(parsed) {
+                try {
+                  Services.mergeImportedCard(parsed, store.state);
+                  store.state.chatSessions.card.phase = 'chat';
+                } catch(e) { showToast('导入失败: ' + e.message, 'error'); }
+              }
             })
           ]);
         };
@@ -2365,6 +2383,139 @@
           }
           return cd;
         } catch(e) { throw new Error('构建导出失败: ' + e.message); }
+      },
+
+      /* 写入酒馆：直接通过 SillyTavern 上下文创建/替换角色卡 */
+      saveToTavern: function(state, opts) {
+        opts = opts || {};
+        try {
+          var cardData = Services.buildExportCard(state.cardData);
+          var data = cardData.data;
+
+          /* 获取 SillyTavern 上下文 */
+          var st = null;
+          try { st = window.parent.SillyTavern || window.parent.sillytavern; } catch(e) {}
+
+          if (st && typeof st.getContext === 'function') {
+            var ctx = st.getContext();
+            /* 方式1：通过 getContext API 直接写入 */
+            if (ctx) {
+              ctx.name = data.name || '未命名角色';
+              ctx.description = data.description || '';
+              ctx.personality = data.personality || '';
+              ctx.scenario = data.scenario || '';
+              ctx.first_mes = data.first_mes || '';
+              ctx.creator_notes = data.creator_notes || '';
+              ctx.system_prompt = data.system_prompt || '';
+              ctx.post_history_instructions = data.post_history_instructions || '';
+              ctx.tags = data.tags || [];
+              ctx.creator = data.creator || '';
+              ctx.character_version = data.character_version || '';
+              ctx.alternate_greetings = data.alternate_greetings || [];
+              ctx.mes_example = data.mes_example || '';
+              ctx.character_book = data.character_book || null;
+              if (data.extensions) {
+                ctx.extensions = data.extensions;
+              }
+              /* 保存 */
+              if (typeof ctx.saveCharacterDebounced === 'function') {
+                ctx.saveCharacterDebounced();
+              } else if (typeof st.saveCharacterDebounced === 'function') {
+                st.saveCharacterDebounced();
+              }
+              /* 写入世界书 */
+              if (data.character_book && data.character_book.entries && data.character_book.entries.length) {
+                var bookName = data.character_book.name || Utils.genBookName(data.name);
+                if (typeof st.saveWorldInfo === 'function') {
+                  st.saveWorldInfo(bookName, data.character_book);
+                }
+              }
+              return { success: true, method: 'getContext', message: '角色卡已直接写入酒馆' };
+            }
+          }
+
+          /* 方式2：通过 fetch API 创建新角色 */
+          var apiUrl = (window.parent.location.pathname || '/') + 'api/characters/create';
+          var formData = new FormData();
+          formData.append('name', data.name || '未命名角色');
+          formData.append('description', data.description || '');
+          formData.append('personality', data.personality || '');
+          formData.append('scenario', data.scenario || '');
+          formData.append('first_mes', data.first_mes || '');
+          formData.append('mes_example', data.mes_example || '');
+          formData.append('creator_notes', data.creator_notes || '');
+          formData.append('system_prompt', data.system_prompt || '');
+          formData.append('post_history_instructions', data.post_history_instructions || '');
+          formData.append('tags', JSON.stringify(data.tags || []));
+          formData.append('creator', data.creator || '');
+          formData.append('character_version', data.character_version || '');
+          formData.append('alternate_greetings', JSON.stringify(data.alternate_greetings || []));
+          formData.append('character_book', JSON.stringify(data.character_book || {}));
+          formData.append('spec', 'chara_card_v3');
+          formData.append('spec_version', '3.0');
+
+          return fetch(apiUrl, {
+            method: 'POST',
+            body: formData
+          }).then(function(res) { return res.json(); }).then(function(result) {
+            if (result && result.character) {
+              return { success: true, method: 'fetch', message: '角色卡已创建并写入酒馆', character: result.character };
+            }
+            throw new Error(result && result.error ? result.error : '写入失败');
+          });
+        } catch(e) {
+          return { success: false, error: e.message };
+        }
+      },
+
+      /* MVU 变量管理 */
+      getMVUVariables: function(state) {
+        try {
+          var entries = (state.cardData.data.character_book && state.cardData.data.character_book.entries) || [];
+          var initEntry = entries.find(function(e) { return Utils.isMVUCoreEntry(e.comment); });
+          if (!initEntry) return null;
+          /* 尝试解析 EJS 变量定义 */
+          var content = initEntry.content || '';
+          var varMatch = content.match(/var\s+(\w+)\s*=\s*['"]?([^'"\n;]+)['"]?/g);
+          if (!varMatch) return null;
+          var vars = {};
+          varMatch.forEach(function(m) {
+            var parts = m.match(/var\s+(\w+)\s*=\s*['"]?([^'"\n;]+)['"]?/);
+            if (parts) vars[parts[1]] = parts[2];
+          });
+          return vars;
+        } catch(e) { return null; }
+      },
+
+      setMVUVariable: function(state, varName, varValue) {
+        try {
+          var entries = (state.cardData.data.character_book && state.cardData.data.character_book.entries) || [];
+          var initEntry = entries.find(function(e) { return Utils.isMVUCoreEntry(e.comment); });
+          if (!initEntry) return false;
+          /* 简单替换或添加变量 */
+          var content = initEntry.content || '';
+          var regex = new RegExp('var\\s+' + varName + '\\s*=\\s*[\'"]?[^\'"\\n;]+[\'"]?');
+          if (regex.test(content)) {
+            initEntry.content = content.replace(regex, 'var ' + varName + ' = ' + JSON.stringify(varValue));
+          } else {
+            initEntry.content = content + '\nvar ' + varName + ' = ' + JSON.stringify(varValue);
+          }
+          return true;
+        } catch(e) { return false; }
+      },
+
+      /* 生成 MVU 状态栏完整代码 */
+      buildMVUStatusBar: function(state) {
+        try {
+          var sb = state.statusBar;
+          var parts = [];
+          sb.stepOrder.forEach(function(n) {
+            var mod = sb.modules['step' + n];
+            if (mod) parts.push(String(mod));
+          });
+          if (parts.length < 5) return null;
+          return parts.join('\n\n');
+        } catch(e) { return null; }
       },
 
       /* 下载 JSON Blob */
