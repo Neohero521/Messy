@@ -2528,25 +2528,74 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ===== 智能查找匹配条目：精确匹配 -> 同类型单条匹配 -> 内容相似度匹配 =====
   function findMatchingEntry(newEntry, existingArr) {
-    if (!newEntry || !existingArr || !existingArr.length) return -1;
+    if (!newEntry || !existingArr || !existingArr.length) return { index: -1, mode: 'none' };
     var neComment = newEntry.comment || '';
     var neContent = (newEntry.content || '').trim();
     var nePrefix = extractEntryPrefix(neComment);
+
+    // 辅助：提取 comment 去掉前缀后的后缀（去掉首尾空白和常见分隔符）
+    var getSuffix = function(comment, prefix) {
+      if (!comment || !prefix) return String(comment || '');
+      // 前缀格式: <xxx> 或 [xxx]，计算前缀的原始长度(含括号)来切片
+      var prefixLen = 0;
+      if (prefix.charAt(0) === '[') {
+        prefixLen = prefix.length + 2; // [xxx] → len=xxx.length+2
+      } else {
+        prefixLen = prefix.length + 2; // <xxx> → len=xxx.length+2
+      }
+      var suffix = String(comment).slice(prefixLen);
+      return suffix.replace(/^[\s\-·:：_]+|[\s\-·:：_]+$/g, '');
+    };
+    // 辅助：计算两个短字符串的 Jaccard 字符相似度
+    var jaccardSim = function(a, b) {
+      if (!a || !b) return 0;
+      var setA = {}, setB = {};
+      for (var i = 0; i < a.length; i++) setA[a[i]] = true;
+      for (var j = 0; j < b.length; j++) setB[b[j]] = true;
+      var inter = 0, uni = 0;
+      for (var k in setA) { if (setA.hasOwnProperty(k)) { if (setB[k]) inter++; uni++; } }
+      for (var k2 in setB) { if (setB.hasOwnProperty(k2) && !setA[k2]) uni++; }
+      return uni > 0 ? inter / uni : 0;
+    };
 
     // 第1优先级：精确 comment 匹配（最可靠）
     var exactIdx = existingArr.findIndex(function(e) { return (e.comment || '') === neComment; });
     if (exactIdx >= 0) return { index: exactIdx, mode: 'exact' };
 
-    // 第2优先级：同规范前缀下只有1条现有条目（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
+    // 第2优先级：同规范前缀下只有1条现有条目 + 后缀有相关性（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
+    // ⚠️修复：必须检查「后缀相关性」，否则 AI 批量新增同前缀多条目时(如<人物>主角/<人物>女配/<人物>反派)会相互覆盖！
     if (nePrefix) {
       var samePrefixEntries = existingArr.map(function(e, i) {
-        return { i: i, p: extractEntryPrefix(e.comment), c: (e.content || '').trim() };
+        return { i: i, p: extractEntryPrefix(e.comment), c: (e.content || '').trim(), ec: e.comment || '' };
       }).filter(function(x) { return x.p === nePrefix; });
       if (samePrefixEntries.length === 1) {
-        return { index: samePrefixEntries[0].i, mode: 'prefix-single' };
+        var onlyOne = samePrefixEntries[0];
+        var neSuffix = getSuffix(neComment, nePrefix);
+        var exSuffix = getSuffix(onlyOne.ec, nePrefix);
+        var suffixRelated = false;
+        if (neSuffix && exSuffix) {
+          // 判定「后缀有相关性」= 微调关系（而非完全不同的新条目主题）：
+          //   1. 其中一个为空（只有前缀无后缀），或
+          //   2. 其中一个后缀是另一个的子串（如"世界"⊆"世界基础规则"），或
+          //   3. 字符 Jaccard 相似度 ≥ 0.45
+          if (neSuffix.length === 0 || exSuffix.length === 0) {
+            suffixRelated = true;
+          } else if (neSuffix.indexOf(exSuffix) >= 0 || exSuffix.indexOf(neSuffix) >= 0) {
+            suffixRelated = true;
+          } else if (neSuffix.length >= 2 && exSuffix.length >= 2 && jaccardSim(neSuffix, exSuffix) >= 0.45) {
+            suffixRelated = true;
+          }
+        } else {
+          // 某一方没有后缀（如只有 <基础设定>），认为可能相关
+          suffixRelated = true;
+        }
+        if (suffixRelated) {
+          return { index: onlyOne.i, mode: 'prefix-single' };
+        }
+        // 后缀不相关 → 这是同前缀下的不同新条目（如主角/女配/反派），不匹配，进入新增分支
       }
-      // 第3优先级：同前缀下内容相似度最高（Jaccard字符集重合度>0.4）
-      if (samePrefixEntries.length > 1 && neContent.length > 20) {
+      // 第3优先级：同前缀下内容相似度最高（Jaccard字符集重合度>0.35）
+      if (samePrefixEntries.length > 0 && neContent.length > 20) {
         var neCharSet = {};
         for (var ci = 0; ci < neContent.length; ci++) neCharSet[neContent[ci]] = true;
         var best = null;
