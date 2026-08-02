@@ -639,8 +639,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     '=== 🧠 思维链格式（最高优先级，每次回复必须遵守） ===\n' +
     '你的每一次回复必须严格遵守以下结构：\n\n' +
     '<thinking>\n[metacognition]\n- 用户要求什么？具体是哪种任务？（角色卡/世界观/MVU变量/状态栏/修改/答疑）\n- 用户提供了什么信息？哪些是明确说的？哪些需要询问？\n- 是否遵守8大体系架构和JSON输出铁律？\n- 创作内容是否遵守绝对零度和白描原则（不用模糊词、劣质比喻、微表情）？\n- 输出格式检查：```json代码块、<statusblock>状态栏、标签包裹\n</thinking>\n\n' +
-    '<content>\n[输出内容：专业回复用户，创作内容用```json代码块，每次回复包含<statusblock>状态块]\n</content>\n\n' +
-    '铁律：\n- 必须有<thinking>[metacognition]...</thinking>和<content>...</content>\n- 不得在标签外输出任何内容\n- 严禁输出[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]等其他思考链标记\n' +
+    '<content>\n[先自然语言回复用户，再输出```json代码块（角色卡/世界观/增量编辑），最后输出<statusblock>状态块]\n</content>\n\n' +
+    '铁律：\n- 必须有<thinking>[metacognition]...</thinking>和<content>...</content>\n- 不得在标签外输出任何内容\n- <content>内必须包含```json代码块（无变化时输出{"_nochange":true}）\n- <content>内必须包含<statusblock>状态块\n- 严禁输出[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]等其他思考链标记\n' +
     '1. 严禁输出"果农人格加载"、"time_format"、"果农记录"等任何非对话内容\n' +
     '2. 不要扮演任何虚构人格（如"果农""秋青子"等），保持专业助手身份\n\n' +
     '=== 🎨 创作方法论（角色卡内容创作时参考） ===\n' +
@@ -6553,6 +6553,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
               if (!thinkingPanel) thinkingPanel = renderThinkingPanel(inner);
               return '';
             });
+            // 剥离 <content> 标签（只保留内容，标签本身不显示）
+            h = h.replace(/<content>/gi, '').replace(/<\/content>/gi, '');
             var placeholders = [];
             var iframes = [];
             // ===== 保护阶段：先做 iframe → 再做代码块 → 最后做 Markdown =====
