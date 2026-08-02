@@ -1026,7 +1026,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     ]
   };
 
-  // ===== 【明月青秋写卡预设】生成参数默认值（对齐写卡.json 数值） =====
+  // ===== 【写卡预设】生成参数默认值（对齐写卡.json 数值） =====
   const TAVERN_GENERATION_PARAMS = {
     temperature: 1,
     top_p: 0.9,
@@ -1039,9 +1039,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     max_tokens: 64000
   };
 
-  // ===== 系统提示词（ST权重分层8体系 + MVU变量系统 + 明月青秋写卡预设注入） =====
+  // ===== 系统提示词（ST权重分层8体系 + MVU变量系统 + 写卡预设注入） =====
   const SYS_PROMPT = '你是一位专业的世界模式角色卡创作大师，基于SillyTavern原生机制和ST权重分层8体系（+MVU变量系统可选），通过自然对话引导用户创建完整的世界模式角色卡。\n\n' +
-    // ===== 【明月青秋写卡预设注入 #2】📖 创作思路 creative_principles =====
+    // ===== 【写卡预设注入 #2】📖 创作思路 creative_principles =====
     '<creative_principles>\n' +
     '角色卡制作核心原则：\n' +
     '1. 性格调色盘：用底色、主色调、点缀和衍生构建角色的复杂性格，而非贴标签\n' +
@@ -1058,7 +1058,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '12. 去标签化：越是AI直出的角色，性格调色盘的修正效果越明显\n' +
     '人设制作流程：世界观 → 角色基础 → 性格调色盘 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n' +
     '</creative_principles>\n\n' +
-    // ===== 【明月青秋写卡预设注入 #3】📐 创作原则-绝对零度 writing_principles =====
+    // ===== 【写卡预设注入 #3】📐 创作原则-绝对零度 writing_principles =====
     '<writing_principles>\n' +
     '什么是八股：陈词滥调、机械化的描写方式——模糊词（似乎/几乎/仿佛/如同/宛如）、劣质比喻（像小兽/像小兔子/投石入湖/心湖泛起涟漪）、微表情（嘴角上扬/眼里闪过光芒/指尖泛白）、语气描写（带着xx的口吻/用xx的语气）、极端情绪词（陷入极大的恐惧/极度羞耻）、否定转折句（不是...而是...）、过度心理描写（大段内心活动）。\n' +
     '创作必须遵守：\n' +
@@ -1069,13 +1069,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '· 用行为替代描述：展现而非告知；写角色做了什么，而非角色是什么样的人；让读者通过行为自己判断\n' +
     '· 用语料展现性格：让角色通过对话体现特点；不描述语气，让对话本身说话；纯粹的话语，不附加动作和神态\n' +
     '</writing_principles>\n\n' +
-    // ===== 【明月青秋写卡预设注入 #4】📝 输出格式要求 output_format =====
+    // ===== 【写卡预设注入 #4】📝 输出格式要求 output_format =====
     '<output_format>\n' +
     '当输出实际创作内容（制作角色卡、写故事内容、创建世界观设定、编写场景描写、输出任何创作内容）时，每个世界书条目的content字段必须使用YAML中文格式并用缩进+冒号+短横线表达层级：\n' +
     '- 使用缩进表示层级关系，每级缩进2个空格\n- 使用冒号分隔键和值\n- 列表项使用短横线开头\n- 所有键名和内容都使用中文\n- 保持结构清晰，层级分明\n' +
     '当进行解释说明或回答问题时，不需要使用代码块/格式，直接用自然语言输出即可。\n' +
     '</output_format>\n\n' +
-    // ===== 【明月青秋写卡预设注入 #5】📋 标签规范 template_tag_spec =====
+    // ===== 【写卡预设注入 #5】📋 标签规范 template_tag_spec =====
     '<template_tag_spec>\n' +
     '世界书条目标签包裹规范：每个世界书条目的内容必须用 <名称_idN> 标签包裹。\n' +
     'ID分配顺序：1.世界观条目（id1~idX）→ 2.角色速览（id0，不占正式ID序列）→ 3.各角色条目（按创建顺序，同角色所有条目共用同一个ID）→ 4.NPC条目（在角色之后继续递增）\n' +
@@ -1085,7 +1085,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     'NPC ID：每个NPC独立一个 <NPC名_idN> 标签，ID在角色之后继续递增。\n' +
     '写入格式：条目前加 <角色名_idN>，后加 </角色名_idN> 闭合。重要提醒：标签ID在整个角色卡生命周期内保持不变；新增同角色条目→复用已有ID；新增新角色/新NPC→当前最大ID后+1；删除条目不重新编号。\n' +
     '</template_tag_spec>\n\n' +
-    // ===== 【明月青秋写卡预设注入 #6】📋 角色基础模板 template_basic =====
+    // ===== 【写卡预设注入 #6】📋 角色基础模板 template_basic =====
     '<template_basic>\n' +
     '角色基础信息核心结构：角色档案 → ①基本信息（姓名/年龄/性别/身份/与用户关系/其他）、②外貌特征【特征差异化原则：只写偏离数据库默认认知的部分——不是写"美"是写"特征"；遮住名字只靠外貌能认出角色】（偏离默认的身体特征/标志性装扮/体型显著特点/能被记住的细节；不写数据库默认值/万能美人描写/过度细节）、③背景设定（只写对角色产生实际影响的关键事件：家庭/经济/成长经历/重要事件/社交）、④关系设定（与用户关系的详细说明/相识过程/互动方式/特殊设定）。\n' +
     '注意：性格相关内容不要在这里写，请使用"性格调色盘"条目。\n' +
@@ -3483,7 +3483,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== AI调用 =====
   async function callAI(prompt) {
     var errors = [];
-    // ===== 【明月青秋写卡预设】AI生成参数（与写卡.json数值一致） =====
+    // ===== 【写卡预设】AI生成参数（与写卡.json数值一致） =====
     var p = TAVERN_GENERATION_PARAMS || {};
     var genParams = {
       temperature: typeof p.temperature === 'number' ? p.temperature : 1,
@@ -5124,7 +5124,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 从角色名列表自动生成 initvar YAML / 变量更新规则 / 变量输出格式 / 变量输出格式强调
   // 角色 { name, ... } 数组 → 各条目的 content 字符串
 
-  // 【明月青秋写卡预设对齐】生成 [initvar] 变量初始化 YAML（br 函数）
+  // 【写卡预设对齐】生成 [initvar] 变量初始化 YAML（br 函数）
   // 格式：世界/时间/地点 + 系统变量（_前缀只读/ $前缀不可见） + 每个角色的好感度/状态/关系/性格/当前想法等
   function generateInitVarYaml(charNames) {
     var lines = [
@@ -5884,13 +5884,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
-  // ===== 【明月青秋写卡预设】生成阈值行为模式 injectPrompts 脚本 =====
+  // ===== 【写卡预设】生成阈值行为模式 injectPrompts 脚本 =====
   // 基于 StageDog 原生 injectPrompts：好感度阈值命中时，动态注入 system prompt，直接改变 AI 行为
   // 可堆叠、可独立启用禁用，比 EJS 更精准、更强力
   function generateQingziInjectPromptsScript(charNames) {
     var names = (charNames && charNames.length) ? charNames.slice() : ['角色1'];
     var lines = [
-      "// 【明月青秋写卡预设】阈值行为模式注入（StageDog 原生 injectPrompts）",
+      "// 【写卡预设】阈值行为模式注入（StageDog 原生 injectPrompts）",
       "// 好感度阶段自动切换角色行为：陌生→冷漠 / 熟识→礼貌 / 好感→温柔 / 深爱→眷恋",
       "$(async () => {",
       "  if (typeof injectPrompts !== 'function') return;",
@@ -6024,10 +6024,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         minDepth: 4,
         maxDepth: null
       }),
-      // 3. [美化]变量完成-三明月喵
+      // 3. [美化]变量完成
       _convertRegexScript({
         id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5',
-        scriptName: '[美化]变量完成-三明月喵',
+        scriptName: '[美化]变量完成',
         findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
         replaceString: NEKO_COMPLETE_HTML,
         trimStrings: [],
@@ -6038,10 +6038,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         minDepth: null,
         maxDepth: null
       }),
-      // 4. [美化]变量更新中-三明日喵
+      // 4. [美化]变量更新中
       _convertRegexScript({
         id: 'bf1b7441-5cf1-426d-bd6c-911332be9923',
-        scriptName: '[美化]变量更新中-三明月喵',
+        scriptName: '[美化]变量更新中',
         findRegex: '/<UpdateVariable(?:variable)?>(?!.*<\\/UpdateVariable(?:variable)?>)\\s*(.*)\\s*$/gsi',
         replaceString: NEKO_THINKING_HTML,
         trimStrings: [],
@@ -6248,7 +6248,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
   }
 
-  // ===== 【明月青秋写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
+  // ===== 【写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
   // 分配规则：角色速览固定 <角色速览_id0> → 世界观条目 id1+ → 角色条目按顺序id → NPC继续递增
   // 同一角色的所有条目（基础信息/调色盘/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
   // 注意：MVU条目（[InitVar]/[mvu_update]/变量列表/状态栏占位符）不包裹标签
@@ -6348,7 +6348,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var updateWorldbookWith = _tavernFn('updateWorldbookWith');
     var createWorldbookEntries = _tavernFn('createWorldbookEntries');
 
-    // ===== 【明月青秋写卡预设】步骤0：给所有世界书条目自动包裹 <名称_idN> 标签 =====
+    // ===== 【写卡预设】步骤0：给所有世界书条目自动包裹 <名称_idN> 标签 =====
     // MVU条目自动跳过，已经有标签的不重复包裹
     var wrappedEntries = assignAndWrapTagIds(entries || []);
 
@@ -6759,7 +6759,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               data: {}
             });
           }
-          // ===== 【明月青秋写卡预设】注入阈值行为模式 injectPrompts 脚本 =====
+          // ===== 【写卡预设】注入阈值行为模式 injectPrompts 脚本 =====
           var hasQingziInject = mvuScripts.some(function(s) { return s.id === 'qz-inject-prompts-qingzi' || (s.content || '').indexOf('陌生模式') >= 0; });
           if (!hasQingziInject) {
             mvuScripts.push({
@@ -6768,7 +6768,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               name: '阈值行为注入',
               id: 'qz-inject-prompts-qingzi',
               content: generateQingziInjectPromptsScript(charNames),
-              info: '【明月青秋写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
+              info: '【写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
               button: { enabled: true, buttons: [] },
               data: {}
             });
@@ -12360,7 +12360,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 4c-3. 无自定义状态栏时，用角色名列表自动生成默认状态栏
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
             await _tavernWriteRegexScripts(cardData.name, statusBarHtml);
-            // ===== 【明月青秋写卡预设】4d. 写入阈值行为/MAG老师 injectPrompts 脚本 =====
+            // ===== 【写卡预设】4d. 写入阈值行为/MAG老师 injectPrompts 脚本 =====
             // 阈值行为注入：好感度四档自动切换行为模式（陌生/熟识/好感/深爱）
             try {
               await _tavernWriteScript(cardData.name, {
@@ -12369,7 +12369,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 name: '阈值行为注入',
                 id: 'qz-inject-prompts-qingzi',
                 content: generateQingziInjectPromptsScript(charNames),
-                info: '【明月青秋写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
+                info: '【写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
                 button: { enabled: true, buttons: [] },
                 data: {}
               });
