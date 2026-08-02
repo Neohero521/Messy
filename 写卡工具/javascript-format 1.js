@@ -217,7 +217,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-send:hover:not(:disabled){background:var(--accent-deep);box-shadow:0 6px 18px rgba(122,100,64,.28)}
 .btn-send:disabled{background:var(--accent-soft);cursor:not-allowed;box-shadow:none}
 .btn-send svg{display:block}
-.send-spinner{animation:spin 0.8s linear infinite}
+.send-spinner{animation:spin 0.8s linear infinite;display:none}
+.btn-send.is-waiting .send-icon{display:none}
+.btn-send.is-waiting .send-spinner{display:block}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .chat-send-row{display:flex;gap:6px;margin-top:6px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;border:none;border-radius:var(--radius-sm);font-size:.8em;cursor:pointer;font-weight:600;transition:all .2s;font-family:inherit}
@@ -2832,6 +2834,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       });
       newEntries.forEach(function(ne) {
         if (!ne || typeof ne !== 'object') return;
+        // ===== comment 字段回退：AI 可能用 name/title 替代 comment，或完全漏写 =====
+        // 优先级：comment > name > title > 从 content 首行提取前缀 > 默认"条目N"
+        if (!ne.comment || !String(ne.comment).trim()) {
+          if (ne.name && String(ne.name).trim()) {
+            ne.comment = String(ne.name).trim();
+          } else if (ne.title && String(ne.title).trim()) {
+            ne.comment = String(ne.title).trim();
+          } else if (ne.content && typeof ne.content === 'string') {
+            // 尝试从 content 首行提取 <前缀>名称 作为 comment
+            var firstLine = ne.content.split('\n')[0].trim();
+            var prefixMatch = firstLine.match(/^(<[^>]+>[^<\n]{0,40})/);
+            if (prefixMatch) {
+              ne.comment = prefixMatch[1].trim();
+            } else if (firstLine.length <= 40) {
+              ne.comment = firstLine;
+            } else {
+              ne.comment = '条目' + (existing.length + 1);
+            }
+          } else {
+            ne.comment = '条目' + (existing.length + 1);
+          }
+        }
         var hasComment = !!(ne.comment && String(ne.comment).trim());
         var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
         // 至少要有 comment，或（有 content 且 >20字）—— 两者全无才跳过
@@ -5319,6 +5343,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (data.character_version !== undefined) charData.character_version = data.character_version;
       if (data.alternate_greetings !== undefined) charData.alternate_greetings = data.alternate_greetings;
       if (data.depth_prompt !== undefined) charData.depth_prompt = data.depth_prompt;
+      // 关联世界书：写入 character.data.world（v3 规范位置），让酒馆自动加载该世界书
+      if (data.world !== undefined && data.world) {
+        if (!charData.data) charData.data = {};
+        charData.data.world = data.world;
+        // 兼容旧版 v2 卡：顶层也写一份
+        charData.world = data.world;
+      }
       return charData;
     });
   }
@@ -6883,6 +6914,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 当前Tab：优先 activeTab，其次 currentTab，默认回到角色卡Tab
             activeTab = state.activeTab || state.currentTab || 'card';
             currentTab = activeTab;  // 兼容别名
+            // 同步到 window：让 mergePartial / _renderPreviewImpl 也能取到正确 Tab
+            // （修复：之前只恢复模块级变量，window.__tab_activeTab 仍为初始值 'card'，
+            //  导致继续上次后 UI 显示 MVU Tab 但实际生成/预览仍按角色卡 Tab 逻辑）
+            if (typeof window !== 'undefined') {
+              window.__tab_activeTab = activeTab;
+            }
             // 当前Tab的 messages 兼容：虽然我们不再使用全局 messages 变量，但为了向后兼容
             messages = (activeTab === 'card') ? chatSessions.card.messages.slice() : chatSessions.mvu.messages.slice();
 
@@ -6986,8 +7023,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var titleH1 = doc.querySelector('.topbar h1');
           if (titleH1) {
             titleH1.innerHTML = activeTab === 'card'
-              ? '⚡ 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:#8c8472">角色卡生成</span>'
-              : '🎛️ MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:#8c8472">变量与状态栏</span>';
+              ? svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span>'
+              : svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">变量与状态栏</span>';
           }
           updateProgress();
           updateQuickActions();
@@ -9476,11 +9513,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (input) { input.disabled = !enabled; if (enabled) { try { input.focus(); } catch(e){} } }
         // 发送按钮图标切换：生成中显示等待（转圈）图标，空闲显示发送图标
         if (sendBtn) {
-          var sendIcon = sendBtn.querySelector('.send-icon');
-          var sendSpin = sendBtn.querySelector('.send-spinner');
           var waiting = !enabled;
-          if (sendIcon) sendIcon.style.display = waiting ? 'none' : '';
-          if (sendSpin) sendSpin.style.display = waiting ? '' : 'none';
+          if (waiting) sendBtn.classList.add('is-waiting');
+          else sendBtn.classList.remove('is-waiting');
         }
         // 快捷按钮、模块聚焦按钮、仪表盘条目统一禁用/启用，避免生成中误触
         var sels = ['.quick-btn', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
@@ -10762,7 +10797,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 复用 buildExportCard 完成MVU条目检测/填充、StatusPlaceHolderImpl注入、CRLF规范化等逻辑
           var exportCard = buildExportCard(cardData);
           var data = exportCard.data || {};
-          var worldbookName = data.world || exportCard.name || cardData.name;
+          // 世界书名称：优先 extensions.world（buildExportCard 写入位置），其次角色名
+          var worldbookName = (data.extensions && data.extensions.world) || data.world || exportCard.name || cardData.name;
           var entries = (data.character_book && data.character_book.entries) || [];
 
           // MVU 系统检测（与 buildExportCard 内部判定保持一致）
@@ -10791,7 +10827,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             creator: data.creator,
             character_version: data.character_version,
             alternate_greetings: data.alternate_greetings,
-            depth_prompt: data.depth_prompt
+            depth_prompt: data.depth_prompt,
+            // 关联世界书：写入 character.data.world，让酒馆自动加载该世界书
+            world: (entries.length > 0) ? worldbookName : undefined
           });
 
           // ===== 步骤3：写入开场白 =====
