@@ -2558,12 +2558,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 辅助：提取 comment 去掉前缀后的后缀（去掉首尾空白和常见分隔符）
     var getSuffix = function(comment, prefix) {
       if (!comment || !prefix) return String(comment || '');
-      // 前缀格式: <xxx> 或 [xxx]，计算前缀的原始长度(含括号)来切片
+      // 🐛修复：extractEntryPrefix 对 <xxx> 返回 'xxx'(无括号)，对 [xxx] 返回 '[xxx]'(带括号)
+      // 所以 prefixLen 必须区分：<> 前缀加2还原括号，[] 前缀本身就是带括号的不加
       var prefixLen = 0;
       if (prefix.charAt(0) === '[') {
-        prefixLen = prefix.length + 2; // [xxx] → len=xxx.length+2
+        prefixLen = prefix.length; // [xxx] → extractEntryPrefix 返回 '[xxx]'，本身已含括号
       } else {
-        prefixLen = prefix.length + 2; // <xxx> → len=xxx.length+2
+        prefixLen = prefix.length + 2; // <xxx> → extractEntryPrefix 返回 'xxx'，需+2还原 <xxx>
       }
       var suffix = String(comment).slice(prefixLen);
       return suffix.replace(/^[\s\-·:：_]+|[\s\-·:：_]+$/g, '');
@@ -2897,26 +2898,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 美化脚本去重：多于1个时只保留最后一个（最新的）
         var totalRemoved = 0;
+        var allRxRemoveIndices = []; // 🐛修复：合并所有要删的索引，统一降序删除，避免分类splice导致的索引错位
         if (beautifyIdxList.length > 1) {
-          var keepBeautify = beautifyIdxList[beautifyIdxList.length - 1];
           var removeBeautify = beautifyIdxList.slice(0, -1);
-          removeBeautify.sort(function(a, b) { return b - a; });
           removeBeautify.forEach(function(idx) {
             console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[美化]MVU状态栏脚本:', rxList[idx].scriptName || rxList[idx].name);
-            rxList.splice(idx, 1);
+            allRxRemoveIndices.push(idx);
           });
           totalRemoved += removeBeautify.length;
         }
         // 隐藏脚本去重：多于1个时只保留最后一个
         if (hideIdxList.length > 1) {
-          var keepHide = hideIdxList[hideIdxList.length - 1];
           var removeHide = hideIdxList.slice(0, -1);
-          removeHide.sort(function(a, b) { return b - a; });
           removeHide.forEach(function(idx) {
             console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[不发送]隐藏状态栏标记脚本:', rxList[idx].scriptName || rxList[idx].name);
-            rxList.splice(idx, 1);
+            allRxRemoveIndices.push(idx);
           });
           totalRemoved += removeHide.length;
+        }
+        // 🐛修复：统一降序排序后一次性 splice，避免第一类 splice 后第二类索引失效
+        if (allRxRemoveIndices.length > 0) {
+          allRxRemoveIndices.sort(function(a, b) { return b - a; });
+          var seenRxIdx = {};
+          allRxRemoveIndices.forEach(function(idx) {
+            if (!seenRxIdx[idx] && idx < rxList.length) {
+              seenRxIdx[idx] = true;
+              rxList.splice(idx, 1);
+            }
+          });
         }
         if (totalRemoved > 0) {
           changeLog._mvuRxScriptDedupRemoved = totalRemoved;
@@ -3140,6 +3149,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var entryPrefix = 'character_book.entries.';
       var fieldDeletes = [];
       var numericIndices = [];
+      var commentDeletionIndices = []; // 🐛修复：comment匹配删除也收集索引，最后与数字索引统一降序删除
       deletePaths.forEach(function(path) {
         if (String(path).indexOf(entryPrefix) === 0) {
           var entryKey = String(path).slice(entryPrefix.length);
@@ -3149,7 +3159,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
               numericIndices.push(idx);
             } else {
-              // 规范化比较：trim + 大小写不敏感（修复#4：空格/大小写差异导致精确匹配失败）
+              // 规范化比较：trim + 大小写不敏感 + 去装饰括号
               var nk = normKey(entryKey);
               var exactMatches = [];
               var fuzzyMatches = [];
@@ -3169,13 +3179,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               } else if (fuzzyMatches.length > 1) {
                 console.warn('[mergePartial] 删除关键词"' + entryKey + '"模糊匹配到' + fuzzyMatches.length + '条条目，为防止误删已跳过。请使用精确comment。');
               }
-              if (toDelete.length > 0) {
-                toDelete.sort(function(a, b) { return b - a; });
-                for (var di = 0; di < toDelete.length; di++) {
-                  cd.character_book.entries.splice(toDelete[di], 1);
-                }
-                modified = true;
-                changeLog.deleted += toDelete.length;
+              // 🐛修复：不立即 splice，改为收集索引，最后统一删除
+              for (var di = 0; di < toDelete.length; di++) {
+                commentDeletionIndices.push(toDelete[di]);
               }
             }
           }
@@ -3183,25 +3189,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var rawPath = String(path);
           var knownTopFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','mes_example','post_history_instructions','tags','alternate_greetings'];
           if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
-            // 裸字符串作为条目comment删除 → 使用规范化比较
             var nrp = normKey(rawPath);
-            var foundIdx = -1;
             for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
-              if (normKey(cd.character_book.entries[fi].comment) === nrp) { foundIdx = fi; break; }
-            }
-            if (foundIdx >= 0) {
-              cd.character_book.entries.splice(foundIdx, 1);
-              modified = true; changeLog.deleted++;
+              if (normKey(cd.character_book.entries[fi].comment) === nrp) {
+                commentDeletionIndices.push(fi); // 🐛修复：收集而非立即删
+                break;
+              }
             }
           } else {
             fieldDeletes.push(path);
           }
         }
       });
-      if (numericIndices.length > 0) {
-        numericIndices.sort(function(a, b) { return b - a; });
+      // 🐛修复：合并数字索引 + comment匹配索引，去重后统一降序删除，避免索引移位
+      var allEntryDeletions = numericIndices.concat(commentDeletionIndices);
+      if (allEntryDeletions.length > 0) {
+        // 降序排序
+        allEntryDeletions.sort(function(a, b) { return b - a; });
+        // 去重（降序后相邻重复）
         var uniqueIdx = [];
-        numericIndices.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
+        allEntryDeletions.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
         uniqueIdx.forEach(function(uIdx) {
           if (uIdx < cd.character_book.entries.length) {
             cd.character_book.entries.splice(uIdx, 1);
@@ -3385,9 +3392,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (JSON.stringify(existingRx) !== beforeSnapshot) modified = true;
     };
 
+    var _topRegexScriptsProcessed = false; // 🐛修复：标记顶层 regex_scripts 是否已处理，防止 extensions 内的副本二次合并
     if (partial.regex_scripts !== undefined) {
       mergeRegexScripts(partial.regex_scripts);
       delete partial.regex_scripts;
+      _topRegexScriptsProcessed = true;
     }
 
     // 名称变化时自动更新世界书名称
@@ -3414,8 +3423,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             if (JSON.stringify(cd.extensions.depth_prompt) !== beforeDp) { modified = true; changeLog.fieldUpdates++; }
           } else if (ek === 'regex_scripts') {
-            // 顶层已处理，此处仅当顶层未处理（没有顶层 regex_scripts 字段）时处理
-            if (partial['regex_scripts'] === undefined) mergeRegexScripts(partial.extensions.regex_scripts);
+            // 🐛修复：用标记判断顶层是否已处理，不能用 === undefined（因 delete 后恒为 undefined）
+            if (!_topRegexScriptsProcessed) mergeRegexScripts(partial.extensions.regex_scripts);
           } else if (ek === 'tavern_helper') {
             // 修复版：支持脚本删除 / 按 id/name 替换，不再只追加
             // ⚠️ MVU固定脚本白名单拦截：bundle.js（MVU本体）、WTC（世界书调用脚本）由写卡器导出时自动注入，
@@ -6031,16 +6040,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return {
       id: s.id,
       script_name: s.scriptName,
-      enabled: true,
-      scope: 'character',
+      enabled: (s.enabled !== undefined ? s.enabled : (s.disabled !== undefined ? !s.disabled : true)),
+      scope: s.scope || 'character',
       find_regex: s.findRegex,
       replace_string: s.replaceString,
-      trim_strings: Array.isArray(s.trimStrings) ? s.trimStrings.join('') : (s.trimStrings || ''),
+      trim_strings: Array.isArray(s.trimStrings) ? s.trimStrings : (Array.isArray(s.trim_strings) ? s.trim_strings : []),
       source: {
         user_input: placement.indexOf(1) >= 0,
         ai_output: placement.indexOf(2) >= 0,
-        slash_command: false,
-        world_info: false
+        slash_command: placement.indexOf(3) >= 0,
+        world_info: placement.indexOf(4) >= 0
       },
       destination: {
         display: s.markdownOnly === true,
@@ -7505,7 +7514,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         if (node.type === 'regex') {
           var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-          return (r[node.index] && r[node.index].scriptContent) || '';
+          return (r[node.index] && r[node.index].replaceString) || '';
         }
         return '';
       }
@@ -7520,7 +7529,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (e[node.index]) e[node.index].content = val;
         } else if (node.type === 'regex') {
           var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-          if (r[node.index]) r[node.index].scriptContent = val;
+          if (r[node.index]) r[node.index].replaceString = val;
         }
       }
       function _wsGetMeta(node) {
