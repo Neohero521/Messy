@@ -644,6 +644,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .cp-section-toolcall .cp-section-header{background:var(--amber-soft)}
 .cp-section-toolcall .cp-section-label,.cp-section-toolcall .cp-section-icon{color:var(--amber-text)}
 .cp-section-code .cp-section-body{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto}
+.cp-section-opblock .cp-section-header{background:var(--accent-soft)}
+.cp-section-opblock .cp-section-label,.cp-section-opblock .cp-section-icon{color:var(--accent-text)}
+.cp-opblock-pre{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--accent-border);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto;white-space:pre-wrap;word-break:break-word;color:var(--ink-soft)}
 
 /* ===== Work Toast 顶部工作提示 ===== */
 .work-toast-layer{position:fixed;top:56px;left:50%;transform:translateX(-50%);width:min(340px,calc(100% - 32px));display:flex;flex-direction:column;gap:8px;z-index:200;pointer-events:none}
@@ -1107,8 +1110,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · rename 旧名 → 新名 — 重命名条目（也可以用 -> 或 => 分隔）\n' +
     '3. 条目名就是世界书条目的comment，用<前缀>分类，如<人物>主角、<基础>世界\n' +
     '4. 每个操作块用:::开头和:::结尾，内容在中间，不需要代码块包裹\n' +
-    '5. JSON前1-2句说明，操作块后不解释\n' +
-    '6. 无变化时回复"本次无修改"\n\n' +
+    '5. 严禁同时输出JSON代码块和:::操作块！只能使用:::操作块协议，不要输出```json代码块\n' +
+    '6. 操作块前可以有1-2句自然语言说明，操作块后不再解释\n' +
+    '7. 无变化时回复"本次无修改"\n\n' +
     '**示例**：\n' +
     '::: upsert <人物>主角\\n姓名：星野\\n年龄：18岁\\n性格：热血冲动\\n:::\\n\\n' +
     '::: upsert <人物>女配\\n姓名：月华\\n年龄：19岁\\n性格：冷静沉着\\n:::\\n\\n' +
@@ -9072,7 +9076,56 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (last && last.type === 'content' && s.type === 'content') { last.content += '\n' + s.content; }
           else { merged.push(s); }
         });
-        return merged;
+        // 🆕 第三遍：从 content section 中拆出 :::操作块（让操作块也能折叠）
+        var finalSections = [];
+        merged.forEach(function(sec) {
+          if (sec.type !== 'content') { finalSections.push(sec); return; }
+          var opRe = /:::\s*(upsert|update|delete|set|rename)\s+[^\n\r]+/gi;
+          if (!opRe.test(sec.content)) { finalSections.push(sec); return; }
+          // 重置 lastIndex（test 会移动它）
+          opRe.lastIndex = 0;
+          var lastOpEnd = 0, opMatch;
+          while ((opMatch = opRe.exec(sec.content)) !== null) {
+            if (opMatch.index > lastOpEnd) {
+              var before = sec.content.slice(lastOpEnd, opMatch.index).trim();
+              if (before) finalSections.push({ type: 'content', content: before });
+            }
+            // 找到对应的结束 ::: （从当前位置开始找下一个单独的 ::: 行）
+            var afterStart = opMatch.index + opMatch[0].length;
+            var closeRe = /\n\s*:::/g;
+            closeRe.lastIndex = afterStart;
+            var closeMatch = closeRe.exec(sec.content);
+            var opBody, opEnd;
+            if (closeMatch) {
+              opBody = sec.content.slice(opMatch.index, closeMatch.index + closeMatch[0].length);
+              opEnd = closeMatch.index + closeMatch[0].length;
+            } else {
+              opBody = sec.content.slice(opMatch.index);
+              opEnd = sec.content.length;
+            }
+            finalSections.push({ type: 'opblock', content: opBody });
+            lastOpEnd = opEnd;
+          }
+          if (lastOpEnd < sec.content.length) {
+            var afterOps = sec.content.slice(lastOpEnd).trim();
+            if (afterOps) finalSections.push({ type: 'content', content: afterOps });
+          }
+        });
+        // 🆕 第四遍：如果存在:::操作块，剥除冗余的JSON代码块
+        // AI有时同时输出:::操作块和JSON代码块（两者内容重复），此时JSON是冗余的，应从显示中移除
+        var hasOpBlock = finalSections.some(function(s) { return s.type === 'opblock'; });
+        if (hasOpBlock) {
+          finalSections = finalSections.filter(function(s) {
+            if (s.type !== 'code') return true;
+            // JSON代码块（含 { "name" / "entries" / "character_book" 等角色卡字段）视为冗余
+            var c = (s.content || '').trim();
+            if (c.charAt(0) === '{' && (c.indexOf('"name"') >= 0 || c.indexOf('"entries"') >= 0 || c.indexOf('"character_book"') >= 0 || c.indexOf('"post_history_instructions"') >= 0 || c.indexOf('"description"') >= 0)) {
+              return false; // 剥除
+            }
+            return true;
+          });
+        }
+        return finalSections;
       }
       function renderMessageSections(sections, msgId) {
         // 🐛修复：单段长文本（>200字）也用折叠包裹，让用户可以缩放
@@ -9091,6 +9144,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var icon, label, cls;
           if (sec.type === 'thinking') { icon = '思'; label = '思维链'; cls = 'cp-section-thinking'; }
           else if (sec.type === 'code') { icon = '{}'; label = sec.lang || '代码'; cls = 'cp-section-code'; }
+          else if (sec.type === 'opblock') {
+            icon = '📝'; cls = 'cp-section-opblock';
+            // 从:::行提取操作类型作为label
+            var opMatch = (sec.content || '').match(/^:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]*)/i);
+            if (opMatch) {
+              label = opMatch[1] + ' ' + (opMatch[2] || '').trim();
+            } else {
+              label = '操作块';
+            }
+          }
           else { icon = '答'; label = '正文'; cls = 'cp-section-content'; }
           var preview = (sec.content || '').slice(0, 80).replace(/\n/g, ' ').replace(/</g, '&lt;');
           html += '<div class="cp-section ' + cls + '">';
@@ -9104,6 +9167,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (sec.type === 'code') {
               var esc = sec.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
               html += '<div class="cp-section-body">' + esc + '</div>';
+            } else if (sec.type === 'opblock') {
+              // 操作块：转义后等宽字体显示原始:::文本
+              var opEsc = sec.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+              html += '<div class="cp-section-body"><pre class="cp-opblock-pre">' + opEsc + '</pre></div>';
             } else if (sec.type === 'thinking') {
               html += '<div class="cp-section-body">' + sec.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br>') + '</div>';
             } else {
