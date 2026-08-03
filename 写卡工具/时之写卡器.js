@@ -2675,7 +2675,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '::: set description\\n这是一个修仙世界...\\n:::\\n\\n' +
     '::: upsert <基础公理>力量体系\\n修炼分为九层...\\n:::\\n\\n' +
     '::: upsert <场景机制>战斗规则\\n战斗采用回合制...\\n:::\\n\n' +
-    '注意：只填写已确定的内容，未确定的不要输出。每次更新只输出变化的字段。每次更新必须包含至少1-2条对应体系的世界书:::upsert操作块。';
+    '注意：只填写已确定的内容，未确定的不要输出。每次更新必须包含至少1-2条对应体系的世界书:::upsert操作块。\n' +
+    '⚠️【upsert已存在条目的铁律】当你要 upsert 一个已存在的条目（comment在上方「精确清单」中已列出）时：\n' +
+    '   1. 必须先读取上方「当前角色卡已有内容」中该条目的完整 content\n' +
+    '   2. 在:::upsert块中输出完整的 content（包含原有所有信息 + 新增/修改的部分），不要只输出变化的部分\n' +
+    '   3. :::upsert会整体覆盖旧content，如果只写变化部分，原有信息会全部丢失！\n' +
+    '   4. 示例：已有<重要角色>白娅含身份/性格/外貌/背景，要补充人际关系时，:::upsert块必须包含身份/性格/外貌/背景+人际关系\n' +
+    '   5. 新增条目（comment不在清单中）则直接输出完整内容即可';
 
   // ===== 提取条目的规范前缀（用于智能匹配） =====
   function extractEntryPrefix(comment) {
@@ -3849,7 +3855,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         var entryText = '世界书条目（' + filteredEntries.length + '条，不含MVU变量系统内容）：';
         filteredEntries.forEach(function(e, i) {
-          entryText += '\n  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] keys:' + (e.keys||[]).join(',') + '\n     content(' + (e.content||'').length + '字): ' + (e.content || '').substring(0, 200);
+          // ⚠️修复：发送完整 content（不再截断200字），让 AI 在修改条目时能看到完整旧内容，
+          //   避免AI基于200字摘要重新生成完全不同的内容覆盖旧条目
+          entryText += '\n  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] keys:' + (e.keys||[]).join(',') + '\n     content(' + (e.content||'').length + '字): ' + (e.content || '');
         });
         parts.push(entryText);
         // 精确 comment 清单（只列非MVU条目）
