@@ -388,6 +388,76 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .sb-wrap hr{border:none;border-top:1px solid var(--line-soft);margin:8px 0}
 .sb-wrap blockquote{margin:6px 0;padding:4px 12px;border-left:3px solid var(--accent-soft);color:var(--ink-soft);background:var(--surface)}
 
+/* ===== 美化包裹元素溢出保护：字体放大时不超出容器 ===== */
+/* 覆盖 MVU 美化模板 (status-notice / loading-notice) 的内联样式，防止溢出 */
+.status-notice, .loading-notice,
+.chat-msg .bubble .status-notice,
+.chat-msg .bubble .loading-notice{
+  max-width:100% !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  margin:8px 0 !important;
+  overflow-wrap:break-word !important;
+  word-break:break-word !important;
+}
+.status-notice > div, .loading-notice > div,
+.status-notice > div > div, .loading-notice > div > div{
+  max-width:100% !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+/* 美化模板的 summary/标题栏：不超宽、自适应 */
+.status-notice summary, .loading-notice summary,
+.status-notice summary > span:first-child,
+.loading-notice summary > span:first-child{
+  max-width:100% !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  height:auto !important;
+  min-height:34px;
+}
+/* 美化模板的内容面板：不超宽、自适应换行、可滚动 */
+.status-notice > div > div:last-child,
+.loading-notice > div > div:last-child,
+.status-notice details > div,
+.loading-notice details > div{
+  max-width:100% !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  max-height:360px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  word-break:break-word;
+  overflow-wrap:break-word;
+}
+/* 美化包裹内的 code/pre/table 元素：防止横向溢出，支持滚动 */
+.status-notice pre, .loading-notice pre,
+.status-notice code, .loading-notice code,
+.status-notice table, .loading-notice table,
+.sb-wrap pre, .sb-wrap code, .sb-wrap table{
+  max-width:100% !important;
+  overflow-x:auto !important;
+  box-sizing:border-box !important;
+  word-break:break-word !important;
+  overflow-wrap:break-word !important;
+}
+.status-notice pre, .loading-notice pre,
+.sb-wrap pre{
+  white-space:pre-wrap !important;
+}
+/* 通用保护：气泡内任意元素(含美化包裹)最大宽度不超过气泡宽度 */
+.chat-msg .bubble > *,
+.chat-msg .bubble > * > *,
+.chat-msg .bubble > * > * > *{
+  max-width:100%;
+  box-sizing:border-box;
+}
+.chat-msg .bubble{
+  overflow-wrap:break-word;
+  word-break:break-word;
+  overflow:hidden;
+}
+
 /* ===== 上下文操作条：替代旧 mod-focus + mod-dash + mvu-info-panel 三件套 ===== */
 .ctx-bar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);min-height:44px}
 .ctx-stage{font-size:.8em;color:var(--muted);white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:5px}
@@ -693,6 +763,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-dropdown-item:hover svg{opacity:1}
 .ws-dropdown-item .ws-item-badge{margin-left:auto;font-size:.72em;padding:1px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent-deep)}
 .ws-dropdown-item .ws-item-badge.done{background:var(--sage-soft);color:var(--sage-text)}
+/* 工作区下拉中的字体控件展开栏 */
+.ws-font-expand{padding:8px 14px 10px;background:var(--surface-soft);border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);margin:2px 0}
+.ws-font-expand .ws-font-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer;user-select:none;font-size:.78em;color:var(--ink-soft);font-weight:600}
+.ws-font-expand .ws-font-header:hover{color:var(--accent-deep)}
+.ws-font-expand .ws-font-arrow{display:inline-block;transition:transform .15s;font-size:.9em;margin-left:4px}
+.ws-font-expand.collapsed .ws-font-arrow{transform:rotate(-90deg)}
+.ws-font-expand.collapsed .ws-font-body{display:none}
+.ws-font-body{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ws-font-ctrl{display:inline-flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:2px 4px}
+.ws-font-ctrl .ws-font-btn{height:26px;width:26px;font-size:.74em;font-weight:700;padding:0;color:var(--ink-soft);border:1px solid var(--line-soft);background:var(--surface-soft);border-radius:6px;cursor:pointer;font-family:inherit;transition:all .15s}
+.ws-font-ctrl .ws-font-btn:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-border)}
+.ws-font-ctrl .ws-font-btn:disabled{opacity:.4;cursor:not-allowed}
+.ws-font-ctrl .ws-font-size-label{font-size:.72em;color:var(--ink-soft);min-width:40px;text-align:center;font-weight:600}
 
 /* ===== 工作台模态浮窗 ===== */
 .ws-panel-backdrop{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.32);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s ease}
@@ -7138,12 +7221,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '</div>' +
               '</div>' +
               '<div class="topbar-right">' +
-                '<div class="font-ctrl" id="fontCtrl" title="字体大小">' +
-                  '<button class="icon-btn-square icon-btn font-btn" id="fontDec" title="缩小字体">A-</button>' +
-                  '<span class="font-size-label" id="fontSizeLabel">100%</span>' +
-                  '<button class="icon-btn-square icon-btn font-btn" id="fontInc" title="放大字体">A+</button>' +
-                  '<button class="icon-btn-square icon-btn font-btn" id="fontReset" title="恢复默认" style="font-size:0.7em">↺</button>' +
-                '</div>' +
                 '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
                   '<button class="icon-btn" id="wsMenuBtn">' + svgIcon('menu', 15) + ' 工作区</button>' +
                   '<div class="ws-dropdown" id="wsDropdown"></div>' +
@@ -7240,6 +7317,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 工作台
         items += '<div class="ws-dropdown-section">工作台</div>';
         items += '<div class="ws-dropdown-item" data-action="open-workspace">' + svgIcon('folder', 15) + ' 打开工作台 <span class="ws-item-badge">Tab</span></div>';
+        // ===== 字体大小：可展开的控件（工作区下拉中）=====
+        items += '<div class="ws-font-expand collapsed" id="wsFontExpand">' +
+                    '<div class="ws-font-header" id="wsFontHeader">' + svgIcon('eye', 14) + ' 字体大小 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px"><span class="ws-font-arrow">▾</span></span></div>' +
+                    '<div class="ws-font-body">' +
+                      '<div class="ws-font-ctrl">' +
+                        '<button class="ws-font-btn" id="wsFontDec" title="缩小字体">A-</button>' +
+                        '<span class="ws-font-size-label" id="wsFontSizeLabel">' + Math.round(_appFontScale * 100) + '%</span>' +
+                        '<button class="ws-font-btn" id="wsFontInc" title="放大字体">A+</button>' +
+                        '<button class="ws-font-btn" id="wsFontReset" title="恢复默认" style="font-size:.7em">↺</button>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>';
         // MVU / Tab 切换
         items += '<div class="ws-dropdown-divider"></div>';
         items += '<div class="ws-dropdown-section">视图切换</div>';
@@ -7266,6 +7355,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         items += '<div class="ws-dropdown-item" data-action="export-log">' + svgIcon('fileExport', 15) + ' 导出聊天记录</div>';
         items += '<div class="ws-dropdown-item" data-action="import-card">' + svgIcon('download', 15) + ' 导入角色卡</div>';
         dropdown.innerHTML = items;
+        // ===== 字体大小展开栏：折叠/展开切换 =====
+        var fontHeader = doc.getElementById('wsFontHeader');
+        var fontExpand = doc.getElementById('wsFontExpand');
+        if (fontHeader && fontExpand) {
+          fontHeader.addEventListener('click', function(e) {
+            e.stopPropagation();
+            fontExpand.classList.toggle('collapsed');
+          });
+        }
+        // ===== 字体加减按钮绑定（下拉菜单中）=====
+        var wsDecBtn = doc.getElementById('wsFontDec');
+        var wsIncBtn = doc.getElementById('wsFontInc');
+        var wsResetBtn = doc.getElementById('wsFontReset');
+        if (wsDecBtn) wsDecBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          applyFontScale(_appFontScale - _FONT_STEP);
+          try { saveToStorage(); } catch(e) {}
+        });
+        if (wsIncBtn) wsIncBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          applyFontScale(_appFontScale + _FONT_STEP);
+          try { saveToStorage(); } catch(e) {}
+        });
+        if (wsResetBtn) wsResetBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          applyFontScale(1);
+          try { saveToStorage(); } catch(e) {}
+        });
+        // 应用当前字体缩放状态到下拉控件（按钮禁用/百分比）
+        applyFontScale(_appFontScale);
         // 绑定点击
         dropdown.querySelectorAll('.ws-dropdown-item').forEach(function(item) {
           item.addEventListener('click', function() {
@@ -7689,22 +7808,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function bindEvents() {
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
-        // 字体加减
-        var decBtn = doc.getElementById('fontDec');
-        var incBtn = doc.getElementById('fontInc');
-        var resetBtn = doc.getElementById('fontReset');
-        if (decBtn) decBtn.addEventListener('click', function() {
-          applyFontScale(_appFontScale - _FONT_STEP);
-          try { saveToStorage(); } catch(e) {}
-        });
-        if (incBtn) incBtn.addEventListener('click', function() {
-          applyFontScale(_appFontScale + _FONT_STEP);
-          try { saveToStorage(); } catch(e) {}
-        });
-        if (resetBtn) resetBtn.addEventListener('click', function() {
-          applyFontScale(1);
-          try { saveToStorage(); } catch(e) {}
-        });
         var input = doc.getElementById('chatInput');
         var sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
@@ -8093,14 +8196,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 精确到2位小数，避免浮点累计误差
         scale = Math.round(scale * 100) / 100;
         _appFontScale = scale;
-        var docEl = document.documentElement;
+        // 修复：必须作用到 iframe 内的 doc，而非外层 document
+        var docEl = (doc && doc.documentElement) ? doc.documentElement : document.documentElement;
         if (docEl) docEl.style.setProperty('--app-font-scale', String(scale));
-        var label = document.getElementById('fontSizeLabel');
+        // 同步更新顶栏字体百分比标签（如果存在）
+        var label = doc ? doc.getElementById('fontSizeLabel') : document.getElementById('fontSizeLabel');
         if (label) label.textContent = Math.round(scale * 100) + '%';
-        var decBtn = document.getElementById('fontDec');
-        var incBtn = document.getElementById('fontInc');
+        var decBtn = doc ? doc.getElementById('fontDec') : document.getElementById('fontDec');
+        var incBtn = doc ? doc.getElementById('fontInc') : document.getElementById('fontInc');
         if (decBtn) decBtn.disabled = scale <= _MIN_FONT_SCALE + 0.001;
         if (incBtn) incBtn.disabled = scale >= _MAX_FONT_SCALE - 0.001;
+        // 同步更新下拉菜单中的字体控件（如果已打开）
+        var wsLabel = doc ? doc.getElementById('wsFontSizeLabel') : null;
+        var wsDecBtn = doc ? doc.getElementById('wsFontDec') : null;
+        var wsIncBtn = doc ? doc.getElementById('wsFontInc') : null;
+        var wsResetBtn = doc ? doc.getElementById('wsFontReset') : null;
+        if (wsLabel) wsLabel.textContent = Math.round(scale * 100) + '%';
+        if (wsDecBtn) wsDecBtn.disabled = scale <= _MIN_FONT_SCALE + 0.001;
+        if (wsIncBtn) wsIncBtn.disabled = scale >= _MAX_FONT_SCALE - 0.001;
       }
 
       function saveToStorage() {
