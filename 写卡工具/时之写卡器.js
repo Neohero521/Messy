@@ -6582,6 +6582,77 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
   }
 
+  // ===== 写入世界书前的强 sanitize：防止酒馆内部出现 Cannot create property 'depth' on string =====
+  // 必须保证：每一条是纯对象；position/strategy/recursion/effect 一定是对象；depth/order 是 number；
+  //           任何字符串/数字/null/数组 形式的旧条目都会被重建，不把需要升级的字符串形式 position 交给酒馆。
+  function _sanitizeWorldbookEntriesForWrite(list) {
+    if (!Array.isArray(list)) return [];
+    var safeNumber = function(v, def) {
+      var n = Number(v);
+      return (isFinite(n) && !isNaN(n)) ? n : def;
+    };
+    var safeKeys = function(k) {
+      if (!Array.isArray(k)) return [];
+      return k.filter(function(x) { return typeof x === 'string' && x; });
+    };
+    return list
+      .filter(function(e) { return e && typeof e === 'object' && !Array.isArray(e); })
+      .map(function(e, i) {
+        var pos = (e.position && typeof e.position === 'object') ? e.position : {};
+        var strat = (e.strategy && typeof e.strategy === 'object') ? e.strategy : {};
+        var ks = (strat.keys_secondary && typeof strat.keys_secondary === 'object') ? strat.keys_secondary : {};
+        var rec = (e.recursion && typeof e.recursion === 'object') ? e.recursion : {};
+        var eff = (e.effect && typeof e.effect === 'object') ? e.effect : {};
+        // position 类型（优先取新字段，否则回退 Tavern 旧常量）
+        var posType = typeof pos.type === 'string' ? pos.type
+          : (e.position === 'before_char' || e.position === 0 || pos.type === 0 ? 'before_character_definition'
+          : (e.position === 'after_char'  || e.position === 1 ? 'after_character_definition'
+          : (e.position === 'before_an'   || e.position === 2 ? 'before_example_messages'
+          : (e.position === 'after_an'    || e.position === 3 ? 'after_example_messages'
+          :  'at_depth'))));
+        var roleVal = (typeof pos.role === 'string') ? pos.role
+          : (pos.role === 1 ? 'user' : (pos.role === 2 ? 'assistant' : 'system'));
+        return {
+          name: String(e.name || e.comment || ('条目' + (i + 1))),
+          content: String(e.content == null ? '' : e.content),
+          enabled: e.enabled !== false,
+          uid: typeof e.uid === 'string' ? e.uid : (e.uid != null ? String(e.uid) : undefined),
+          displayIndex: (typeof e.displayIndex === 'number' || typeof e.display_index === 'number')
+            ? (e.displayIndex != null ? e.displayIndex : e.display_index)
+            : undefined,
+          strategy: {
+            type: (typeof strat.type === 'string' && strat.type) ? strat.type : (e.constant ? 'constant' : (e.selective ? 'selective' : 'selective')),
+            keys: safeKeys(strat.keys || e.keys),
+            keys_secondary: {
+              logic: (typeof ks.logic === 'string' && ks.logic) ? ks.logic : 'and_any',
+              keys: safeKeys(ks.keys || e.secondary_keys)
+            },
+            scan_depth: (strat.scan_depth === undefined || strat.scan_depth === null)
+              ? (e.scan_depth != null ? e.scan_depth : 'same_as_global')
+              : strat.scan_depth
+          },
+          position: {
+            type: posType,
+            role: roleVal,
+            depth: safeNumber(typeof pos.depth === 'number' ? pos.depth : e.depth, 4),
+            order: safeNumber(typeof pos.order === 'number' ? pos.order : (e.order || e.insertion_order), 100)
+          },
+          probability: safeNumber(e.probability, 100),
+          recursion: {
+            prevent_incoming: !!rec.prevent_incoming,
+            prevent_outgoing: !!rec.prevent_outgoing,
+            delay_until: (typeof rec.delay_until === 'number' && isFinite(rec.delay_until)) ? rec.delay_until : null
+          },
+          effect: {
+            sticky: (typeof eff.sticky === 'number' && isFinite(eff.sticky)) ? eff.sticky : null,
+            cooldown: (typeof eff.cooldown === 'number' && isFinite(eff.cooldown)) ? eff.cooldown : null,
+            delay: (typeof eff.delay === 'number' && isFinite(eff.delay)) ? eff.delay : null
+          },
+          extra: (e.extra && typeof e.extra === 'object') ? e.extra : {}
+        };
+      });
+  }
+
   // ===== 【写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
   // 分配规则：角色速览固定 <角色速览_id0> → 世界观条目 id1+ → 角色条目按顺序id → NPC继续递增
   // 同一角色的所有条目（基础信息/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
@@ -6708,6 +6779,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var converted = wrappedEntries.map(function(e, i) {
       return _convertToWorldbookEntry(e, i, SOURCE_TAG);
     });
+    // ===== 写入前强制 sanitize：确保所有条目/position/strategy 是对象，过滤字符串/null =====
+    converted = _sanitizeWorldbookEntriesForWrite(converted);
 
     // ===== 修复Bug1：确保世界书存在（createWorldbookEntries / updateWorldbookWith 要求世界书已存在，
     //                  否则抛错——这正是"只写入开场白和角色描述、不生成世界书、不关联到角色卡"的根因） =====
@@ -6743,7 +6816,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             list.push(newEntry);
           }
         }
-        return list;
+        // ===== 回调返回前再统一 sanitize：oldEntries 可能含 position=字符串/空字符串 的旧条目，避免酒馆写 .depth 时炸 =====
+        return _sanitizeWorldbookEntriesForWrite(list);
       }, { render: 'immediate' });
     } else if (createWorldbookEntries) {
       // 回退兜底：无 updateWorldbookWith 时走追加（旧版本可能叠加）
