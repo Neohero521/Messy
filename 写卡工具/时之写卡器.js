@@ -1369,21 +1369,38 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
     '9.1.3 [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
     '     · YAML格式，沿用变量结构层级，每变量含以下字段（按需选用）：\n' +
-    '       - type: 变量类型（string类型可省略此字段；number/boolean直接写；复杂类型用 |- 多行TypeScript类型块）\n' +
-    '       - range: 数值范围（如 0~100）\n' +
+    '       - type: 变量类型。string 省略此字段；number/boolean 直接写；复杂类型用 |- 多行 TypeScript/zod 块\n' +
+    '         · 基础：type: number / type: boolean / type: \'未领取\'|\'进行中\'|\'已完成\'\n' +
+    '         · 复杂：type: |-\n             {\n               [物品名: string]: { 描述: string; 数量: number }\n             }\n' +
+    '       - range: 数值范围（如 0~100）。仅当 zod 没做 transform clamp 时才写\n' +
     '       - format: 字符串格式要求（如 ${xx历}-${YYYY/MM/DD}-${HH:MM}）\n' +
-    '       - category: 数值分段语义（如 20~40: 普通人 / 40~70: 冒险者）\n' +
-    '       - check: 更新规则（核心字段，用自然语言说明何时更新、更新成什么值）\n' +
-    '     · ⚠️注意：变量结构脚本(zod)是对变量的硬性要求，更新规则中的type/range/format/category是对AI的希望建议\n' +
+    '       - category: 数值分段语义（如 20~40: 普通人 / 40~70: 冒险者）。仅当 zod 没派生 $XXX阶段 且 AI 需用阶段语义做叙事决策时才写\n' +
+    '       - check: 更新规则（核心字段，自然语言说明何时更新、更新成什么值）。尽量简练 1-2 行，不要过度扩展情况\n' +
+    '     · ⚠️ 变量结构(zod)是对变量的硬性要求，更新规则中的 type/range/format/category 是对 AI 的希望建议\n' +
     '     · 【改进15：禁止zod与更新规则写重复约束（浪费token+易矛盾）】\n' +
-    '       ⚠️ 如果 zod 已经 `.transform(v => _.clamp(v, min, max))` 做了硬 clamp，更新规则中**不要再写 range/category**（zod已保证合法值，AI额外判断是浪费token且易与自动处理矛盾）\n' +
-    '       ⚠️ 更新规则的 category 仅在两种场景保留：① zod 没有派生对应 `$XXX阶段` 字段；② 且AI需要用阶段语义做叙事决策（不同阶段做不同事）\n' +
-    '       ⚠️ range 仅在 zod **没做 transform clamp**（允许超范围/需手动处理）时才写\n' +
-    '     · 同类型合并：固定键用 ${力量|敏捷|体质|感知} 写法，动态键放进type的index signature\n' +
-    '     · 同对象字段嵌套以减少token；_前缀字段是只读，AI不可更新\n' +
+    '       ⚠️ zod 已 .transform(v => _.clamp(v, min, max)) 时不要写 range/category（zod已保证合法值）\n' +
+    '       ⚠️ zod 已派生 $XXX阶段 时不要写 category（阶段由脚本自动维护）\n' +
+    '     · 【合并同类型规则以省 token】\n' +
+    '       - 固定键合并：z.object/z.record(z.enum(...)) 的键永远存在，更新规则相似时合并为 ${键1|键2|键3}\n' +
+    '         · 例：主角.能力面板.力量/敏捷/体质/感知/意志/魅力 → 主角.能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值\n' +
+    '         · 同理适用于 ${变量}.主角评价 这类共通评价字段\n' +
+    '       - 动态键合并：z.record(z.string())/z.partialRecord(z.enum(...)) 的键可能为空或多种，路径写父对象，键放进 type 的 index signature\n' +
+    '         · 例：路径写 物品栏 而非 物品栏.薄荷糖；type 块写 { [物品名: string]: { ... } }\n' +
+    '     · 【嵌套同对象字段】同对象的字段嵌套在该对象下以减少 token、提升可读性\n' +
+    '       · 例：主角.能力面板 和 主角.装备栏 都是 主角 的字段，应嵌在 主角 mapping 下\n' +
+    '     · 【省略与不列规则】\n' +
+    '       - string 类型变量省略 type 字段\n' +
+    '       - _ 前缀字段是只读（如 _当前回合、_当日好感度增幅），不要列更新规则\n' +
+    '       - 名字自解释的变量（如 称呼、位置、心情）不列规则，除非用户/Explorer 指定特殊规则\n' +
+    '     · 【工作流程】\n' +
+    '       第一步：确认变量信息（向用户询问）\n' +
+    '         1. 变量结构脚本里有哪些变量？\n' +
+    '         2. 哪些变量需要更新规则？\n' +
+    '         3. 有没有特殊系统（如傲娇系统、敌意系统等）？\n' +
+    '         4. 变量的更新条件是什么？\n' +
+    '       第二步：按变量结构脚本和用户要求，参考下例编写规则\n' +
     '     · 示例：\n' +
-    '       ---\\n变量更新规则:\\n  白娅:\\n    依存度:\\n      type: number\\n      # ⚠️注意：zod已做 clamp(0,100)，此处不再重复写 range/category\n' +
-    '      check:\\n        - 单次互动最多+1，同一剧情日累计最多+5\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进后更新\n' +
+    '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\n' +
     '9.1.4 [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
     '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
@@ -5390,110 +5407,73 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // 生成变量更新规则内容（xr 函数）
-  // 含 type/format/check，好感度增幅上限（单次+1，同日累计+5）
-  // ⚠️改进15对齐：zod已对好感度做了.clamp(0,100)且自动派生$阶段，此处不再重复写range/category
-  // 支持 delta 操作语义（增量数值变更）
+  // ⚠️改进15对齐：zod已对好感度做 .clamp(0,100) 且自动派生 $阶段，此处不再写 range/category
+  // ⚠️规范对齐：string 省略 type；_ 前缀只读字段不列规则；同类型合并 ${a|b|c}；动态键用 type index signature
   function generateVarUpdateRule(charNames) {
     var lines = [
       '---',
       '变量更新规则:',
       '  世界:',
       '    当前时间:',
-      '      type: string',
       '      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}',
       '      check:',
       '        - 每次事件推进、休息、等待或场景切换后更新，保持时间流逝合理',
       '        - 用自然语言描述，如"清晨"、"午后"、"夜晚"、"D1 第三天 夜晚"',
       '    当前地点:',
-      '      type: string',
       '      check:',
       '        - 场景发生明确移动或地点变化时更新',
       '        - 描述当前所在的具体场景位置',
       '    天气:',
-      '      type: string',
       '      check:',
       '        - 场景切换、经过较长时间、或剧情明确提及天气变化时更新',
-      '        - 如"晴朗/多云/小雨/雪/夜"等简明描述',
-      '    _当前回合:',
-      '      type: number',
-      '      check:',
-      '        - 每轮交互后 +1，仅允许使用 delta 操作增加',
-      '        - 字段以 _ 开头，AI 不得修改其值（写卡器自动维护）',
-      '    _当前剧情日:',
-      '      type: number',
-      '      check:',
-      '        - 每经过一次"睡觉/等待/跨日"类事件 +1',
-      '        - 字段以 _ 开头，AI 不得修改其值（写卡器自动维护）',
-      '    _当日好感度增幅:',
-      '      type: number',
-      '      check:',
-      '        - 当日所有角色好感度增量之和（AI 不直接写，仅做参考）',
-      '        - 跨日重置为 0'
+      '        - 如"晴朗/多云/小雨/雪/夜"等简明描述'
     ];
     (charNames || []).forEach(function(name) {
       lines.push('  ' + name + ':');
       lines.push('    好感度:');
       lines.push('      type: number');
       lines.push('      check:');
-      lines.push('        - 仅当' + name + '直接感知到<user>的行为，且当前回复中有明确情感依据时才更新');
-      lines.push('        - 单次互动最多 +1；没有明确正向互动时不得增加');
-      lines.push('        - 同一剧情日内累计最多 +5；达到当天上限后只能持平或下降');
-      lines.push('        - 下降必须有当前回复内的明确负面依据，不要为了凑更新而改动');
-      lines.push('        - 优先使用 delta 操作（如 {"op":"delta","path":"/' + name + '/好感度","value": +1}）');
-      lines.push('        - ⚠️ zod 已自动派生 $好感度阶段（陌生/熟识/好感/深爱），AI 不要手动写 $ 前缀字段');
+      lines.push('        - 仅当' + name + '直接感知到<user>的行为且有明确情感依据时才更新；单次最多 +1，同一剧情日累计最多 +5');
+      lines.push('        - 优先使用 delta 操作（如 {"op":"delta","path":"/' + name + '/好感度","value": +1}）；zod 已自动派生 $好感度阶段，AI 不要手动写 $ 前缀字段');
       lines.push('    状态:');
-      lines.push('      type: string');
       lines.push('      check:');
       lines.push('        - 从"进行中/已暂停/已完成/已失败"中选择最符合当前' + name + '剧情线的状态');
       lines.push('    关系:');
-      lines.push('      type: string');
       lines.push('      check:');
-      lines.push('        - ' + (name === '主角' ? '主角与其他角色的整体关系描述' : '描述' + name + '与<user>的关系现状，如"陌生/熟识/朋友/暧昧/恋人/家人/敌对"'));
-      lines.push('        - 只有当关系发生本质性改变时才更新（一次互动不足以从"陌生"跳到"朋友"）');
+      lines.push('        - ' + (name === '主角' ? '主角与其他角色的整体关系描述' : '描述' + name + '与<user>的关系现状，如"陌生/熟识/朋友/暧昧/恋人/家人/敌对"') + '；只有本质性改变时才更新（一次互动不足以从"陌生"跳到"朋友"）');
       lines.push('        - ⚠️ zod 已自动派生 $关系阶段，AI 不要手动写 $ 前缀字段');
       lines.push('    位置:');
-      lines.push('      type: string');
       lines.push('      check:');
       lines.push('        - ' + name + ' 当前所在的具体位置，与世界.当前地点区分（如"客厅沙发"、"街角便利店"）');
-      lines.push('        - ' + (name === '主角' ? '主角去了哪就写哪' : '默认在"主角附近"，明确分开时才写具体位置'));
       lines.push('    心情:');
-      lines.push('      type: string');
       lines.push('      check:');
-      lines.push('        - 用 2-4 字简明描述' + name + '的当前情绪，如"平静/喜悦/尴尬/愤怒/担忧/害羞"');
-      lines.push('        - 只有当回复中有明确情绪波动时才更新，不要每轮都改');
+      lines.push('        - 用 2-4 字简明描述' + name + '的当前情绪，如"平静/喜悦/尴尬/愤怒/担忧/害羞"；只有明确情绪波动时才更新');
       lines.push('    当前想法:');
-      lines.push('      type: string');
       lines.push('      check:');
-      lines.push('        - 一句话写' + name + '此刻心里在想什么/打算做什么，20字以内');
-      lines.push('        - 不要写空泛的"等待剧情推进"，要写具体意图，如"犹豫要不要开口"、"盘算如何开口邀请"');
-      lines.push('    魅力:');
+      lines.push('        - 一句话写' + name + '此刻具体意图（20字以内），不要写空泛的"等待剧情推进"');
+      lines.push('    ${魅力|智慧|体质}:');
       lines.push('      type: number');
       lines.push('      check:');
-      lines.push('        - 基础值 50，仅当' + name + '发生长期外形/气质/名声变化时微调，单次变动不超过 ±3');
-      lines.push('    智慧:');
-      lines.push('      type: number');
-      lines.push('      check:');
-      lines.push('        - 基础值 50，仅当' + name + '展现出显著成长/受到重大打击时才变动，单次变动不超过 ±3');
-      lines.push('    体质:');
-      lines.push('      type: number');
-      lines.push('      check:');
-      lines.push('        - 基础值 50，受伤/生病/锻炼时微调，健康恢复后逐步回到原值');
-      lines.push('        - 变动范围 0-100；0=濒死，100=极其健壮');
+      lines.push('        - 基础值 50，仅在长期外形/气质/名声变化、显著成长、受伤/生病/锻炼等显著事件时微调，单次变动不超过 ±3');
       if (name !== '主角') {
         lines.push('    称呼主角:');
-        lines.push('      type: string');
         lines.push('      check:');
         lines.push('        - ' + name + '口头对<user>的称呼，关系阶段变化时可更新（如从"同学"→"<user>哥"→名字）');
         lines.push('    主角称呼我:');
-        lines.push('      type: string');
         lines.push('      check:');
         lines.push('        - <user>口头对' + name + '的称呼，关系变化时可更新');
       } else {
         lines.push('    物品栏:');
+        lines.push('      type: |-');
+        lines.push('        {');
+        lines.push('          [物品名: string]: {');
+        lines.push('            描述: string;');
+        lines.push('            数量: number;');
+        lines.push('          }');
+        lines.push('        }');
         lines.push('      check:');
-        lines.push('        - 获得物品时用 insert：{"op":"insert","path":"/主角/物品栏/物品名","value":{"描述":"...","数量":1}}');
-        lines.push('        - 消耗/送出/丢弃时用 remove：{"op":"remove","path":"/主角/物品栏/物品名"}');
-        lines.push('        - 数量变化用 delta：{"op":"delta","path":"/主角/物品栏/物品名/数量","value":-1}');
+        lines.push('        - 获得：{"op":"insert","path":"/主角/物品栏/物品名","value":{"描述":"...","数量":1}}');
+        lines.push('        - 消耗/送出/丢弃：{"op":"remove","path":"/主角/物品栏/物品名"}；数量变化：{"op":"delta","path":"/主角/物品栏/物品名/数量","value":-1}');
       }
     });
     return lines.join('\n');
