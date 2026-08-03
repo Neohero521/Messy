@@ -903,7 +903,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   useProbability: 常驻=false（无需概率掷骰），触发类=true（probability 才生效）
   //   group: 空字符串=无互斥分组（多条可共存）；非空=同组仅注入1条（用于叙事类互斥）
   //   selectiveLogic: 0=AND_ANY 1=NOT_ALL 2=NOT_ANY 3=AND_ALL（次级关键词逻辑，非随机选择）
-  //          注意：核心铁则不在世界书条目中，而是放入post_history_instructions字段（常驻最高权重位）
 
   // ===== MVU 美化正则 HTML 模板（柔和高对比版本，括号内内容清晰可读）=====
   var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">变量完成</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 内容面板：高对比浅灰蓝底+深灰字，确保括号/列表/JSON全部清晰 -->\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强：列表、括号、JSON代码块全部加强对比度 */\n  .status-notice ul, .status-notice ol { padding-left: 22px; color: #1f2937; }\n  .status-notice li { margin: 3px 0; color: #1f2937; }\n  .status-notice code, .status-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .status-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .status-notice strong, .status-notice b { color: #0f172a; }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
@@ -963,7 +962,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ===== 权重等级映射（用于权重可视化预览） =====
   // 权重从低到高：极低/低/中低/中/中高/高/极高/最高
-  // 注意：核心铁则通过post_history_instructions字段实现（最高权重），不在世界书条目中
   const WEIGHT_LEVELS = {
     '基础公理': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻，世界元数据锚定' },
     '世界元数据': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻，底层背景' },
@@ -1229,7 +1227,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · upsert 条目名 — 有则更新，无则新增（最常用，不需要判断是否已存在）\n' +
     '   · update 条目名 — 仅更新已存在的条目（不存在时警告，不新增）\n' +
     '   · delete 条目名 — 删除指定条目\n' +
-    '   · set 字段名 — 设置顶层字段（name/description/first_mes/system_prompt/personality/scenario/creator_notes/mes_example/post_history_instructions/tags/alternate_greetings）\n' +
+    '   · set 字段名 — 设置顶层字段（name/description/first_mes/system_prompt/personality/scenario/creator_notes/alternate_greetings）\n' +
     '   · rename 旧名 → 新名 — 重命名条目（也可以用 -> 或 => 分隔）\n' +
     '3. 条目名就是世界书条目的comment，用<前缀>分类，如<人物>主角、<基础>世界\n' +
     '4. 每个操作块用:::开头和:::结尾，内容在中间，不需要代码块包裹\n' +
@@ -1249,7 +1247,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**Token预算铁律**：\n' +
     '- 删除冗余、精炼表达、高信息密度\n' +
     '- description≥400字, first_mes≥500字, system_prompt≤50字\n' +
-    '- post_history_instructions≤100字（核心铁则放此位置，权重最高）\n' +
     '- 常驻条目总Token≤500，触发条目按需加载\n' +
     '- 世界书条目≥250字/条, 总数≤30条\n' +
     '**MVU条目Token预算铁律（补充）**：\n' +
@@ -1309,7 +1306,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 权重：低，在角色卡之后注入\n' +
     '- 条目前缀：<交互软规则>\n\n' +
     '### 3. 核心铁则阶\n' +
-    '- ST位置：post_history_instructions字段（常驻最高权重位！）\n' +
     '- 内容：绝对禁止项、输出格式核心要求、AI身份总纲\n' +
     '- 字数：≤100字，极度精简\n' +
     '- 权重：最高！遵循度是system_prompt的2倍以上\n' +
@@ -1745,14 +1741,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  - 生成角色卡时无需关心此设置\n\n' +
     '=== 高价值字段生成规范 ===\n\n' +
     '**system_prompt**：\n' +
-    '- 精简至≤50字，仅保留AI身份定位\n' +
-    '- 核心规则迁移到post_history_instructions\n\n' +
-    '**post_history_instructions**（最高权重！）：\n' +
-    '- 放置绝对禁止项、输出格式核心要求、AI行为总纲\n' +
-    '- ≤100字，极度精简\n\n' +
-    '**mes_example**：\n' +
-    '- 自动生成1-2组对话示例\n' +
-    '- Few-shot规范输出格式，效果远优于纯文字规则\n\n' +
+    '- 精简至≤50字，仅保留AI身份定位\n\n' +
     '**depth_prompt**：\n' +
     '- 自动生成新手引导内容\n' +
     '- 默认depth=0，role=system\n\n' +
@@ -2222,7 +2211,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**顶层字段设置示例**：\n' +
     '::: set name\\n星陨大陆\\n:::\\n\\n' +
     '::: set description\\n这是一个修仙世界...\\n:::\\n\\n' +
-    '::: set post_history_instructions\\n核心铁则：禁止OOC；保持神秘\\n:::\\n\\n' +
     '::: set first_mes\\n开场白内容...\\n:::\\n\n' +
     '=== 增量编辑规则 ===\n' +
     '当角色卡已经生成、用户要求增/删/改某些内容时，用:::操作块只输出需要修改的内容。\n\n' +
@@ -2298,7 +2286,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
-    '注4：<核心铁则>不放在世界书条目中，而是放入post_history_instructions字段（最高权重位）\n' +
     '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
     '注6：MVU脚本（bundle.js/zod schema）、正则1-5和<状态栏>占位符提醒条目由写卡器自动注入，无需AI生成；正则6（美化状态栏）和4条MVU变量条目需AI生成\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
@@ -2496,11 +2483,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] personality：空字符串""（世界模式强制留空）\n' +
     '- [ ] scenario：空字符串""（世界模式强制留空）\n' +
     '- [ ] first_mes：开场白（500字以上）\n' +
-    '- [ ] system_prompt：身份定位（50字以内）\n' +
-    '- [ ] post_history_instructions：核心铁则（100字以内，最高权重）\n' +
-    '- [ ] tags：2-12个标签\n\n' +
-    '**高价值字段检查（4项）：**\n' +
-    '- [ ] mes_example：1-2组对话示例\n' +
+    '- [ ] system_prompt：身份定位（50字以内）\n\n' +
+    '**高价值字段检查（3项）：**\n' +
     '- [ ] alternate_greetings：3个差异化开局\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '- [ ] regex_scripts：基础状态同步正则\n\n' +
@@ -2606,7 +2590,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '⚠️ 严禁输出```json代码块！所有修改用:::操作块协议。\n\n' +
     '::: set name\\n星陨大陆\\n:::\\n\\n' +
     '::: set description\\n这是一个修仙世界...\\n:::\\n\\n' +
-    '::: set post_history_instructions\\n核心铁则：禁止OOC；保持神秘\\n:::\\n\\n' +
     '::: upsert <基础公理>力量体系\\n修炼分为九层...\\n:::\\n\\n' +
     '::: upsert <场景机制>战斗规则\\n战斗采用回合制...\\n:::\\n\n' +
     '注意：只填写已确定的内容，未确定的不要输出。每次更新只输出变化的字段。每次更新必须包含至少1-2条对应体系的世界书:::upsert操作块。';
@@ -3298,7 +3281,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         } else {
           var rawPath = String(path);
-          var knownTopFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','mes_example','post_history_instructions','tags','alternate_greetings'];
+          var knownTopFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','alternate_greetings'];
           if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
             var nrp = normKey(rawPath);
             for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
@@ -3342,7 +3325,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     delete partial._nochange;
 
-    var fields = ['name','description','personality','scenario','first_mes','mes_example','creator_notes','system_prompt','post_history_instructions','tags','creator','character_version','alternate_greetings','group_only_greetings'];
+    var fields = ['name','description','personality','scenario','first_mes','creator_notes','system_prompt','creator','character_version','alternate_greetings','group_only_greetings'];
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
         var val = partial[f];
@@ -3361,10 +3344,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (typeof val === 'string' && val.trim().length < 30 && /(已输出|上文输出|见上文.*输出)/.test(val)) {
             return;
           }
-        }
-        // tags 字段：确保存储为数组（AI可能输出逗号分隔的字符串）
-        if (f === 'tags' && typeof val === 'string') {
-          val = val.split(/[,，、\s]+/).filter(Boolean);
         }
         if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
           cd[f] = val;
@@ -3801,7 +3780,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         commentListText += '⚠️ 记住：comment 不精确匹配 = 只加新条目不删旧条目 = 用户骂你！\n';
         parts.push(commentListText);
       }
-      if (Array.isArray(cd.tags) && cd.tags.length) parts.push('标签：' + cd.tags.join('、'));
       if (parts.length > 0) existingInfo = '\n\n=== 当前角色卡已有内容（不要重复输出，除非增/删/改）【角色卡Tab：不含MVU变量系统内容】 ===\n' + parts.join('\n');
     }
 
@@ -3869,7 +3847,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '2. ❌禁止生成<状态栏>条目或任何状态栏相关的世界书条目！\n' +
       '   · MVU变量系统和状态栏完全由「MVU变量状态栏」Tab独立管理，不属于角色卡生成范畴\n' +
       '   · 如果用户明确提到MVU/变量/状态栏，回复:「请切换到「MVU变量状态栏」Tab进行MVU变量系统和状态栏的设计」\n' +
-      '3. ❌禁止在任何生成的JSON字段（description/post_history_instructions/system_prompt/entries等）中包含MVU相关内容！\n' +
+      '3. ❌禁止在任何生成的JSON字段（description/system_prompt/entries等）中包含MVU相关内容！\n' +
       '4. ❌禁止在regex_scripts中生成任何与MVU相关的正则脚本！\n' +
       '5. ✅除上述4类MVU条目外，正常生成所有角色卡/世界书条目（基础公理、核心铁则、近场强约束、场景机制、实体交互、叙事背景、动态适配等）\n' +
       '6. ✅如果角色卡中已经存在4条MVU条目，请保留原样、不要修改、不要删除、不要重新生成——它们由MVU Tab负责管理。\n' +
@@ -3988,7 +3966,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
     if (cd.description) ctxParts.push('世界观描述摘要：' + (cd.description||'').substring(0, 500));
     if (cd.first_mes) ctxParts.push('开场白摘要：' + (cd.first_mes||'').substring(0, 200));
-    if (Array.isArray(cd.tags) && cd.tags.length) ctxParts.push('标签：' + cd.tags.join('、'));
     // 从现有角色卡条目中，提取4条MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
     var entries = (cd.character_book || {}).entries || [];
     // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
@@ -4140,7 +4117,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '1. ❌绝对不要生成任何世界书条目、角色卡字段、角色卡生成相关内容！\n' +
       '   · 基础公理 / 核心铁则 / 近场强约束 / 场景机制 / 实体交互 / 叙事背景 / 动态适配 等全部与你无关\n' +
-      '   · 不要修改name、description、first_mes、post_history_instructions、tags等角色卡字段\n' +
+      '   · 不要修改name、description、first_mes等角色卡字段\n' +
       '   · 不要生成角色卡JSON代码块——MVU条目修改用:::操作块协议\n' +
       '   · 如果用户明确要设计世界观/角色卡/剧情，回复:「请切换到「角色卡生成」Tab进行角色卡/世界书的创作」\n' +
       '2. ❌不要输出完整的角色卡JSON（chara_card_v3格式）——MVU Tab不负责生成角色卡\n' +
@@ -4482,7 +4459,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
 
     // 5. 直接检查顶层描述字段是否夹带MVU内容（通常不会，但防一手）
-    ['description', 'post_history_instructions', 'system_prompt', 'first_mes', 'personality', 'scenario'].forEach(function(f) {
+    ['description', 'system_prompt', 'first_mes', 'personality', 'scenario'].forEach(function(f) {
       if (typeof result[f] === 'string') {
         var s = result[f].toLowerCase();
         if (s.indexOf('format_message_variable') >= 0 || s.indexOf('[mvu_update]') >= 0 || s.indexOf('<updatevariable>') >= 0) {
@@ -4513,12 +4490,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var personality = cd.personality || '';
     var scenario = cd.scenario || '';
     var name = cd.name || '';
-    var phi = cd.post_history_instructions || '';
-    var mesEx = cd.mes_example || '';
     var altG = cd.alternate_greetings || [];
     var entries = (cd.character_book || {}).entries || [];
     var hasEntries = entries.length > 0;
-    var tags = cd.tags || [];
     var ext = cd.extensions || {};
     var dp = ext.depth_prompt || {};
     var rx = ext.regex_scripts || [];
@@ -4564,32 +4538,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       category: '基础字段',
       name: '系统指令 ≤50字（仅AI身份定位）',
       desc: sys.length ? (sys.length + ' 字') : '未设置',
-      fix: sys.length > 50 ? '系统指令应精简至≤50字，核心规则迁移到post_history_instructions' : (sys.length === 0 ? '建议设置一句话AI身份定位' : '长度适中')
-    });
-    results.push({
-      pass: phi.length > 0 && phi.length <= 100,
-      category: '基础字段',
-      name: '核心铁则 post_history_instructions ≤100字',
-      desc: phi.length ? (phi.length + ' 字') : '未设置',
-      fix: phi.length === 0 ? '必须设置post_history_instructions（常驻最高权重位，遵循度是system_prompt的2倍以上）' : (phi.length > 100 ? '核心铁则应精简至≤100字，极度精简' : '核心铁则已在最高权重位')
-    });
-    results.push({
-      pass: tags.length >= 2 && tags.length <= 12,
-      category: '基础字段',
-      name: '标签数量 2-12个',
-      desc: '当前 ' + tags.length + ' 个',
-      fix: tags.length < 2 ? '建议设置2-12个标签' : (tags.length > 12 ? '标签过多，建议精简到12个以内' : '标签数量适中')
+      fix: sys.length > 50 ? '系统指令应精简至≤50字' : (sys.length === 0 ? '建议设置一句话AI身份定位' : '长度适中')
     });
 
     // === 高价值字段检查（4项） ===
-    var mesExLines = mesEx ? (mesEx.match(/<START>/gi) || []).length || (mesEx.length > 50 ? 1 : 0) : 0;
-    results.push({
-      pass: mesEx.length >= 50,
-      category: '高价值字段',
-      name: 'mes_example 对话示例（Few-shot）',
-      desc: mesEx.length ? (mesEx.length + ' 字') : '未设置',
-      fix: mesEx.length < 50 ? '建议生成1-2组对话示例，Few-shot效果远优于纯文字格式规则' : '对话示例已设置'
-    });
     results.push({
       pass: altG.length >= 3,
       category: '高价值字段',
@@ -4647,14 +4599,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     // 权重合理性：核心规则在高权重位
     var coreIronRuleCount = entries.filter(function(e) { return (e.comment || '').indexOf('<核心铁则>') >= 0 || (e.comment || '').indexOf('<禁止项>') >= 0; }).length;
-    var hasHighWeightCore = phi.length > 0 || coreIronRuleCount >= 1;
+    var hasHighWeightCore = coreIronRuleCount >= 1;
     var nearConstraintCount = entries.filter(function(e) { return (e.comment || '').indexOf('<近场强约束>') >= 0 || (e.comment || '').indexOf('<当前局势>') >= 0; }).length;
     results.push({
       pass: hasHighWeightCore && nearConstraintCount >= 0,
       category: '世界书',
       name: '权重合理性：核心规则在高权重位',
-      desc: 'post_history_instructions: ' + (phi.length > 0 ? '✓' : '✗') + ' | 核心铁则条目: ' + coreIronRuleCount + ' | 近场强约束: ' + nearConstraintCount,
-      fix: !hasHighWeightCore ? '核心规则必须放在高权重位（post_history_instructions或<核心铁则>条目）' : '权重分配合理'
+      desc: '核心铁则条目: ' + coreIronRuleCount + ' | 近场强约束: ' + nearConstraintCount,
+      fix: !hasHighWeightCore ? '核心规则必须放在高权重位（<核心铁则>条目）' : '权重分配合理'
     });
     // content自包含性：检查是否有依赖上下文的内容（新增）
     var selfContainedBadPatterns = ['如上所述', '见上文', '前文提到', '之前说过', '上述内容', '上面提到', '如前文', '如前所述'];
@@ -4867,12 +4819,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var permanentEntries = entries.filter(function(e) { return e.constant === true; });
     var permanentTokenCount = 0;
     permanentEntries.forEach(function(e) { permanentTokenCount += countTokens(e.content || ''); });
-    permanentTokenCount += countTokens(phi);
     results.push({
       pass: permanentTokenCount <= 500,
       category: '运行效果',
       name: '常驻Token总量 ≤500',
-      desc: '当前 ' + permanentTokenCount + ' Token（含post_history_instructions）',
+      desc: '当前 ' + permanentTokenCount + ' Token',
       fix: permanentTokenCount > 500 ? '常驻内容过多，建议将非核心内容移到触发条目，控制常驻Token≤500' : '常驻内容合理'
     });
     // 递归安全：实体类条目开启prevent_recursion
@@ -4919,8 +4870,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: riskyEntries + ' 条使用泛用关键词',
       fix: riskyEntries > 0 ? '避免使用"的"、"是"等泛用词作为触发词，改用领域专属词汇' : '触发词精准'
     });
-    var totalTokenCount = countTokens(desc) + countTokens(first) + countTokens(sys) + countTokens(phi) +
-      countTokens(mesEx) + entries.reduce(function(sum, e) { return sum + countTokens(e.content || ''); }, 0);
+    var totalTokenCount = countTokens(desc) + countTokens(first) + countTokens(sys) +
+      entries.reduce(function(sum, e) { return sum + countTokens(e.content || ''); }, 0);
     var window8k = Math.round(totalTokenCount / 8192 * 100);
     var window16k = Math.round(totalTokenCount / 16384 * 100);
     results.push({
@@ -5939,15 +5890,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (data.description !== undefined) { charData.description = data.description; charData.data.description = data.description; }
       if (data.personality !== undefined) { charData.personality = data.personality; charData.data.personality = data.personality; }
       if (data.scenario !== undefined) { charData.scenario = data.scenario; charData.data.scenario = data.scenario; }
-      if (data.mes_example !== undefined) { charData.mes_example = data.mes_example; charData.data.mes_example = data.mes_example; }
       if (data.system_prompt !== undefined) { charData.system_prompt = data.system_prompt; charData.data.system_prompt = data.system_prompt; }
-      if (data.post_history_instructions !== undefined) { charData.post_history_instructions = data.post_history_instructions; charData.data.post_history_instructions = data.post_history_instructions; }
       if (data.creator_notes !== undefined) { charData.creator_notes = data.creator_notes; charData.data.creator_notes = data.creator_notes; }
-      if (data.tags !== undefined) {
-        var tagsVal = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
-        charData.tags = tagsVal;
-        charData.data.tags = tagsVal;
-      }
       if (data.creator !== undefined) { charData.creator = data.creator; charData.data.creator = data.creator; }
       if (data.character_version !== undefined) { charData.character_version = data.character_version; charData.data.character_version = data.character_version; }
       if (data.alternate_greetings !== undefined) { charData.alternate_greetings = data.alternate_greetings; charData.data.alternate_greetings = data.alternate_greetings; }
@@ -5960,80 +5904,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       return charData;
     });
-
-    // updateCharacterWith 使用简化的 Character 类型，会丢弃 post_history_instructions、mes_example、tags
-    // 需要通过 /api/characters/merge-attributes 直接写入这三个字段（同时写顶层和 data 层）
-    var needMerge = {};
-    if (data.post_history_instructions !== undefined) {
-      needMerge.post_history_instructions = data.post_history_instructions;
-    }
-    if (data.mes_example !== undefined) {
-      needMerge.mes_example = data.mes_example;
-    }
-    if (data.tags !== undefined) {
-      var tagsArr = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
-      needMerge.tags = tagsArr;
-    }
-    if (data.system_prompt !== undefined) {
-      needMerge.system_prompt = data.system_prompt;
-    }
-    if (Object.keys(needMerge).length > 0) {
-      await _tavernMergeAttributes(validated, needMerge);
-    }
-  }
-
-  // 通过 /api/characters/merge-attributes 直接写入角色卡字段（绕过 tavern_helper 的 Character 类型限制）
-  async function _tavernMergeAttributes(name, fields) {
-    var st = _tavern();
-    if (!st) throw new Error('无法访问 SillyTavern 对象');
-    // 获取角色头像 ID（merge-attributes API 需要 avatar 来定位角色）
-    var avatar = null;
-    if (st.characters) {
-      for (var i = 0; i < st.characters.length; i++) {
-        if (st.characters[i].name === name) {
-          avatar = st.characters[i].avatar;
-          break;
-        }
-      }
-    }
-    if (!avatar) {
-      // fallback: 用 getCharacter 获取
-      var getCharacter = _tavernFn('getCharacter');
-      if (getCharacter) {
-        var char = await _tavernRetry('获取角色卡', function() { return getCharacter(name); });
-        if (char && char.avatar) avatar = char.avatar;
-      }
-    }
-    if (!avatar) throw new Error('无法找到角色卡头像 ID：' + name);
-
-    // 构造 merge 请求体：同时写顶层和 data 层
-    var body = { avatar: avatar };
-    var dataLayer = {};
-    for (var key in fields) {
-      body[key] = fields[key];
-      dataLayer[key] = fields[key];
-    }
-    body.data = dataLayer;
-
-    var headers = { 'Content-Type': 'application/json' };
-    if (typeof st.getRequestHeaders === 'function') {
-      var stHeaders = st.getRequestHeaders();
-      for (var h in stHeaders) headers[h] = stHeaders[h];
-    }
-
-    var resp = await _tavernRetry('merge-attributes 写入', function() {
-      return fetch('/api/characters/merge-attributes', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body),
-        cache: 'no-cache'
-      });
-    });
-    if (!resp.ok) {
-      var errText = '';
-      try { errText = await resp.text(); } catch(e) {}
-      console.warn('[时之写卡器] merge-attributes 写入失败 (' + resp.status + '):', errText);
-    }
   }
 
   // 规范化脚本对象（Hr）
@@ -6762,7 +6632,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       rawFirstMes = rawFirstMes.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '').trim() + '\n\n<StatusPlaceHolderImpl/>';
     }
     var cardFirstMes = toCRLF(rawFirstMes);
-    var cardMesExample = toCRLF(cd.mes_example || '');
     var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
       // ⚠️改进R5：非字符串元素（null/数字/对象）会令 toCRLF 崩溃，加 typeof 守卫
       if (typeof g !== 'string') g = '';
@@ -6774,7 +6643,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       return greeting;
     });
-    var cardPostHist = toCRLF(cd.post_history_instructions || '');
     var cardSysPrompt = toCRLF(cd.system_prompt || '');
     var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
     // 优先从 data.depth_prompt 读取（v3规范），回退到 extensions.depth_prompt（v2兼容）
@@ -6792,11 +6660,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       personality: cd.personality || '',
       scenario: cd.scenario || '',
       first_mes: cardFirstMes,
-      mes_example: cardMesExample,
       creator_notes: cardCreatorNotes,
       system_prompt: cardSysPrompt,
-      post_history_instructions: cardPostHist,
-      tags: (cd.tags && Array.isArray(cd.tags) && cd.tags.length) ? cd.tags : (cd.tags && typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []),
       creator: '时之写卡器',
       character_version: '',
       alternate_greetings: cardAltGreetings,
@@ -7047,12 +6912,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       personality: cd.personality || '',
       scenario: cd.scenario || '',
       first_mes: cardFirstMes,
-      mes_example: cardMesExample,
       creatorcomment: cardCreatorNotes,
       avatar: 'none',
       talkativeness: '0.5',
       fav: false,
-      tags: (cd.tags && Array.isArray(cd.tags) && cd.tags.length) ? cd.tags : (cd.tags && typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []),
       create_date: new Date().toISOString(),
       spec: 'chara_card_v3',
       spec_version: '3.0',
@@ -7067,8 +6930,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       var cardData = {
         name: '', description: '', personality: '', scenario: '',
-        first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
-        post_history_instructions: '', tags: [], creator: '时之写卡器',
+        first_mes: '', creator_notes: '', system_prompt: '',
+        creator: '时之写卡器',
         character_version: '', alternate_greetings: [], group_only_greetings: [],
         extensions: {
           talkativeness: '0.5',
@@ -7671,9 +7534,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           { key: 'description', label: '世界观描述' },
           { key: 'first_mes', label: '开场白' },
           { key: 'system_prompt', label: '系统指令' },
-          { key: 'post_history_instructions', label: '核心铁则' },
-          { key: 'mes_example', label: '对话示例' },
-          { key: 'tags', label: '标签', isArray: true },
           { key: 'alternate_greetings', label: '分支问候', isArray: true }
         ];
         var cardNodes = [];
@@ -7791,7 +7651,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       function _wsGetTitle(node) {
         if (node.type === 'field') {
-          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', post_history_instructions: '核心铁则', mes_example: '对话示例', tags: '标签', alternate_greetings: '分支问候' };
+          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', alternate_greetings: '分支问候' };
           var label = labels[node.key] || node.key;
           if (node.index != null && Array.isArray(cardData[node.key])) return label + ' #' + (node.index + 1);
           return label;
@@ -8101,11 +7961,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         cardData.personality = cd.personality || '';
         cardData.scenario = cd.scenario || '';
         cardData.first_mes = cd.first_mes || '';
-        cardData.mes_example = cd.mes_example || '';
         cardData.creator_notes = cd.creator_notes || (rawData.creatorcomment !== undefined ? rawData.creatorcomment : '');
         cardData.system_prompt = cd.system_prompt || '';
-        cardData.post_history_instructions = cd.post_history_instructions || '';
-        cardData.tags = Array.isArray(cd.tags) ? cd.tags : (typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []);
         cardData.creator = cd.creator || '时之写卡器';
         cardData.character_version = cd.character_version !== undefined ? cd.character_version : '';
         cardData.alternate_greetings = cd.alternate_greetings || [];
@@ -8380,7 +8237,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
             if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = { scripts: [], variables: {} };
             if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
-            if (!Array.isArray(cardData.tags)) cardData.tags = (typeof cardData.tags === 'string' && cardData.tags.trim() ? cardData.tags.split(/[,，、\s]+/).filter(Boolean) : []);
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
 
             // ========== Tab 隔离：优先加载 chatSessions 对象，其次从独立字段重建 ==========
@@ -8835,7 +8691,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           situation: '请帮我完善当前局势和主要势力关系，用:::upsert操作块输出（近场强约束+实体交互类条目）。',
           axiom: '请帮我完善【基础公理】体系：世界元数据、世界观公理、力量体系骨架。用:::upsert操作块输出，使用<基础公理>前缀，constant=true，position=0，每条content≥250字。',
           soft_rules: '请帮我设计【交互软规则】体系：互动选项规则、叙事风格引导、剧情节奏控制。用:::upsert操作块输出，使用<交互软规则>前缀。',
-          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。核心规则用:::set post_history_instructions（≤100字分号分隔），详细规则用:::upsert <核心铁则>条目。',
+          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。详细规则用:::upsert <核心铁则>条目。',
           near_constraint: '请帮我设计【近场强约束】体系：当前局势、即时状态、临时任务。用:::upsert操作块输出，使用<近场强约束>前缀，触发式条目depth=2。',
           scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。用:::upsert操作块输出，使用<场景机制>前缀。',
           entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。用:::upsert操作块输出，使用<实体交互>前缀，prevent_recursion=true。',
@@ -9160,7 +9016,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (s.type !== 'code') return true;
             // JSON代码块（含 { "name" / "entries" / "character_book" 等角色卡字段）视为冗余
             var c = (s.content || '').trim();
-            if (c.charAt(0) === '{' && (c.indexOf('"name"') >= 0 || c.indexOf('"entries"') >= 0 || c.indexOf('"character_book"') >= 0 || c.indexOf('"post_history_instructions"') >= 0 || c.indexOf('"description"') >= 0)) {
+            if (c.charAt(0) === '{' && (c.indexOf('"name"') >= 0 || c.indexOf('"entries"') >= 0 || c.indexOf('"character_book"') >= 0 || c.indexOf('"description"') >= 0)) {
               return false; // 剥除
             }
             return true;
@@ -9573,7 +9429,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
             (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 500) + '\n' : '') +
             (cardData.first_mes ? '- 开场白(' + (cardData.first_mes||'').length + '字)\n' : '') +
-            (cardData.post_history_instructions ? '- 核心铁则(' + (cardData.post_history_instructions||'').length + '字)\n' : '') +
             '- 世界书条目：' + entries.length + '条\n' +
             (entries.length > 0 ? '- 条目清单：\n' + entries.map(function(e) { return '  · [' + (e.comment||'未命名') + '] ' + (e.content||'').length + '字' + (e.enabled === false ? ' (禁用)' : ''); }).join('\n') : '');
           var aiResponse = await callAI(analyzePrompt);
@@ -9658,9 +9513,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           else if (count >= 1) result[mod] = Math.min(30 + Math.floor(totalLen / 25), 55);
           else result[mod] = 0;
         });
-        if (cardData.post_history_instructions && cardData.post_history_instructions.length > 0) {
-          result.core_rules = Math.max(result.core_rules, 50);
-        }
         if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt && cardData.extensions.depth_prompt.prompt.length > 0) {
           result.dynamic_adapt = Math.max(result.dynamic_adapt, 30);
         }
@@ -9859,7 +9711,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!cd.extensions.regex_scripts) cd.extensions.regex_scripts = [];
 
         // 合法的顶层字段（set操作用）
-        var validFields = ['name','description','first_mes','mes_example','system_prompt','personality','scenario','creator_notes','post_history_instructions','tags','alternate_greetings','creator','character_version','depth_prompt'];
+        var validFields = ['name','description','first_mes','system_prompt','personality','scenario','creator_notes','alternate_greetings','creator','character_version','depth_prompt'];
 
         // MVU条目关键词（用于Tab隔离：角色卡Tab下拦截MVU条目写入）
         function _isMvuEntryKey(comment) {
@@ -10018,10 +9870,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else if (op.action === 'set') {
             var fieldName = op.key.toLowerCase().trim();
             if (validFields.indexOf(fieldName) >= 0) {
-              // tags 字段需要转为数组（::: set tags 内容是逗号/顿号分隔的字符串）
-              if (fieldName === 'tags') {
-                cd.tags = op.content.split(/[,，、\s]+/).filter(Boolean);
-              } else if (fieldName === 'alternate_greetings') {
+              if (fieldName === 'alternate_greetings') {
                 // alternate_greetings 也需要转为数组
                 cd.alternate_greetings = op.content.split(/\n/).map(function(s) { return s.trim(); }).filter(Boolean);
               } else {
@@ -11472,10 +11321,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '- description：≥400字，覆盖世界核心设定、地理、历史、文化、社会结构\n' +
             '- first_mes：500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
             '- system_prompt：≤50字，仅AI身份定位一句话\n' +
-            '- post_history_instructions：≤100字，分号分隔的核心铁则（最高权重位）\n' +
             '- personality/scenario：必须留空（世界模式规范）\n' +
-            '- tags：2-12个精准标签\n' +
-            '- mes_example：1-2组对话示例（Few-shot）\n' +
             '- alternate_greetings：≥3个差异化备用开局\n' +
             '- extensions.depth_prompt：新手引导（depth=0）\n' +
             '- extensions.regex_scripts：2-3条通用正则（如行动标签、关键词高亮、状态栏标签通用格式化），禁止MVU相关正则\n' +
@@ -11485,7 +11331,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
             (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
-            (Array.isArray(cardData.tags) && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
             '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
           var aiResponse = await callAI(genPrompt);
           removeTyping();
@@ -11600,9 +11445,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             return kws.some(function(kw) { return c.indexOf(kw) >= 0; });
           });
         });
-        if (cardData.post_history_instructions && cardData.post_history_instructions.length > 0) {
-          result.core_rules = true;
-        }
         if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt && cardData.extensions.depth_prompt.prompt.length > 0) {
           result.dynamic_adapt = true;
         }
@@ -11635,7 +11477,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         var doneCount = modKeys.filter(function(k) { return mp[k] === true; }).length;
         score += doneCount * 5;
-        if (Array.isArray(cardData.tags) && cardData.tags.length >= 2) score += 5;
         if (cardData.creator_notes && cardData.creator_notes.length >= 10) score += 2;
         return Math.min(score, 100);
       }
@@ -11876,8 +11717,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           totalToken += tk;
           if (e.constant) permToken += tk; else trigToken += tk;
         });
-        var phiToken = countTokens(cardData.post_history_instructions || '');
-        permToken += phiToken;
 
         var h = '<div class="modal" id="wvModal">' +
           '<div class="modal-content">' +
@@ -12055,11 +11894,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '性格描述（世界模式留空）': { field: 'personality', instr: '问题：世界模式下 personality 非空\n影响：与世界观模式规范冲突，可能干扰AI\n修复：清空 personality 字段（世界模式人设由世界书条目承载）' },
           '场景设定（世界模式留空）': { field: 'scenario', instr: '问题：世界模式下 scenario 非空\n影响：与世界观模式规范冲突\n修复：清空 scenario 字段（场景由世界书触发条目动态提供）' },
           '开场白 ≥500字': { field: 'first_mes', instr: '问题：开场白不足500字\n影响：代入感弱，玩家难以进入情境\n修复：扩展到500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符' },
-          '系统指令 ≤50字（仅AI身份定位）': { field: 'system_prompt', instr: '问题：system_prompt 过长或为空\n影响：挤占上下文，核心规则权重不足\n修复：精简到≤50字，仅保留AI身份定位一句话（如"你是某世界的叙事AI"）；核心规则迁移到 post_history_instructions' },
-          '核心铁则 post_history_instructions ≤100字': { field: 'post_history_instructions', instr: '问题：post_history_instructions 未设或过长\n影响：缺少最高权重位的硬性约束，AI遵循度下降\n修复：设置≤100字的核心铁则，分号分隔短句（如"保持神秘；拒绝透露秘密；偶尔说谜语"）。这是权重最高的位置，遵循度是system_prompt的2倍以上' },
-          '标签数量 2-12个': { field: 'tags', instr: '问题：标签数量不在2-12范围\n影响：分类与检索困难\n修复：设置2-12个简短标签，精准描述世界题材和风格（如"奇幻""中世纪""魔法"）' },
+          '系统指令 ≤50字（仅AI身份定位）': { field: 'system_prompt', instr: '问题：system_prompt 过长或为空\n影响：挤占上下文，核心规则权重不足\n修复：精简到≤50字，仅保留AI身份定位一句话（如"你是某世界的叙事AI"）' },
           // === 高价值字段 ===
-          'mes_example 对话示例（Few-shot）': { field: 'mes_example', instr: '问题：缺少 mes_example 对话示例\n影响：AI缺少 Few-shot 示范，输出风格不稳定\n修复：生成1-2组对话示例，格式 <START>用户消息<END>\\n<START>助手消息<END>，展示NPC性格和对话风格' },
           'alternate_greetings 3个差异化开局': { field: 'alternate_greetings', instr: '问题：备用开局不足3个\n影响：重玩价值低\n修复：生成至少3个不同身份/难度/场景的备用开场白，每个500字左右' },
           'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效）' },
           'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：生成3-5条实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换' },
@@ -12068,7 +11904,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '触发词覆盖率 ≥50%': { field: 'entries', instr: '问题：触发词覆盖率不足50%\n影响：触发条目无法被正确激活\n修复：为≥50%的条目设置精准 keys 触发词，避免泛用词（如"的""是"）' },
           '条目内容 ≥250字': { field: 'entries', instr: '问题：超过半数条目内容不足250字\n影响：信息密度低，触发后AI可参考内容不足\n修复：将≥50%的条目内容扩充到≥250字，提供完整自包含的信息' },
           '条目命名规范 ≥50%': { field: 'entries', instr: '问题：条目命名不规范\n影响：难以识别条目职能与权重层级\n修复：为≥50%的条目使用规范前缀：<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>；MVU条目用[InitVar]前缀' },
-          '权重合理性：核心规则在高权重位': { field: 'entries', instr: '问题：核心规则未在高权重位\n影响：AI容易忽略核心规则\n修复：核心规则必须放在 post_history_instructions 或 <核心铁则> 条目（高权重位），近场约束放适当位置' },
+          '权重合理性：核心规则在高权重位': { field: 'entries', instr: '问题：核心规则未在高权重位\n影响：AI容易忽略核心规则\n修复：核心规则必须放在 <核心铁则> 条目（高权重位），近场约束放适当位置' },
           'content自包含性（无上下文依赖）': { field: 'entries', instr: '问题：条目content含上下文依赖词\n影响：条目单独触发时信息不完整\n修复：移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息' },
           // === 世界书高级 ===
           '递归链条：delay_until_recursion': { field: 'entries', instr: '问题：未使用递归链条\n影响：无法实现"提到A自动带出A背景"\n修复：为叙事类条目开启 extensions.delay_until_recursion=true，实现关联触发' },
@@ -12140,12 +11976,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           { key: 'description', label: '📜 世界观描述' },
           { key: 'first_mes', label: '🎬 开场白' },
           { key: 'system_prompt', label: '⚡ 系统指令' },
-          { key: 'post_history_instructions', label: '🔐 核心铁则' },
-          { key: 'mes_example', label: '💬 对话示例' },
           { key: 'alternate_greetings', label: '🎭 备用开局' },
           { key: 'depth_prompt', label: '🎮 新手引导' },
           { key: 'regex_scripts', label: '🔄 状态正则' },
-          { key: 'tags', label: '🏷️ 标签' },
           { key: 'entries', label: '📖 世界书条目' }
         ];
         selectedOptFields = [];
@@ -12214,16 +12047,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '- 必须包含完整文本，严禁使用占位符\n\n' +
             '【system_prompt 系统指令】\n' +
             '- 字数：≤50字\n' +
-            '- 内容：仅AI身份定位（如"你是一个神秘的酒馆老板"）\n' +
-            '- 核心规则必须放在post_history_instructions\n\n' +
-            '【post_history_instructions 核心铁则】\n' +
-            '- 字数：≤100字\n' +
-            '- 内容：极度精简的核心规则，放在最高权重位置\n' +
-            '- 格式：分号分隔的短句，如"保持神秘；拒绝透露秘密；偶尔说谜语"\n\n' +
-            '【mes_example 对话示例】\n' +
-            '- 数量：1-2组\n' +
-            '- 格式：<START>用户消息<END>\n<START>助手消息<END>\n' +
-            '- 作用：展示NPC性格和对话风格（Few-shot）\n\n' +
+            '- 内容：仅AI身份定位（如"你是一个神秘的酒馆老板"）\n\n' +
             '【alternate_greetings 备用开局】\n' +
             '- 数量：至少3个\n' +
             '- 差异化：不同身份/难度/场景的开场白\n' +
@@ -12245,10 +12069,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '  * 行动标签：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
             '  * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
             '  * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n\n' +
-            '【tags 标签】\n' +
-            '- 数量：2-12个\n' +
-            '- 内容：精准描述世界题材和风格\n' +
-            '- 格式：简短词语，如"奇幻""中世纪""魔法"\n\n' +
             '【entries 世界书条目】\n' +
             '- 数量：12-30条\n' +
             '- 命名规范：使用<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>等前缀\n' +
@@ -12377,9 +12197,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   if (field === 'entries') {
                     beforeV = JSON.stringify(((cardData.character_book || {}).entries || []).slice(0, 3), null, 1);
                     afterV = JSON.stringify((optimized.entries || []).slice(0, 3), null, 1);
-                  } else if (field === 'tags') {
-                    beforeV = (cardData.tags || []).join(', ');
-                    afterV = (optimized.tags || []).join(', ');
                   } else if (field === 'alternate_greetings') {
                     beforeV = (cardData.alternate_greetings || []).join('\n---\n');
                     afterV = (optimized.alternate_greetings || []).join('\n---\n');
@@ -12481,13 +12298,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                         });
                       }
                       // 其他字段：长度非空时才覆盖
-                      ['description','personality','scenario','first_mes','system_prompt','creator_notes','mes_example','post_history_instructions'].forEach(function(f) {
+                      ['description','personality','scenario','first_mes','system_prompt','creator_notes'].forEach(function(f) {
                         if (optimized[f] && String(optimized[f]).trim().length > 10) {
                           if (cardData[f] !== optimized[f]) { cardData[f] = optimized[f]; optModified = true; }
                         }
                       });
                       if (Array.isArray(optimized.alternate_greetings)) { cardData.alternate_greetings = (cardData.alternate_greetings || []).concat(optimized.alternate_greetings); optModified = true; }
-                      if (Array.isArray(optimized.tags)) { cardData.tags = (cardData.tags || []).concat(optimized.tags.filter(function(t) { return (cardData.tags || []).indexOf(t) < 0; })); optModified = true; }
                     } else {
                       // 智能合并模式（默认）
                       optModified = !!mergePartial(optimized, cardData);
@@ -12687,16 +12503,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
-        h += sec('lock', '核心铁则', cardData.post_history_instructions, cardData.post_history_instructions ? (cardData.post_history_instructions.length + '字') : '');
         h += sec('bolt', '系统指令', cardData.system_prompt, cardData.system_prompt ? (cardData.system_prompt.length + '字') : '');
-        h += sec('chat', '对话示例', cardData.mes_example, cardData.mes_example ? (cardData.mes_example.length + '字') : '');
-
-        var tags = cardData.tags || [];
-        if (tags.length > 0) {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('tag', 14) + ' 标签</span><span class="sec-right">' + tags.length + '个</span><span class="pv-toggle"></span></h3><div class="pv-content">' + tags.map(function(t) { return escHtml(t); }).join(' · ') + '</div></div>';
-        } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('tag', 14) + ' 标签</span><span class="pv-toggle"></span></h3><div class="pv-empty">待生成...</div></div>';
-        }
 
         h += sec('edit', '创作者备注', cardData.creator_notes);
 
@@ -12918,11 +12725,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             description: data.description,
             personality: data.personality,
             scenario: data.scenario,
-            mes_example: data.mes_example,
             system_prompt: data.system_prompt,
-            post_history_instructions: data.post_history_instructions,
             creator_notes: data.creator_notes,
-            tags: data.tags,
             creator: data.creator,
             character_version: data.character_version,
             alternate_greetings: data.alternate_greetings,
