@@ -5960,6 +5960,80 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       return charData;
     });
+
+    // updateCharacterWith 使用简化的 Character 类型，会丢弃 post_history_instructions、mes_example、tags
+    // 需要通过 /api/characters/merge-attributes 直接写入这三个字段（同时写顶层和 data 层）
+    var needMerge = {};
+    if (data.post_history_instructions !== undefined) {
+      needMerge.post_history_instructions = data.post_history_instructions;
+    }
+    if (data.mes_example !== undefined) {
+      needMerge.mes_example = data.mes_example;
+    }
+    if (data.tags !== undefined) {
+      var tagsArr = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
+      needMerge.tags = tagsArr;
+    }
+    if (data.system_prompt !== undefined) {
+      needMerge.system_prompt = data.system_prompt;
+    }
+    if (Object.keys(needMerge).length > 0) {
+      await _tavernMergeAttributes(validated, needMerge);
+    }
+  }
+
+  // 通过 /api/characters/merge-attributes 直接写入角色卡字段（绕过 tavern_helper 的 Character 类型限制）
+  async function _tavernMergeAttributes(name, fields) {
+    var st = _tavern();
+    if (!st) throw new Error('无法访问 SillyTavern 对象');
+    // 获取角色头像 ID（merge-attributes API 需要 avatar 来定位角色）
+    var avatar = null;
+    if (st.characters) {
+      for (var i = 0; i < st.characters.length; i++) {
+        if (st.characters[i].name === name) {
+          avatar = st.characters[i].avatar;
+          break;
+        }
+      }
+    }
+    if (!avatar) {
+      // fallback: 用 getCharacter 获取
+      var getCharacter = _tavernFn('getCharacter');
+      if (getCharacter) {
+        var char = await _tavernRetry('获取角色卡', function() { return getCharacter(name); });
+        if (char && char.avatar) avatar = char.avatar;
+      }
+    }
+    if (!avatar) throw new Error('无法找到角色卡头像 ID：' + name);
+
+    // 构造 merge 请求体：同时写顶层和 data 层
+    var body = { avatar: avatar };
+    var dataLayer = {};
+    for (var key in fields) {
+      body[key] = fields[key];
+      dataLayer[key] = fields[key];
+    }
+    body.data = dataLayer;
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (typeof st.getRequestHeaders === 'function') {
+      var stHeaders = st.getRequestHeaders();
+      for (var h in stHeaders) headers[h] = stHeaders[h];
+    }
+
+    var resp = await _tavernRetry('merge-attributes 写入', function() {
+      return fetch('/api/characters/merge-attributes', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body),
+        cache: 'no-cache'
+      });
+    });
+    if (!resp.ok) {
+      var errText = '';
+      try { errText = await resp.text(); } catch(e) {}
+      console.warn('[时之写卡器] merge-attributes 写入失败 (' + resp.status + '):', errText);
+    }
   }
 
   // 规范化脚本对象（Hr）
