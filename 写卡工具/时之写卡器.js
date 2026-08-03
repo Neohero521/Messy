@@ -5529,9 +5529,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // 生成变量输出格式强调内容
+  // ⚠️完全固定，原封不动输出（不要修改字段、不要加注释、不要替换占位符）
   // 默认关闭（enabled=false），AI不输出<UpdateVariable>时才启用
   function generateVarOutputEmphasis() {
-    return ['---','变量输出格式强调:','  rule: The following must be inserted to the end of reply, and cannot be omitted','  format: |-','    <UpdateVariable>','    ...','    </UpdateVariable>'].join('\n');
+    return ['---',
+'变量输出格式强调:',
+'  rule: The following must be inserted to the end of reply, and cannot be omitted',
+'  format: |-',
+'    <UpdateVariable>',
+'    ...',
+'    </UpdateVariable>'].join('\n');
   }
 
   // ===== 从角色卡数据提取角色名列表 =====
