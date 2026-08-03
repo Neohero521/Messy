@@ -170,13 +170,21 @@ html,body{height:100%;width:100%;overflow:hidden}
   --shadow-float:0 20px 60px rgba(15,23,42,.12);
   --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei UI','Hiragino Sans GB',sans-serif;
   --font-mono:'Sarasa Mono SC','Cascadia Code','JetBrains Mono','Consolas',Menlo,monospace;
+  --app-font-scale: 1;   /* 全局字体缩放（0.85~1.20），由JS按钮调整 */
   /* 滚动条 */
   --scrollbar-thumb:rgba(148,163,184,.4);
   --scrollbar-track:transparent;
   /* 链接色（走变量，便于主题化）*/
   --link:#2563eb;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:calc(14px * var(--app-font-scale,1));-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+/* 工作区关键模块的字体大小也随缩放走，但保持最小字号保证可读性 */
+.topbar h1{font-size:calc(.95em * var(--app-font-scale,1))}
+.quick-btn,.qa-mini{font-size:calc(.8em * var(--app-font-scale,1))}
+.pv-section h3{font-size:calc(.86em * var(--app-font-scale,1))}
+.pv-section .pv-entry-content,.pv-section .pv-entry summary,.pv-section .pv-code,.pv-section .pv-content{font-size:calc(.82em * var(--app-font-scale,1));line-height:calc(1.65 * var(--app-font-scale,1))}
+.bubble.user,.bubble.assistant{font-size:calc(.88em * var(--app-font-scale,1))}
+.chat-input{font-size:calc(.9em * var(--app-font-scale,1))}
 /* SVG 图标基线：统一对齐、currentColor 继承 */
 svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color .2s}
 .ic-spin{animation:spin 0.8s linear infinite}
@@ -184,6 +192,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--line);min-height:48px}
 .topbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.font-ctrl{display:inline-flex;align-items:center;gap:3px;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;padding:2px 5px;flex-shrink:0}
+.font-ctrl .font-btn{height:26px;width:26px;font-size:.74em;font-weight:700;padding:0;color:var(--ink-soft);border-color:var(--line-soft);background:var(--surface)}
+.font-ctrl .font-btn:hover:not(:disabled){background:var(--surface-sink);color:var(--accent-deep)}
+.font-ctrl .font-size-label{font-size:.72em;color:var(--ink-soft);min-width:40px;text-align:center;font-weight:600}
 .topbar h1{font-size:.95em;color:var(--accent-deep);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .topbar h1 .topbar-ic{color:var(--accent)}
 .topbar .phase{font-size:.8em;color:var(--accent-text);background:var(--accent-soft);padding:3px 11px;border-radius:999px;font-weight:600;white-space:nowrap;flex-shrink:0}
@@ -544,6 +556,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .topbar{padding:8px 12px;min-height:42px}
   .topbar h1{font-size:.88em}
   .topbar .phase{font-size:.68em}
+  /* 字体控件：小屏隐藏百分比标签，按钮稍紧凑，防止挤占顶栏 */
+  .font-ctrl{padding:1px 3px;gap:1px}
+  .font-ctrl .font-btn{height:24px;width:24px;font-size:.68em}
+  .font-ctrl .font-size-label{display:none}
+  .topbar-right{gap:3px}
   /* 聊天气泡：手机端更宽，提升阅读体验 */
   .chat-messages{padding:10px 6px}
   .chat-msg .bubble{max-width:88%;font-size:.88em;padding:8px 11px}
@@ -1867,7 +1884,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          | stat_data._当前回合 | number | _前缀只读 | — | 是 | — | 系统 | 当前回合 |\n' +
     '        用途：后续Step 2-6全部基于此表，路径/类型/显示格式/是否跳过不得偏离\n' +
     '        交付：展示7列表格，问"这些变量都对吗？显示格式/分组要调整的告诉我"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 2: 配色方案，请说继续"\n' +
+    '        结尾给用户的提示：输出后简单告诉用户"下一步是Step 2配色，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 2：配色方案（仅CSS :root变量块）\n' +
     '        产出：仅一段 `:root { --xxx: 颜色; }`，不含任何选择器规则\n' +
@@ -1881,7 +1898,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '            --progress-bar-fill: var(--accent-blue);\n' +
     '          }\n' +
     '        交付：展示配色，问"配色OK吗？"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 3: HTML结构骨架，请说继续"\n' +
+    '        结尾给用户的提示：简单告诉用户"下一步Step 3骨架，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 3：HTML结构骨架（仅外层骨架，无CSS无JS）【改进12：放宽允许固定结构层】\n' +
     '        产出：纯DOM外层骨架代码块（用```html或纯```包裹都可，写卡器均可识别），只有 id="render-root" 一个变量容器，递归渲染会自动填充内部的stat-item DOM\n' +
@@ -1904,7 +1921,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '            </div>\n' +
     '          </div>\n' +
     '        交付：展示骨架，问"结构OK吗？固定层（header/tabs/footer）需要加减的告诉我"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 4: CSS样式表，请说继续"\n' +
+    '        结尾给用户的提示：简单告诉用户"下一步Step 4样式，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
     '        产出：基于标准实现模式写所有选择器规则，引用Step 2的CSS变量\n' +
@@ -1914,7 +1931,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          固定结构层可选（如有）：.status-header/.status-tabs/.status-footer 及对应交互态.active\n' +
     '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度\n' +
     '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 5: refreshStatus+renderTree，请说继续"\n' +
+    '        结尾给用户的提示：简单告诉用户"下一步Step 5渲染函数，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 5：refreshStatus + renderTree（仅JS function，变量读取+递归渲染合并为单槽位）\n' +
     '        产出：_getVars() helper【⚠️必须定义在refreshStatus外部！Step6的while循环要跨函数访问它】 + `function refreshStatus() { ... }` + 内部 renderTree(obj, level) 递归\n' +
@@ -1967,7 +1984,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '            if (root) { root.innerHTML = htmlStr; try { root.classList.add("flash-update"); } catch(e) {} setTimeout(function() { try { root.classList.remove("flash-update"); } catch(e) {} }, 300); }\n' +
     '          }\n' +
     '        交付：展示函数+helper，简要说明变量读取策略（消息级优先、fallback全局）\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 6: 异步入口+轮询绑定，请说继续"\n' +
+    '        结尾给用户的提示：简单告诉用户"下一步Step 6入口，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 6：异步入口+轮询绑定（仅JS入口代码，StageDog标准两步就绪+2秒轮询+事件兜底）\n' +
     '        产出（完整入口代码块）：\n' +
@@ -2003,7 +2020,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          · 主同步机制：setInterval(refreshStatus, 2000) —— 每2秒轮询，等同于defineMvuDataStore内部useIntervalFn(2000)\n' +
     '          · 事件仅作加分兜底：try/catch双重包裹调用eventOn；UI不得依赖事件（禁用Mvu.watch等不存在接口）\n' +
     '        交付：展示完整入口代码，问"2秒轮询+事件兜底OK吗？"\n' +
-    '        ⏭️结尾提醒：输出后必须告知用户"下一步是 Step 7: 拼接合并+自查，请说继续"\n' +
+    '        结尾给用户的提示：简单告诉用户"完成，自查"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 7：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
     '        ⚠️重要：拼接由写卡器自动完成，AI不需要重新输出完整HTML！\n' +
@@ -3978,18 +3995,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var sbReadyFive = sbCollectedGlobal.length === 5;
     var sbProgressIconsGlobal = '';
     ['step2','step3','step4','step5','step6'].forEach(function(k){ sbProgressIconsGlobal += (statusBarModules && statusBarModules[k]) ? '✅' : '⬜'; });
-    var sbStateHeader = '\n' +
-      '═══════════════════════════════════════════════════════════════════\n' +
-      '📊 【状态栏槽位真实状态（写卡器后台权威数据 · AI 必须严格转述，禁止编造）】\n' +
-      '═══════════════════════════════════════════════════════════════════\n' +
-      '收集进度: ' + sbProgressIconsGlobal + ' (' + sbCollectedGlobal.length + '/5)\n' +
-      '已收集槽位: ' + (sbCollectedGlobal.length ? sbCollectedGlobal.join(' · ') : '无') + '\n' +
-      '未收集槽位: ' + (sbMissingGlobal.length ? sbMissingGlobal.join(' · ') : '无') + '\n' +
-      '5槽位是否齐全: ' + (sbReadyFive ? '✅ 齐全（可拼接保存）' : '❌ 不齐全（缺 ' + (5 - sbCollectedGlobal.length) + ' 个）') + '\n' +
-      '⚠️ 铁律：以上状态来自写卡器后台内存，AI 只准逐字转述，绝对禁止编造「已齐全/已保存/还缺XX」等信息！\n' +
-      '⚠️ 铁律：若未齐全，AI 不得声称"状态栏已生成完毕/已保存"，只能提示还缺哪些槽位。\n' +
-      '⚠️ 铁律：只有当上面写着"✅齐全（可拼接保存）"时，AI 才能说"5模块齐全，写卡器会自动拼接保存"。\n' +
-      '═══════════════════════════════════════════════════════════════════\n';
+    // 状态栏权威状态（给AI看的内部提示，不要输出给用户）
+    var sbStateHeader = '\n[写卡器内部·状态栏状态·禁止向用户输出此段]\n' +
+      '状态：' + sbCollectedGlobal.length + '/5\n' +
+      '已收集：' + (sbCollectedGlobal.length ? sbCollectedGlobal.join('、') : '无') + '\n' +
+      '未收集：' + (sbMissingGlobal.length ? sbMissingGlobal.join('、') : '无') + '\n' +
+      '齐全：' + (sbReadyFive ? '是' : '否') + '\n' +
+      '注：只按此状态判断，不要编造；给用户的提示只要简单说下一步做什么即可，不要输出此内部状态文本或装饰分隔线。\n';
 
     if (statusBarMode && typeof statusBarCurrentStep !== 'undefined') {
       var sbStepNames = { 1:'变量盘点表', 2:'配色方案', 3:'HTML结构骨架', 4:'CSS样式表', 5:'变量读取与渲染函数', 6:'事件绑定+入口', 7:'拼接合并(完成)', 8:'拼接合并(完成)' };
@@ -4014,21 +4026,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       };
       var curStep = statusBarCurrentStep;
       if (curStep >= 1 && curStep <= 8) {
-        statusBarStateInfo = sbStateHeader + '\n' +
-          '═══════════════════════════════════════════════════════════════════\n' +
-          '🔧 状态栏生成模式（写卡器后台管理 · MVU Tab专属 · 标准实现模式）\n' +
-          '═══════════════════════════════════════════════════════════════════\n' +
-          '当前Step: ' + curStep + ' - ' + sbStepNames[curStep] + '\n' +
-          '要求: ' + sbStepDescs[curStep] + '\n';
-        statusBarStateInfo += '⚠️写卡器会自动提取你回复中的第一个代码块填入当前Step槽位，不需要输出 /* === Step N === */ 标记\n';
-        statusBarStateInfo += '⚠️只输出当前Step的代码块，禁止输出其他代码块（世界书条目JSON/角色卡生成指令等）\n';
+        statusBarStateInfo = sbStateHeader +
+          '当前Step: ' + curStep + ' ' + sbStepNames[curStep] + '\n' +
+          '要求: ' + sbStepDescs[curStep] + '\n' +
+          '注：只输出当前Step的第一个代码块即可，写卡器自动收集，不要装饰符号/表情/分隔线，给用户的提示要简洁一句话；如果是Step1或Step7只输出文字。\n';
         if (curStep >= 3 && curStep <= 6) {
-          statusBarStateInfo += '⚠️生成前请与已有模块对照确保一致（变量路径/id命名/函数名/CSS类名/CSS变量等）\n';
+          statusBarStateInfo += '注：生成前请与已有模块对照确保一致（变量路径/id命名/函数名/CSS类名/CSS变量等）\n';
         }
-        statusBarStateInfo += '═══════════════════════════════════════════════════════════════════\n';
       }
     } else if (sbAnyFilled) {
-      /* 非状态栏模式但有已收集的模块，也注入真实状态（比如用户在MVU Tab中闲聊，问"现在做到哪一步"时，AI不会编造） */
       statusBarStateInfo = sbStateHeader;
     }
 
@@ -7135,6 +7141,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '</div>' +
               '</div>' +
               '<div class="topbar-right">' +
+                '<div class="font-ctrl" id="fontCtrl" title="字体大小">' +
+                  '<button class="icon-btn-square icon-btn font-btn" id="fontDec" title="缩小字体">A-</button>' +
+                  '<span class="font-size-label" id="fontSizeLabel">100%</span>' +
+                  '<button class="icon-btn-square icon-btn font-btn" id="fontInc" title="放大字体">A+</button>' +
+                  '<button class="icon-btn-square icon-btn font-btn" id="fontReset" title="恢复默认" style="font-size:0.7em">↺</button>' +
+                '</div>' +
                 '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
                   '<button class="icon-btn" id="wsMenuBtn">' + svgIcon('menu', 15) + ' 工作区</button>' +
                   '<div class="ws-dropdown" id="wsDropdown"></div>' +
@@ -7180,6 +7192,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="work-toast-layer" id="workToastLayer"></div>' +
           '<div id="wsPanelContainer"></div>';
         bindEvents();
+        applyFontScale(_appFontScale);
         initWorkspaceMenu();
         updateModFocus();
         updateQuickActions();
@@ -7679,6 +7692,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function bindEvents() {
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
+        // 字体加减
+        var decBtn = doc.getElementById('fontDec');
+        var incBtn = doc.getElementById('fontInc');
+        var resetBtn = doc.getElementById('fontReset');
+        if (decBtn) decBtn.addEventListener('click', function() {
+          applyFontScale(_appFontScale - _FONT_STEP);
+          try { saveToStorage(); } catch(e) {}
+        });
+        if (incBtn) incBtn.addEventListener('click', function() {
+          applyFontScale(_appFontScale + _FONT_STEP);
+          try { saveToStorage(); } catch(e) {}
+        });
+        if (resetBtn) resetBtn.addEventListener('click', function() {
+          applyFontScale(1);
+          try { saveToStorage(); } catch(e) {}
+        });
         var input = doc.getElementById('chatInput');
         var sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
@@ -8011,6 +8040,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var needSwitchBack = (activeTab !== 'card');
 
         renderChatUI();
+        applyFontScale(_appFontScale);
         if (needSwitchBack) {
           // 如果当前是MVU Tab，则重置回角色卡Tab（导入新角色，MVU需重新配置）
           activeTab = 'card';
@@ -8056,6 +8086,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== localStorage 持久化 =====
       var STORAGE_KEY = 'modelo_char_generator_state';
+      // 全局字体缩放：0.85 (最小,约12px) ~ 1.20 (最大,约16.8px)，步进0.05
+      var _MIN_FONT_SCALE = 0.85, _MAX_FONT_SCALE = 1.20, _FONT_STEP = 0.05;
+      var _appFontScale = 1;
+      function applyFontScale(scale) {
+        if (typeof scale !== 'number' || isNaN(scale)) scale = 1;
+        if (scale < _MIN_FONT_SCALE) scale = _MIN_FONT_SCALE;
+        if (scale > _MAX_FONT_SCALE) scale = _MAX_FONT_SCALE;
+        // 精确到2位小数，避免浮点累计误差
+        scale = Math.round(scale * 100) / 100;
+        _appFontScale = scale;
+        var docEl = document.documentElement;
+        if (docEl) docEl.style.setProperty('--app-font-scale', String(scale));
+        var label = document.getElementById('fontSizeLabel');
+        if (label) label.textContent = Math.round(scale * 100) + '%';
+        var decBtn = document.getElementById('fontDec');
+        var incBtn = document.getElementById('fontInc');
+        if (decBtn) decBtn.disabled = scale <= _MIN_FONT_SCALE + 0.001;
+        if (incBtn) incBtn.disabled = scale >= _MAX_FONT_SCALE - 0.001;
+      }
 
       function saveToStorage() {
         try {
@@ -8074,10 +8123,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
           var state = {
             cardData: cardData,
-            // ========== 改进R：chatSessions 对象是唯一真源，不再保存冗余副本字段（减少序列化开销） ==========
             activeTab: activeTab || 'card',
             chatSessions: chatSessions,
-            // 向后兼容：仅保留 currentTab 别名（旧版 loadFromStorage 读取）
             currentTab: activeTab || 'card',
             cardGenerated: cardGenerated,
             progress: progress,
@@ -8085,6 +8132,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             statusBarModules: statusBarModules,
             statusBarMode: statusBarMode,
             statusBarCurrentStep: statusBarCurrentStep,
+            fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
             timestamp: Date.now()
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -8103,6 +8151,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 statusBarModules: statusBarModules,
                 statusBarMode: statusBarMode,
                 statusBarCurrentStep: statusBarCurrentStep,
+                fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
                 timestamp: Date.now()
               };
               localStorage.setItem(STORAGE_KEY, JSON.stringify(slimState));
@@ -8189,6 +8238,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
             moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
+            if (typeof state.fontScale === 'number') _appFontScale = state.fontScale;
 
             // 状态栏：根据恢复的当前Tab决定加载哪一份
             if (activeTab === 'mvu') {
@@ -8276,6 +8326,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function continueFromSave() {
         if (loadFromStorage()) {
           renderChatUI();
+          applyFontScale(_appFontScale);
           // ========== Tab 隔离：恢复对应Tab的历史消息到对话区 ==========
           // 用 getCurrentMessages() 取当前Tab的专属消息数组（activeTab已在loadFromStorage中恢复）
           var curMsgs = getCurrentMessages();
@@ -8536,9 +8587,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var sbEntries = (cardData.character_book || {}).entries || [];
           var hasInitVarForSB = sbEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
           if (!hasInitVarForSB) {
-            addAssistantMsg('⚠️ 还未生成MVU变量条目，无法制作状态栏！\n\n' +
-              '状态栏需要引用 [InitVar]初始变量 中定义的变量路径，请先点击「📊 设计MVU变量4条目」生成变量系统，\n' +
-              '生成完成后再点击「🎛️ 开始制作状态栏」。');
+            addAssistantMsg('请先生成MVU变量4条目，才能制作状态栏。');
             showToast('请先生成MVU变量4条目', 'warning');
             return;
           }
@@ -8551,10 +8600,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!statusBarModules['step' + SB_STEP_ORDER[sbi]]) { firstEmpty = SB_STEP_ORDER[sbi]; break; }
           }
           statusBarCurrentStep = firstEmpty === 0 ? 1 : firstEmpty;
-          addAssistantMsg('🎛️ 已进入状态栏制作模式！\n' +
-            (firstEmpty === 0
-              ? '当前5个模块都已完成，可以说「预览状态栏」查看效果，或「修改配色/结构」等进行微调。'
-              : '下一步是 Step ' + firstEmpty + ': ' + sbStepName(firstEmpty) + '，请对我说"继续"或描述你的需求。'));
+          addAssistantMsg(firstEmpty === 0
+            ? '状态栏已完成，预览查看效果，或说"修改配色"等微调。'
+            : '开始制作状态栏。下一步：Step ' + firstEmpty + ' ' + sbStepName(firstEmpty) + '，说"继续"。');
           return;
         }
         if (action === 'continue_sb') {
@@ -8564,7 +8612,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!statusBarModules['step' + SB_STEP_ORDER[si]]) { nextStep = SB_STEP_ORDER[si]; break; }
           }
           if (nextStep === 0) {
-            addAssistantMsg('✅ 状态栏5个模块（配色/骨架/样式/refreshStatus+renderTree/入口）已全部完成！\n可以点「🎛️ 状态栏预览」查看最终效果，或说"修改配色"等进行微调。');
+            addAssistantMsg('状态栏已完成，预览查看效果，或说"修改配色"等微调。');
           } else {
             statusBarCurrentStep = nextStep;
             if (input) { input.value = '继续'; handleSend(); }
@@ -10779,26 +10827,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var allComplete = collected.length === 5;
               if (!allComplete) {
                 var nextEmpty = findNextEmptyStep();
-                addAssistantMsg('📦 状态栏模块收集进度 ' + progressBar + '（' + collected.length + '/5）\n' +
-                  '  ✅ 已收集：' + (collected.length ? collected.join('、') : '无') + '\n' +
-                  '  ⬜ 还缺：' + (missing.length ? missing.join('、') : '无') + '\n' +
-                  '  ⏭️ 下一步：请生成 Step ' + nextEmpty + ': ' + sbStepName(nextEmpty) + '（对我说"继续"即可）\n' +
-                  '  ⚠️ 5个模块全部完成后才会拼接保存到角色卡，确保状态栏完整可用。');
+                addAssistantMsg('(' + collected.length + '/5) 下一步：Step ' + nextEmpty + ' ' + sbStepName(nextEmpty) + '，说"继续"。');
               } else {
                 var assembledHtml = assembleStatusBarFromModules();
                 if (assembledHtml) {
-                  /* 改进3+4：拼接保存时做一致性和路径对齐校验 */
                   var consistencyWarnings = validateStatusBarConsistency();
                   var pathWarnings = validateMvuPathAlignment();
                   var allWarnings = consistencyWarnings.concat(pathWarnings);
                   saveStatusBarToCard(assembledHtml);
                   statusBarCurrentStep = 7;
-                  var sbMsg = '🎉 状态栏全部5个模块已收集完成！\n' +
-                    '  ✅ ' + collected.join(' · ') + '\n' +
-                    '  ✅ 写卡器已在后台拼接保存完整HTML到角色卡，可点「🔍 预览状态栏」查看最终效果。';
+                  var sbMsg = '状态栏已完成，预览查看效果。';
                   if (allWarnings.length > 0) {
-                    sbMsg += '\n\n⚠️ 一致性校验发现以下问题（状态栏已保存，建议修复后重新生成对应模块）：\n' +
-                      allWarnings.map(function(w) { return '  • ' + w; }).join('\n');
+                    sbMsg += '\n校验提示：\n' + allWarnings.join('\n');
                   }
                   addAssistantMsg(sbMsg);
                 }
@@ -11032,10 +11072,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                           for (var fii2 = 0; fii2 < SB_STEP_ORDER.length; fii2++) {
                             if (!statusBarModules['step' + SB_STEP_ORDER[fii2]]) missing2.push(sbStepName(SB_STEP_ORDER[fii2]));
                           }
-                          addAssistantMsg('🔧 状态栏修改已识别（AI漏写clear_statusbar已自动兜底）\n' +
-                            '  ✅ 已更新：' + updatedStepNames.join('、') + '\n' +
-                            '  ⬜ 还缺少：' + (missing2.length ? missing2.join('、') : '无') + '\n' +
-                            '  ⏭️ 下一步：请生成 Step ' + statusBarCurrentStep + ':' + sbStepName(statusBarCurrentStep) + '，或对我说出"继续"。');
+                          addAssistantMsg('已更新' + updatedStepNames.join('、') + '，下一步：Step ' + statusBarCurrentStep + ' ' + sbStepName(statusBarCurrentStep) + '，说"继续"。');
                           showToast('✅ Step已更新：' + updatedStepNames.join('、'), 'success');
                         }
                       }
