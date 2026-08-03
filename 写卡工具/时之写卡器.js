@@ -1404,12 +1404,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 示例：\n' +
     '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\n' +
     '9.1.4 [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
-    '     · 采用JSON Patch (RFC 6902)标准，AI输出<Analysis>思维链+<JSONPatch>命令数组\n' +
-    '     · 支持操作：replace(替换)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
-    '     · 格式模板：\n' +
-    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects\\n    - supported ops: replace, delta, insert, remove, move\\n    - don\'t update field names starts with `_` as they are readonly\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\\n    - ${check affection caps: every single interaction may increase at most +1, and the same in-story day may increase at most +5}\\n    - ${analyze every variable based on its corresponding check, according only to current reply: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
-    '     · AI实际输出示例：\n' +
-    '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
+    '     · 内容完全固定，**原封不动地输出以下 YAML，不要修改任何字段、不要加注释、不要替换占位符**：\n' +
+    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
     '9.1.5 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
     '     · 创作流程（严格按3步执行，不要跳步）：\n' +
@@ -5497,9 +5493,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // 生成变量输出格式内容
-  // 含 JSON Patch RFC 6902 标准 + Analysis 思维链 + 好感度上限检查
+  // ⚠️完全固定，原封不动输出（不要修改字段、不要加注释、不要替换占位符）
   function generateVarOutputFormat() {
-    return ['---','变量输出格式:','  rule:','    - you must output the update analysis and the actual update commands at once in the end of the next reply','    - the update commands works like the JSON Patch standard, must be a valid JSON array containing operation objects','    - supported ops: replace, delta, insert, remove, move','    - don\'t update field names starts with `_` as they are readonly','  format: |-','    <UpdateVariable>','    <Analysis>$(IN ENGLISH, no more than 80 words)','    - ${calculate time passed: ...}','    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}','    - ${check affection caps: every single interaction may increase at most +1, and the same in-story day may increase at most +5}','    - ${analyze every variable based on its corresponding check, according only to current reply: ...}','    </Analysis>','    <JSONPatch>','    [','      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },','      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },','      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },','      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },','      { "op": "remove", "path": "${/path/to/object/key}" },','      { "op": "remove", "path": "${/path/to/array/0}" },','      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" }','    ]','    </JSONPatch>','    </UpdateVariable>'].join('\n');
+    return ['---',
+'变量输出格式:',
+'  rule:',
+'    - you must output the update analysis and the actual update commands at once in the end of the next reply',
+'    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:',
+'      - replace: replace the value of existing paths',
+'      - delta: update the value of existing number paths by a delta value',
+'      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)',
+'      - remove',
+'      - move',
+'    - don\'t update field names starts with `_` as they are readonly, such as `_变量`',
+'  format: |-',
+'    <UpdateVariable>',
+'    <Analysis>$(IN ENGLISH, no more than 80 words)',
+'    - ${calculate time passed: ...}',
+'    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}',
+'    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}',
+'    </Analysis>',
+'    <JSONPatch>',
+'    [',
+'      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },',
+'      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },',
+'      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },',
+'      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },',
+'      { "op": "remove", "path": "${/path/to/object/key}" },',
+'      { "op": "remove", "path": "${/path/to/array/0}" },',
+'      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },',
+'      ...',
+'    ]',
+'    </JSONPatch>',
+'    </UpdateVariable>'].join('\n');
   }
 
   // 生成变量输出格式强调内容
