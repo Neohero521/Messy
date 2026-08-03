@@ -5962,6 +5962,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
+  // 整卡导入（兜底）：用 importRawCharacter 把完整 v3 卡 JSON 写入酒馆。
+  // 修复 updateCharacterWith 不支持 mes_example/tags/post_history_instructions/personality/scenario/system_prompt 等 v2/v3 专有字段的问题。
+  // Character API (getCharacter/updateCharacterWith) 只包含 description/creator_notes/extensions/first_messages 等少数字段，
+  // 其余 v2/v3 专有字段必须通过整卡导入方式才能真正写入。
+  async function _tavernImportWholeCard(cardName, fullCardV3Json) {
+    if (!fullCardV3Json || typeof fullCardV3Json !== 'object') return false;
+    var fnName = 'importRawCharacter';
+    var fn = (typeof window !== 'undefined' && typeof window[fnName] === 'function') ? window[fnName] : null;
+    if (!fn) return false;
+    try {
+      var jsonStr = JSON.stringify(fullCardV3Json);
+      var blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+      var fileName = (cardName || '未命名') + '.json';
+      await fn(fileName, blob);
+      return true;
+    } catch (e) {
+      console.warn('[tavern] 整卡导入失败:', e);
+      return false;
+    }
+  }
+
   // 规范化脚本对象（Hr）
   function _normalizeScript(s) {
     return {
@@ -12856,6 +12877,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 关联世界书：写入 character.data.world，让酒馆自动加载该世界书
             world: (entries.length > 0) ? worldbookName : undefined
           });
+
+          // ===== 步骤2.5：整卡导入（兜底）—— 确保 mes_example / tags / post_history_instructions 等 v2/v3 专有字段写入酒馆 =====
+          // SillyTavern Character API（updateCharacterWith）只处理 description/creator_notes/extensions/first_messages 等少数字段，
+          // 其余 v2/v3 专有字段通过 buildExportCard 生成完整 v3 卡后，用 importRawCharacter 整卡导入方式写入才生效。
+          try {
+            await _tavernImportWholeCard(cardData.name, exportCard);
+          } catch (_importErr) {
+            console.warn('[时之写卡器] 整卡导入（兜底）失败，保留 updateCharacterWith 结果:', _importErr);
+          }
 
           // ===== 步骤3：写入开场白 =====
           if (data.first_mes && data.first_mes.trim()) {
