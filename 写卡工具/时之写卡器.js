@@ -416,7 +416,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   height:auto !important;
   min-height:34px;
 }
-/* 美化模板的内容面板：不超宽、自适应换行、可滚动 */
+/* 美化模板的内容面板：不超宽、自适应换行、高度跟随字体缩放（不锁死）*/
 .status-notice > div > div:last-child,
 .loading-notice > div > div:last-child,
 .status-notice details > div,
@@ -424,7 +424,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   max-width:100% !important;
   width:100% !important;
   box-sizing:border-box !important;
-  max-height:360px;
+  max-height:calc(360px * var(--app-font-scale,1));
   overflow-y:auto;
   overflow-x:hidden;
   word-break:break-word;
@@ -8186,8 +8186,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== localStorage 持久化 =====
       var STORAGE_KEY = 'modelo_char_generator_state';
-      // 全局字体缩放：0.85 (最小,约12px) ~ 1.20 (最大,约16.8px)，步进0.05
-      var _MIN_FONT_SCALE = 0.85, _MAX_FONT_SCALE = 1.20, _FONT_STEP = 0.05;
+      // 全局字体缩放：0.85 (最小) ~ 5.0 (最大，接近无限大)，步进0.1
+      var _MIN_FONT_SCALE = 0.85, _MAX_FONT_SCALE = 5.0, _FONT_STEP = 0.1;
       var _appFontScale = 1;
       function applyFontScale(scale) {
         if (typeof scale !== 'number' || isNaN(scale)) scale = 1;
