@@ -2085,55 +2085,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 复杂替换考虑拆分成多个简单脚本\n\n' +
     '**personality/scenario**：\n' +
     '- 强制留空（世界模式）\n\n' +
-    '=== 初次生成角色卡时的输出格式 ===\n' +
-    '当需要生成完整角色卡时，必须使用SillyTavern标准chara_card_v3格式：\n' +
-    '```json\n' +
-    '{\n' +
-    '  "spec": "chara_card_v3",\n' +
-    '  "spec_version": "3.0",\n' +
-    '  "data": {\n' +
-    '    "name": "角色卡名称",\n' +
-    '    "description": "世界观核心设定...",\n' +
-    '    "first_mes": "开场白...",\n' +
-    '    "creator_notes": "创作说明...",\n' +
-    '    "system_prompt": "简短身份定位...",\n' +
-    '    "post_history_instructions": "核心铁则（最高权重）...",\n' +
-    '    "tags": ["标签1"],\n' +
-    '    "creator": "创作者名称",\n' +
-    '    "character_version": "",\n' +
-    '    "alternate_greetings": ["开局1","开局2","开局3"],\n' +
-    '    "extensions": {\n' +
-    '      "talkativeness": "0.5",\n' +
-    '      "fav": false,\n' +
-    '      "world": "世界书名称",\n' +
-    '      "depth_prompt": {"prompt": "", "depth": 0, "role": "system"},\n' +
-    '      "regex_scripts": [\n' +
-    '        {"scriptName":"状态栏格式化","findRegex":"/<status>(.*?)</status>/gi","replaceString":"**状态：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
-    '        {"scriptName":"行动标签","findRegex":"/<action>(.*?)</action>/gi","replaceString":"**行动：**$1","placement":[0,1],"runOnEdit":true,"substituteRegex":0,"disabled":false},\n' +
-    '        {"scriptName":"[美化]MVU状态栏","findRegex":"/<StatusPlaceHolderImpl\\\\/>/g","replaceString":"```html\\n<!doctype html>\\n<html>\\n<head>\\n  <style>...CSS变量配色...</style>\\n</head>\\n<body>\\n  <script type=\\"module\\">await waitGlobalInitialized(\'Mvu\')+getAllVariables()+递归renderVarTree+errorCatched</script>\\n</body>\\n</html>\\n```","placement":[2],"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null,"disabled":false}\n' +
-    '      ],\n' +
-    '      "xiaobaix-template": {"enabled": false,"template": "","customRegex": "","disableParsers": false,"skipFirstMessage": false,"recentMessageCount": 0,"limitToRecentMessages": false},\n' +
-    '      "tavern_helper": {"scripts": [],"variables": {}}\n' +
-    '    },\n' +
-    '    "group_only_greetings": [],\n' +
-    '    "character_book": {"entries": [...]}\n' +
-    '  }\n' +
-    '}\n' +
-    '```\n\n' +
+    '=== 输出格式（:::操作块协议，严禁用```json代码块） ===\n' +
+    '⚠️ 严禁输出```json代码块！所有修改用:::操作块协议输出。\n' +
+    '格式：::: 动作 条目名\\n内容\\n:::\n' +
+    '5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n\n' +
+    '**顶层字段设置示例**：\n' +
+    '::: set name\\n星陨大陆\\n:::\\n\\n' +
+    '::: set description\\n这是一个修仙世界...\\n:::\\n\\n' +
+    '::: set post_history_instructions\\n核心铁则：禁止OOC；保持神秘\\n:::\\n\\n' +
+    '::: set first_mes\\n开场白内容...\\n:::\\n\n' +
     '=== 增量编辑规则 ===\n' +
-    '当角色卡已经生成、用户要求增/删/改某些内容时，只返回需要修改的增量内容。\n\n' +
-    '**增量编辑JSON格式**：\n' +
-    '```json\n' +
-    '{\n' +
-    '  "name": "修改后的名称",\n' +
-    '  "description": "修改后的描述",\n' +
-    '  "post_history_instructions": "修改后的核心铁则",\n' +
-    '  "entries": [\n' +
-    '    {"comment":"<条目前缀>名称","content":"内容","keys":["触发词"],"sticky":true,"cooldown":3}\n' +
-    '  ],\n' +
-    '  "_delete": ["要删除的字段名或条目路径"]\n' +
-    '}\n' +
-    '```\n\n' +
+    '当角色卡已经生成、用户要求增/删/改某些内容时，用:::操作块只输出需要修改的内容。\n\n' +
+    '**增量编辑示例**：\n' +
+    '::: upsert <基础公理>力量体系\\n修炼分为九层...\\n:::\\n\\n' +
+    '::: update <场景机制>战斗规则\\n战斗采用回合制...\\n:::\\n\\n' +
+    '::: delete <人物>反派\\n\\n::: rename <人物>旧名 → <人物>新名\\n\\n' +
     '=== 世界书条目命名规范 ===\n\n' +
     '**条目comment必须使用以下前缀之一**：\n' +
     '- <基础公理>：世界名称、核心哲学、美学总纲、核心符号\n' +
@@ -2506,19 +2472,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 根据用户的回答，立即生成/更新相应的条目\n' +
     '- 主动给出建议和灵感\n' +
     '- 当收集到足够信息时（80%以上），主动提议生成完整角色卡\n\n' +
-    '=== JSON格式示例 ===\n' +
-    '```json\n' +
-    '{\n' +
-    '  "name": "星陨大陆",\n' +
-    '  "description": "这是一个修仙世界...",\n' +
-    '  "post_history_instructions": "核心铁则：禁止OOC...",\n' +
-    '  "entries": [\n' +
-    '    {"comment":"<基础公理>力量体系","content":"修炼分为九层...","keys":["修炼","境界"],"constant":true,"selective":false,"insertion_order":250,"extensions":{"position":0,"depth":0,"prevent_recursion":true}},\n' +
-    '    {"comment":"<场景机制>战斗规则","content":"战斗采用回合制...","keys":["战斗","战斗系统"],"constant":false,"selective":true,"insertion_order":140,"extensions":{"position":4,"depth":3,"cooldown":3}}\n' +
-    '  ]\n' +
-    '}\n' +
-    '```\n\n' +
-    '注意：只填写已确定的内容，未确定的不要输出。每次更新只输出变化的字段。每次更新必须包含至少1-2条对应体系的世界书entries条目。';
+    '=== :::操作块完整示例 ===\n' +
+    '⚠️ 严禁输出```json代码块！所有修改用:::操作块协议。\n\n' +
+    '::: set name\\n星陨大陆\\n:::\\n\\n' +
+    '::: set description\\n这是一个修仙世界...\\n:::\\n\\n' +
+    '::: set post_history_instructions\\n核心铁则：禁止OOC；保持神秘\\n:::\\n\\n' +
+    '::: upsert <基础公理>力量体系\\n修炼分为九层...\\n:::\\n\\n' +
+    '::: upsert <场景机制>战斗规则\\n战斗采用回合制...\\n:::\\n\n' +
+    '注意：只填写已确定的内容，未确定的不要输出。每次更新只输出变化的字段。每次更新必须包含至少1-2条对应体系的世界书:::upsert操作块。';
 
   // ===== 提取条目的规范前缀（用于智能匹配） =====
   function extractEntryPrefix(comment) {
@@ -3770,17 +3731,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var filteredSysPrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
     var sysPrompt = filteredSysPrompt + stateInfo + existingInfo + qcBlock + statusBarStateInfo + antiMvuBlock;
 
-    // jsonReminder：角色卡Tab下永远不进入状态栏代码生成模式，强制用JSON格式
+    // jsonReminder：角色卡Tab下永远不进入状态栏代码生成模式，强制用:::操作块协议
     var jsonReminder = '';
-    // 角色卡Tab：强制禁用状态栏生成模式相关的JSON提醒分支，永远走普通JSON模式
+    // 角色卡Tab：使用:::操作块协议（不再输出```json代码块）
     jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守（角色卡Tab）】\n' +
-      '1. 每次回复必须输出一个```json代码块，包含你要修改的字段内容\n' +
-      '2. JSON格式：字段平铺在顶层，用entries数组表示世界书条目\n' +
-      '3. 状态栏完全不在此Tab处理——如果用户要做MVU/变量/状态栏，请引导切换到MVU Tab\n' +
-      '4. 先输出自然语言回复，再输出JSON代码块\n' +
-      '5. 没有需要修改的内容就输出{"_nochange":true}\n' +
-      '6. ⚠️严禁只聊天不输出JSON！严禁生成任何MVU相关条目（见上方MVU隔离禁令）\n' +
-      '7. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
+      '1. 严禁输出```json代码块！只使用:::操作块协议输出修改指令\n' +
+      '2. :::操作块格式：::: 动作 条目名\\n内容\\n:::\n' +
+      '3. 5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
+      '4. 状态栏完全不在此Tab处理——如果用户要做MVU/变量/状态栏，请引导切换到MVU Tab\n' +
+      '5. 先输出1-2句自然语言说明，再输出:::操作块，操作块后不再解释\n' +
+      '6. 没有需要修改的内容就回复"本次无修改"\n' +
+      '7. ⚠️严禁只聊天不输出操作块！严禁生成任何MVU相关条目（见上方MVU隔离禁令）\n' +
+      '8. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！';
 
     var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
 
@@ -3792,13 +3754,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
-      // 🐛修复：助手消息中可能包含代码块（JSON/statusblock），发送给AI前清理掉以节省token
+      // 🐛修复：助手消息中的:::操作块、```代码块、<statusblock>都是给写卡器解析用的
+      // AI不需要再看这些格式指令（它只需要看到自然语言对话+角色卡当前状态）
+      // 发送给AI前全部清理掉，避免AI模仿格式、浪费token、产生混淆
       var msgContent = m.content || '';
       if (m.role === 'assistant') {
         msgContent = msgContent
+          // 清理:::操作块（含开始::: action key 到结束:::）
+          .replace(/:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*[\s\S]*?(?=\n\s*:::|\n\n|$)/gi, '')
+          .replace(/:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*/gi, '')
+          .replace(/^\s*:::\s*$/gim, '')
+          // 清理```代码块（JSON/CSS/HTML等所有代码块）
           .replace(/```[\s\S]*?```/g, '')
+          // 清理折叠块和状态栏
           .replace(/<details[\s\S]*?<\/details>/gi, '')
           .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
+          // 清理多余空行
+          .replace(/\n{3,}/g, '\n\n')
           .trim();
         if (!msgContent || msgContent.length <= 5) msgContent = '（已应用修改）';
       }
@@ -4224,13 +4196,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
-      // 🐛修复：助手消息中可能包含代码块（JSON/statusblock），发送给AI前清理掉以节省token
+      // 🐛修复：助手消息中的:::操作块、```代码块、<statusblock>都是给写卡器解析用的
+      // AI不需要再看这些格式指令（它只需要看到自然语言对话+角色卡当前状态）
+      // 发送给AI前全部清理掉，避免AI模仿格式、浪费token、产生混淆
       var msgContent = m.content || '';
       if (m.role === 'assistant') {
         msgContent = msgContent
+          // 清理:::操作块（含开始::: action key 到结束:::）
+          .replace(/:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*[\s\S]*?(?=\n\s*:::|\n\n|$)/gi, '')
+          .replace(/:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*/gi, '')
+          .replace(/^\s*:::\s*$/gim, '')
+          // 清理```代码块（JSON/CSS/HTML等所有代码块）
           .replace(/```[\s\S]*?```/g, '')
+          // 清理折叠块和状态栏
           .replace(/<details[\s\S]*?<\/details>/gi, '')
           .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
+          // 清理多余空行
+          .replace(/\n{3,}/g, '\n\n')
           .trim();
         if (!msgContent || msgContent.length <= 5) msgContent = '（已应用修改）';
       }
@@ -8830,15 +8812,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           next: '下一步我该做什么？请根据当前完成度和未达标项，给出2-3条具体可执行的建议，并说明每条建议会改善哪个体系。',
           summary: '帮我梳理一下当前已收集的信息和进度：1) 已完成的核心设定 2) 各体系完成情况 3) 还缺什么 4) 推荐的下一步。用简洁列表呈现。',
           opening: '请根据现有世界观设定生成一段500-800字的开场白（first_mes）。要求：场景描写→主角出场→冲突/悬念→结尾留钩。必须是完整文本，禁止占位符。',
-          situation: '请帮我完善当前局势和主要势力关系，输出到```json代码块的 entries 字段中（近场强约束+实体交互类条目）。',
-          axiom: '请帮我完善【基础公理】体系：世界元数据、世界观公理、力量体系骨架。输出到```json代码块的 entries 字段，使用<基础公理>前缀，constant=true，position=0，每条content≥250字。',
-          soft_rules: '请帮我设计【交互软规则】体系：互动选项规则、叙事风格引导、剧情节奏控制。输出到```json代码块，使用<交互软规则>前缀。',
-          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。核心规则放post_history_instructions（≤100字分号分隔），详细规则放<核心铁则>条目。',
-          near_constraint: '请帮我设计【近场强约束】体系：当前局势、即时状态、临时任务。输出到```json代码块，使用<近场强约束>前缀，触发式条目depth=2。',
-          scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。输出到```json代码块，使用<场景机制>前缀。',
-          entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。输出到```json代码块，使用<实体交互>前缀，prevent_recursion=true。',
-          narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。输出到```json代码块，使用<叙事背景>前缀，delay_until_recursion=true。',
-          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。（状态栏和变量系统请去MVU Tab制作）'
+          situation: '请帮我完善当前局势和主要势力关系，用:::upsert操作块输出（近场强约束+实体交互类条目）。',
+          axiom: '请帮我完善【基础公理】体系：世界元数据、世界观公理、力量体系骨架。用:::upsert操作块输出，使用<基础公理>前缀，constant=true，position=0，每条content≥250字。',
+          soft_rules: '请帮我设计【交互软规则】体系：互动选项规则、叙事风格引导、剧情节奏控制。用:::upsert操作块输出，使用<交互软规则>前缀。',
+          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。核心规则用:::set post_history_instructions（≤100字分号分隔），详细规则用:::upsert <核心铁则>条目。',
+          near_constraint: '请帮我设计【近场强约束】体系：当前局势、即时状态、临时任务。用:::upsert操作块输出，使用<近场强约束>前缀，触发式条目depth=2。',
+          scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。用:::upsert操作块输出，使用<场景机制>前缀。',
+          entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。用:::upsert操作块输出，使用<实体交互>前缀，prevent_recursion=true。',
+          narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。用:::upsert操作块输出，使用<叙事背景>前缀，delay_until_recursion=true。',
+          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、depth_prompt新手引导、alternate_greetings备用开局。用:::upsert操作块输出。（状态栏和变量系统请去MVU Tab制作）'
         };
         var mvuPrompts = {
           next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
