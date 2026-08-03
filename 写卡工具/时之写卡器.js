@@ -830,6 +830,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-diff-view .diff-add{color:var(--sage-text);background:var(--sage-soft);display:block;padding:0 4px}
 .ws-diff-view .diff-del{color:var(--terra-text);background:var(--terra-soft);display:block;padding:0 4px;text-decoration:line-through;opacity:.7}
 .ws-diff-view .diff-same{color:var(--muted);display:block;padding:0 4px}
+/* === 工作台编辑双栏 === */
+.ws-split-view{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:0;overflow:hidden;border-top:1px solid var(--line-soft)}
+.ws-split-left,.ws-split-right{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ws-split-left{border-right:1px solid var(--line-soft)}
+.ws-split-title{flex-shrink:0;padding:6px 12px;background:var(--surface-soft);border-bottom:1px solid var(--line-soft);font-size:.74em;font-weight:600;color:var(--accent-deep);display:flex;align-items:center;gap:6px}
+.ws-split-left .ws-textarea{flex:1;width:100%;border:none;border-radius:0;background:var(--bg)}
+.ws-split-right .ws-diff-view{flex:1;border:none;border-radius:0;background:var(--surface-soft)}
+@media (max-width: 900px){.ws-split-view{grid-template-columns:1fr}.ws-split-left{border-right:none;border-bottom:1px solid var(--line-soft)}}
+/* === 权重可视化 === */
+.ws-weight-table{width:100%;border-collapse:collapse;font-size:.76em}
+.ws-weight-table th{position:sticky;top:0;background:var(--surface-soft);padding:8px 10px;text-align:left;font-weight:600;color:var(--accent-deep);border-bottom:1px solid var(--line);white-space:nowrap;z-index:2}
+.ws-weight-table td{padding:6px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.ws-weight-table tr:hover td{background:var(--surface-soft)}
+.ws-weight-bar{display:inline-block;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--accent) 0%, var(--accent-border) 100%);min-width:2px;max-width:120px;vertical-align:middle;margin-right:6px}
+.ws-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.68em;font-weight:600}
+.ws-badge.blue{background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.2)}
+.ws-badge.green{background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2)}
+.ws-badge.purple{background:rgba(139,92,246,.1);color:#8b5cf6;border:1px solid rgba(139,92,246,.2)}
+.ws-badge.mvu{background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+/* === 分组管理三栏 === */
+.ws-groups-3col{flex:1;display:grid;grid-template-columns:200px minmax(0,1fr) 260px;gap:0;min-height:0;overflow:hidden}
+.ws-groups-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ws-groups-col + .ws-groups-col{border-left:1px solid var(--line-soft)}
+.ws-groups-head{flex-shrink:0;padding:8px 12px;background:var(--surface-soft);border-bottom:1px solid var(--line-soft);font-size:.76em;font-weight:600;color:var(--accent-deep)}
+.ws-groups-body{flex:1;overflow-y:auto;padding:6px}
+.ws-group-item{display:flex;align-items:center;gap:6px;padding:7px 10px;font-size:.78em;color:var(--ink-soft);cursor:pointer;border-radius:6px;transition:background .1s}
+.ws-group-item:hover{background:var(--surface-sink);color:var(--ink)}
+.ws-group-item.selected{background:var(--accent-soft-strong);color:var(--accent-deep)}
+.ws-entry-drag{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:.76em;background:var(--surface);border:1px solid var(--line-soft);border-radius:6px;margin-bottom:4px;cursor:grab}
+.ws-entry-drag:hover{border-color:var(--accent-border)}
+/* progress/weight/groups 三面板（桌面端默认隐藏，走 active 与 tab 切换） */
+.ws-progress,.ws-weight,.ws-groups{display:none;background:var(--surface-soft)}
+.ws-progress.active,.ws-weight.active,.ws-groups.active{display:block;min-height:0;overflow:hidden}
 /* preview */
 .ws-preview-iframe{flex:1;width:100%;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:#fff}
 .ws-preview-md{flex:1;overflow-y:auto;padding:12px 14px;font-size:.86em;line-height:1.65;color:var(--ink-soft)}
@@ -858,8 +891,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ws-panel{width:100vw;height:100vh;border-radius:0}
   .ws-panel-tabs{display:flex}
   .ws-panel-body{display:block;position:relative}
-  .ws-tree,.ws-editor,.ws-artifact{display:none}
-  .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
+  .ws-tree,.ws-editor,.ws-artifact,.ws-progress,.ws-weight,.ws-groups{display:none}
+  .ws-tree.active,.ws-editor.active,.ws-artifact.active,.ws-progress.active,.ws-weight.active,.ws-groups.active{display:block;position:absolute;inset:0}
 }
 `;
             d.head.appendChild(s);
@@ -1227,7 +1260,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · upsert 条目名 — 有则更新，无则新增（最常用，不需要判断是否已存在）\n' +
     '   · update 条目名 — 仅更新已存在的条目（不存在时警告，不新增）\n' +
     '   · delete 条目名 — 删除指定条目\n' +
-    '   · set 字段名 — 设置顶层字段（name/description/first_mes/system_prompt/personality/scenario/creator_notes/alternate_greetings）\n' +
+    '   · set 字段名 — 设置顶层字段（name/avatar/description/personality/scenario/first_mes/mes_example/creator/character_version/creator_notes/tags）\n' +
+    '   · ⚠️ system_prompt 与 alternate_greetings 由写卡器自动管理，禁止手动set（system_prompt 从 personality/description 自动提取≤50字身份提示；多开局改为使用 <动态适配>分支开局 + MVU initvar 覆盖）\n' +
     '   · rename 旧名 → 新名 — 重命名条目（也可以用 -> 或 => 分隔）\n' +
     '3. 条目名就是世界书条目的comment，用<前缀>分类，如<人物>主角、<基础>世界\n' +
     '4. 每个操作块用:::开头和:::结尾，内容在中间，不需要代码块包裹\n' +
@@ -1246,7 +1280,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 所有问题放在「### 🔍 需要您补充的信息」区块\n\n' +
     '**Token预算铁律**：\n' +
     '- 删除冗余、精炼表达、高信息密度\n' +
-    '- description≥400字, first_mes≥500字, system_prompt≤50字\n' +
+    '- description≥400字, first_mes≥500字, personality≥100字, scenario≥100字\n' +
+    '- ⚠️ system_prompt 不再手动写，写卡器从 personality/description 自动提取≤50字身份提示\n' +
     '- 常驻条目总Token≤500，触发条目按需加载\n' +
     '- 世界书条目≥250字/条, 总数≤30条\n' +
     '**MVU条目Token预算铁律（补充）**：\n' +
@@ -1308,7 +1343,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '### 3. 核心铁则阶\n' +
     '- 内容：绝对禁止项、输出格式核心要求、AI身份总纲\n' +
     '- 字数：≤100字，极度精简\n' +
-    '- 权重：最高！遵循度是system_prompt的2倍以上\n' +
+    '- 权重：最高！遵循度超过任何单条角色字段的2倍以上\n' +
     '- 条目前缀：<核心铁则>\n\n' +
     '**第二部分：4层触发体系（承载95%世界观内容，动态释放Token）**\n\n' +
     '### 4. 近场强约束层\n' +
@@ -1333,7 +1368,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 条目前缀：<叙事背景>、<故事发展>、<文化与习俗>、<历史事件>\n\n' +
     '**第三部分：1套动态适配系统 + 1套变量系统**\n\n' +
     '### 8. 动态适配系统\n' +
-    '- ST能力：alternate_greetings + depth_prompt + regex_scripts + 内置宏变量\n' +
+    '- ST能力：<动态适配>多开局 + depth_prompt新手引导 + regex_scripts + MVU内置宏变量\n' +
     '- 内容：\n' +
     '  1. 多开局分支：3个不同身份/难度的备用开场白\n' +
     '  2. 渐进引导：前10轮自动注入新手提示，达到深度后自动消失\n' +
@@ -1552,7 +1587,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '## 9.4 初始化与更新铁则\n' +
     '9.4.1 变量初始化（两种方式）：\n' +
     '     · [InitVar]条目（enabled=false）定义默认初始值，初始化时仅读一次\n' +
-    '     · alternate_greetings里嵌入 <UpdateVariable><initvar>YAML覆盖</initvar></UpdateVariable>（根据玩家选择开局动态设置）\n' +
+    '     · <动态适配>分支开局条目里嵌入 <UpdateVariable><initvar>YAML覆盖</initvar></UpdateVariable>（根据玩家选择开局动态设置MVU变量）\n' +
     '     · 初始化后玩家可通过酒馆助手UI直接修改状态栏里的变量\n' +
     '9.4.2 更新操作铁则（<UpdateVariable>中的JSON Patch）：\n' +
     '     · delta：数值增减（支持负数）；replace：文本/对象整体替换；remove：删除物品/字段/数组元素；insert：新增物品/条目/数组元素；move：移动\n' +
@@ -1808,14 +1843,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  - 这些内容不在聊天消息中，但在上下文中存在\n' +
     '  - 生成角色卡时无需关心此设置\n\n' +
     '=== 高价值字段生成规范 ===\n\n' +
-    '**system_prompt**：\n' +
-    '- 精简至≤50字，仅保留AI身份定位\n\n' +
+    '**身份定位（原 system_prompt，现自动从以下字段提取，无需手动写）**：\n' +
+    '  · 从 personality（性格） 中提取角色自称/核心身份标签 → 生成 ≤50字系统提示写入 system_prompt 字段\n' +
+    '  · 从 scenario（场景） 中提取对话时空背景信息\n' +
+    '\n' +
     '**depth_prompt**：\n' +
     '- 自动生成新手引导内容\n' +
     '- 默认depth=0，role=system\n\n' +
-    '**alternate_greetings**：\n' +
-    '- 自动生成3个差异化开局\n' +
-    '- 支持多身份/多难度开局\n\n' +
+    '**多开局机制（原 alternate_greetings，现改为 <动态适配>分支开局 + MVU 变量）**：\n' +
+    '  · 第1条消息末尾附带互动选项（例：「你选择走哪条走廊？①实验楼 ②体育馆」）\n' +
+    '  · 玩家选选项后，<动态适配>分支开局条目（keys含"实验楼/体育馆"）被蓝灯绿灯/关键词激活\n' +
+    '  · 激活后用 <UpdateVariable><initvar>YAML</initvar></UpdateVariable> 覆盖 MVU 初始变量，实现多开局\n' +
+    '\n' +
     '**regex_scripts**：\n' +
     '- 自动生成基础状态同步正则脚本\n' +
     '- 无需插件实现动态状态栏、格式化、内容替换等功能\n' +
@@ -2459,7 +2498,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · 优势：结构清晰，LLM更容易理解变量归属和关系，引导更准确的变量更新\n' +
     '  · 注意：YAML用缩进表示层级，冒号后空格建立从属；数值/文本/真假值三种基本类型\n' +
     '- 模式2：开局变量初始化\n' +
-    '  · 原理：在额外问候语(alternate_greetings)中加入<UpdateVariable><initvar>块，覆盖[InitVar]默认值\n' +
+    '  · 原理：在<动态适配>分支开局世界书条目(selective=true, keys=["选择","开局","路线"])中加入<UpdateVariable><initvar>块，覆盖[InitVar]默认值\n' +
     '  · 格式：<UpdateVariable>\\n<initvar>\\n白娅:\\n  依存度: 15\\n</initvar>\\n</UpdateVariable>\n' +
     '  · 用途：不同开局有不同的初始变量（如不同身份有不同道具/属性）\n' +
     '- 模式3：变量驱动的分段内容\n' +
@@ -2517,7 +2556,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 设计历史事件\n' +
     '- 生成<故事发展>、<文化与习俗>、<历史事件>条目\n\n' +
     '**步骤6：做动态适配**（动态适配系统）\n' +
-    '- 设计多开局分支（alternate_greetings）\n' +
+    '- 设计多开局分支（<动态适配>分支开局 + MVU initvar 覆盖 + 第一条消息内嵌分支选择提示）\n' +
     '- 设计渐进引导（depth_prompt）\n' +
     '- 设计状态同步（regex_scripts）\n' +
     '- 设计互动选项和引导机制\n' +
@@ -2644,9 +2683,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] personality：空字符串""（世界模式强制留空）\n' +
     '- [ ] scenario：空字符串""（世界模式强制留空）\n' +
     '- [ ] first_mes：开场白（500字以上）\n' +
-    '- [ ] system_prompt：身份定位（50字以内）\n\n' +
+    '- [ ] 身份自洽：personality/description/scenario/first_mes 四处对角色身份的描述一致无冲突\n\n' +
     '**高价值字段检查（3项）：**\n' +
-    '- [ ] alternate_greetings：3个差异化开局\n' +
+    '- [ ] 多开局机制：<动态适配>分支开局 + initvar 覆盖 或 first_mes 内嵌分支选项（至少1种开局方式）\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '- [ ] regex_scripts：基础状态同步正则\n\n' +
     '**世界书基础检查（6项）：**\n' +
@@ -7515,8 +7554,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 工作台模态浮窗 =====
       var wsPanelTab = 'files';
-      var wsSelectedNode = null;       // { type: 'field'|'entry'|'regex', key: string, index?: number }
-      var wsEditorView = 'edit';       // 'edit' | 'diff' | 'preview'
+      var wsSelectedNode = null;       // { type: 'field'|'entry'|'regex'|'thscript', key: string, index?: number, fieldType?: string }
+      var wsEditorView = 'split';      // 'split' | 'edit' | 'preview'
       var wsEditedContent = {};        // nodeKey → 编辑后的内容缓存
       var wsOriginalContent = {};      // nodeKey → 打开时的原始内容（用于 diff）
       function _wsNodeKey(node) { return node ? (node.type + '::' + node.key + (node.index != null ? '::' + node.index : '')) : ''; }
@@ -7535,6 +7574,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
           return (r[node.index] && r[node.index].replaceString) || '';
         }
+        if (node.type === 'thscript') {
+          var scripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
+          var s = scripts[node.index];
+          return s && s.content ? s.content : '';
+        }
         return '';
       }
       function _wsSetContent(node, val) {
@@ -7549,14 +7593,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } else if (node.type === 'regex') {
           var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
           if (r[node.index]) r[node.index].replaceString = val;
+        } else if (node.type === 'thscript') {
+          if (!cardData.extensions) cardData.extensions = {};
+          if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = {};
+          if (!cardData.extensions.tavern_helper.script_lib) cardData.extensions.tavern_helper.script_lib = [];
+          if (cardData.extensions.tavern_helper.script_lib[node.index]) {
+            cardData.extensions.tavern_helper.script_lib[node.index].content = val;
+          }
         }
       }
       function _wsGetMeta(node) {
         if (!node) return null;
+        if (node.type === 'thscript') return null;
         if (node.type === 'entry') {
           var e = ((cardData.character_book || {}).entries || [])[node.index];
           if (!e) return null;
-          return { comment: e.comment || '', enabled: e.enabled !== false, constant: !!e.constant, position: e.position, keys: (e.keys || []).join(', '), depth: e.depth };
+          return {
+            comment: e.comment || '',
+            enabled: e.enabled !== false,
+            constant: !!e.constant,
+            selective: !!e.selective,
+            vectorized: !!e.vectorized,
+            position: e.position,
+            keys: (e.keys || []).join(', '),
+            depth: e.depth,
+            order: e.order,
+            group: e.group || '',
+            groupWeight: e.groupWeight
+          };
         }
         return null;
       }
@@ -7566,11 +7630,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!e) return;
         if (meta.enabled != null) e.enabled = meta.enabled;
         if (meta.constant != null) e.constant = meta.constant;
+        if (meta.selective != null) e.selective = meta.selective;
+        if (meta.vectorized != null) e.vectorized = meta.vectorized;
         if (meta.position != null) e.position = meta.position;
         if (meta.keys != null) e.keys = meta.keys.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
         if (meta.depth != null) e.depth = meta.depth;
+        if (meta.order != null) e.order = meta.order;
+        if (meta.group != null) e.group = meta.group;
+        if (meta.groupWeight != null) e.groupWeight = meta.groupWeight;
       }
-      function _wsIsHtml(val) { return /<[a-z][\s\S]*>/i.test(val || ''); }
+      function _wsIsHtml(node, val) {
+        if (node && node.type === 'thscript') return true;
+        return /<[a-z][\s\S]*>/i.test(val || '');
+      }
       function _wsDiff(oldText, newText) {
         var oldLines = (oldText || '').split('\n');
         var newLines = (newText || '').split('\n');
@@ -7587,28 +7659,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function openWorkspacePanel() {
         var container = doc.getElementById('wsPanelContainer');
         if (!container) return;
-        wsEditorView = 'edit';
+        wsEditorView = 'split';
         wsEditedContent = {};
         wsOriginalContent = {};
         container.innerHTML =
           '<div class="ws-panel-backdrop show" id="wsBackdrop">' +
             '<div class="ws-panel">' +
               '<header class="ws-panel-head">' +
-                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件 · 编辑 · 预览</span></div>' +
+                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件树 · 编辑对比 · 渲染预览 · 进度 · 权重 · 分组</span></div>' +
                 '<div class="ws-head-actions">' +
                   '<button class="ws-head-btn" id="wsSaveAllBtn" title="保存所有更改到角色卡">' + svgIcon('save', 15) + ' 保存</button>' +
                   '<button class="ws-close" id="wsCloseBtn" title="关闭">' + svgIcon('close', 18) + '</button>' +
                 '</div>' +
               '</header>' +
               '<nav class="ws-panel-tabs">' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'files' ? 'active' : '') + '" data-wstab="files">文件</button>' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'editor' ? 'active' : '') + '" data-wstab="editor">编辑</button>' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'artifacts' ? 'active' : '') + '" data-wstab="artifacts">预览</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'files' ? 'active' : '') + '" data-wstab="files">🗂️ 文件树</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'editor' ? 'active' : '') + '" data-wstab="editor">✏️ 编辑对比</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'artifacts' ? 'active' : '') + '" data-wstab="artifacts">🔍 渲染预览</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'progress' ? 'active' : '') + '" data-wstab="progress">📊 进度总览</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'weight' ? 'active' : '') + '" data-wstab="weight">⚖️ 权重可视化</button>' +
+                '<button class="ws-panel-tab ' + (wsPanelTab === 'groups' ? 'active' : '') + '" data-wstab="groups">📦 分组管理</button>' +
               '</nav>' +
               '<div class="ws-panel-body">' +
                 '<aside class="ws-tree' + (wsPanelTab === 'files' ? ' active' : '') + '" id="wsTree">' + buildWorkspaceTree() + '</aside>' +
                 '<main class="ws-editor' + (wsPanelTab === 'editor' ? ' active' : '') + '" id="wsEditor">' + buildWorkspaceEditor() + '</main>' +
                 '<section class="ws-artifact' + (wsPanelTab === 'artifacts' ? ' active' : '') + '" id="wsArtifact">' + buildWorkspaceArtifact() + '</section>' +
+                '<section class="ws-progress' + (wsPanelTab === 'progress' ? ' active' : '') + '" id="wsProgress">' + buildProgressOverviewPanel() + '</section>' +
+                '<section class="ws-weight' + (wsPanelTab === 'weight' ? ' active' : '') + '" id="wsWeight">' + buildWeightVisualPanel() + '</section>' +
+                '<section class="ws-groups' + (wsPanelTab === 'groups' ? ' active' : '') + '" id="wsGroups">' + buildGroupsPanel() + '</section>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -7644,6 +7722,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             container.querySelector('#wsTree').classList.toggle('active', wsPanelTab === 'files');
             container.querySelector('#wsEditor').classList.toggle('active', wsPanelTab === 'editor');
             container.querySelector('#wsArtifact').classList.toggle('active', wsPanelTab === 'artifacts');
+            container.querySelector('#wsProgress').classList.toggle('active', wsPanelTab === 'progress');
+            container.querySelector('#wsWeight').classList.toggle('active', wsPanelTab === 'weight');
+            container.querySelector('#wsGroups').classList.toggle('active', wsPanelTab === 'groups');
           });
         });
         // 树节点点击
@@ -7657,7 +7738,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (wsOriginalContent[nk] === undefined) wsOriginalContent[nk] = _wsGetContent(wsSelectedNode);
             container.querySelectorAll('.ws-tree-item').forEach(function(i) { i.classList.remove('selected'); });
             this.classList.add('selected');
-            wsEditorView = 'edit';
+            wsEditorView = 'split';
             var editorEl = container.querySelector('#wsEditor');
             if (editorEl) {
               editorEl.innerHTML = buildWorkspaceEditor();
@@ -7689,47 +7770,68 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 文件树：从 cardData 读取真实数据，虚拟文件系统 =====
       function buildWorkspaceTree() {
         var groups = [];
-        // 1. 角色卡字段
+        // 1. 角色卡基础字段（StageDog schema 对齐：移除 system_prompt / alternate_greetings，改为 first_mes 数组）
         var cardFields = [
-          { key: 'name', label: '名称' },
-          { key: 'description', label: '世界观描述' },
-          { key: 'first_mes', label: '开场白' },
-          { key: 'system_prompt', label: '系统指令' },
-          { key: 'alternate_greetings', label: '分支问候', isArray: true }
+          { key: 'name', label: '名称', type: 'text' },
+          { key: 'avatar', label: '头像(文件名或URL)', type: 'avatar' },
+          { key: 'description', label: '角色描述（世界观/人格/关系）', type: 'textarea' },
+          { key: 'first_mes', label: '第一条消息', type: 'textarea' },
+          { key: 'mes_example', label: '对话示例', type: 'textarea' },
+          { key: 'scenario', label: '场景设定', type: 'textarea' },
+          { key: 'personality', label: '个性 / 性格', type: 'textarea' },
+          { key: 'creator', label: '作者', type: 'text' },
+          { key: 'character_version', label: '版本', type: 'text' },
+          { key: 'creator_notes', label: '备注', type: 'textarea' },
+          { key: 'tags', label: '标签（逗号分隔）', type: 'text' }
         ];
-        var cardNodes = [];
+        var basicNodes = [];
         cardFields.forEach(function(f) {
-          var val = cardData[f.key];
-          if (f.isArray) {
-            if (val && val.length > 0) {
-              val.forEach(function(g, i) {
-                cardNodes.push({ type: 'field', key: 'alternate_greetings', index: i, label: f.label + ' #' + (i+1), path: 'alternate_greetings[' + i + ']' });
-              });
-            }
-          } else if (val && String(val).trim()) {
-            cardNodes.push({ type: 'field', key: f.key, label: f.label, path: f.key });
-          }
+          basicNodes.push({ type: 'field', key: f.key, label: f.label, path: f.key, fieldType: f.type });
         });
-        if (cardNodes.length) groups.push({ name: '角色卡', nodes: cardNodes });
-        // 2. 世界书条目（非MVU）
+        groups.push({ name: '📋 角色卡基础信息', nodes: basicNodes });
+        // 2. 世界书条目 —— 按 <标签前缀> 自动分组 + MVU变量单独分组
         var entries = (cardData.character_book || {}).entries || [];
-        var wbNodes = [];
+        var entryBuckets = {};
         var mvuNodes = [];
+        var otherNodes = [];
         entries.forEach(function(e, i) {
           var label = e.comment || ('条目' + (i+1));
-          var node = { type: 'entry', key: 'character_book', index: i, label: label, path: 'entries[' + i + ']' };
-          if (isMVUEntry(e.comment || '')) mvuNodes.push(node);
-          else wbNodes.push(node);
+          var node = { type: 'entry', key: 'character_book', index: i, label: label, path: 'entries[' + i + ']', rawComment: e.comment || '' };
+          if (isMVUEntry(e.comment || '')) { mvuNodes.push(node); return; }
+          var m = /^<([^>]+)>/.exec(e.comment || '');
+          var bucketKey = m ? m[1] : '未分类';
+          if (m) {
+            var pureTag = m[1];
+            bucketKey = pureTag;
+          }
+          if (!entryBuckets[bucketKey]) entryBuckets[bucketKey] = [];
+          entryBuckets[bucketKey].push(node);
         });
-        if (wbNodes.length) groups.push({ name: '世界书 (' + wbNodes.length + ')', nodes: wbNodes });
-        if (mvuNodes.length) groups.push({ name: 'MVU变量 (' + mvuNodes.length + ')', nodes: mvuNodes });
-        // 3. 正则脚本
+        var tagOrder = ['基础公理','核心铁则','交互软规则','近场强约束','核心玩法','场景机制','实体交互','统一输出格式','状态变量输出','引导机制','动态适配','叙事背景','未分类'];
+        tagOrder.forEach(function(t) {
+          if (!entryBuckets[t]) return;
+          groups.push({ name: '📚 <' + t + '> (' + entryBuckets[t].length + ')', nodes: entryBuckets[t], bucketTag: t });
+        });
+        Object.keys(entryBuckets).forEach(function(t) {
+          if (tagOrder.indexOf(t) >= 0) return;
+          groups.push({ name: '📁 <' + t + '> (' + entryBuckets[t].length + ')', nodes: entryBuckets[t], bucketTag: t });
+        });
+        if (mvuNodes.length) groups.push({ name: '🔧 MVU变量 (' + mvuNodes.length + ')', nodes: mvuNodes, isMVU: true });
+        // 3. 酒馆助手脚本
+        var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
+        if (thScripts.length > 0) {
+          var thNodes = thScripts.map(function(s, i) {
+            return { type: 'thscript', key: 'tavern_helper_script', index: i, label: (s.name || ('脚本' + (i+1))), path: 'tavern_helper.script_lib[' + i + ']' };
+          });
+          groups.push({ name: '🧪 酒馆助手脚本 (' + thScripts.length + ')', nodes: thNodes });
+        }
+        // 4. 正则脚本
         var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
         if (rxScripts.length > 0) {
           var rxNodes = rxScripts.map(function(r, i) {
             return { type: 'regex', key: 'regex_scripts', index: i, label: r.scriptName || ('正则' + (i+1)), path: 'regex_scripts[' + i + ']' };
           });
-          groups.push({ name: '正则脚本 (' + rxScripts.length + ')', nodes: rxNodes });
+          groups.push({ name: '🔍 正则脚本 (' + rxScripts.length + ')', nodes: rxNodes });
         }
         // 渲染
         var html = '';
@@ -7741,9 +7843,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + g.name + '</div>';
           html += '<div class="ws-tree-items">';
           g.nodes.forEach(function(n) {
-            var nodeStr = escAttr(JSON.stringify({ type: n.type, key: n.key, index: n.index }));
+            var nodeStr = escAttr(JSON.stringify({ type: n.type, key: n.key, index: n.index, fieldType: n.fieldType || null }));
             var len = '';
-            if (n.type === 'field' && !n.path || (n.path && n.path.indexOf('[') < 0)) {
+            if (n.type === 'entry') {
+              var e = entries[n.index];
+              if (e && e.content) len = ' <span class="ws-tree-len">' + String(e.content).length + '</span>';
+              var en = (e && e.enabled === false) ? '🔘' : '🟢';
+              n.label = en + ' ' + n.label;
+            } else if (n.type === 'field') {
               var v = cardData[n.key];
               if (v) len = ' <span class="ws-tree-len">' + String(v).length + '</span>';
             }
@@ -7763,56 +7870,80 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var current = wsEditedContent[nk] != null ? wsEditedContent[nk] : original;
         var title = _wsGetTitle(node);
         var isDirty = wsEditedContent[nk] != null && wsEditedContent[nk] !== original;
-        var isHtml = _wsIsHtml(current);
-        // 视图切换按钮
+        var isHtml = _wsIsHtml(node, current);
+        // 视图切换按钮：双栏模式下，编辑/对比并排，不再切换单视图
         var viewBtns = '<div class="ws-view-switcher">' +
-          '<button class="ws-view-btn' + (wsEditorView === 'edit' ? ' active' : '') + '" data-view="edit">编辑' + (isDirty ? ' *' : '') + '</button>' +
-          '<button class="ws-view-btn' + (wsEditorView === 'diff' ? ' active' : '') + '" data-view="diff"' + (!isDirty ? ' disabled' : '') + '>Diff' + (isDirty ? ' (' + _wsDiffCount(original, current) + ')' : '') + '</button>' +
-          (isHtml ? '<button class="ws-view-btn' + (wsEditorView === 'preview' ? ' active' : '') + '" data-view="preview">预览</button>' : '') +
+          '<button class="ws-view-btn' + (wsEditorView === 'split' ? ' active' : '') + '" data-view="split">📝 编辑+对比 (推荐)</button>' +
+          '<button class="ws-view-btn' + (wsEditorView === 'edit' ? ' active' : '') + '" data-view="edit">纯编辑' + (isDirty ? ' *' : '') + '</button>' +
+          '<button class="ws-view-btn' + (wsEditorView === 'preview' ? ' active' : '') + '" data-view="preview">渲染预览</button>' +
         '</div>';
         var metaHtml = '';
         var meta = _wsGetMeta(node);
         if (meta) {
+          // 激活策略下拉（蓝灯/绿灯/向量化 + 自动匹配当前条目配置）
+          var activateType = '蓝灯';
+          if (meta.vectorized === true) activateType = '向量化';
+          else if (meta.constant !== true && meta.selective !== true) activateType = '绿灯';
+          if (meta.constant === true || (meta.depth === 0 && meta.selective === false)) activateType = '蓝灯';
           metaHtml = '<div class="ws-entry-props">' +
             '<label class="ws-prop"><input type="checkbox" class="ws-prop-enabled" ' + (meta.enabled ? 'checked' : '') + '> 启用</label>' +
-            '<label class="ws-prop"><input type="checkbox" class="ws-prop-constant" ' + (meta.constant ? 'checked' : '') + '> 常驻</label>' +
+            '<label class="ws-prop"><input type="checkbox" class="ws-prop-constant" ' + (meta.constant ? 'checked' : '') + '> 常驻(蓝灯)</label>' +
+            '<label class="ws-prop"><input type="checkbox" class="ws-prop-selective" ' + (meta.selective ? 'checked' : '') + '> 关键词匹配(绿灯)</label>' +
+            '<label class="ws-prop"><input type="checkbox" class="ws-prop-vectorized" ' + (meta.vectorized ? 'checked' : '') + '> 向量化</label>' +
             '<label class="ws-prop">位置 <select class="ws-prop-position">' +
-              '<option value="before_char"' + (meta.position === 'before_char' ? ' selected' : '') + '>角色前</option>' +
-              '<option value="after_char"' + (meta.position === 'after_char' ? ' selected' : '') + '>角色后</option>' +
-              '<option value="before_an"' + (meta.position === 'before_an' ? ' selected' : '') + '>AN前</option>' +
-              '<option value="after_an"' + (meta.position === 'after_an' ? ' selected' : '') + '>AN后</option>' +
-              '<option value="at_end"' + (meta.position === 'at_end' ? ' selected' : '') + '>末尾</option>' +
+              '<option value="before_char"' + (meta.position === 'before_char' ? ' selected' : '') + '>角色定义之前(0)</option>' +
+              '<option value="after_char"' + (meta.position === 'after_char' ? ' selected' : '') + '>角色定义之后(1)</option>' +
+              '<option value="before_an"' + (meta.position === 'before_an' ? ' selected' : '') + '>示例消息之前(2)</option>' +
+              '<option value="after_an"' + (meta.position === 'after_an' ? ' selected' : '') + '>示例消息之后(3)</option>' +
+              '<option value="at_end"' + (meta.position === 'at_end' ? ' selected' : '') + '>作者注底部(2)</option>' +
             '</select></label>' +
             '<label class="ws-prop">深度 <input type="number" class="ws-prop-depth" value="' + (meta.depth != null ? meta.depth : 4) + '" min="0" max="12" style="width:40px"></label>' +
+            '<label class="ws-prop">优先级 <input type="number" class="ws-prop-order" value="' + (meta.order != null ? meta.order : 100) + '" min="0" max="1000" style="width:50px"></label>' +
+            '<label class="ws-prop">分组 <input type="text" class="ws-prop-group" value="' + escAttr(meta.group || '') + '" placeholder="组名" style="width:100px"></label>' +
+            '<label class="ws-prop">组权重 <input type="number" class="ws-prop-groupWeight" value="' + (meta.groupWeight != null ? meta.groupWeight : 10) + '" min="0" max="1000" style="width:50px"></label>' +
             '<label class="ws-prop ws-prop-keys">关键词 <input type="text" class="ws-prop-keys-input" value="' + escAttr(meta.keys) + '" placeholder="逗号分隔"></label>' +
           '</div>';
         }
         var bodyHtml = '';
-        if (wsEditorView === 'edit') {
-          bodyHtml = '<textarea class="ws-textarea" id="wsTextarea" spellcheck="false">' + current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>';
-        } else if (wsEditorView === 'diff') {
+        // 构建单栏内容
+        var textareaEl = '<textarea class="ws-textarea" id="wsTextarea" spellcheck="false">' + current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>';
+        var diffEl = '';
+        if (isDirty) {
           var diff = _wsDiff(original, current);
           var diffHtml = '';
           diff.forEach(function(row) {
             var cls = row.kind === 'add' ? 'diff-add' : row.kind === 'del' ? 'diff-del' : 'diff-same';
             diffHtml += '<div class="' + cls + '">' + (row.kind === 'add' ? '+ ' : row.kind === 'del' ? '- ' : '  ') + row.text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
           });
-          bodyHtml = '<div class="ws-diff-view">' + diffHtml + '</div>';
-        } else if (wsEditorView === 'preview') {
-          if (isHtml) {
-            bodyHtml = '<iframe class="ws-preview-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escAttr(current) + '"></iframe>';
-          } else {
-            bodyHtml = '<div class="ws-preview-md">' + fmtBubble(current) + '</div>';
-          }
+          diffEl = '<div class="ws-diff-view">' + diffHtml + '</div>';
+        } else {
+          diffEl = '<div class="ws-diff-view" style="padding:30px;color:var(--muted);font-size:.82em;text-align:center;justify-content:center;align-items:center;display:flex">🟢 尚未修改，原始内容（左侧编辑即可看到变化对比）</div>';
         }
-        return '<div class="ws-editor-title">' + title + '</div>' +
+        var previewEl = '';
+        if (isHtml) {
+          previewEl = '<iframe class="ws-preview-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escAttr(current) + '"></iframe>';
+        } else {
+          previewEl = '<div class="ws-preview-md">' + fmtBubble(current) + '</div>';
+        }
+        if (wsEditorView === 'split') {
+          // 双栏：左编辑 / 右 Diff 对比（滚动同步提示）
+          bodyHtml = '<div class="ws-split-view">' +
+            '<div class="ws-split-left"><div class="ws-split-title">✏️ 编辑区（当前内容）</div>' + textareaEl + '</div>' +
+            '<div class="ws-split-right"><div class="ws-split-title">' + (isDirty ? '🔄 修改前后对比（Diff）' : '💾 原始内容预览') + '</div>' + diffEl + '</div>' +
+          '</div>';
+        } else if (wsEditorView === 'edit') {
+          bodyHtml = textareaEl;
+        } else if (wsEditorView === 'preview') {
+          bodyHtml = previewEl;
+        }
+        return '<div class="ws-editor-title">' + title + (isDirty ? ' <span style="color:var(--terra-text);font-size:.78em;font-weight:500">· 未保存 *</span>' : '') + '</div>' +
           metaHtml +
           viewBtns +
           '<div class="ws-editor-area">' + bodyHtml + '</div>';
       }
       function _wsGetTitle(node) {
         if (node.type === 'field') {
-          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', alternate_greetings: '分支问候' };
+          var labels = { name: '名称', avatar: '头像', description: '角色描述（世界观/人格/关系）', first_mes: '第一条消息', mes_example: '对话示例', scenario: '场景设定', personality: '个性/性格', creator: '作者', character_version: '版本', creator_notes: '备注', tags: '标签' };
           var label = labels[node.key] || node.key;
           if (node.index != null && Array.isArray(cardData[node.key])) return label + ' #' + (node.index + 1);
           return label;
@@ -7824,6 +7955,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (node.type === 'regex') {
           var r = ((cardData.extensions || {}).regex_scripts || [])[node.index];
           return (r && r.scriptName) || ('正则' + (node.index + 1));
+        }
+        if (node.type === 'thscript') {
+          var s = ((cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [])[node.index];
+          return (s && s.name) || ('脚本' + (node.index + 1));
         }
         return '';
       }
@@ -7859,13 +7994,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 条目属性变更
         var enabledChk = container.querySelector('.ws-prop-enabled');
         var constChk = container.querySelector('.ws-prop-constant');
+        var selChk = container.querySelector('.ws-prop-selective');
+        var vecChk = container.querySelector('.ws-prop-vectorized');
         var posSel = container.querySelector('.ws-prop-position');
         var depthInp = container.querySelector('.ws-prop-depth');
+        var orderInp = container.querySelector('.ws-prop-order');
+        var groupInp = container.querySelector('.ws-prop-group');
+        var groupWInp = container.querySelector('.ws-prop-groupWeight');
         var keysInp = container.querySelector('.ws-prop-keys-input');
         if (enabledChk) enabledChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { enabled: this.checked }); });
         if (constChk) constChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { constant: this.checked }); });
+        if (selChk) selChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { selective: this.checked }); });
+        if (vecChk) vecChk.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { vectorized: this.checked }); });
         if (posSel) posSel.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { position: this.value }); });
         if (depthInp) depthInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { depth: parseInt(this.value) || 0 }); });
+        if (orderInp) orderInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { order: parseInt(this.value) || 0 }); });
+        if (groupInp) groupInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { group: this.value }); });
+        if (groupWInp) groupWInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { groupWeight: parseInt(this.value) || 0 }); });
         if (keysInp) keysInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { keys: this.value }); });
       }
       // ===== 预览区：角色卡整体预览 =====
@@ -8712,6 +8857,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + icHtml + a.label + '</button>';
         });
+        // 5 个快捷按钮
+        h += '<button class="qa-mini" id="btnProgressOverview" title="进度总览">' + svgIcon('chart', 14) + ' 进度总览</button>';
+        h += '<button class="qa-mini" id="btnQualityCheck" title="32项质检">' + svgIcon('checkCircle', 14) + ' 32项质检</button>';
+        h += '<button class="qa-mini" id="btnAIOptimize" title="AI优化">' + svgIcon('wrench', 14) + ' AI优化</button>';
+        h += '<button class="qa-mini" id="btnWeightView" title="权重可视化">' + svgIcon('chart', 14) + ' 权重可视化</button>';
+        h += '<button class="qa-mini" id="btnGroupManage" title="分组管理">' + svgIcon('folder', 14) + ' 分组管理</button>';
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
@@ -8723,6 +8874,275 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         bindToolbarButtons();
+      }
+
+      function buildProgressOverviewPanel() {
+        var entries = (cardData.character_book || {}).entries || [];
+        var tagBuckets = {};
+        entries.forEach(function(e) {
+          if (isMVUEntry(e.comment || '')) return;
+          var m = /^<([^>]+)>/.exec(e.comment || '');
+          var k = m ? m[1] : '未分类';
+          if (!tagBuckets[k]) tagBuckets[k] = { count: 0, totalLen: 0 };
+          tagBuckets[k].count++;
+          tagBuckets[k].totalLen += (e.content || '').length;
+        });
+        var basicFields = [
+          { key: 'name', label: '名称' },
+          { key: 'description', label: '角色描述' },
+          { key: 'first_mes', label: '第一条消息' },
+          { key: 'mes_example', label: '对话示例' },
+          { key: 'scenario', label: '场景设定' },
+          { key: 'personality', label: '个性/性格' },
+          { key: 'creator', label: '作者' },
+          { key: 'character_version', label: '版本' }
+        ];
+        var missingList = [];
+        basicFields.forEach(function(f) {
+          var v = cardData[f.key];
+          if (!v || String(v).trim().length < (f.key === 'name' ? 1 : 20)) missingList.push(f.label);
+        });
+        var html = '<div style="padding:14px 16px;overflow-y:auto;height:100%">';
+        html += '<div class="ws-art-summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + (progress || 0) + '%</span><span class="ws-stat-label">整体进度</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + entries.length + '</span><span class="ws-stat-label">条目总数</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + Object.keys(tagBuckets).length + '</span><span class="ws-stat-label">标签分组</span></div>' +
+        '</div>';
+        html += '<div class="ws-art-section-title">基础字段完成度</div>';
+        basicFields.forEach(function(f) {
+          var v = cardData[f.key];
+          var pct = v ? Math.min(100, Math.round(String(v).length / (f.key === 'description' ? 800 : f.key === 'first_mes' ? 300 : 50) * 100)) : 0;
+          html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.76em;margin-bottom:3px"><span>' + f.label + '</span><span style="color:var(--muted)">' + String(v || '').length + ' 字</span></div>' +
+            '<div style="height:6px;background:var(--surface-sink);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--accent),var(--accent-deep));border-radius:3px"></div></div></div>';
+        });
+        if (Object.keys(tagBuckets).length > 0) {
+          html += '<div class="ws-art-section-title" style="margin-top:14px">标签分组字数统计</div>';
+          for (var k in tagBuckets) {
+            html += '<div class="ws-art-card" style="padding:8px 12px;margin-bottom:6px">' +
+              '<div style="display:flex;justify-content:space-between;font-size:.78em;font-weight:600"><span>📚 &lt;' + k + '&gt;</span><span style="color:var(--accent-deep)">' + tagBuckets[k].count + ' 条 / ' + tagBuckets[k].totalLen + ' 字</span></div></div>';
+          }
+        }
+        if (missingList.length > 0) {
+          html += '<div class="ws-art-section-title" style="margin-top:14px">缺失项建议（下一步）</div>';
+          html += '<div style="background:var(--amber-soft);border:1px solid var(--amber-border);border-radius:8px;padding:10px 12px;font-size:.8em;color:var(--amber-text)">' +
+            svgIcon('alert', 14) + ' 建议优先补充：<b>' + missingList.join('、') + '</b>' +
+            '<div style="margin-top:8px"><button class="ws-head-btn" id="poJumpNext">' + svgIcon('play', 12) + ' 去补全缺失项</button></div></div>';
+        }
+        html += '</div>';
+        return html;
+      }
+
+      function buildWeightVisualPanel() {
+        var entries = (cardData.character_book || {}).entries || [];
+        var rows = [];
+        entries.forEach(function(e, i) {
+          var isMVU = isMVUEntry(e.comment || '');
+          var orderN = e.order != null ? e.order : 100;
+          var constantMul = e.constant ? 3 : 1;
+          var depthVal = e.depth != null ? Math.max(1, e.depth) : 4;
+          var weight = Math.round(orderN * constantMul / depthVal * 10) / 10;
+          var len = (e.content || '').length;
+          var tokens = Math.round(len / 2);
+          var activateBadge = '';
+          if (isMVU) activateBadge = '<span class="ws-badge mvu">MVU</span>';
+          else if (e.vectorized) activateBadge = '<span class="ws-badge purple">向量化</span>';
+          else if (e.constant) activateBadge = '<span class="ws-badge blue">蓝灯·常驻</span>';
+          else activateBadge = '<span class="ws-badge green">绿灯·关键词</span>';
+          rows.push({
+            idx: i, isMVU: isMVU,
+            comment: e.comment || ('条目' + (i + 1)),
+            activateBadge: activateBadge,
+            position: e.position || '-',
+            depth: e.depth != null ? e.depth : 4,
+            order: orderN,
+            len: len, tokens: tokens,
+            weight: weight
+          });
+        });
+        rows.sort(function(a, b) { return b.weight - a.weight; });
+        var maxW = rows.length > 0 ? Math.max.apply(null, rows.map(function(r) { return r.weight; })) : 1;
+        var html = '<div style="padding:10px 0 0 0;height:100%;display:flex;flex-direction:column;overflow:hidden">';
+        html += '<div style="padding:0 14px 8px;font-size:.78em;color:var(--muted)">权重公式：order × constant倍数(×1或×3) ÷ max(1, depth)，按权重从大到小排序</div>';
+        html += '<div style="flex:1;overflow-y:auto;padding:0 6px"><table class="ws-weight-table"><thead><tr>' +
+          '<th>#</th><th>激活策略</th><th>条目名</th><th>位置</th><th>深度</th><th>order</th><th>内容长度</th><th>≈Token</th><th>权重</th>' +
+          '</tr></thead><tbody>';
+        rows.forEach(function(r, n) {
+          var barW = Math.max(2, Math.round(r.weight / maxW * 120));
+          html += '<tr>' +
+            '<td>' + (n + 1) + '</td>' +
+            '<td>' + r.activateBadge + '</td>' +
+            '<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(r.comment) + '</td>' +
+            '<td>' + r.position + '</td>' +
+            '<td>' + r.depth + '</td>' +
+            '<td>' + r.order + '</td>' +
+            '<td>' + r.len + '</td>' +
+            '<td>' + r.tokens + '</td>' +
+            '<td><span class="ws-weight-bar" style="width:' + barW + 'px"></span>' + r.weight + '</td>' +
+          '</tr>';
+        });
+        if (rows.length === 0) {
+          html += '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted)">暂无条目，开始创作后这里会显示权重分布</td></tr>';
+        }
+        html += '</tbody></table></div></div>';
+        return html;
+      }
+
+      function buildGroupsPanel() {
+        var entries = (cardData.character_book || {}).entries || [];
+        var groups = {};
+        var mvuList = [];
+        entries.forEach(function(e, i) {
+          if (isMVUEntry(e.comment || '')) { mvuList.push(i); return; }
+          var m = /^<([^>]+)>/.exec(e.comment || '');
+          var k = m ? m[1] : '未分类';
+          if (!groups[k]) groups[k] = [];
+          groups[k].push(i);
+        });
+        var groupNames = Object.keys(groups);
+        groupNames.push('MVU变量');
+        var html = '<div class="ws-groups-3col" style="height:100%">';
+        html += '<div class="ws-groups-col"><div class="ws-groups-head">所有分组</div><div class="ws-groups-body" id="gmGroupList">';
+        groupNames.forEach(function(gn, n) {
+          var count = gn === 'MVU变量' ? mvuList.length : groups[gn].length;
+          html += '<div class="ws-group-item' + (n === 0 ? ' selected' : '') + '" data-gm-group="' + gn + '">' +
+            (gn === 'MVU变量' ? '🔧' : '📁') + ' ' + gn + ' <span style="margin-left:auto;color:var(--muted)">' + count + '</span>' +
+          '</div>';
+        });
+        html += '</div></div>';
+        html += '<div class="ws-groups-col"><div class="ws-groups-head">当前组条目</div><div class="ws-groups-body" id="gmEntriesList">';
+        var firstGroup = groupNames[0];
+        var initEntries = (firstGroup === 'MVU变量') ? mvuList : (groups[firstGroup] || []);
+        initEntries.forEach(function(i) {
+          var e = entries[i];
+          var en = (e && e.enabled === false) ? '🔘' : '🟢';
+          html += '<div class="ws-entry-drag" data-entry-idx="' + i + '">' + en + ' ' + escHtml((e && e.comment) || ('条目' + (i + 1))) +
+            '<span style="margin-left:auto;font-size:.7em;color:var(--muted)">' + String((e && e.content) || '').length + '字</span></div>';
+        });
+        html += '</div></div>';
+        html += '<div class="ws-groups-col"><div class="ws-groups-head">组配置 / 批量操作</div><div class="ws-groups-body">' +
+          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">重命名组</label>' +
+          '<input type="text" id="gmRenameInput" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%" placeholder="新组名"></div>' +
+          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">组权重 (groupWeight)</label>' +
+          '<input type="number" id="gmGroupWeight" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%" value="10" min="0" max="1000"></div>' +
+          '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">' +
+          '<button class="ws-head-btn" id="gmApplyRename" style="flex:1">' + svgIcon('edit', 12) + ' 应用</button>' +
+          '<button class="ws-head-btn" id="gmDeleteEmpty" style="flex:1">' + svgIcon('trash', 12) + ' 清理空组</button>' +
+          '</div>' +
+          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">移动选中条目到：</label>' +
+          '<select id="gmMoveToGroup" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%">';
+        groupNames.forEach(function(gn) {
+          html += '<option value="' + gn + '">' + gn + '</option>';
+        });
+        html += '</select></div>' +
+          '<button class="ws-head-btn" id="gmMoveBtn" style="width:100%;margin-bottom:10px">' + svgIcon('folderOpen', 12) + ' 批量移动到该组</button>' +
+          '<div style="padding:10px;background:var(--surface-soft);border-radius:8px;font-size:.76em;color:var(--ink-soft);line-height:1.6">' +
+          svgIcon('info', 13) + ' <b>说明：</b>条目按 comment 前缀自动分组，格式为 <code style="background:var(--surface);padding:1px 4px;border-radius:3px">&lt;标签前缀&gt; 条目名</code>。移动条目会自动为其 comment 加上所选标签前缀。' +
+          '</div>';
+        html += '</div></div>';
+        html += '</div>';
+        return html;
+      }
+
+      function openFeatureModal(title, buildFn) {
+        var container = doc.getElementById('wsPanelContainer');
+        if (!container) return;
+        var html = '<div id="featBackdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px">' +
+          '<div class="ws-panel" style="width:min(960px,96vw);height:min(720px,90vh);max-width:1100px;display:flex;flex-direction:column">' +
+            '<header class="ws-header" style="padding:12px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px">' +
+              '<div class="ws-title" style="font-size:.96em;font-weight:700;color:var(--accent-deep)">' + title + '</div>' +
+              '<button class="icon-btn icon-btn-square danger" id="featCloseBtn" style="margin-left:auto">' + svgIcon('close', 15) + '</button>' +
+            '</header>' +
+            '<div id="featBody" style="flex:1;min-height:0;overflow:hidden">' + buildFn() + '</div>' +
+          '</div></div>';
+        container.innerHTML = html;
+        function _close() { var b = doc.getElementById('featBackdrop'); if (b) b.remove(); }
+        var cBtn = doc.getElementById('featCloseBtn');
+        if (cBtn) cBtn.addEventListener('click', _close);
+        var bd = doc.getElementById('featBackdrop');
+        if (bd) bd.addEventListener('click', function(e) { if (e.target === this) _close(); });
+      }
+
+      function runAIOptimize() {
+        var prompt = '请根据当前角色卡，对未达标/字数偏少/缺失的部分进行优化，用:::操作块输出。以下是当前角色卡数据：\n\n';
+        prompt += '【基础字段】\n';
+        ['name','description','first_mes','mes_example','scenario','personality','creator','character_version','creator_notes','tags'].forEach(function(k) {
+          if (cardData[k]) prompt += k + ': ' + String(cardData[k]).substring(0, 300) + '\n';
+        });
+        var entries = (cardData.character_book || {}).entries || [];
+        if (entries.length > 0) {
+          prompt += '\n【世界书条目】共' + entries.length + '条，以下为内容偏短的条目：\n';
+          entries.forEach(function(e, i) {
+            var len = (e.content || '').length;
+            if (len < 80) prompt += '- ' + (e.comment || ('条目' + (i+1))) + '（仅' + len + '字）: ' + String(e.content || '').substring(0, 200) + '\n';
+          });
+        }
+        addUserMsg(prompt);
+        openFeatureModal('✅ AI优化指令已发送', function() {
+          return '<div style="padding:30px;text-align:center">' + svgIcon('sparkle', 48) +
+            '<div style="font-size:1.1em;font-weight:700;margin-top:14px;color:var(--accent-deep)">AI 优化指令已发送</div>' +
+            '<div style="margin-top:10px;color:var(--ink-soft);font-size:.88em;line-height:1.7">正在分析角色卡缺失项并生成优化建议...<br>请查看对话面板等待 AI 回复（通常 10~30 秒）</div></div>';
+        });
+      }
+
+      function doRunLocalQC() {
+        var items = [];
+        function add(t, ok, d) { items.push({ title: t, ok: ok, detail: d || '' }); }
+        // 8基础
+        add('名称存在', !!(cardData.name && String(cardData.name).trim().length >= 1), cardData.name ? '当前：' + String(cardData.name).substring(0, 30) : '缺失');
+        add('角色描述≥300字', !!(cardData.description && String(cardData.description).length >= 300), cardData.description ? String(cardData.description).length + ' 字' : '缺失');
+        add('开场白≥80字', !!(cardData.first_mes && String(cardData.first_mes).length >= 80), cardData.first_mes ? String(cardData.first_mes).length + ' 字' : '缺失');
+        add('对话示例存在', !!(cardData.mes_example && String(cardData.mes_example).length >= 50), cardData.mes_example ? String(cardData.mes_example).length + ' 字' : '缺失');
+        add('场景设定存在', !!(cardData.scenario && String(cardData.scenario).trim().length >= 20), cardData.scenario ? '有' : '缺失');
+        add('个性/性格存在', !!(cardData.personality && String(cardData.personality).trim().length >= 10), cardData.personality ? '有' : '缺失');
+        add('作者字段存在', !!(cardData.creator && String(cardData.creator).trim().length >= 1), cardData.creator ? '当前：' + cardData.creator : '缺失');
+        add('版本字段存在', !!(cardData.character_version && String(cardData.character_version).trim().length >= 1), cardData.character_version ? '当前：v' + cardData.character_version : '缺失');
+        // 4高价值
+        var entries = (cardData.character_book || {}).entries || [];
+        var nonMVU = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
+        add('世界书条目≥12条', nonMVU.length >= 12, nonMVU.length + ' 条（建议≥12）');
+        var avgLen = nonMVU.length > 0 ? Math.round(nonMVU.reduce(function(s, e) { return s + (e.content || '').length; }, 0) / nonMVU.length) : 0;
+        add('条目平均字数≥120字', avgLen >= 120, '平均 ' + avgLen + ' 字（建议≥120）');
+        var hasConstant = nonMVU.some(function(e) { return !!e.constant; });
+        add('至少1条蓝灯(常驻)条目', hasConstant, hasConstant ? '有' : '建议设1~3条基础公理为蓝灯');
+        var hasTags = cardData.tags && String(cardData.tags).trim().split(',').filter(Boolean).length >= 3;
+        add('标签≥3个', hasTags, hasTags ? String(cardData.tags).split(',').filter(Boolean).length + ' 个' : '不足3个');
+        // 6世界书基础
+        var tagMap = {};
+        nonMVU.forEach(function(e) { var m = /^<([^>]+)>/.exec(e.comment || ''); if (m) tagMap[m[1]] = (tagMap[m[1]] || 0) + 1; });
+        var coreTagCount = (tagMap['核心铁则'] || 0) + (tagMap['基础公理'] || 0);
+        add('核心铁则≥2条', coreTagCount >= 2, coreTagCount + ' 条（建议≥2）');
+        add('交互软规则≥2条', (tagMap['交互软规则'] || 0) >= 2, (tagMap['交互软规则'] || 0) + ' 条');
+        add('近场强约束≥1条', (tagMap['近场强约束'] || 0) >= 1, (tagMap['近场强约束'] || 0) + ' 条');
+        add('场景机制≥1条', (tagMap['场景机制'] || 0) >= 1, (tagMap['场景机制'] || 0) + ' 条');
+        add('实体交互≥2条', (tagMap['实体交互'] || 0) >= 2, (tagMap['实体交互'] || 0) + ' 条');
+        add('叙事背景≥1条', (tagMap['叙事背景'] || 0) >= 1, (tagMap['叙事背景'] || 0) + ' 条');
+        // 6正则
+        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+        add('正则脚本≥2条', rxScripts.length >= 2, rxScripts.length + ' 条（用于动态效果）');
+        add('备注字段≥50字', !!(cardData.creator_notes && String(cardData.creator_notes).length >= 50), cardData.creator_notes ? String(cardData.creator_notes).length + ' 字' : '缺失');
+        var okCount = items.filter(function(i) { return i.ok; }).length;
+        var pct = Math.round(okCount / items.length * 100);
+        var html = '<div style="padding:14px 16px;height:100%;overflow-y:auto">';
+        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">' +
+          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:' + (pct >= 80 ? 'var(--sage-text)' : pct >= 60 ? 'var(--amber-text)' : 'var(--terra-text)') + '">' + pct + '%</span><span class="ws-stat-label">达标率</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:var(--sage-text)">' + okCount + '</span><span class="ws-stat-label">通过项</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:var(--terra-text)">' + (items.length - okCount) + '</span><span class="ws-stat-label">不通过</span></div>' +
+          '<div class="ws-art-stat"><span class="ws-stat-num">' + items.length + '</span><span class="ws-stat-label">总项数</span></div>' +
+        '</div>';
+        items.forEach(function(it) {
+          html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:6px;background:' + (it.ok ? 'var(--sage-soft)' : 'var(--terra-soft)') + ';border:1px solid ' + (it.ok ? 'var(--sage-border)' : 'var(--terra-border)') + '">' +
+            svgIcon(it.ok ? 'checkCircle' : 'alert', 14, it.ok ? '' : '') +
+            '<div style="flex:1"><div style="font-size:.82em;font-weight:600;color:' + (it.ok ? 'var(--sage-text)' : 'var(--terra-text)') + '">' + it.title + '</div>' +
+            '<div style="font-size:.74em;color:var(--ink-soft);margin-top:2px">' + it.detail + '</div></div></div>';
+        });
+        if (pct < 80) {
+          html += '<div style="margin-top:12px;padding:10px 12px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:8px">' +
+            '<div style="font-weight:700;color:var(--accent-deep);margin-bottom:6px">💡 建议操作</div>' +
+            '<button class="ws-head-btn" id="qcOptNow" style="margin-right:6px">' + svgIcon('wrench', 12) + ' 一键AI优化未达标项</button>' +
+            '<button class="ws-head-btn" id="qcClose">' + svgIcon('close', 12) + ' 关闭</button></div>';
+        }
+        html += '</div>';
+        return { html: html, pct: pct, okCount: okCount, total: items.length };
       }
 
       // 绑定导出/清空按钮（位于 quick-actions 内，每次重建后需重新绑定）
@@ -8756,6 +9176,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 同步禁用态（生成中）
         if (saveBtn) saveBtn.disabled = isGenerating;
+        // 5 个快捷功能按钮事件
+        var poBtn = doc.getElementById('btnProgressOverview');
+        if (poBtn) poBtn.addEventListener('click', function() { openFeatureModal('📊 进度总览', buildProgressOverviewPanel); });
+        var qcBtn = doc.getElementById('btnQualityCheck');
+        if (qcBtn) qcBtn.addEventListener('click', function() {
+          var res = doRunLocalQC();
+          openFeatureModal('✅ 32项质检结果（' + res.okCount + '/' + res.total + '）', function() { return res.html; });
+        });
+        var aiBtn = doc.getElementById('btnAIOptimize');
+        if (aiBtn) aiBtn.addEventListener('click', function() { if (isGenerating) { showToast('⚠️ AI正在生成中，请稍后', 'warning'); return; } runAIOptimize(); });
+        var wvBtn = doc.getElementById('btnWeightView');
+        if (wvBtn) wvBtn.addEventListener('click', function() { openFeatureModal('⚖️ 权重可视化', buildWeightVisualPanel); });
+        var gmBtn = doc.getElementById('btnGroupManage');
+        if (gmBtn) gmBtn.addEventListener('click', function() { openFeatureModal('🗂️ 分组管理', buildGroupsPanel); });
       }
 
       function handleQuickAction(action) {
@@ -8857,7 +9291,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。用:::upsert操作块输出，使用<场景机制>前缀。核心事件/玩法系统按【事件完善工作流·机制+细化+反馈三联条目】生成：<核心玩法>XXX（是什么）+<核心玩法>XXX细化逻辑（怎么做）+<场景机制>XXX反馈规范（怎么呈现）三条目协同，禁止合并成超长条目。完善角色关系时，用<场景机制>XXX动态后果条目定义变量阈值+性格分支（分支≥3，每条含行为反应+剧情模式）。已有玩法要补充新维度时，用⟦⟧标记生成新条目，禁止覆盖原条目。',
           entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。用:::upsert操作块输出，使用<实体交互>前缀，prevent_recursion=true。若题材涉及大量同类NPC（校园/后宫/末世等），按【人物完善工作流·引擎+递归+实例三层结构】生成：第1层<场景机制>XXX生成引擎（身份池+容貌池+核心变量）→第2层<实体交互>XXX-递归扩展（调用说明）→第3层<叙事背景>XXX型深度（按性格类型逐条生成实例）。已有角色要补充新维度时，用⟦⟧标记生成新条目（如⟦<重要角色>白娅·人际关系⟧），禁止覆盖原条目。',
           narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。用:::upsert操作块输出，使用<叙事背景>前缀，delay_until_recursion=true。',
-          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、depth_prompt新手引导、alternate_greetings备用开局。用:::upsert操作块输出。（状态栏和变量系统请去MVU Tab制作）'
+          dynamic_adapt: '请帮我设计【动态适配】体系：<引导机制>新手引导、互动选项、depth_prompt渐进引导、<动态适配>分支开局（多开局请用<动态适配>条目+MVU initvar覆盖实现，禁止写入alternate_greetings字段）。用:::upsert操作块输出，使用<引导机制>/<动态适配>标签前缀。（状态栏和变量系统请去MVU Tab制作）'
         };
         var mvuPrompts = {
           next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
@@ -12011,9 +12445,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '性格描述（世界模式留空）': { field: 'personality', instr: '问题：世界模式下 personality 非空\n影响：与世界观模式规范冲突，可能干扰AI\n修复：清空 personality 字段（世界模式人设由世界书条目承载）' },
           '场景设定（世界模式留空）': { field: 'scenario', instr: '问题：世界模式下 scenario 非空\n影响：与世界观模式规范冲突\n修复：清空 scenario 字段（场景由世界书触发条目动态提供）' },
           '开场白 ≥500字': { field: 'first_mes', instr: '问题：开场白不足500字\n影响：代入感弱，玩家难以进入情境\n修复：扩展到500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符' },
-          '系统指令 ≤50字（仅AI身份定位）': { field: 'system_prompt', instr: '问题：system_prompt 过长或为空\n影响：挤占上下文，核心规则权重不足\n修复：精简到≤50字，仅保留AI身份定位一句话（如"你是某世界的叙事AI"）' },
+          '身份自洽（personality/description/scenario/first_mes一致）': { field: 'personality', instr: '问题：personality/description/scenario/first_mes 四处对角色身份描述有冲突\n影响：AI输出人格分裂，前后设定矛盾\n修复：统一四处的身份描述，确保角色自称、职业、种族、时空背景等信息一致（system_prompt 由写卡器自动从 personality/description 提取≤50字身份提示，无需手动写）' },
           // === 高价值字段 ===
-          'alternate_greetings 3个差异化开局': { field: 'alternate_greetings', instr: '问题：备用开局不足3个\n影响：重玩价值低\n修复：生成至少3个不同身份/难度/场景的备用开场白，每个500字左右' },
+          '多开局机制（<动态适配>分支开局+initvar 或 first_mes内嵌选项）': { field: 'entries', instr: '问题：缺少多开局分支机制\n影响：重玩价值低，开局体验单一\n修复：用 <动态适配>分支开局世界书条目(selective=true, keys含选择关键词) + <UpdateVariable><initvar>块覆盖MVU初始变量，或在 first_mes 末尾内嵌分支选择提示。禁止写入 alternate_greetings 字段，由写卡器自动管理兼容。' },
           'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效）' },
           'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：生成3-5条实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换' },
           // === 世界书基础 ===
