@@ -800,9 +800,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //          注意：核心铁则不在世界书条目中，而是放入post_history_instructions字段（常驻最高权重位）
 
   // ===== MVU 美化正则 HTML 模板（纯CSS+emoji实现，无外部依赖）=====
-  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="mvu-done" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:2px solid rgba(76,175,80,0.5);box-shadow:0 0 10px rgba(76,175,80,0.25);flex-shrink:0;z-index:3;position:relative;animation:mvu-done-pulse 2s ease-in-out infinite;background:linear-gradient(135deg,#e8f5e9 0%,#c8e6c9 100%);font-size:22px">✓</span>\n      <span style="display:flex;align-items:center;height:32px;margin-left:-10px;padding:0 20px 0 18px;background:linear-gradient(135deg,#e8f5e9 0%,#d7ecd9 50%,#e8f5e9 100%);border:1.5px solid rgba(76,175,80,0.35);border-radius:0 16px 16px 0;position:relative;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#2e7d32,#43a047,#2e7d32);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:mvu-text-shimmer 3s linear infinite">变量已更新</span>\n        <small style="color:#2e7d32;font-size:0.75em;opacity:0.7"><span class="mvu-toggle" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:22px;margin-top:6px;padding:12px 18px;color:#33691e;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(232,245,233,0.7) 0%,rgba(200,230,201,0.4) 100%);border:1.5px solid rgba(76,175,80,0.25);border-radius:12px;font-size:0.9em;max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.mvu-done summary::marker{display:none}.mvu-done[open]>div{animation:mvu-slide-in .4s ease forwards}.mvu-done[open] .mvu-toggle::after{content:attr(data-open)}.mvu-done:not([open]) .mvu-toggle::after{content:attr(data-close)}@keyframes mvu-done-pulse{0%,100%{transform:scale(1);box-shadow:0 0 10px rgba(76,175,80,0.25)}50%{transform:scale(1.05);box-shadow:0 0 16px rgba(76,175,80,0.4)}}@keyframes mvu-text-shimmer{0%{background-position:0% center}100%{background-position:200% center}}@keyframes mvu-slide-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
+  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:620px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <!-- 移除左侧圆形图标，直接通长长条 -->\n      <span style="flex:1;display:flex;align-items:center;height:32px;padding:0 18px;background:linear-gradient(135deg,#f6f9fd 0%,#edf2fa 100%);border:1px solid rgba(150,170,200,0.3);border-radius:14px;box-shadow:0 2px 8px rgba(140,165,195,0.1);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:500;color:#475570">变量完成</span>\n        <small style="font-size:0.76em;color:#718096;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 下方内容面板，柔和浅底色 -->\n    <div style="width:calc(100% - 24px);max-height:300px;overflow-y:auto;margin:6px 0 0 0;padding:10px 16px;color:#4a5568;line-height:1.7;white-space:pre-wrap;background:rgba(244,248,253,0.75);border:1px solid rgba(150,170,200,0.22);border-radius:12px;font-size:0.88em;box-shadow:0 1px 6px rgba(140,160,185,0.06)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
-  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="mvu-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:2px solid rgba(33,150,243,0.5);box-shadow:0 0 10px rgba(33,150,243,0.25);flex-shrink:0;z-index:3;position:relative;animation:mvu-spin 1.8s linear infinite;background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);font-size:20px">⟳</span>\n      <span style="display:flex;align-items:center;height:32px;margin-left:-10px;padding:0 20px 0 18px;background:linear-gradient(135deg,#e3f2fd 0%,#d0e9fc 50%,#e3f2fd 100%);border:1.5px solid rgba(33,150,243,0.35);border-radius:0 16px 16px 0;position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#1565c0,#1976d2,#1565c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent">变量更新中</span>\n        <span class="mvu-blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(33,150,243,0.1) 50%,transparent 100%);animation:mvu-blue-sweep 2.5s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:22px;margin-top:6px;padding:12px 18px;color:#0d47a1;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(227,242,253,0.7) 0%,rgba(187,222,251,0.4) 100%);border:1.5px solid rgba(33,150,243,0.25);border-radius:12px;font-size:0.9em;max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n<style>.mvu-thinking summary::marker{display:none}.mvu-thinking[open]>div{animation:mvu-content-in .4s ease forwards}.mvu-thinking[open] summary .mvu-blue-glow{animation:none!important;opacity:0}@keyframes mvu-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes mvu-blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}@keyframes mvu-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}</style>';
+  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:620px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:32px;padding:0 18px;background:linear-gradient(135deg,#f6f9fd 0%,#edf2fa 100%);border:1px solid rgba(150,170,200,0.3);border-radius:14px;box-shadow:0 2px 8px rgba(140,165,195,0.1);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:500;color:#475570">正在变量更新</span>\n        <small style="font-size:0.76em;color:#718096;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(150,175,220,0.09),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:300px;overflow-y:auto;margin:6px 0 0 0;padding:10px 16px;color:#4a5568;line-height:1.7;white-space:pre-wrap;background:rgba(244,248,253,0.75);border:1px solid rgba(150,170,200,0.22);border-radius:12px;font-size:0.88em;box-shadow:0 1px 6px rgba(140,160,185,0.06)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  @keyframes slide-flow {\n    0 { transform: translateX(-100%); }\n    100 { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
   // ===== MVU 状态栏 HTML 模板（StageDog 标准：低饱和柔灰蓝+毛玻璃+2秒轮询同步）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
@@ -1047,30 +1047,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 【写卡预设注入 #2】📖 创作思路 creative_principles =====
     '<creative_principles>\n' +
     '角色卡制作核心原则：\n' +
-    '1. 性格调色盘：用底色、主色调、点缀和衍生构建角色的复杂性格，而非贴标签\n' +
-    '2. 衍生机制：每个性格在具体场景中展开为行为，衍生之间可以跨性格关联产生化学反应\n' +
-    '3. 手写优先：衍生和台词必须由创作者自己写，AI无法做到把毫无逻辑的两个性格组合在一起\n' +
-    '4. 三面性（可选）：当角色在不同场景下有根本性的行为切换时，用三面性描述不同的运作模式\n' +
-    '5. 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色，确保角色是创作者想象中的样子\n' +
-    '6. NSFW调色盘：从"为什么做"而不是"做什么"的角度描写亲密行为，让亲密成为性格的延续\n' +
-    '7. 用行为展现性格，而非定义性格\n' +
-    '8. 提供具体的语料示例，而非描述语气\n' +
-    '9. 避免模糊词、比喻词、微表情等八股描写\n' +
-    '10. 外貌特征差异化：只写偏离AI数据库默认认知的特征，不写万能美人描写\n' +
-    '11. 保持一致性，所有设定要相互支撑\n' +
-    '12. 去标签化：越是AI直出的角色，性格调色盘的修正效果越明显\n' +
-    '人设制作流程：世界观 → 角色基础 → 性格调色盘 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n' +
+    '1. 衍生机制：每个性格在具体场景中展开为行为，衍生之间可以跨性格关联产生化学反应\n' +
+    '2. 手写优先：衍生和台词必须由创作者自己写，AI无法做到把毫无逻辑的两个性格组合在一起\n' +
+    '3. 三面性（可选）：当角色在不同场景下有根本性的行为切换时，用三面性描述不同的运作模式\n' +
+    '4. 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色，确保角色是创作者想象中的样子\n' +
+    '5. NSFW调色盘：从"为什么做"而不是"做什么"的角度描写亲密行为，让亲密成为性格的延续\n' +
+    '6. 用行为展现性格，而非定义性格\n' +
+    '7. 提供具体的语料示例，而非描述语气\n' +
+    '8. 避免模糊词、比喻词、微表情等八股描写\n' +
+    '9. 外貌特征差异化：只写偏离AI数据库默认认知的特征，不写万能美人描写\n' +
+    '10. 保持一致性，所有设定要相互支撑\n' +
+    '11. 去标签化：AI直出的角色需要作者用具体行为修正，使其成为创作者想象中的样子\n' +
+    '人设制作流程：世界观 → 角色基础 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n' +
     '</creative_principles>\n\n' +
     // ===== 【写卡预设注入 #3】📐 创作原则-绝对零度 writing_principles =====
     '<writing_principles>\n' +
-    '什么是八股：陈词滥调、机械化的描写方式——模糊词（似乎/几乎/仿佛/如同/宛如）、劣质比喻（像小兽/像小兔子/投石入湖/心湖泛起涟漪）、微表情（嘴角上扬/眼里闪过光芒/指尖泛白）、语气描写（带着xx的口吻/用xx的语气）、极端情绪词（陷入极大的恐惧/极度羞耻）、否定转折句（不是...而是...）、过度心理描写（大段内心活动）。\n' +
-    '创作必须遵守：\n' +
-    '· 绝对零度：保持客观冷静的叙述视角；不带主观判断；不添加个人情感色彩\n' +
-    '· 白描手法：直接描述事实；不添加修饰和渲染；用最简单的语言呈现\n' +
-    '· 不使用形容词：简单干净；用名词和动词直接呈现；避免一切装饰性描述\n' +
-    '· 不使用代词和意象词：避免歧义；使用具体明确的本意；不用抽象概念替代具体事物\n' +
-    '· 用行为替代描述：展现而非告知；写角色做了什么，而非角色是什么样的人；让读者通过行为自己判断\n' +
-    '· 用语料展现性格：让角色通过对话体现特点；不描述语气，让对话本身说话；纯粹的话语，不附加动作和神态\n' +
+    '禁用词清单：\n' +
+    '· 模糊词：似乎、几乎、仿佛、如同、宛如、好像、好像、大概、也许、差不多\n' +
+    '· 劣质比喻：像小兽、像小兔子、投石入湖、心湖泛起涟漪、如同飞蛾扑火\n' +
+    '· 微表情词：嘴角上扬、眼里闪过光芒、指尖泛白、眉头微蹙、唇角勾起\n' +
+    '· 语气描写：带着xx的口吻、用xx的语气、以xx的声调、xx地说\n' +
+    '· 极端情绪词：陷入极大的恐惧、极度羞耻、无比愤怒、绝望至极\n' +
+    '· 否定转折句：不是...而是...、并非...而是...、与其说...不如说...\n' +
+    '· 心理描写：大段内心活动、心想、暗自思忖、内心挣扎\n' +
+    '创作准则（6条，每条必须可执行）：\n' +
+    '· 客观叙述：只写镜头能拍到的内容；只写外部可观察的动作、对话、环境；禁止写角色内心想法\n' +
+    '· 白描事实：只写"谁做了什么、说了什么、发生了什么"；禁止添加修饰语和渲染词；每个句子必须包含具体动词\n' +
+    '· 名词动词造句：句子主体由名词和动词构成；禁止使用形容词做谓语；禁止使用副词修饰形容词\n' +
+    '· 具体名词代替代词：用人名、物名、地名指代；禁止用"他/她/它/那个/这个"作为句子主语；禁止用抽象概念（如"希望""恐惧"）替代具体事物\n' +
+    '· 行为展现性格：写角色执行的具体动作和说出的话；禁止写"她是一个温柔的人"；让读者从动作和对话中推断性格\n' +
+    '· 纯对话体现特点：只写角色说的原话；禁止在对话后附加"她温柔地说""他冷冷地回答"；让对话内容本身传递语气\n' +
     '</writing_principles>\n\n' +
     // ===== 【写卡预设注入 #4】📝 输出格式要求 output_format =====
     '<output_format>\n' +
@@ -1091,7 +1097,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 【写卡预设注入 #6】📋 角色基础模板 template_basic =====
     '<template_basic>\n' +
     '角色基础信息核心结构：角色档案 → ①基本信息（姓名/年龄/性别/身份/与用户关系/其他）、②外貌特征【特征差异化原则：只写偏离数据库默认认知的部分——不是写"美"是写"特征"；遮住名字只靠外貌能认出角色】（偏离默认的身体特征/标志性装扮/体型显著特点/能被记住的细节；不写数据库默认值/万能美人描写/过度细节）、③背景设定（只写对角色产生实际影响的关键事件：家庭/经济/成长经历/重要事件/社交）、④关系设定（与用户关系的详细说明/相识过程/互动方式/特殊设定）。\n' +
-    '注意：性格相关内容不要在这里写，请使用"性格调色盘"条目。\n' +
     '</template_basic>\n\n' +
     '=== ⚠️ 【绝对禁止】最高优先级规则 ===\n' +
     '1. 严禁输出任何内部思考过程，包括但不限于：<thinking>标签、<think>标签、[果农冒泡]、[NSFW判定]、[人物逻辑]、[基调锚定]、[角色认知迷雾]、[角色活性与自然回应]、[风格适配]、[反思 & 设定校对]、[物理规则]、[正文字数检测]、[输出顺序检查]、<!-- End of The ECoT -->等\n' +
@@ -3534,7 +3539,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // system prompt：创作原则与输出格式（不绑定特定人格身份）
     var sysPrompt =
       '<writing_principles>\n' +
-      '创作必须遵守：绝对零度（客观冷静叙述，不带主观判断和情感色彩）、白描手法（直接描述事实不修饰）、不使用形容词（名词动词呈现）、不用代词意象词避免歧义、用行为替代描述（展现而非告知）、用语料展现性格（对话体现特点，不描述语气）、不使用八股（模糊词/劣质比喻/微表情/语气描写/极端情绪词/否定转折句/过度心理描写）。\n' +
+      '禁用词：模糊词（似乎/仿佛/宛如）、劣质比喻（像小兽/投石入湖）、微表情（嘴角上扬/眼里闪过光芒）、语气描写（带着xx的口吻）、极端情绪词（极度羞耻/无比愤怒）、否定转折句（不是...而是...）、心理描写（心想/暗自思忖）。\n' +
+      '创作准则：客观叙述（只写镜头能拍到的内容，禁止写内心想法）；白描事实（只写谁做了什么说了什么，禁止修饰渲染）；名词动词造句（禁止形容词做谓语，禁止副词修饰形容词）；具体名词代替代词（禁止用他/她/它作主语）；行为展现性格（写具体动作和对话，禁止写"她是温柔的人"）；纯对话体现特点（只写原话，禁止附加"她温柔地说"）。\n' +
       '</writing_principles>\n\n' +
       '<output_format>\n' +
       '当输出实际创作内容（角色卡/故事/世界观/场景等）时，条目的content字段必须使用YAML中文格式，用缩进+冒号+短横线表达层级关系，键名和内容均为中文，保持结构清晰。解释说明或回答问题时直接用自然语言。\n' +
@@ -5465,10 +5471,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return names.slice(0, 5); // 最多5个角色
   }
 
-  // ===== Neko 猫咪美化模板（借鉴 javascript-format (7).js 的三明日喵样式）=====
-  var NEKO_COMPLETE_HTML = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="neko-complete" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-block;width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(70,115,175,0.5);box-shadow:0 0 10px rgba(70,115,175,0.25),0 0 20px rgba(110,150,200,0.15);flex-shrink:0;z-index:3;position:relative;animation:neko-happy 1.5s ease-in-out infinite;background:#dae3f0">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width:100%;height:100%;object-fit:cover;display:block" alt="喵~" />\n      </span>\n      <span style="display:flex;align-items:center;height:34px;margin-left:-12px;padding:0 24px 0 22px;background:linear-gradient(135deg,#e6edf5 0%,#cdd8ea 50%,#dae3f0 100%);border:1.5px solid rgba(80,120,180,0.35);border-radius:0 17px 17px 0;box-shadow:0 3px 15px rgba(80,120,180,0.15),inset 0 1px 0 rgba(255,255,255,0.5);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#5a82b5,#3d6098,#4d75aa,#5a82b5);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:text-shimmer 3s linear infinite">喵喵喵~ 变量完成了喵~</span>\n        <small style="color:#3d6098;font-size:0.75em;opacity:0.7"><span class="neko-toggle" data-close="展开喵 ▶" data-open="收起喵 ▼"></span></small>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:26px;margin-top:6px;padding:12px 20px;color:#4a5568;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(230,237,245,0.6) 0%,rgba(205,216,234,0.4) 100%);border:1.5px solid rgba(80,120,180,0.25);border-radius:14px;font-size:0.9em;box-shadow:0 2px 10px rgba(80,120,180,0.08);max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .neko-complete summary::marker{display:none}\n  .neko-complete[open]>div{animation:neko-slide-in 0.4s ease forwards}\n  .neko-complete[open] .neko-toggle::after{content:attr(data-open)}\n  .neko-complete:not([open]) .neko-toggle::after{content:attr(data-close)}\n  @keyframes neko-happy{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-3px) rotate(-3deg)}75%{transform:translateY(-3px) rotate(3deg)}}\n  @keyframes text-shimmer{0%{background-position:0% center}100%{background-position:200% center}}\n  @keyframes neko-slide-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n</style>';
+  // ===== Neko 美化模板（已与 MVU_BEAUTIFY_* 统一为通长长条样式）=====
+  var NEKO_COMPLETE_HTML = MVU_BEAUTIFY_COMPLETE;
 
-  var NEKO_THINKING_HTML = '<div style="text-align:center;margin:10px 0">\n<div style="display:inline-block;text-align:left">\n  <details class="neko-thinking" style="border:none;background:none">\n    <summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:0;position:relative;padding:0">\n      <span style="display:inline-block;width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(90,130,190,0.45);box-shadow:0 0 10px rgba(90,130,190,0.2),0 0 20px rgba(130,165,210,0.12);flex-shrink:0;z-index:3;position:relative;animation:neko-bounce 2s ease-in-out infinite;background:#dde6f0">\n        <img src="https://i.postimg.cc/DwFQBGk9/ezgif-201bf4672c1b72.gif" style="width:100%;height:100%;object-fit:cover;display:block" alt="喵~" />\n      </span>\n      <span style="display:flex;align-items:center;height:34px;margin-left:-12px;padding:0 24px 0 22px;background:linear-gradient(135deg,#e8eef5 0%,#d0dcea 50%,#dde6f0 100%);border:1.5px solid rgba(120,150,200,0.35);border-radius:0 17px 17px 0;box-shadow:0 3px 15px rgba(100,140,200,0.15),inset 0 1px 0 rgba(255,255,255,0.5);position:relative;z-index:2;overflow:hidden">\n        <span style="flex:1;font-size:0.9em;font-weight:600;background:linear-gradient(90deg,#4a6fa5,#6b8ec2,#7a9dcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">喵喵喵~ 正在变量中~</span>\n        <span style="font-size:0.9em;opacity:0.6;animation:paw-wiggle 1.5s ease-in-out infinite">🐾</span>\n        <span class="blue-glow" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:0 17px 17px 0;background:linear-gradient(90deg,transparent 0%,rgba(130,165,210,0.06) 20%,rgba(100,140,195,0.1) 50%,rgba(130,165,210,0.06) 80%,transparent 100%);animation:blue-sweep 3s linear infinite;transform:translateX(-100%);pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="max-height:320px;overflow-y:auto;margin-left:26px;margin-top:6px;padding:12px 20px;color:#4a5568;line-height:1.8;white-space:pre-wrap;background:linear-gradient(135deg,rgba(232,238,245,0.6) 0%,rgba(208,220,234,0.4) 100%);border:1.5px solid rgba(120,150,200,0.25);border-radius:14px;font-size:0.9em;box-shadow:0 2px 10px rgba(100,140,200,0.08);max-width:450px">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .neko-thinking summary::marker{display:none}\n  .neko-thinking[open]>div{animation:neko-content-in 0.4s ease forwards}\n  .neko-thinking[open] summary .blue-glow{animation:none!important;opacity:0}\n  @keyframes neko-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}\n  @keyframes paw-wiggle{0%,100%{transform:rotate(0deg) scale(1)}25%{transform:rotate(-10deg) scale(1.1)}75%{transform:rotate(10deg) scale(1.1)}}\n  @keyframes blue-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}\n  @keyframes neko-content-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n</style>';
+  var NEKO_THINKING_HTML = MVU_BEAUTIFY_THINKING;
 
   // ===== MVU 状态栏 HTML 生成（借鉴 javascript-format (7).js 的 hr 函数）=====
   // 生成自包含的 HTML 文档，含 CSS 变量、好感度进度条、心跳SVG、分页器
@@ -5960,79 +5966,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
-  // ===== 【写卡预设】生成阈值行为模式 injectPrompts 脚本 =====
-  // 基于 StageDog 原生 injectPrompts：好感度阈值命中时，动态注入 system prompt，直接改变 AI 行为
-  // 可堆叠、可独立启用禁用，比 EJS 更精准、更强力
-  function generateQingziInjectPromptsScript(charNames) {
-    var names = (charNames && charNames.length) ? charNames.slice() : ['角色1'];
-    var lines = [
-      "// 【写卡预设】阈值行为模式注入（StageDog 原生 injectPrompts）",
-      "// 好感度阶段自动切换角色行为：陌生→冷漠 / 熟识→礼貌 / 好感→温柔 / 深爱→眷恋",
-      "$(async () => {",
-      "  if (typeof injectPrompts !== 'function') return;",
-      "  var _ = (window._ || (window._ = {}));",
-      "  var getAllVars = typeof getAllVariables === 'function' ? getAllVariables : (() => ({}));",
-      "  function aff(nm) { try { return Number(_.get(getAllVars(), 'stat_data.' + nm + '.好感度') || 0); } catch(e) { return 0; } }"
-    ];
-    names.forEach(function(nm, idx) {
-      lines.push("  // ===== " + nm + " 四档行为模式注入 =====");
-      // 陌生档 (<20)
-      lines.push("  injectPrompts([{");
-      lines.push("    id: '" + nm + "-行为-陌生档',");
-      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
-      lines.push("    filter: () => aff('" + nm + "') < 20,");
-      lines.push("    content: '【【" + nm + "·陌生模式】】：此时" + nm + "与<user>尚属初次接触，态度保持克制礼貌，言行中带有距离感，不会主动表露情感，话少，回答简洁，避免肢体接触，称呼使用敬称或全名。'");
-      lines.push("  }]);");
-      // 熟识档 (20~50)
-      lines.push("  injectPrompts([{");
-      lines.push("    id: '" + nm + "-行为-熟识档',");
-      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
-      lines.push("    filter: () => aff('" + nm + "') >= 20 && aff('" + nm + "') < 50,");
-      lines.push("    content: '【【" + nm + "·熟识模式】】：此时" + nm + "与<user>已经熟络，态度自然随意，会主动搭话，偶尔开玩笑，称呼可省去姓氏，但仍未涉及情感层面，肢体接触保持社交距离。'");
-      lines.push("  }]);");
-      // 好感档 (50~80)
-      lines.push("  injectPrompts([{");
-      lines.push("    id: '" + nm + "-行为-好感档',");
-      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
-      lines.push("    filter: () => aff('" + nm + "') >= 50 && aff('" + nm + "') < 80,");
-      lines.push("    content: '【【" + nm + "·好感模式】】：此时" + nm + "对<user>明显在意，互动中带着温柔与关注，会主动找话题、关心<user>的状态，偶尔脸红或语塞，称呼开始使用昵称或名字叠字，允许轻微肢体触碰（如手肘/手背）。'");
-      lines.push("  }]);");
-      // 深爱档 (≥80)
-      lines.push("  injectPrompts([{");
-      lines.push("    id: '" + nm + "-行为-深爱档',");
-      lines.push("    position: 'none', depth: 0, role: 'system', should_scan: true,");
-      lines.push("    filter: () => aff('" + nm + "') >= 80,");
-      lines.push("    content: '【【" + nm + "·深爱模式】】：此时" + nm + "视<user>为不可或缺的存在，情感深厚，行为中流露出强烈的眷恋与依赖，会主动靠近/肢体接触/撒娇/吃醋，称呼使用专属昵称或亲密称呼，黏人，眼神与语气充满爱意。'");
-      lines.push("  }]);");
-    });
-    lines.push("});");
-    return lines.join('\n');
-  }
-
-  // ===== 【MAG老师·模板】通用 injectPrompts 注入模板（角色卡作者可自行增减条件）=====
-  function generateMagInjectPromptsTemplate() {
-    return [
-      "// 【MAG老师·injectPrompts 模板】通用阈值触发模式参考（角色卡作者可按剧情需要自行追加）",
-      "// 典型场景：依存度=0 → 注入「你正自我毁灭」；持有稀有道具 → 注入特殊行为提示；剧情日≥7 → 开启第二章模式",
-      "$(async () => {",
-      "  if (typeof injectPrompts !== 'function') return;",
-      "  var _ = (window._ || (window._ = {}));",
-      "  var getVars = () => { try { return getAllVariables() || {}; } catch(e) { return {}; }; };",
-      "  // 示例1：剧情日≥7 自动注入【第二章】剧情开关",
-      "  injectPrompts([{",
-      "    id: '剧情阶段-第二章开启',",
-      "    position: 'none', depth: 0, role: 'system', should_scan: true,",
-      "    filter: () => { try { return Number(_.get(getVars(),'stat_data.世界._当前剧情日') || 0) >= 7; } catch(e){return false;} },",
-      "    content: '【【剧情阶段·第二章】】：主线矛盾已浮出水面，角色之间关系需进一步深化，冲突升级，事件节奏加快。'})",
-      "  }]);",
-      "  // 示例2：某角色心情=愤怒时，注入【攻击性】行为模式（把'角色名'改为你的角色名）",
-      "  // injectPrompts([{id:'角色名-愤怒模式', position:'none', depth:0, role:'system', should_scan:true,",
-      "  //   filter: () => { try { return String(_.get(getVars(),'stat_data.角色名.心情')||'').indexOf('愤怒')>=0; } catch(e){return false;} },",
-      "  //   content:'【【角色名·愤怒模式】】：她此刻怒火中烧，说话刻薄，行动带攻击性，不接受安抚。'}]);",
-      "});"
-    ].join('\n');
-  }
-
   // 用代码块包裹 HTML
   function _wrapHtml(html) {
     var trimmed = html.trim();
@@ -6129,65 +6062,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         maxDepth: null
       }),
       // ==== 【月相思维链·去杂标签 #1】移除 <thinking> / <think> 内部标签（promptOnly，不影响显示）====
-      _convertRegexScript({
-        id: 'yx-thinking-remove',
-        scriptName: '[月相1]去thinking标签',
-        findRegex: '/<(?:thinking|think)[^>]*>[\\s\\S]*?<\\/(?:thinking|think)>/gim',
-        replaceString: '',
-        trimStrings: [],
-        placement: [2],
-        markdownOnly: false,
-        promptOnly: true,
-        runOnEdit: false,
-        minDepth: null,
-        maxDepth: null
-      }),
+      // 月相1-4已删除
       // ==== 【月相思维链·去杂标签 #2】移除 [果农冒泡]/[NSFW判定]/[人物逻辑]/[基调锚定] 等中括号思考标签 ====
-      _convertRegexScript({
-        id: 'yx-bracket-remove',
-        scriptName: '[月相2]去中括号思考',
-        findRegex: '/^\\s*\\[(?:果农冒泡|NSFW判定|人物逻辑|基调锚定|角色认知迷雾|角色活性与自然回应|风格适配|反思\\s*&?\\s*设定校对|物理规则|正文字数检测|输出顺序检查|果农记录)\\][^\\n]*\\n?/gim',
-        replaceString: '',
-        trimStrings: [],
-        placement: [2],
-        markdownOnly: false,
-        promptOnly: true,
-        runOnEdit: false,
-        minDepth: null,
-        maxDepth: null
-      }),
+      // 月相2已删除
       // ==== 【月相思维链·去杂标签 #3】移除 "果农人格加载" / "time_format" / "time_format:" 等元信息段 ====
-      _convertRegexScript({
-        id: 'yx-farmer-meta-remove',
-        scriptName: '[月相3]去果农元信息',
-        findRegex: '/(?:^|\\n)\\s*(?:果农人格加载|time_format\\s*:?|果农记录)[^\\n]*(?:\\n|$)/gi',
-        replaceString: '\n',
-        trimStrings: [],
-        placement: [2],
-        markdownOnly: false,
-        promptOnly: true,
-        runOnEdit: false,
-        minDepth: null,
-        maxDepth: null
-      }),
+      // 月相3已删除
       // ==== 【月相思维链·去杂标签 #4】移除 <!-- End of The ECoT -->、<content>包裹 等HTML注释/标签 ====
-      _convertRegexScript({
-        id: 'yx-ecot-remove',
-        scriptName: '[月相4]去ECoT注释',
-        findRegex: '/<!--[\\s\\S]*?-->|<\\/?content[^>]*>/gim',
-        replaceString: '',
-        trimStrings: [],
-        placement: [2],
-        markdownOnly: false,
-        promptOnly: true,
-        runOnEdit: false,
-        minDepth: null,
-        maxDepth: null
-      }),
-      // 5. 一键生卡_隐藏状态栏标记（display:false, prompt:true）
+      // 月相4已删除
+      // 5. 一键生卡隐藏状态栏标记（display:false, prompt:true）
       {
         id: _genId('qz-card-status-hide'),
-        script_name: '一键生卡_隐藏状态栏标记',
+        script_name: '一键生卡隐藏状态栏标记',
         enabled: true,
         scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
@@ -6199,10 +6084,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         min_depth: null,
         max_depth: null
       },
-      // 6. 一键生卡_MVU状态栏（display:true, prompt:false）
+      // 6. 一键生卡MVU状态栏（display:true, prompt:false）
       {
         id: _genId('qz-card-status'),
-        script_name: '一键生卡_MVU状态栏',
+        script_name: '一键生卡MVU状态栏',
         enabled: true,
         scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
@@ -6835,34 +6720,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               data: {}
             });
           }
-          // ===== 【写卡预设】注入阈值行为模式 injectPrompts 脚本 =====
-          var hasQingziInject = mvuScripts.some(function(s) { return s.id === 'qz-inject-prompts-qingzi' || (s.content || '').indexOf('陌生模式') >= 0; });
-          if (!hasQingziInject) {
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: '阈值行为注入',
-              id: 'qz-inject-prompts-qingzi',
-              content: generateQingziInjectPromptsScript(charNames),
-              info: '【写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
-          }
-          // ===== 【MAG老师·模板】通用 injectPrompts 阈值触发模板 =====
-          var hasMagTemplate = mvuScripts.some(function(s) { return s.id === 'qz-inject-prompts-mag-template' || (s.content || '').indexOf('剧情阶段-第二章开启') >= 0; });
-          if (!hasMagTemplate) {
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: 'MAG注入模板',
-              id: 'qz-inject-prompts-mag-template',
-              content: generateMagInjectPromptsTemplate(),
-              info: '【MAG老师·模板】通用 injectPrompts 注入示例：剧情阶段切换、心情触发特殊行为等。角色卡作者可按需要自行追加/注释。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
-          }
           // 自动注入MVU必备正则脚本（6条）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
           var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
@@ -6946,83 +6803,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               maxDepth: null
             });
           }
-          // ===== 【月相思维链·去杂标签 #1~#4（promptOnly，从提示词移除内部思考）】 =====
-          // 月相1：去 thinking 标签
-          var hasYxThinking = mvuRegex.some(function(r) { return r.id === 'yx-thinking-remove'; });
-          if (!hasYxThinking) {
-            mvuRegex.push({
-              id: 'yx-thinking-remove',
-              scriptName: '[月相1]去thinking标签',
-              findRegex: '/<(?:thinking|think)[^>]*>[\\s\\S]*?<\\/(?:thinking|think)>/gim',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: false,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
-          // 月相2：去中括号思考标签
-          var hasYxBracket = mvuRegex.some(function(r) { return r.id === 'yx-bracket-remove'; });
-          if (!hasYxBracket) {
-            mvuRegex.push({
-              id: 'yx-bracket-remove',
-              scriptName: '[月相2]去中括号思考',
-              findRegex: '/^\\s*\\[(?:果农冒泡|NSFW判定|人物逻辑|基调锚定|角色认知迷雾|角色活性与自然回应|风格适配|反思\\s*&?\\s*设定校对|物理规则|正文字数检测|输出顺序检查|果农记录)\\][^\\n]*\\n?/gim',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: false,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
-          // 月相3：去果农元信息
-          var hasYxFarmer = mvuRegex.some(function(r) { return r.id === 'yx-farmer-meta-remove'; });
-          if (!hasYxFarmer) {
-            mvuRegex.push({
-              id: 'yx-farmer-meta-remove',
-              scriptName: '[月相3]去果农元信息',
-              findRegex: '/(?:^|\\n)\\s*(?:果农人格加载|time_format\\s*:?|果农记录)[^\\n]*(?:\\n|$)/gi',
-              replaceString: '\n',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: false,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
-          // 月相4：去 ECoT 注释/ content 包裹标签
-          var hasYxEcot = mvuRegex.some(function(r) { return r.id === 'yx-ecot-remove'; });
-          if (!hasYxEcot) {
-            mvuRegex.push({
-              id: 'yx-ecot-remove',
-              scriptName: '[月相4]去ECoT注释',
-              findRegex: '/<!--[\\s\\S]*?-->|<\\/?content[^>]*>/gim',
-              replaceString: '',
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: false,
-              promptOnly: true,
-              runOnEdit: false,
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
+          // 月相1-4已删除
           // 正则5：[不发送]隐藏状态栏标记 - 从提示词移除 <StatusPlaceHolderImpl/>（AI不需要看到占位符）
           var hasHidePlaceholderRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly;
@@ -12734,33 +12515,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 4c-3. 无自定义状态栏时，用角色名列表自动生成默认状态栏
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
             await _tavernWriteRegexScripts(cardData.name, statusBarHtml);
-            // ===== 【写卡预设】4d. 写入阈值行为/MAG老师 injectPrompts 脚本 =====
-            // 阈值行为注入：好感度四档自动切换行为模式（陌生/熟识/好感/深爱）
-            try {
-              await _tavernWriteScript(cardData.name, {
-                type: 'script',
-                enabled: true,
-                name: '阈值行为注入',
-                id: 'qz-inject-prompts-qingzi',
-                content: generateQingziInjectPromptsScript(charNames),
-                info: '【写卡预设】基于 StageDog injectPrompts：好感度阈值命中时，自动切换角色行为模式（陌生/熟识/好感/深爱四档）。',
-                button: { enabled: true, buttons: [] },
-                data: {}
-              });
-            } catch(eq) { console.warn('[时之写卡器] 阈值行为注入脚本写入失败:', eq && eq.message); }
-            // MAG老师模板：剧情日/心情等通用阈值触发示例（作者可自行修改）
-            try {
-              await _tavernWriteScript(cardData.name, {
-                type: 'script',
-                enabled: true,
-                name: 'MAG注入模板',
-                id: 'qz-inject-prompts-mag-template',
-                content: generateMagInjectPromptsTemplate(),
-                info: '【MAG老师·模板】通用 injectPrompts 注入示例：剧情阶段切换、心情触发特殊行为等。角色卡作者可按需要自行追加/注释。',
-                button: { enabled: true, buttons: [] },
-                data: {}
-              });
-            } catch(em) { console.warn('[时之写卡器] MAG模板injectPrompts脚本写入失败:', em && em.message); }
           }
 
           // ===== 步骤5：写入世界书条目 =====
