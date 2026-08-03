@@ -799,10 +799,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   selectiveLogic: 0=AND_ANY 1=NOT_ALL 2=NOT_ANY 3=AND_ALL（次级关键词逻辑，非随机选择）
   //          注意：核心铁则不在世界书条目中，而是放入post_history_instructions字段（常驻最高权重位）
 
-  // ===== MVU 美化正则 HTML 模板（纯CSS+emoji实现，无外部依赖）=====
-  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:620px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <!-- 移除左侧圆形图标，直接通长长条 -->\n      <span style="flex:1;display:flex;align-items:center;height:32px;padding:0 18px;background:linear-gradient(135deg,#f6f9fd 0%,#edf2fa 100%);border:1px solid rgba(150,170,200,0.3);border-radius:14px;box-shadow:0 2px 8px rgba(140,165,195,0.1);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:500;color:#475570">变量完成</span>\n        <small style="font-size:0.76em;color:#718096;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 下方内容面板，柔和浅底色 -->\n    <div style="width:calc(100% - 24px);max-height:300px;overflow-y:auto;margin:6px 0 0 0;padding:10px 16px;color:#4a5568;line-height:1.7;white-space:pre-wrap;background:rgba(244,248,253,0.75);border:1px solid rgba(150,170,200,0.22);border-radius:12px;font-size:0.88em;box-shadow:0 1px 6px rgba(140,160,185,0.06)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
+  // ===== MVU 美化正则 HTML 模板（柔和高对比版本，括号内内容清晰可读）=====
+  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">变量完成</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 内容面板：高对比浅灰蓝底+深灰字，确保括号/列表/JSON全部清晰 -->\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强：列表、括号、JSON代码块全部加强对比度 */\n  .status-notice ul, .status-notice ol { padding-left: 22px; color: #1f2937; }\n  .status-notice li { margin: 3px 0; color: #1f2937; }\n  .status-notice code, .status-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .status-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .status-notice strong, .status-notice b { color: #0f172a; }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
-  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:620px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:32px;padding:0 18px;background:linear-gradient(135deg,#f6f9fd 0%,#edf2fa 100%);border:1px solid rgba(150,170,200,0.3);border-radius:14px;box-shadow:0 2px 8px rgba(140,165,195,0.1);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.9em;font-weight:500;color:#475570">正在变量更新</span>\n        <small style="font-size:0.76em;color:#718096;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(150,175,220,0.09),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:300px;overflow-y:auto;margin:6px 0 0 0;padding:10px 16px;color:#4a5568;line-height:1.7;white-space:pre-wrap;background:rgba(244,248,253,0.75);border:1px solid rgba(150,170,200,0.22);border-radius:12px;font-size:0.88em;box-shadow:0 1px 6px rgba(140,160,185,0.06)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  @keyframes slide-flow {\n    0 { transform: translateX(-100%); }\n    100 { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
+  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">正在变量更新</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(130,160,210,0.12),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强 */\n  .loading-notice ul, .loading-notice ol { padding-left: 22px; color: #1f2937; }\n  .loading-notice li { margin: 3px 0; color: #1f2937; }\n  .loading-notice code, .loading-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .loading-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .loading-notice strong, .loading-notice b { color: #0f172a; }\n  @keyframes slide-flow {\n    0 { transform: translateX(-100%); }\n    100 { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
   // ===== MVU 状态栏 HTML 模板（StageDog 标准：低饱和柔灰蓝+毛玻璃+2秒轮询同步）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
@@ -934,6 +934,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 判断条目是否属于MVU变量系统
   // 兼容大小写前缀：[InitVar]/[initvar]、[mvu_update] 等
+  // 扩展：包含4条核心条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
   function isMVUEntry(comment) {
     var c = (comment || '').toLowerCase();
     return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
@@ -941,7 +942,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
            c.indexOf('状态变量输出') >= 0 || c.indexOf('updatevariable') >= 0 ||
            c.indexOf('变量分段') >= 0 || c.indexOf('分段提示') >= 0 ||
            c.indexOf('ejs') >= 0 ||
-           c.indexOf('状态栏') >= 0 || c.indexOf('statusplaceholder') >= 0;
+           c.indexOf('状态栏') >= 0 || c.indexOf('statusplaceholder') >= 0 ||
+           c.indexOf('阶段判定') >= 0 || c.indexOf('阶段切换') >= 0 ||
+           c.indexOf('人设切换') >= 0 || c.indexOf('人设规则') >= 0 ||
+           c.indexOf('动态注入') >= 0 || c.indexOf('派生字段') >= 0 ||
+           c.indexOf('衍生字段') >= 0 || c.indexOf('联动规则') >= 0 ||
+           c.indexOf('阈值触发') >= 0 || c.indexOf('控制器') >= 0 ||
+           c.indexOf('阶段变量') >= 0 || c.indexOf('状态机') >= 0 ||
+           c.indexOf('分阶段') >= 0 || c.indexOf('多阶段') >= 0 ||
+           c.indexOf('关系阶段') >= 0 || c.indexOf('剧情进度') >= 0 ||
+           c.indexOf('系统模式') >= 0 || c.indexOf('境界等级') >= 0 ||
+           c.indexOf('阶段标记') >= 0 || c.indexOf('判定逻辑') >= 0 ||
+           c.indexOf('联动变更') >= 0 || c.indexOf('只读字段') >= 0;
   }
 
   // 判断是否为MVU核心条目（五大核心：[initvar]/变量列表/变量更新规则/变量输出格式/变量输出格式强调）
@@ -1135,12 +1147,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 常驻条目总Token≤500，触发条目按需加载\n' +
     '- 世界书条目≥250字/条, 总数≤30条\n' +
     '**MVU条目Token预算铁律（补充）**：\n' +
-    '- 【数量上限】MVU变量条目最多4条，禁止多生成：①[InitVar]初始变量 ②变量列表 ③[mvu_update]变量更新规则 ④[mvu_update]变量输出格式。状态栏占位符提醒条目由写卡器自动注入，不计入。\n' +
+    '- 【标准体系=4条核心条目】①[InitVar]初始变量 ②变量列表 ③[mvu_update]变量更新规则 ④[mvu_update]变量输出格式 —— 4条是纯变量流程的最小集，必须齐全。状态栏占位符提醒条目由写卡器自动注入，不计入。\n' +
+    '- 【附加条目=按需生成】仅当用户明确要求时，才允许生成4条核心之外的附加条目：如阶段判定变量、人设切换规则、EJS控制器、派生($)字段联动逻辑、阈值触发动态注入等。用户未明确要求的情况下禁止AI自行追加任何额外条目。\n' +
+    '- 【禁用原调色盘专属的变量逻辑】原"多阶段调色盘→好感度阶段→人设切换"的专属耦合提示词（原37/38号）已整体废弃；如需多阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景，禁止再生成调色盘专属的耦合逻辑。\n' +
     '- [InitVar]初始变量（enabled=false，只初始化读一次，不占常驻）：≤1500字。超多变量请拆：初始化只设核心字段默认值，非核心字段用zod .prefault()在schema中定义默认值+AI首次触达时再写\n' +
     '- 变量列表（constant=true常驻）：≤200字，内容是format_message_variable宏占位符本身不长\n' +
-    '- [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
+    '- [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；补充派生变量命名规范（$开头=AI只读、由脚本/transform自动派生）、只读字段约束（_开头禁止AI更新）；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
     '- [mvu_update]变量输出格式（constant=true常驻）：≤600字。JSON Patch模板本身约300字，rule字段精炼在10行以内\n' +
-    '- 四条MVU条目合计常驻Token（constant=true的三条）≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段\n\n' +
+    '- 核心四条合计常驻Token（constant=true的三条）≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段。附加条目单独算Token预算，每条≤600字，仅在用户明确要求时生成。\n\n' +
+    '**【通用多阶段状态变量生成指导（替代原调色盘专属多阶段）】**：\n' +
+    '- 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等任意需要分阶段/分档位/分状态的变量体系。\n' +
+    '- 设计流程（仅用户明确要求分阶段时执行）：①阶段划分：确认阶段数量、每个阶段的触发阈值/条件、阶段命名；②字段设计：核心判定变量、阶段标记变量、只读派生变量（$开头，AI只读不更新）；③切换规则：阶段跳转的触发条件、联动变更的字段、边界兜底；④注入逻辑（可选）：不同阶段是否注入不同的世界书内容/提示规则。\n' +
+    '- 输出规范（仅用户明确要求分阶段时输出）：①变量结构中新增阶段相关字段定义（派生字段统一用$前缀）；②初始变量中设置开局默认阶段；③更新规则中补充阶段判定逻辑、边界约束、联动变更规则；④如需动态注入内容，配套生成EJS控制器条目或injectPrompts脚本条目。\n' +
+    '- 通用约束（多阶段严格执行）：阶段阈值边界清晰，无重叠无遗漏；阶段切换必须有明确触发条件，禁止无理由跳转；派生阶段字段用$开头标记为AI只读，由脚本/zod transform自动计算；阶段变更必须同步更新关联状态，保持数据一致性。\n\n' +
     '=== ⚠️⚠️⚠️ 内容尺度控制（最高优先级，违反将导致任务失败） ===\n' +
     '1. **默认全年龄向**：除非用户明确要求NSFW/成人/色情/暗黑等内容，否则所有内容必须保持全年龄向\n' +
     '2. **禁止主动生成NSFW**：严禁在用户未明确要求的情况下生成任何性描写、色情内容、肉体描写等\n' +
@@ -2643,16 +2662,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       else if (typeof getActiveTab === 'function') { _activeTab = getActiveTab(); }
     } catch(e) {}
 
-    // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 ======
+    // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 + 扩展附加条目识别 ======
     //   MVU_STRONG_RE = 功能性/结构性强特征（出现即代表真实MVU条目，永远拦截）
     //   MVU_WEAK_RE    = 讨论性弱特征（仅严格模式拦截；灰色模式开启时放行，允许AI讨论/规划变量结构）
+    //   MVU_EXTRA_RE   = MVU体系附加条目关键词（4条核心条目之外的功能性附加条目：阶段判定/EJS控制器/人设切换/派生字段等，仅用于MVU Tab放宽识别，不参与角色卡Tab拦截）
     // 灰色模式（window.__mvuDiscussMode=true）：角色卡Tab允许讨论变量结构，但仍禁止生成真实MVU条目
-    var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized)/i;
+    var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized|registerMvuSchema)/i;
     var MVU_WEAK_RE = /(变量更新规则|变量输出格式|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
+    // 附加条目关键词：用于MVU Tab识别"变量体系附加条目"——这些条目不是4条核心，但仍属于变量系统的配套功能
+    var MVU_EXTRA_RE = /(阶段判定|阶段切换|人设切换|人设规则|EJS|ejs|动态注入|injectPrompts|派生字段|衍生字段|只读字段|联动规则|联动变更|阈值触发|控制器|阶段变量|状态机|分阶段|多阶段|关系阶段|剧情进度|系统模式|境界等级|阶段标记|判定逻辑|分段提示|变量分段)/i;
     var _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
-    /* MVU_KEYWORDS_RE：完整集（强弱合并），供 MVU Tab 判定"是否MVU条目"使用，不受灰色模式影响 */
-    var MVU_KEYWORDS_RE = new RegExp('(' + MVU_STRONG_RE.source.slice(1, -1) + '|' + MVU_WEAK_RE.source.slice(1, -1) + ')', 'i');
-    var MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU)/i;
+    /* MVU_KEYWORDS_RE：完整集（强弱+附加条目关键词合并），供 MVU Tab 判定"是否MVU条目"使用，不受灰色模式影响 */
+    var MVU_KEYWORDS_RE = new RegExp('(' + MVU_STRONG_RE.source.slice(1, -1) + '|' + MVU_WEAK_RE.source.slice(1, -1) + '|' + MVU_EXTRA_RE.source.slice(1, -1) + ')', 'i');
+    var MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU|getvar\(|injectPrompts|EJS|ejs)/i;
     /* 改进10：角色卡Tab拦截判定（灰色模式感知 + 弱特征降误拦）
        - 强特征（功能性标记）：comment 或 content 命中即拦截（真实MVU条目必有）
        - 弱特征（讨论性词）：仅 comment（条目标题）命中才拦截；正文偶发提及不拦，降低误拦率
@@ -2744,21 +2766,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mvuWlBlocked.fields++;
         }
       });
-      // 过滤 entries/character_book.entries：只允许写入4条MVU条目，其他世界书条目一律丢弃
+      // 过滤 entries/character_book.entries：
+      // 旧逻辑：只允许写入4条MVU核心条目 → 新逻辑：允许所有MVU体系条目（4条核心+附加条目），只拦截明确是角色卡Tab专属的内容
+      // 允许通过的：4条核心MVU条目 / 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
+      // 拦截的：明确属于角色卡Tab常驻体系/世界观体系的专有模板条目（基础公理/核心铁则/场景机制/实体交互/叙事背景等）
+      var CARD_ONLY_TEMPLATES_RE = /^<(基础公理|核心铁则|世界元数据|交互软规则|近场强约束|当前局势|场景机制|核心玩法|世界规则|实体交互|重要角色|势力与组织|物品|地点场景|叙事背景|故事发展|文化与习俗|历史事件|动态适配|引导机制|互动选项|统一输出格式|角色边界|禁止项|自定义条目|观察锚点)>/i;
       var filterMvuOnlyEntries = function(arr, srcName) {
         if (!arr || !Array.isArray(arr)) return arr;
         var before = arr.length;
         arr = arr.filter(function(e) {
           if (!e) return false;
-          // 允许：删除动作（_action:delete / delete:true 这类，必须精确删MVU条目）
+          var cmt = String(e.comment || '');
+          var cnt = String(e.content || '');
+          // 允许：删除动作（删除任意条目都允许，MVU/非MVU都能删，避免用户需要切Tab删）
           if (e._action === 'delete' || e._action === 'remove' || e.delete === true) {
-            return MVU_KEYWORDS_RE.test(e.comment || '');  // 只允许删MVU条目
+            return true;
           }
-          var isMvuEntry = MVU_KEYWORDS_RE.test(e.comment || '') || MVU_KEYWORDS_RE.test(e.content || '');
-          if (!isMvuEntry) {
-            console.warn('[Tab隔离·MVU Tab] 拦截非MVU世界书条目（角色卡Tab专属）：', e.comment, '→请切换到角色卡Tab修改普通世界书条目');
+          // 判定1：命中MVU关键词（核心+附加）→ 是MVU体系条目 → 通过
+          var isMvuEntry = MVU_KEYWORDS_RE.test(cmt) || MVU_KEYWORDS_RE.test(cnt) || isMVUEntry(cmt);
+          if (isMvuEntry) return true;
+          // 判定2：命中角色卡Tab专属模板条目（<基础公理>、<核心铁则>等）→ 拦截
+          var isCardOnlyTemplate = CARD_ONLY_TEMPLATES_RE.test(cmt);
+          if (isCardOnlyTemplate) {
+            console.warn('[Tab隔离·MVU Tab] 拦截角色卡Tab专属条目：', cmt, '→请切换到角色卡Tab修改该类条目');
+            return false;
           }
-          return isMvuEntry;
+          // 判定3：未命中任何角色卡专属特征 → 默认放行（属于MVU体系的自定义附加条目、或用户自定义内容）
+          // 注：因为角色卡Tab已做了严格的MVU→角色卡方向拦截，两边完全隔离，所以MVU Tab这边不需要反向过度拦截
+          return true;
         });
         mvuWlBlocked.entries += (before - arr.length);
         return arr;
@@ -5476,187 +5511,124 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   var NEKO_THINKING_HTML = MVU_BEAUTIFY_THINKING;
 
-  // ===== MVU 状态栏 HTML 生成（借鉴 javascript-format (7).js 的 hr 函数）=====
-  // 生成自包含的 HTML 文档，含 CSS 变量、好感度进度条、心跳SVG、分页器
-  // 运行时监听 Mvu.events.VARIABLE_INITIALIZED / VARIABLE_UPDATE_ENDED 事件自动刷新
+  // ===== MVU 状态栏 HTML 生成（通用回退模板）=====
+  // 仅作为 AI 未生成状态栏时的兜底：通用 renderTree 渲染任意变量，无好感度硬编码、无心跳SVG、无英文字样
+  // 运行时监听 Mvu.events.VARIABLE_INITIALIZED / VARIABLE_UPDATE_ENDED 事件 + 2秒轮询自动刷新
   function generateMvuStatusBarHtml(roleNames) {
-    var roles = (roleNames || []).map(function(name) {
-      return {
-        name: name,
-        affectionPath: 'stat_data.' + name + '.好感度',
-        avatarUrl: '',
-        backgroundUrl: ''
-      };
-    });
-    var rolesJson = JSON.stringify(roles);
     var html = [
       '<!doctype html>',
       '<html lang="zh-CN">',
       '<head>',
       '  <meta charset="UTF-8">',
       '  <style>',
-      '    :root { --qz-cold: #325c9d; --qz-sky: #4eb9e7; --qz-soft: #f5b7c9; --qz-hot: #bd2d3a; }',
-      '    body { margin: 0; padding: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #18211f; }',
-      '    .qz-card-status { width: 100%; box-sizing: border-box; border: 1px solid rgba(31,45,42,.13); border-radius: 8px; background: linear-gradient(135deg, rgba(247,245,239,.96), rgba(230,236,232,.96)); padding: 10px; box-shadow: 0 12px 30px rgba(21,29,27,.12); }',
-      '    .qz-card-status-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }',
-      '    .qz-card-status-head h3 { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; }',
-      '    .qz-card-status-head p { margin: 3px 0 0; color: #66736d; font-size: 11px; line-height: 1.4; }',
-      '    .qz-card-status-scene { display: grid; gap: 3px; min-width: 96px; color: #66736d; font-size: 11px; text-align: right; }',
-      '    .qz-role-list { display: grid; gap: 8px; }',
-      '    .qz-status-role { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr; align-items: center; min-height: 82px; overflow: hidden; border: 1px solid rgba(255,255,255,.58); border-radius: 8px; background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(238,242,239,.72)); box-shadow: inset 0 0 0 1px rgba(31,45,42,.05); }',
-      '    .qz-status-role.has-avatar { grid-template-columns: auto 1fr; }',
-      '    .qz-status-role.has-bg { color: #fff; background-size: cover; background-position: center; border-color: rgba(255,255,255,.22); }',
-      '    .qz-status-role::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgba(255,255,255,.12), transparent 34%), linear-gradient(180deg, rgba(255,255,255,.14), transparent 52%); }',
-      '    .qz-status-avatar { width: 78px; padding: 10px 0 10px 10px; }',
-      '    .qz-status-avatar img { display: block; width: 58px; height: 58px; object-fit: cover; border: 1px solid rgba(255,255,255,.68); border-radius: 8px; background: rgba(255,255,255,.18); box-shadow: 0 8px 18px rgba(18,26,24,.18); }',
-      '    .qz-status-role-body { display: grid; gap: 9px; min-width: 0; padding: 12px; }',
-      '    .qz-role-name { margin: 0; overflow: hidden; color: currentColor; font-size: 16px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }',
-      '    .qz-affection-row { display: grid; grid-template-columns: 58px minmax(88px,1fr) 40px; align-items: center; gap: 9px; min-width: 0; }',
-      '    .qz-heartline { display: block; width: 58px; height: 24px; color: color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 88%, currentColor); filter: drop-shadow(0 2px 7px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 40%, transparent)); }',
-      '    .qz-progress { position: relative; min-width: 0; height: 10px; overflow: hidden; border-radius: 999px; background: rgba(31,45,42,.1); box-shadow: inset 0 0 0 1px rgba(31,45,42,.09); }',
-      '    .qz-status-role.has-bg .qz-progress { background: rgba(255,255,255,.28); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }',
-      '    .qz-progress-fill { position: relative; display: block; width: calc(var(--qz-affection, 0) * 1%); height: 100%; overflow: hidden; border-radius: inherit; box-shadow: 0 0 16px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 34%, transparent); }',
-      '    .qz-progress-fill::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--qz-gradient-width, 100%); min-width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--qz-cold) 0%, var(--qz-sky) 40%, var(--qz-soft) 72%, var(--qz-hot) 100%); }',
-      '    .qz-affection-value { min-width: 40px; color: var(--qz-affection-color, #4eb9e7); font-size: 21px; font-weight: 700; line-height: 1; text-align: right; text-shadow: 0 6px 18px color-mix(in srgb, var(--qz-affection-color, #4eb9e7) 22%, transparent); }',
-      '    .qz-role-foot { color: color-mix(in srgb, currentColor 58%, transparent); font-size: 11px; }',
-      '    .qz-status-pager { display: none; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 9px; }',
-      '    .qz-status-pager.active { display: flex; }',
-      '    .qz-status-pager button { min-width: 30px; height: 26px; border: 0; border-radius: 6px; background: rgba(50,92,157,.12); color: #325c9d; font: inherit; cursor: pointer; }',
-      '    .qz-status-pager button:disabled { cursor: default; opacity: .45; }',
-      '    .qz-status-pager span { color: #66736d; font-size: 11px; }',
-      '    @media (max-width: 480px) { .qz-card-status { padding: 8px; } .qz-card-status-scene { display: none; } .qz-status-role.has-avatar { grid-template-columns: 1fr; } .qz-status-avatar { width: auto; padding: 10px 10px 0; } .qz-status-avatar img { width: 52px; height: 52px; } .qz-affection-row { grid-template-columns: 48px minmax(80px,1fr) 34px; gap: 7px; } .qz-heartline { width: 48px; } .qz-affection-value { font-size: 19px; min-width: 34px; } }',
+      '    :root {',
+      '      --card-bg: rgba(250, 250, 248, 0.92);',
+      '      --card-border: rgba(120, 130, 140, 0.18);',
+      '      --text-main: #2c3442;',
+      '      --text-sub: #64748b;',
+      '      --accent-blue: #3b82f6;',
+      '      --accent-green: #16a34a;',
+      '      --accent-red: #dc2626;',
+      '      --line-divider: rgba(120, 130, 140, 0.15);',
+      '      --hover-bg: rgba(120, 130, 140, 0.08);',
+      '    }',
+      '    * { margin: 0; padding: 0; box-sizing: border-box; }',
+      '    body { margin: 0; padding: 6px; font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif; color: var(--text-main); font-size: 12px; line-height: 1.45; }',
+      '    .mvu-status-card {',
+      '      width: 100%; box-sizing: border-box;',
+      '      border: 1px solid var(--card-border);',
+      '      border-radius: 10px;',
+      '      background: var(--card-bg);',
+      '      box-shadow: 0 4px 14px rgba(30, 40, 50, 0.06);',
+      '      overflow: hidden;',
+      '    }',
+      '    .card-body { padding: 10px 12px; }',
+      '    .category-title {',
+      '      font-size: 12px; font-weight: 600; color: var(--accent-blue);',
+      '      margin: 10px 0 6px; padding-bottom: 3px;',
+      '      border-bottom: 1px solid var(--line-divider);',
+      '    }',
+      '    .category-title:first-child { margin-top: 0; }',
+      '    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 16px; }',
+      '    .stat-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 4px 6px; border-radius: 5px; gap: 8px; }',
+      '    .stat-item:hover { background: var(--hover-bg); }',
+      '    .indent-1 { padding-left: 8px; } .indent-2 { padding-left: 20px; }',
+      '    .indent-3 { padding-left: 32px; } .indent-4 { padding-left: 44px; }',
+      '    .stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }',
+      '    .stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }',
+      '    .value-number { color: var(--accent-blue); white-space: nowrap; }',
+      '    .value-true { color: var(--accent-green); white-space: nowrap; }',
+      '    .value-false { color: var(--accent-red); white-space: nowrap; }',
+      '    .value-text { color: var(--text-main); }',
+      '    .loading-state { text-align: center; padding: 16px 0; color: var(--text-sub); animation: breathe 2s ease-in-out infinite; }',
+      '    @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.92; } }',
+      '    .flash-update { animation: fadeIn 0.3s ease-out; }',
+      '    @keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }',
+      '    .nested-group { padding-left: 10px; border-left: 2px dashed rgba(120,130,140,0.22); margin-left: 4px; margin-bottom: 4px; }',
+      '    .progress-bar { width: 100%; height: 4px; background: rgba(120,130,140,0.15); border-radius: 2px; margin-top: 3px; overflow: hidden; }',
+      '    .progress-bar-fill { height: 100%; background: var(--accent-blue); border-radius: 2px; transition: width 0.3s ease; }',
       '  </style>',
-      '  <script type="module">',
-      '    const QZ_STATUS_ROLES = ' + rolesJson + ';',
-      '    const QZ_PAGE_SIZE = 4;',
-      '    let qzStatusPage = 0;',
-      '    function qzClampNumber(value, min, max) {',
-      '      const number = Number(value);',
-      '      if (!Number.isFinite(number)) return min;',
-      '      return Math.min(max, Math.max(min, number));',
-      '    }',
-      '    function qzAffectionColor(value) {',
-      '      if (value <= 33) return \'#325c9d\';',
-      '      if (value <= 58) return \'#4eb9e7\';',
-      '      if (value <= 82) return \'#f5b7c9\';',
-      '      return \'#bd2d3a\';',
-      '    }',
-      '    function qzHeartbeatSvg() {',
-      '      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");',
-      '      svg.setAttribute("class", "qz-heartline");',
-      '      svg.setAttribute("viewBox", "0 0 120 40");',
-      '      svg.setAttribute("aria-label", "好感度");',
-      '      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");',
-      '      path.setAttribute("d", "M4 22 H22 L31 8 L42 33 L55 16 L66 22 H84");',
-      '      path.setAttribute("fill", "none");',
-      '      path.setAttribute("stroke", "currentColor");',
-      '      path.setAttribute("stroke-width", "3.2");',
-      '      path.setAttribute("stroke-linecap", "round");',
-      '      path.setAttribute("stroke-linejoin", "round");',
-      '      svg.append(path);',
-      '      return svg;',
-      '    }',
-      '    function qzSetText(selector, value) {',
-      '      const node = document.querySelector(selector);',
-      '      if (node) node.textContent = value;',
-      '    }',
-      '    function qzCreateRoleCard(role, variables) {',
-      '      const value = qzClampNumber(_.get(variables, role.affectionPath, 0), 0, 100);',
-      '      const card = document.createElement("article");',
-      '      card.className = "qz-status-role";',
-      '      if (role.avatarUrl) card.classList.add("has-avatar");',
-      '      if (role.backgroundUrl) {',
-      '        card.classList.add("has-bg");',
-      '        card.style.backgroundImage = `linear-gradient(90deg, rgba(9,14,18,.74), rgba(9,14,18,.52) 48%, rgba(9,14,18,.24)), url("${String(role.backgroundUrl).replaceAll(\'"\', \'\\\\\\"\')}")`;',
-      '      }',
-      '      card.style.setProperty("--qz-affection", String(value));',
-      '      card.style.setProperty("--qz-gradient-width", `${10000 / Math.max(value, 1)}%`);',
-      '      card.style.setProperty("--qz-affection-color", qzAffectionColor(value));',
-      '      if (role.avatarUrl) {',
-      '        const avatar = document.createElement("aside");',
-      '        avatar.className = "qz-status-avatar";',
-      '        const image = document.createElement("img");',
-      '        image.src = role.avatarUrl;',
-      '        image.alt = "";',
-      '        avatar.append(image);',
-      '        card.append(avatar);',
-      '      }',
-      '      const body = document.createElement("div");',
-      '      body.className = "qz-status-role-body";',
-      '      const title = document.createElement("h4");',
-      '      title.className = "qz-role-name";',
-      '      title.textContent = role.name;',
-      '      const row = document.createElement("div");',
-      '      row.className = "qz-affection-row";',
-      '      const progress = document.createElement("div");',
-      '      progress.className = "qz-progress";',
-      '      const fill = document.createElement("span");',
-      '      fill.className = "qz-progress-fill";',
-      '      progress.append(fill);',
-      '      const valueNode = document.createElement("strong");',
-      '      valueNode.className = "qz-affection-value";',
-      '      valueNode.textContent = String(value);',
-      '      row.append(qzHeartbeatSvg(), progress, valueNode);',
-      '      const foot = document.createElement("div");',
-      '      foot.className = "qz-role-foot";',
-      '      foot.textContent = "好感度";',
-      '      body.append(title, row, foot);',
-      '      card.append(body);',
-      '      return card;',
-      '    }',
-      '    function populateCharacterData() {',
-      '      var variables = {};',
-      '      try { variables = getAllVariables() || {}; } catch(e) { console.warn("[状态栏] getAllVariables失败:", e); return; }',
-      '      qzSetText("#qz-status-time", String(_.get(variables, "stat_data.世界.当前时间", "开局")));',
-      '      qzSetText("#qz-status-place", String(_.get(variables, "stat_data.世界.当前地点", "待定")));',
-      '      const list = document.querySelector("#qz-role-list");',
-      '      if (!list) return;',
-      '      list.textContent = "";',
-      '      const totalPages = Math.max(1, Math.ceil(QZ_STATUS_ROLES.length / QZ_PAGE_SIZE));',
-      '      qzStatusPage = Math.min(qzStatusPage, totalPages - 1);',
-      '      const pageRoles = QZ_STATUS_ROLES.slice(qzStatusPage * QZ_PAGE_SIZE, (qzStatusPage + 1) * QZ_PAGE_SIZE);',
-      '      pageRoles.forEach(role => list.append(qzCreateRoleCard(role, variables)));',
-      '      const pager = document.querySelector("#qz-status-pager");',
-      '      const pageInfo = document.querySelector("#qz-page-info");',
-      '      const prev = document.querySelector("#qz-page-prev");',
-      '      const next = document.querySelector("#qz-page-next");',
-      '      if (pager) pager.classList.toggle("active", totalPages > 1);',
-      '      if (pageInfo) pageInfo.textContent = `${qzStatusPage + 1}/${totalPages}`;',
-      '      if (prev) prev.disabled = qzStatusPage <= 0;',
-      '      if (next) next.disabled = qzStatusPage >= totalPages - 1;',
-      '    }',
-      '    async function init() {',
-      '      if (typeof waitGlobalInitialized !== \'function\') { console.warn("[状态栏] waitGlobalInitialized不可用"); return; }',
-      '      await waitGlobalInitialized(\'Mvu\');',
-      '      document.querySelector("#qz-page-prev")?.addEventListener("click", () => { qzStatusPage -= 1; populateCharacterData(); });',
-      '      document.querySelector("#qz-page-next")?.addEventListener("click", () => { qzStatusPage += 1; populateCharacterData(); });',
-      '      populateCharacterData();',
-      '      eventOn(Mvu.events.VARIABLE_INITIALIZED, populateCharacterData);',
-      '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, populateCharacterData);',
-      '    }',
-      '    $(errorCatched(init));',
-      '  <\/script>',
       '</head>',
       '<body>',
-      '  <section class="qz-card-status">',
-      '    <div class="qz-card-status-head">',
-      '      <div>',
-      '        <h3>角色状态</h3>',
-      '        <p>CURRENT STATUS</p>',
-      '      </div>',
-      '      <div class="qz-card-status-scene">',
-      '        <span id="qz-status-time">开局</span>',
-      '        <span id="qz-status-place">待定</span>',
-      '      </div>',
-      '    </div>',
-      '    <div id="qz-role-list" class="qz-role-list">',
-      '    </div>',
-      '    <div id="qz-status-pager" class="qz-status-pager">',
-      '      <button id="qz-page-prev" type="button">‹</button>',
-      '      <span id="qz-page-info">1/1</span>',
-      '      <button id="qz-page-next" type="button">›</button>',
-      '    </div>',
-      '  </section>',
+      '  <div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>',
+      '  <script type="module">',
+      '    $(async function() {',
+      '      try {',
+      '        await waitGlobalInitialized(\'Mvu\');',
+      '        function _getVars() {',
+      '          try { if (typeof getVariables === \'function\') { var r = getVariables({ type: \'message\', message_id: \'latest\' }); if (r && typeof r === \'object\') return r; } } catch(e) {}',
+      '          try { return getAllVariables() || {}; } catch(e) { return {}; }',
+      '        }',
+      '        var _waitCount = 0;',
+      '        while (!_.has(_getVars(), \'stat_data\') && _waitCount < 15) { await new Promise(function(r) { setTimeout(r, 1000); }); _waitCount++; }',
+      '        function refreshStatus() {',
+      '          var sourceData = _.get(_getVars(), \'stat_data\', {});',
+      '          var htmlStr = \'\';',
+      '          function _esc(s) { return String(s == null ? \'\' : s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\').replace(/\'/g, \'&#39;\'); }',
+      '          function renderTree(obj, level) {',
+      '            level = level || 0;',
+      '            var indentClass = \'indent-\' + Math.min(level, 4);',
+      '            var itemsHtml = \'\';',
+      '            var keys = Object.keys(obj || {});',
+      '            for (var k = 0; k < keys.length; k++) {',
+      '              var key = keys[k]; var value = obj[key];',
+      '              if (key.indexOf(\'_\') === 0) continue;',
+      '              if (key.indexOf(\'$\') === 0 && !(/(阶段|状态|等级|名称|称号|时间|日期)$/.test(key))) continue;',
+      '              var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value) && Object.prototype.toString.call(value) === \'[object Object]\';',
+      '              if (isPlainObj) {',
+      '                if (itemsHtml) { htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }',
+      '                if (level > 0) { htmlStr += \'<div class="nested-group \' + indentClass + \'"><div class="category-title">\' + _esc(key) + \'</div>\'; }',
+      '                else { htmlStr += \'<div class="category-title">\' + _esc(key) + \'</div>\'; }',
+      '                renderTree(value, level + 1);',
+      '                if (level > 0) htmlStr += \'</div>\';',
+      '                continue;',
+      '              }',
+      '              itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + _esc(key) + \'</span><span class="stat-value">\';',
+      '              if (typeof value === \'number\') {',
+      '                itemsHtml += \'<span class="value-number">\' + _esc(value) + \'</span>\';',
+      '                if (value >= 0 && value <= 100) itemsHtml += \'<div class="progress-bar"><div class="progress-bar-fill" style="width:\' + value + \'%"></div></div>\';',
+      '              } else if (typeof value === \'boolean\') { itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\'; }',
+      '              else if (Array.isArray(value)) { itemsHtml += \'<span class="value-text">[\' + value.map(function(el) { return _esc(el); }).join(\', \') + \']</span>\'; }',
+      '              else { itemsHtml += \'<span class="value-text">\' + _esc(value) + \'</span>\'; }',
+      '              itemsHtml += \'</span></div>\';',
+      '            }',
+      '            if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';',
+      '          }',
+      '          renderTree(sourceData, 0);',
+      '          var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;',
+      '          if (root) { root.innerHTML = htmlStr; try { root.classList.add(\'flash-update\'); } catch(e) {} setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300); }',
+      '        }',
+      '        refreshStatus();',
+      '        var _sbTimer = setInterval(refreshStatus, 2000);',
+      '        document.addEventListener("visibilitychange", function() { if (document.hidden) { clearInterval(_sbTimer); _sbTimer = null; } else if (!_sbTimer) { _sbTimer = setInterval(refreshStatus, 2000); } });',
+      '        window.addEventListener("pagehide", function() { if (_sbTimer) { clearInterval(_sbTimer); _sbTimer = null; } });',
+      '        try { if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) { eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus); eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); } } catch(e) {}',
+      '      } catch(err) {',
+      '        console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);',
+      '        try { var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body; if (root) root.innerHTML = \'<div style="padding:12px;color:var(--accent-red);font-size:12px">状态栏初始化失败：\' + String(err && err.message ? err.message : err) + \'</div>\'; } catch(e) {}',
+      '      }',
+      '    });',
+      '  <\/script>',
       '</body>',
       '</html>'
     ].join('\n');
@@ -6069,10 +6041,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 月相3已删除
       // ==== 【月相思维链·去杂标签 #4】移除 <!-- End of The ECoT -->、<content>包裹 等HTML注释/标签 ====
       // 月相4已删除
-      // 5. 一键生卡隐藏状态栏标记（display:false, prompt:true）
+      // 5. 隐藏状态栏标记（display:false, prompt:true）
       {
         id: _genId('qz-card-status-hide'),
-        script_name: '一键生卡隐藏状态栏标记',
+        script_name: '隐藏状态栏标记',
         enabled: true,
         scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
@@ -6084,10 +6056,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         min_depth: null,
         max_depth: null
       },
-      // 6. 一键生卡MVU状态栏（display:true, prompt:false）
+      // 6. MVU状态栏（display:true, prompt:false）
       {
         id: _genId('qz-card-status'),
-        script_name: '一键生卡MVU状态栏',
+        script_name: 'MVU状态栏',
         enabled: true,
         scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
@@ -8606,8 +8578,38 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var mvuPrompts = {
           next: '我当前的MVU进度该怎么推进？请分析：1) 变量4条目是否完整 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
           summary: '帮我梳理MVU系统的当前状态：1) [InitVar]初始变量 2) 变量列表 3) 变量更新规则 4) 变量输出格式 → 4条MVU条目完成情况；状态栏Step2-6共5个模块完成情况；缺失什么；推荐的下一步。',
-          init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段，只放这4条MVU变量条目，不要生成其他世界书条目。',
-          var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。输出到```json代码块的 entries 字段。'
+          init_var:
+            '请帮我设计MVU变量系统，严格遵守以下铁则：\n' +
+            '【变量生成铁则（最高优先级）】\n' +
+            '1. 标准MVU体系=必须齐全的4条核心条目：①[InitVar]初始变量(enabled=false，仅脚本读取，禁用) ②变量列表(含{{format_message_variable::stat_data}}宏注入当前变量值) ③[mvu_update]变量更新规则(告知AI何时/如何更新变量) ④[mvu_update]变量输出格式(定义<UpdateVariable> + JSON Patch标准)。\n' +
+            '2. 【禁止AI自行追加额外条目】除非用户明确要求分阶段/人设切换/EJS/动态注入等附加功能，否则严格只生成上述4条核心条目，禁止自行补充派生字段、中间状态变量、阶段判定、人设切换规则、调色盘衍生字段等。\n' +
+            '3. 【废弃原调色盘专属耦合逻辑】原"好感度阶段→人设切换"耦合的多阶段调色盘变量模板(原37/38号)已整体废弃，禁止再使用。若用户确实需要分阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景。\n' +
+            '4. 【变量更新规则增强】在更新规则中补充两条约束：①派生变量命名规范：$开头的字段=AI只读、由脚本/zod transform自动派生，禁止AI更新；②只读字段约束：_开头的字段=AI只读，禁止AI在<UpdateVariable>中修改。下划线/$开头的字段在更新规则中不列规则。\n' +
+            '5. 【若用户明确要求多阶段/附加条目】按以下规范生成：\n' +
+            '   - 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等\n' +
+            '   - 设计流程：①阶段划分(数量/阈值/命名) → ②字段设计(核心判定变量/阶段标记变量/$开头只读派生变量) → ③切换规则(触发条件/联动变更字段/边界兜底) → ④注入逻辑(按需，不同阶段注入不同内容)\n' +
+            '   - 输出规范：①zod变量结构中新增阶段字段定义 → ②[InitVar]中设置开局默认阶段 → ③更新规则中补充阶段判定/边界/联动规则 → ④如需要动态注入内容，配套生成EJS控制器或injectPrompts脚本条目\n' +
+            '   - 通用约束：阶段阈值边界清晰无重叠；阶段切换必须有明确触发条件，禁止无理由跳转；派生阶段字段用$开头=AI只读；阶段变更必须同步更新关联状态，保持数据一致性。\n' +
+            '【4条核心条目规范】\n' +
+            '- [InitVar]初始变量：enabled=false，YAML格式，缩进表示层级，按世界/角色名/主角/系统等一级分类，二级为属性，三级为子属性，禁止平铺。数值优先0-100。可清空对象.prefault({})兜底。字段命名：_开头=AI只读不更新，$开头=派生显示专用(AI只读)，无前缀=普通可读写。\n' +
+            '- 变量列表：constant=true常驻，内容必须包含<status_current_variables>{{format_message_variable::stat_data}}</status_current_variables>，把当前变量值通过宏注入对话上下文。\n' +
+            '- 变量更新规则：使用[mvu_update]前缀或标题直接含"变量更新规则"，按YAML层级列出变量路径、type/range/format/check；check项用自然语言描述触发场景/变化幅度/边界约束；基础自解释变量不列规则，仅写特殊约束；同类型、同层级变量合并规则。\n' +
+            '- 变量输出格式：使用[mvu_update]前缀，定义<UpdateVariable>包裹的<Analysis>分析段+<JSONPatch>段(支持replace/delta/insert/remove/move五种操作，严格遵循JSON Patch RFC 6902)。rule中明确：①必须在回复末尾同时输出分析和指令；②下划线开头的只读字段禁止更新；③格式示例：[{"op":"replace","path":"/变量路径","value":"新值"},{"op":"delta","path":"/数值变量","value":±5}]。\n' +
+            '请根据用户提供的角色卡/世界观/需求设计变量。输出到```json代码块的 entries 字段，默认仅包含4条核心条目；只有当用户明确要求分阶段/附加功能时，才额外生成相应的附加条目。',
+          var_update_rule:
+            '请帮我完善变量更新规则和变量输出格式条目，严格遵守以下铁则：\n' +
+            '【变量生成铁则】\n' +
+            '1. 禁止AI自行追加4条核心条目之外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求。\n' +
+            '2. 原调色盘专属的好感度→人设切换耦合模板(原37/38号)已废弃；若用户确实需要多阶段变量，按【通用多阶段状态变量生成指导】执行：通用场景设计流程=阶段划分→字段设计→切换规则→注入逻辑；派生字段统一$开头=AI只读；阶段阈值清晰、切换必须有明确触发条件。\n' +
+            '3. 在变量更新规则中补充两条约束：①$开头字段=AI只读(由zod transform/脚本派生)、禁止AI更新；②_开头字段=AI只读、禁止AI修改。下划线/$开头字段不列更新规则。\n' +
+            '【变量更新规则编写规范】\n' +
+            '- 使用YAML结构：变量路径层级缩进；同类型、同层级变量合并规则，减少冗余。\n' +
+            '- 每条规则可含：type(变量类型，字符串可省略) / range(数值范围，可选；若zod已做transform硬clamp则不要再写range，避免重复浪费token) / format(格式约束，可选) / check(1~2行自然语言：触发场景、变化幅度、边界约束)。\n' +
+            '- 基础自解释变量不列规则，仅写特殊约束；动态扩展record的规则写在父层级。\n' +
+            '【变量输出格式编写规范】\n' +
+            '- [mvu_update]前缀 + rule：①回复末尾必须同时输出更新分析<Analysis>和更新指令<JSONPatch>；②JSON Patch遵循RFC 6902，支持replace/delta/insert/remove/move；③_/$开头只读字段禁止更新。\n' +
+            '- format：提供<UpdateVariable>...<Analysis>...逐条分析...</Analysis><JSONPatch>[...JSON Patch操作...]</JSONPatch></UpdateVariable>的完整示例。\n' +
+            '请根据当前[InitVar]初始变量中的字段结构生成对应的更新规则和输出格式。输出到```json代码块的 entries 字段。'
         };
         // 选择当前Tab对应的Prompt字典
         var prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
