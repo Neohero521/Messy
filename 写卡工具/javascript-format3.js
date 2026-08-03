@@ -1058,7 +1058,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '9. 外貌特征差异化：只写偏离AI数据库默认认知的特征，不写万能美人描写\n' +
     '10. 保持一致性，所有设定要相互支撑\n' +
     '11. 去标签化：AI直出的角色需要作者用具体行为修正，使其成为创作者想象中的样子\n' +
-    '人设制作流程：世界观 → 角色基础 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n' +
     '</creative_principles>\n\n' +
     // ===== 【写卡预设注入 #3】📐 创作原则-绝对零度 writing_principles =====
     '<writing_principles>\n' +
