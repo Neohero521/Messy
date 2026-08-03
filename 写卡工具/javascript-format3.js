@@ -847,7 +847,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
-    '[InitVar]初始变量': { constant: true, selective: false, position: 4, depth: 4, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: true },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 4, depth: 4, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
     '变量列表': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量更新规则': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量输出格式': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -1064,7 +1064,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '2. 手写优先：衍生和台词必须由创作者自己写，AI无法做到把毫无逻辑的两个性格组合在一起\n' +
     '3. 三面性（可选）：当角色在不同场景下有根本性的行为切换时，用三面性描述不同的运作模式\n' +
     '4. 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色，确保角色是创作者想象中的样子\n' +
-    '5. NSFW调色盘：从"为什么做"而不是"做什么"的角度描写亲密行为，让亲密成为性格的延续\n' +
+    '5. NSFW描写：从"为什么做"而不是"做什么"的角度描写亲密行为，让亲密成为性格的延续\n' +
     '6. 用行为展现性格，而非定义性格\n' +
     '7. 提供具体的语料示例，而非描述语气\n' +
     '8. 避免模糊词、比喻词、微表情等八股描写\n' +
@@ -1102,7 +1102,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     'ID分配顺序：1.世界观条目（id1~idX）→ 2.角色速览（id0，不占正式ID序列）→ 3.各角色条目（按创建顺序，同角色所有条目共用同一个ID）→ 4.NPC条目（在角色之后继续递增）\n' +
     '世界观ID：路径A/B单条目= <世界观_id1>；路径C大世界= <世界观_id1>总纲 / <世界观_id2>区域速览 / <世界观_id3>势力场景详情（多个同层级共用id3） / <世界观_id4>事件类型\n' +
     '角色速览固定使用：<角色速览_id0>\n' +
-    '角色ID规则：同一角色的基础信息/调色盘/三面性/二次解释/衣柜/NSFW调色盘全部共用同一个 <角色名_idN>，不同角色用不同ID，ID按角色创建顺序递增分配。\n' +
+    '角色ID规则：同一角色的基础信息/三面性/二次解释/衣柜/NSFW全部共用同一个 <角色名_idN>，不同角色用不同ID，ID按角色创建顺序递增分配。\n' +
     'NPC ID：每个NPC独立一个 <NPC名_idN> 标签，ID在角色之后继续递增。\n' +
     '写入格式：条目前加 <角色名_idN>，后加 </角色名_idN> 闭合。重要提醒：标签ID在整个角色卡生命周期内保持不变；新增同角色条目→复用已有ID；新增新角色/新NPC→当前最大ID后+1；删除条目不重新编号。\n' +
     '</template_tag_spec>\n\n' +
@@ -1149,13 +1149,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**MVU条目Token预算铁律（补充）**：\n' +
     '- 【标准体系=4条核心条目】①[InitVar]初始变量 ②变量列表 ③[mvu_update]变量更新规则 ④[mvu_update]变量输出格式 —— 4条是纯变量流程的最小集，必须齐全。状态栏占位符提醒条目由写卡器自动注入，不计入。\n' +
     '- 【附加条目=按需生成】仅当用户明确要求时，才允许生成4条核心之外的附加条目：如阶段判定变量、人设切换规则、EJS控制器、派生($)字段联动逻辑、阈值触发动态注入等。用户未明确要求的情况下禁止AI自行追加任何额外条目。\n' +
-    '- 【禁用原调色盘专属的变量逻辑】原"多阶段调色盘→好感度阶段→人设切换"的专属耦合提示词（原37/38号）已整体废弃；如需多阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景，禁止再生成调色盘专属的耦合逻辑。\n' +
+    '- 【废弃原多阶段变量耦合模板】原"好感度阶段→人设切换"的专属耦合提示词（原37/38号）已整体废弃；如需多阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景。\n' +
     '- [InitVar]初始变量（enabled=false，只初始化读一次，不占常驻）：≤1500字。超多变量请拆：初始化只设核心字段默认值，非核心字段用zod .prefault()在schema中定义默认值+AI首次触达时再写\n' +
     '- 变量列表（constant=true常驻）：≤200字，内容是format_message_variable宏占位符本身不长\n' +
     '- [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；补充派生变量命名规范（$开头=AI只读、由脚本/transform自动派生）、只读字段约束（_开头禁止AI更新）；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
     '- [mvu_update]变量输出格式（constant=true常驻）：≤600字。JSON Patch模板本身约300字，rule字段精炼在10行以内\n' +
     '- 核心四条合计常驻Token（constant=true的三条）≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段。附加条目单独算Token预算，每条≤600字，仅在用户明确要求时生成。\n\n' +
-    '**【通用多阶段状态变量生成指导（替代原调色盘专属多阶段）】**：\n' +
+    '**【通用多阶段状态变量生成指导】**：\n' +
     '- 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等任意需要分阶段/分档位/分状态的变量体系。\n' +
     '- 设计流程（仅用户明确要求分阶段时执行）：①阶段划分：确认阶段数量、每个阶段的触发阈值/条件、阶段命名；②字段设计：核心判定变量、阶段标记变量、只读派生变量（$开头，AI只读不更新）；③切换规则：阶段跳转的触发条件、联动变更的字段、边界兜底；④注入逻辑（可选）：不同阶段是否注入不同的世界书内容/提示规则。\n' +
     '- 输出规范（仅用户明确要求分阶段时输出）：①变量结构中新增阶段相关字段定义（派生字段统一用$前缀）；②初始变量中设置开局默认阶段；③更新规则中补充阶段判定逻辑、边界约束、联动变更规则；④如需动态注入内容，配套生成EJS控制器条目或injectPrompts脚本条目。\n' +
@@ -3922,6 +3922,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         mvuEntryText += 'content:\n' + (e.content||'(空)') + '\n\n';
       });
       ctxParts.push(mvuEntryText);
+      // 追加精确comment清单（供:::操作块精确匹配用）
+      var mvuCmtList = '⚠️【MVU条目精确 comment 清单 - :::操作块增删改时务必使用精确字符串】\n';
+      mvuOnlyEntries.forEach(function(e, i) {
+        mvuCmtList += (i+1) + '. ⟦' + (e.comment || '') + '⟧ enabled=' + (e.enabled === false ? 'false' : 'true') + '\n';
+      });
+      mvuCmtList += '----------------------------------------\n';
+      mvuCmtList += '删除条目：::: delete ' + (mvuOnlyEntries[0] ? mvuOnlyEntries[0].comment : '精确comment') + '\n:::\n';
+      mvuCmtList += '修改条目：::: upsert 精确comment\n新内容\n:::\n';
+      mvuCmtList += '⚠️ comment必须精确匹配，字符级一致！\n';
+      ctxParts.push(mvuCmtList);
     }
     // 提取已有的正则脚本中 MVU 相关内容
     var regexScripts = (cd.extensions || {}).regex_scripts || [];
@@ -4035,12 +4045,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '1. ❌绝对不要生成任何世界书条目、角色卡字段、角色卡生成相关内容！\n' +
       '   · 基础公理 / 核心铁则 / 近场强约束 / 场景机制 / 实体交互 / 叙事背景 / 动态适配 等全部与你无关\n' +
       '   · 不要修改name、description、first_mes、post_history_instructions、tags等角色卡字段\n' +
-      '   · 不要生成任何JSON代码块表示entries数组——除非里面装的是4个MVU变量条目\n' +
+      '   · 不要生成角色卡JSON代码块——MVU条目修改用:::操作块协议\n' +
       '   · 如果用户明确要设计世界观/角色卡/剧情，回复:「请切换到「角色卡生成」Tab进行角色卡/世界书的创作」\n' +
       '2. ❌不要输出完整的角色卡JSON（chara_card_v3格式）——MVU Tab不负责生成角色卡\n' +
       '3. ✅所有输出只聚焦在：MVU变量4条目、状态栏Step模块代码块（css/html/javascript）、清空标记<clear_statusbar>N\n' +
       '4. ✅MVU变量系统和状态栏之间要相互配合——变量的路径决定了状态栏的渲染路径，设计时要保证一致\n' +
-      '5. ✅修改MVU条目时，使用```json代码块，entries数组里只放需要新增/修改/删除的MVU条目（用_action:delete或comment精确匹配覆盖）\n' +
+      '5. ✅修改MVU条目时，使用:::操作块协议输出修改指令（与角色卡Tab相同），不要输出```json代码块\n' +
       '6. ✅状态栏Step 2-6模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
@@ -4188,7 +4198,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· 如果你发现自己只写了文字没写代码块，立即补上代码块再结束本轮回复\n' +
       '\n' +
       '【MVU条目输出格式提醒（MVU Tab）】\n' +
-      '· 修改或新建4条MVU条目时，输出: ```json\\n{"entries":[{"comment":"...","content":"...","constant":true,...}]}\\n```\n' +
+      '· 修改或新建4条MVU条目时，使用:::操作块协议（与角色卡Tab相同），不要输出```json代码块\n' +
+      '· :::操作块格式：::: upsert 条目名\\n内容\\n:::\n' +
+      '· 5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
       '· 状态栏Step 2-6只输出对应代码块（```css / ```html / ```javascript），不要用JSON包\n' +
       '· 状态栏Step 7不要输出任何代码块，只做自查文字确认\n' +
       '· ⚠️一次只做一个Step，绝对不要一次回答中包含多个Step的代码块\n';
@@ -4202,7 +4214,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '⚠️【输出格式提醒 - 状态栏代码生成模式（最高优先级） MVU Tab】\n' +
         '═══════════════════════════════════════════════════════════════════\n' +
         '1. 当前在状态栏分步生成模式，只需输出当前Step的```' + sbLangHint + '代码块\n' +
-        '2. ⚠️这次不需要输出```json代码块（除非是修改4条MVU变量条目）！只输出当前Step的代码块即可\n' +
+        '2. ⚠️不需要输出```json代码块！修改MVU条目用:::操作块协议，状态栏只输出当前Step的代码块即可\n' +
         '3. 禁止输出其他代码块（世界书条目JSON/角色卡JSON/完整HTML等）\n' +
         '4. 可以在代码块前后用纯文字补充说明，但不要用代码块包裹说明\n' +
         '5. ⚠️严禁把状态栏模块代码放进JSON的entries数组！状态栏代码不属于世界书条目。\n' +
@@ -4215,11 +4227,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '═══════════════════════════════════════════════════════════════════\n' +
         '⚠️【输出格式提醒（MVU Tab）】\n' +
         '═══════════════════════════════════════════════════════════════════\n' +
-        '· 如果用户要求设计/修改4条MVU变量条目：输出一个```json代码块，格式: {"entries": [ { "comment": "[InitVar]初始变量", "content": "...YAML...", "constant": true, "position": 4 }, ... ]}\n' +
+        '· 如果用户要求设计/修改4条MVU变量条目：使用:::操作块协议输出修改指令，不要输出```json代码块\n' +
+        '  格式：::: upsert [InitVar]初始变量\\n---\\n变量名: 值\\n---\\n:::\n' +
+        '  5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
         '· 如果在状态栏Step 1：输出纯文本表格（变量盘点表），不写代码块\n' +
         '· 如果在状态栏Step 7：输出自查文字报告，不输出任何代码块\n' +
         '· 不要生成任何角色卡/世界书相关的JSON（name/description/entries非MVU条目）\n' +
-        '· 没有需要修改的内容就输出简短的文字说明，不要输出JSON\n' +
+        '· 没有需要修改的内容就输出简短的文字说明\n' +
         '· ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n';
     }
 
@@ -4861,9 +4875,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var hasVarRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
     var hasVarFormat = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
     var hasAnyMVU = mvuEntries.length > 0;
-    // 检查InitVar条目的enabled是否为false（仅显式禁用才算违规，undefined/null/true 都视为合格）
+    // 检查InitVar条目的enabled是否正确为false（MVU只读取禁用的initvar条目进行初始化）
     var initVarEnabledWrong = mvuEntries.some(function(e) {
-      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled === false;
+      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled !== false;
     });
     // 检查变量列表条目内容是否含 format_message_variable 宏
     var varListEntry = mvuEntries.find(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
@@ -4879,9 +4893,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     results.push({
       pass: !hasInitVar || !initVarEnabledWrong,
       category: 'MVU变量系统',
-      name: '[InitVar]条目enabled=true',
-      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled=false（应开启）' : 'InitVar条目已正确开启'),
-      fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=true（开启），MVU需要读取已注入的initvar条目进行初始化' : '配置正确'
+      name: '[InitVar]条目enabled=false',
+      desc: !hasInitVar ? '无InitVar条目' : (initVarEnabledWrong ? 'InitVar条目enabled≠false（应禁用）' : 'InitVar条目已正确禁用'),
+      fix: initVarEnabledWrong ? '[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化' : '配置正确'
     });
     results.push({
       pass: !hasVarList || hasVarMacro,
@@ -6183,7 +6197,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ===== 【写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
   // 分配规则：角色速览固定 <角色速览_id0> → 世界观条目 id1+ → 角色条目按顺序id → NPC继续递增
-  // 同一角色的所有条目（基础信息/调色盘/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
+  // 同一角色的所有条目（基础信息/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
   // 注意：MVU条目（[InitVar]/[mvu_update]/变量列表/状态栏占位符）不包裹标签
   function assignAndWrapTagIds(entries) {
     if (!entries || !entries.length) return entries;
@@ -6430,7 +6444,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var _idx = filledEntries.length;
       // InitVar
       if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // 变量列表（含 format_message_variable::stat_data 宏）
@@ -7904,10 +7918,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var defaultDepth = tmpl ? tmpl.depth : 4;
               var defaultOrder = tmpl ? tmpl.order : 100;
               var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-              // [InitVar] 条目 enabled=true（MVU 需要读取已注入的 initvar 条目进行初始化）
+              // [InitVar] 条目 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
               var isInitVar = comment.indexOf('[InitVar]') >= 0;
               var isVarList = comment.indexOf('变量列表') >= 0;
-              var enabledVal = isInitVar ? true : (e.enabled !== undefined ? e.enabled : defaultEnabled);
+              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               var ext = e.extensions || {};
               return {
                 comment: comment,
@@ -8582,8 +8596,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '请帮我设计MVU变量系统，严格遵守以下铁则：\n' +
             '【变量生成铁则（最高优先级）】\n' +
             '1. 标准MVU体系=必须齐全的4条核心条目：①[InitVar]初始变量(enabled=false，仅脚本读取，禁用) ②变量列表(含{{format_message_variable::stat_data}}宏注入当前变量值) ③[mvu_update]变量更新规则(告知AI何时/如何更新变量) ④[mvu_update]变量输出格式(定义<UpdateVariable> + JSON Patch标准)。\n' +
-            '2. 【禁止AI自行追加额外条目】除非用户明确要求分阶段/人设切换/EJS/动态注入等附加功能，否则严格只生成上述4条核心条目，禁止自行补充派生字段、中间状态变量、阶段判定、人设切换规则、调色盘衍生字段等。\n' +
-            '3. 【废弃原调色盘专属耦合逻辑】原"好感度阶段→人设切换"耦合的多阶段调色盘变量模板(原37/38号)已整体废弃，禁止再使用。若用户确实需要分阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景。\n' +
+            '2. 【禁止AI自行追加额外条目】除非用户明确要求分阶段/人设切换/EJS/动态注入等附加功能，否则严格只生成上述4条核心条目，禁止自行补充派生字段、中间状态变量、阶段判定、人设切换规则、衍生字段等。\n' +
+            '3. 【废弃原多阶段变量耦合模板】原"好感度阶段→人设切换"耦合的多阶段变量模板(原37/38号)已整体废弃，禁止再使用。若用户确实需要分阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景。\n' +
             '4. 【变量更新规则增强】在更新规则中补充两条约束：①派生变量命名规范：$开头的字段=AI只读、由脚本/zod transform自动派生，禁止AI更新；②只读字段约束：_开头的字段=AI只读，禁止AI在<UpdateVariable>中修改。下划线/$开头的字段在更新规则中不列规则。\n' +
             '5. 【若用户明确要求多阶段/附加条目】按以下规范生成：\n' +
             '   - 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等\n' +
@@ -8600,7 +8614,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '请帮我完善变量更新规则和变量输出格式条目，严格遵守以下铁则：\n' +
             '【变量生成铁则】\n' +
             '1. 禁止AI自行追加4条核心条目之外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求。\n' +
-            '2. 原调色盘专属的好感度→人设切换耦合模板(原37/38号)已废弃；若用户确实需要多阶段变量，按【通用多阶段状态变量生成指导】执行：通用场景设计流程=阶段划分→字段设计→切换规则→注入逻辑；派生字段统一$开头=AI只读；阶段阈值清晰、切换必须有明确触发条件。\n' +
+            '2. 原多阶段变量耦合模板(原37/38号)已废弃；若用户确实需要多阶段变量，按【通用多阶段状态变量生成指导】执行：通用场景设计流程=阶段划分→字段设计→切换规则→注入逻辑；派生字段统一$开头=AI只读；阶段阈值清晰、切换必须有明确触发条件。\n' +
             '3. 在变量更新规则中补充两条约束：①$开头字段=AI只读(由zod transform/脚本派生)、禁止AI更新；②_开头字段=AI只读、禁止AI修改。下划线/$开头字段不列更新规则。\n' +
             '【变量更新规则编写规范】\n' +
             '- 使用YAML结构：变量路径层级缩进；同类型、同层级变量合并规则，减少冗余。\n' +
@@ -8623,7 +8637,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       }
 
+      // 队列模式：callAIChat处理期间，addAssistantMsg的调用改为收集到队列，最后合并为一条消息
+      var _aiChatNotesQueue = [];
+      var _aiChatQueueMode = false;
+
       function addAssistantMsg(content) {
+        // 队列模式：不立即显示，收集到队列
+        if (_aiChatQueueMode) {
+          _aiChatNotesQueue.push(content);
+          return;
+        }
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
         var curMsgs = getCurrentMessages();
         curMsgs.push({ role: 'assistant', content: content });
@@ -10497,6 +10520,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         addTyping();
         pushWorkToast('正在思考...', 'working');
         try {
+          // ========== 启用队列模式：所有addAssistantMsg调用收集到队列，最后合并为一条消息 ==========
+          _aiChatQueueMode = true;
+          _aiChatNotesQueue = [];
           // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
           var curTabMessages = getCurrentMessages();
           var prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
@@ -10701,7 +10727,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 if (!Array.isArray(cardData.character_book.entries)) cardData.character_book.entries = [];
                 var _chNames = extractCharNames(cardData, cardData.character_book.entries);
                 if (!hasInitVarForAutoSB) {
-                  cardData.character_book.entries.push({ id: Date.now() + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(_chNames), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
+                  cardData.character_book.entries.push({ id: Date.now() + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(_chNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
                   autoCreatedEntries.push('[InitVar]初始变量');
                 }
                 if (!sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
@@ -11002,19 +11028,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               });
             }
           }
-          // 对话框显示与历史存储：统一用原始 aiResponse（保留JSON代码块和statusblock）
-          // 🐛修复：之前存储 cleanContent（去掉代码块），导致「继续上次」后代码块消失、正文无法折叠
-          // 现在改为存储 rawContent，在 buildPrompt 发送给AI时再清理代码块（节省token）
+          // ========== 关闭队列模式，合并所有系统消息到一条回复 ==========
+          _aiChatQueueMode = false;
+          // 对话框显示与历史存储：合并AI原始回复 + 队列中的系统消息，只显示一条消息
           var rawContent = aiResponse;
+          if (_aiChatNotesQueue.length > 0) {
+            rawContent = (rawContent || '') + '\n\n---\n' + _aiChatNotesQueue.join('\n\n');
+          }
+          _aiChatNotesQueue = [];
 
-          // 1. 显示完整内容到对话框（用户需要看到JSON和statusblock）
+          // 1. 显示完整内容到对话框（合并后的一条消息）
           try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
 
-          // 2. 存储原始内容到历史（Tab隔离：存到当前Tab的专属数组）
+          // 2. 存储到历史（Tab隔离：存到当前Tab的专属数组）
           if (rawContent && rawContent.trim().length > 0) {
             curTabMessages.push({ role: 'assistant', content: rawContent });
           } else {
-            curTabMessages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
+            curTabMessages.push({ role: 'assistant', content: '（已应用修改）' });
           }
           saveToStorage();
           updateProgress();
@@ -11022,9 +11052,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           updateModFocus();
           renderPreview();
           renderModDash();
+          // MVU Tab：同步最新模块状态
+          if (currentTab === 'mvu') {
+            mvuTabStatusBarModules = statusBarModules;
+            mvuTabStatusBarCurrentStep = statusBarCurrentStep;
+            mvuTabStatusBarMode = statusBarMode;
+          }
+          renderMvuInfoPanel();
           saveToStorage();
         } catch(err) {
           removeTyping();
+          _aiChatQueueMode = false;
+          _aiChatNotesQueue = [];
           try { addAssistantMsg('😞 出错了：' + err.message + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。'); } catch(e) {}
           try { setEnabled(true); } catch(e) {}
         } finally {
