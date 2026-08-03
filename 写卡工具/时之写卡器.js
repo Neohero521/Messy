@@ -2789,7 +2789,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 后缀不相关 → 这是同前缀下的不同新条目（如主角/女配/反派），不匹配，进入新增分支
       }
       // 第3优先级：同前缀下内容相似度最高（Jaccard字符集重合度>0.35）
-      if (samePrefixEntries.length > 0 && neContent.length > 20) {
+      // ⚠️修复：必须 `length > 1`（同前缀至少2条才用相似度匹配）
+      //   原代码 `length > 0` 会导致：同前缀只有1条时，第2优先级后缀相关性检查不通过，
+      //   却在第3优先级被内容字符集相似度（中文通用字符重叠>35%）误判为同一条 → 新条目覆盖旧条目！
+      //   场景：已有<重要角色>白娅，AI新增<重要角色>林月 → 第2优先级"林月/白娅"后缀不相关→不匹配
+      //   → 第3优先级（若>0）内容字符集重叠>0.35→覆盖白娅！改成>1后第3优先级不触发→正确新增林月
+      if (samePrefixEntries.length > 1 && neContent.length > 20) {
         var neCharSet = {};
         for (var ci = 0; ci < neContent.length; ci++) neCharSet[neContent[ci]] = true;
         var best = null;
