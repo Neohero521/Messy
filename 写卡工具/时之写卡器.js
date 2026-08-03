@@ -1484,10 +1484,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 【铁律2：schema 驱动】第2/4条必须严格依据第1条的 schema 字段名/层级/类型生成，schema 一改这两条必跟改\n' +
     '     · 【铁律3：固定内容原样输出】第3/5/6条是固定 YAML/固定内容，原封不动输出，不要修改任何字段\n' +
     '     · 【铁律4：第7条之后才进状态栏】<状态栏>占位符提醒条目生成完，才进 Step 0-7 状态栏 HTML 生成流程\n' +
+    '     · 【铁律5：每步写入即预览】每生成一条，写卡器后台立即写入 cardData 并触发 renderPreview，用户在预览界面实时看到结果\n' +
+    '     · 【铁律6：写入酒馆完整性】用户点"写入酒馆"时，写卡器按顺序写入：bundle.js→变量结构脚本→世界书条目(InitVar+变量列表+变量更新规则+变量输出格式+占位符提醒)→正则1-5→正则6(状态栏HTML)→开场白占位符，缺一不可\n' +
     '     · 【写卡器自动注入范围】以下由写卡器自动注入，AI **不要生成**：\n' +
     '       - MVU 本体脚本 bundle.js（tavern_helper.scripts）\n' +
     '       - 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）\n' +
     '       其他所有变量条目、变量结构脚本、正则6、<状态栏>占位符提醒条目均由 AI 按本工作流一条一条生成\n' +
+    '     · 【动态修改场景（⚠️关联条目必须逐条全改完，不能只改一条）】：\n' +
+    '       当用户要求修改变量（例如"状态栏显示当前聊天女生全身信息，包括上装/下装/丝袜/鞋子"），AI 必须按以下流程**逐条**改完所有关联条目：\n' +
+    '       步骤A：先检查变量结构脚本（第1条）和[InitVar]初始变量（第2条）里是否已有这些字段；\n' +
+    '              · 没有 → 帮用户在变量结构脚本中**新增**对应字段（如 上装/下装/丝袜/鞋子），同时在[InitVar]初始变量里补默认值；\n' +
+    '              · 有了 → 跳过新增，直接进入步骤B；\n' +
+    '       步骤B：变量结构改了，所有依赖 schema 的关联条目必须**一条一条**跟着改完（不能只改一条就停）：\n' +
+    '              · 第1条 变量结构脚本（zod schema）—— 加字段；\n' +
+    '              · 第2条 [InitVar]初始变量 —— 加默认值；\n' +
+    '              · 第3条 变量列表 —— 列出新字段；\n' +
+    '              · 第4条 [mvu_update]变量更新规则 —— 加 check/type/range；\n' +
+    '              · 第5条 [mvu_update]变量输出格式 —— 原样不动（固定 YAML）；\n' +
+    '              · 第6条 [mvu_update]变量输出格式强调 —— 原样不动（固定 YAML）；\n' +
+    '              · 第7条 <状态栏>占位符提醒 —— 原样不动；\n' +
+    '              · 第8条 正则6 [美化]MVU状态栏 —— 走 Step 0-7 重新生成状态栏 HTML（让新字段在 UI 上显示）；\n' +
+    '       步骤C：每改完一条，写卡器后台立即写入 cardData 并 renderPreview，用户实时看到结果；\n' +
+    '       步骤D：8 条全部改完后，告诉用户"全部关联条目已更新，可在预览查看，确认无误后点写入酒馆"；\n' +
+    '       ⚠️【防漏铁律】哪怕用户只说"加一个字段"，也必须把第1/2/3/4/8条全部改完（第5/6/7条原样保留），少一条都会导致状态栏显示不全或变量更新失败\n' +
     '\n' +
     '## 9.2 三条联动机制\n' +
     '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
@@ -10907,50 +10926,52 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             // 进入状态栏模式：用户提到状态栏且当前不在模式中
             if (isSBRequest && !statusBarMode) {
-              // ⚠️改进Z9：前置检查——若缺InitVar，不再阻断，而是自动生成最小可用MVU条目
-              // 确保"无论怎么样"都能进入状态栏模式
+              // ⚠️用户要求：变量条目必须由 AI 按 9.1.6 工作流一条一条生成，写卡器不再自动补齐
+              // 前置检查：缺 InitVar 或核心 MVU 条目时，提示用户先完成 9.1.6 工作流，不自动进入状态栏模式
               var sbEntriesCheck = Array.isArray((cardData.character_book || {}).entries) ? cardData.character_book.entries : [];
               var hasInitVarForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-              var autoCreatedEntries = [];
-              if (!hasInitVarForAutoSB || sbEntriesCheck.length < 4) {
-                // 自动补齐最小MVU条目（写卡器后台写的，不需要AI）
-                if (!cardData.character_book) cardData.character_book = {};
-                if (!Array.isArray(cardData.character_book.entries)) cardData.character_book.entries = [];
-                var _chNames = extractCharNames(cardData, cardData.character_book.entries);
-                if (!hasInitVarForAutoSB) {
-                  cardData.character_book.entries.push({ id: Date.now() + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(_chNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
-                  autoCreatedEntries.push('[InitVar]初始变量');
+              var hasVarListForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+              var hasUpdateRuleForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
+              var hasOutputFmtForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; });
+              var missingMvuEntries = [];
+              if (!hasInitVarForAutoSB) missingMvuEntries.push('[InitVar]初始变量');
+              if (!hasVarListForAutoSB) missingMvuEntries.push('变量列表');
+              if (!hasUpdateRuleForAutoSB) missingMvuEntries.push('[mvu_update]变量更新规则');
+              if (!hasOutputFmtForAutoSB) missingMvuEntries.push('[mvu_update]变量输出格式');
+              if (missingMvuEntries.length > 0) {
+                // 缺核心 MVU 条目：不进入状态栏模式，引导用户先按 9.1.6 工作流一条一条生成
+                // （不 return，让后续逻辑正常保存 AI 回复到聊天记录）
+                if (!statusBarMode) {
+                  _aiChatNotesQueue.push('⚠️ 检测到 MVU 变量条目缺失：\n  缺少：' + missingMvuEntries.join('、') + '\n\n' +
+                    '变量状态栏依赖完整的变量系统。请先在 MVU Tab 按 9.1.6 工作流**一条一条**生成以下内容：\n' +
+                    '  第1条：变量结构脚本（zod schema）\n' +
+                    '  第2条：[InitVar]初始变量\n' +
+                    '  第3条：变量列表\n' +
+                    '  第4条：[mvu_update]变量更新规则\n' +
+                    '  第5条：[mvu_update]变量输出格式\n' +
+                    '  第6条：[mvu_update]变量输出格式强调\n' +
+                    '  第7条：<状态栏>占位符提醒条目\n' +
+                    '  第8条：正则6 [美化]MVU状态栏（即状态栏 HTML）\n\n' +
+                    '每生成一条停下等"继续"。前 7 条都完成后，再生成第8条（状态栏），状态栏会自动写入预览。');
                 }
-                if (!sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
-                  cardData.character_book.entries.push({ id: Date.now() + 2, keys: [], secondary_keys: [], comment: '变量列表', content: generateVarListContent(), constant: true, selective: false, insertion_order: 150, enabled: true, position: 4, use_regex: true, extensions: {} });
-                  autoCreatedEntries.push('变量列表');
-                }
-                if (!sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
-                  cardData.character_book.entries.push({ id: Date.now() + 3, keys: [], secondary_keys: [], comment: '[mvu_update]变量更新规则', content: generateVarUpdateRule(_chNames), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
-                  autoCreatedEntries.push('[mvu_update]变量更新规则');
-                }
-                if (!sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
-                  cardData.character_book.entries.push({ id: Date.now() + 4, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
-                  autoCreatedEntries.push('[mvu_update]变量输出格式');
-                }
-                if (autoCreatedEntries.length) {
-                  addAssistantMsg('💡 检测到MVU变量条目不完整，写卡器已自动补齐：\n  ' + autoCreatedEntries.join('、') + '\n  （补齐为最小可用版本，后续可让AI精修）');
-                }
+                progress = calcProgress();
+                renderPreview();
+              } else {
+                // 核心条目齐全：确保固定资产已注入（try/catch，任何异常不阻断进入状态栏模式）
+                try { ensureFixedMvuAssetsInCardData(); } catch(_sbErr) { console.warn('[statusbar] ensureFixedMvuAssetsInCardData:', _sbErr && _sbErr.message); }
+                statusBarMode = true;
+                // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
+                var firstEmpty = 1;
+                try { firstEmpty = findNextEmptyStep(); } catch(_e) { firstEmpty = 1; }
+                statusBarCurrentStep = (firstEmpty === 7) ? 7 : 1;
+                // ⚠️Z9+：直接尝试assemble+保存（Z3已默认补全缺失模块），用户立刻就能得到可用状态栏
+                try {
+                  var _sbInitial = assembleStatusBarFromModules();
+                  if (_sbInitial) saveStatusBarToCard(_sbInitial);
+                } catch(_e2) { console.warn('[statusbar] initial assemble save:', _e2.message); }
+                progress = calcProgress();
+                renderPreview();
               }
-              // 确保固定资产已注入（try/catch，任何异常不阻断进入状态栏模式）
-              try { ensureFixedMvuAssetsInCardData(); } catch(_sbErr) { console.warn('[statusbar] ensureFixedMvuAssetsInCardData:', _sbErr && _sbErr.message); }
-              statusBarMode = true;
-              // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
-              var firstEmpty = 1;
-              try { firstEmpty = findNextEmptyStep(); } catch(_e) { firstEmpty = 1; }
-              statusBarCurrentStep = (firstEmpty === 7) ? 7 : 1;
-              // ⚠️Z9+：直接尝试assemble+保存（Z3已默认补全缺失模块），用户立刻就能得到可用状态栏
-              try {
-                var _sbInitial = assembleStatusBarFromModules();
-                if (_sbInitial) saveStatusBarToCard(_sbInitial);
-              } catch(_e2) { console.warn('[statusbar] initial assemble save:', _e2.message); }
-              progress = calcProgress();
-              renderPreview();
             }
 
             // 检测清空标记
@@ -12746,10 +12767,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               schemaContent = generateMvuSchemaScript(schemaInitContent);
             }
             await _tavernWriteMvuSchema(cardData.name, schemaContent);
-            // 4c. 写入 6 条正则脚本（含状态栏 HTML）
-            // 优先使用用户在 MVU Tab 自定义生成的状态栏 HTML，其次自动生成
+            // 4c. 写入正则脚本（5条固定正则1-5 + 1条正则6状态栏HTML）
+            // ⚠️优先使用 AI 在 MVU Tab 按 9.1.6 工作流生成的状态栏 HTML；若 AI 未生成，才用默认状态栏兜底（保证不空）
             var statusBarHtml = '';
-            // 4c-1. 检查 cardData 中是否已保存自定义状态栏正则（来自 saveStatusBarToCard）
+            // 4c-1. 检查 cardData 中是否已保存 AI 生成的状态栏正则（来自 saveStatusBarToCard）
             var existingRx = (cardData.extensions && cardData.extensions.regex_scripts) || [];
             var customSb = null;
             for (var si = 0; si < existingRx.length; si++) {
@@ -12771,7 +12792,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               // 4c-2. 当前会话有模块数据但尚未保存到 cardData，现场拼接
               try { statusBarHtml = assembleStatusBarFromModules(); } catch(e) { statusBarHtml = ''; }
             }
-            // 4c-3. 无自定义状态栏时，用角色名列表自动生成默认状态栏
+            // 4c-3. 兜底：AI 完全没生成状态栏时，用角色名列表生成默认状态栏（保证写入酒馆不缺状态栏）
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
             await _tavernWriteRegexScripts(cardData.name, statusBarHtml);
           }
@@ -12794,7 +12815,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           }
 
-          var mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构+6条正则+状态栏）' : '';
+          var mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构脚本+世界书条目+正则1-5+正则6状态栏+开场白占位符）' : '';
           showToast('✅ 角色卡已成功写入酒馆' + mvuTip, 'success');
         } catch(e) {
           console.error('[时之写卡器] 写入酒馆失败:', e);
