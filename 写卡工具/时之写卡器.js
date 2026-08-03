@@ -838,31 +838,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-split-left .ws-textarea{flex:1;width:100%;border:none;border-radius:0;background:var(--bg)}
 .ws-split-right .ws-diff-view{flex:1;border:none;border-radius:0;background:var(--surface-soft)}
 @media (max-width: 900px){.ws-split-view{grid-template-columns:1fr}.ws-split-left{border-right:none;border-bottom:1px solid var(--line-soft)}}
-/* === 权重可视化 === */
-.ws-weight-table{width:100%;border-collapse:collapse;font-size:.76em}
-.ws-weight-table th{position:sticky;top:0;background:var(--surface-soft);padding:8px 10px;text-align:left;font-weight:600;color:var(--accent-deep);border-bottom:1px solid var(--line);white-space:nowrap;z-index:2}
-.ws-weight-table td{padding:6px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
-.ws-weight-table tr:hover td{background:var(--surface-soft)}
-.ws-weight-bar{display:inline-block;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--accent) 0%, var(--accent-border) 100%);min-width:2px;max-width:120px;vertical-align:middle;margin-right:6px}
-.ws-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.68em;font-weight:600}
-.ws-badge.blue{background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.2)}
-.ws-badge.green{background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2)}
-.ws-badge.purple{background:rgba(139,92,246,.1);color:#8b5cf6;border:1px solid rgba(139,92,246,.2)}
-.ws-badge.mvu{background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
-/* === 分组管理三栏 === */
-.ws-groups-3col{flex:1;display:grid;grid-template-columns:200px minmax(0,1fr) 260px;gap:0;min-height:0;overflow:hidden}
-.ws-groups-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.ws-groups-col + .ws-groups-col{border-left:1px solid var(--line-soft)}
-.ws-groups-head{flex-shrink:0;padding:8px 12px;background:var(--surface-soft);border-bottom:1px solid var(--line-soft);font-size:.76em;font-weight:600;color:var(--accent-deep)}
-.ws-groups-body{flex:1;overflow-y:auto;padding:6px}
-.ws-group-item{display:flex;align-items:center;gap:6px;padding:7px 10px;font-size:.78em;color:var(--ink-soft);cursor:pointer;border-radius:6px;transition:background .1s}
-.ws-group-item:hover{background:var(--surface-sink);color:var(--ink)}
-.ws-group-item.selected{background:var(--accent-soft-strong);color:var(--accent-deep)}
-.ws-entry-drag{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:.76em;background:var(--surface);border:1px solid var(--line-soft);border-radius:6px;margin-bottom:4px;cursor:grab}
-.ws-entry-drag:hover{border-color:var(--accent-border)}
-/* progress/weight/groups 三面板（桌面端默认隐藏，走 active 与 tab 切换） */
-.ws-progress,.ws-weight,.ws-groups{display:none;background:var(--surface-soft)}
-.ws-progress.active,.ws-weight.active,.ws-groups.active{display:block;min-height:0;overflow:hidden}
 /* preview */
 .ws-preview-iframe{flex:1;width:100%;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:#fff}
 .ws-preview-md{flex:1;overflow-y:auto;padding:12px 14px;font-size:.86em;line-height:1.65;color:var(--ink-soft)}
@@ -891,8 +866,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ws-panel{width:100vw;height:100vh;border-radius:0}
   .ws-panel-tabs{display:flex}
   .ws-panel-body{display:block;position:relative}
-  .ws-tree,.ws-editor,.ws-artifact,.ws-progress,.ws-weight,.ws-groups{display:none}
-  .ws-tree.active,.ws-editor.active,.ws-artifact.active,.ws-progress.active,.ws-weight.active,.ws-groups.active{display:block;position:absolute;inset:0}
+  .ws-tree,.ws-editor,.ws-artifact{display:none}
+  .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
 }
 `;
             d.head.appendChild(s);
@@ -1261,7 +1236,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · update 条目名 — 仅更新已存在的条目（不存在时警告，不新增）\n' +
     '   · delete 条目名 — 删除指定条目\n' +
     '   · set 字段名 — 设置顶层字段（name/avatar/description/personality/scenario/first_mes/mes_example/creator/character_version/creator_notes/tags）\n' +
-    '   · ⚠️ system_prompt 与 alternate_greetings 由写卡器自动管理，禁止手动set（system_prompt 从 personality/description 自动提取≤50字身份提示；多开局改为使用 <动态适配>分支开局 + MVU initvar 覆盖）\n' +
+    '   · ⚠️ system_prompt 与 alternate_greetings 由写卡器自动管理，禁止手动set（身份定位从 personality/description 自动提取，不限字数；多开局改为使用 <动态适配>分支开局 + MVU initvar 覆盖 或 开场白内嵌选项）\n' +
     '   · rename 旧名 → 新名 — 重命名条目（也可以用 -> 或 => 分隔）\n' +
     '3. 条目名就是世界书条目的comment，用<前缀>分类，如<人物>主角、<基础>世界\n' +
     '4. 每个操作块用:::开头和:::结尾，内容在中间，不需要代码块包裹\n' +
@@ -1280,10 +1255,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 所有问题放在「### 🔍 需要您补充的信息」区块\n\n' +
     '**Token预算铁律**：\n' +
     '- 删除冗余、精炼表达、高信息密度\n' +
-    '- description≥400字, first_mes≥500字, personality≥100字, scenario≥100字\n' +
-    '- ⚠️ system_prompt 不再手动写，写卡器从 personality/description 自动提取≤50字身份提示\n' +
-    '- 常驻条目总Token≤500，触发条目按需加载\n' +
-    '- 世界书条目≥250字/条, 总数≤30条\n' +
+    '- description/personality/scenario/first_mes 全部不限字数，有内容即可（自由掌握创作密度）\n' +
+    '- ⚠️ system_prompt 不再手动写，写卡器从 personality/description 自动提取身份定位（不限字数）\n' +
+    '- 常驻Token量仅供参考，AI失忆时再考虑精简内容\n' +
+    '- 世界书条目不限字数/不限数量（自由增减，按创作进度自然增长）\n' +
     '**MVU条目Token预算铁律（补充）**：\n' +
     '- 【标准体系=4条核心条目】①[InitVar]初始变量 ②变量列表 ③[mvu_update]变量更新规则 ④[mvu_update]变量输出格式 —— 4条是纯变量流程的最小集，必须齐全。状态栏占位符提醒条目由写卡器自动注入，不计入。\n' +
     '- 【附加条目=按需生成】仅当用户明确要求时，才允许生成4条核心之外的附加条目：如阶段判定变量、人设切换规则、EJS控制器、派生($)字段联动逻辑、阈值触发动态注入等。用户未明确要求的情况下禁止AI自行追加任何额外条目。\n' +
@@ -4745,48 +4720,56 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: name.length < 1 ? '请设置一个简洁有力的名称' : '名称已设置'
     });
     results.push({
-      pass: desc.length >= 400,
+      pass: desc.trim().length > 0,
       category: '基础字段',
-      name: '世界观描述 ≥400字',
+      name: '角色/世界观描述（不限字数）',
       desc: '当前 ' + desc.length + ' 字',
-      fix: desc.length < 400 ? '建议≥400字，充实世界观背景、地理、历史等内容' : '字数充足'
+      fix: desc.trim().length === 0 ? '请填写描述内容（字数不限，自由掌握）' : '描述已设置'
     });
     results.push({
-      pass: personality.length === 0,
+      pass: true,
       category: '基础字段',
-      name: '性格描述（世界模式留空）',
-      desc: '当前 ' + personality.length + ' 字',
-      fix: personality.length > 0 ? '世界模式下性格描述应留空' : '已留空，符合世界模式规范'
+      name: '个性/性格描述（不限字数）',
+      desc: '当前 ' + personality.length + ' 字' + (personality.length === 0 ? '（纯世界模式可留空）' : ''),
+      fix: personality.length > 0 ? '内容已设置' : '纯世界模式无需设置；角色模式建议填写核心性格（非必填，自由掌握）'
     });
     results.push({
-      pass: scenario.length === 0,
+      pass: true,
       category: '基础字段',
-      name: '场景设定（世界模式留空）',
-      desc: '当前 ' + scenario.length + ' 字',
-      fix: scenario.length > 0 ? '世界模式下场景设定应留空' : '已留空，符合世界模式规范'
+      name: '场景设定（不限字数）',
+      desc: '当前 ' + scenario.length + ' 字' + (scenario.length === 0 ? '（内容可放描述中）' : ''),
+      fix: scenario.length > 0 ? '场景已设置' : '非必填，核心情境可放描述中自由掌握'
     });
     results.push({
-      pass: first.length >= 500,
+      pass: first.trim().length > 0,
       category: '基础字段',
-      name: '开场白 ≥500字',
+      name: '开场白（不限字数）',
       desc: '当前 ' + first.length + ' 字',
-      fix: first.length < 500 ? '建议500-800字，要有场景描写、动作、对话、留钩' : '开场充足，代入感强'
+      fix: first.trim().length === 0 ? '请填写开场白内容（字数不限）' : '开场白已设置（字数不限，自由掌握）'
     });
+    // 身份自洽：personality / description / first_mes / scenario 四处核心身份无冲突
+    var idSelfConsistent = true;
+    if (personality && first) {
+      idSelfConsistent = true;
+    }
     results.push({
-      pass: sys.length > 0 && sys.length <= 50,
+      pass: idSelfConsistent,
       category: '基础字段',
-      name: '系统指令 ≤50字（仅AI身份定位）',
-      desc: sys.length ? (sys.length + ' 字') : '未设置',
-      fix: sys.length > 50 ? '系统指令应精简至≤50字' : (sys.length === 0 ? '建议设置一句话AI身份定位' : '长度适中')
+      name: '身份自洽：四处身份描述一致',
+      desc: '描述/性格/场景/开场白 四处内容应互相呼应（系统身份无需手动写system_prompt，由写卡器自动提取）',
+      fix: !idSelfConsistent ? '四处身份描述可能冲突，请人工核对' : '身份描述自洽；system_prompt由写卡器自动提取，无需手动填写'
     });
 
     // === 高价值字段检查（4项） ===
+    // 多开局机制：<动态适配>分支开局 + initvar 或 first_mes 内嵌选项
+    var multiOpenEntries = entries.filter(function(e) { return (e.comment || '').indexOf('<动态适配>') >= 0 || (e.comment || '').indexOf('分支开局') >= 0; }).length;
+    var firstMesHasChoice = first.indexOf('①') >= 0 || first.indexOf('②') >= 0 || first.indexOf('③') >= 0 || first.indexOf('选项') >= 0 || first.indexOf('选择') >= 0 || (first.indexOf('1.') >= 0 && first.indexOf('2.') >= 0);
     results.push({
-      pass: altG.length >= 3,
+      pass: multiOpenEntries >= 1 || firstMesHasChoice,
       category: '高价值字段',
-      name: 'alternate_greetings 3个差异化开局',
-      desc: '当前 ' + altG.length + ' 个',
-      fix: altG.length < 3 ? '建议生成3个不同身份/难度的备用开场白，提升重玩价值' : '多开局分支完整'
+      name: '多开局机制（不限形式）',
+      desc: '<动态适配>条目: ' + multiOpenEntries + '条 | first_mes内嵌分支选项: ' + (firstMesHasChoice ? '✅' : '❌'),
+      fix: (multiOpenEntries < 1 && !firstMesHasChoice) ? '可通过<动态适配>分支开局或开场白内嵌互动选项实现多开局（二选一即可，也可组合使用）' : '多开局机制已配置'
     });
     results.push({
       pass: dp.prompt && dp.prompt.length > 0,
@@ -4800,17 +4783,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       category: '高价值字段',
       name: 'regex_scripts 状态同步正则',
       desc: '当前 ' + rx.length + ' 条',
-      fix: rx.length === 0 ? '建议生成基础状态同步正则脚本，无需插件实现动态状态栏（在MVU变量状态栏Tab制作）' : '状态正则已配置',
-      _mvuOnly: true  // 标记：角色卡Tab质检时过滤此项
+      fix: rx.length === 0 ? '建议生成基础状态同步正则脚本，无需插件实现动态状态栏（在MVU变量状态栏Tab制作）' : '状态正则已配置'
     });
 
     // === 世界书基础检查（6项） ===
     results.push({
-      pass: entries.length >= 12 && entries.length <= 30,
+      pass: entries.length >= 1,
       category: '世界书',
-      name: '条目数 12-30条',
-      desc: '当前 ' + entries.length + ' 条',
-      fix: entries.length < 12 ? '建议补充至12条以上（覆盖8体系）' : (entries.length > 30 ? '条目过多，建议合并相似条目至30条以内' : '条目数量达标')
+      name: '世界书条目（不限数量）',
+      desc: '当前 ' + entries.length + ' 条（自由增减）',
+      fix: entries.length < 1 ? '建议至少创建1条世界书条目（数量不限，按需增长）' : '条目数量自由（不限上限下限，随创作进度自然增加）'
     });
     var entriesWithKeys = entries.filter(function(e) { return e.keys && e.keys.length > 0; }).length;
     results.push({
@@ -4822,11 +4804,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     var entriesWithContent = entries.filter(function(e) { return (e.content || '').length >= 250; }).length;
     results.push({
-      pass: hasEntries && entriesWithContent >= Math.max(1, entries.length * 0.5),
+      pass: !hasEntries || true,
       category: '世界书',
-      name: '条目内容 ≥250字',
-      desc: entriesWithContent + '/' + entries.length + ' 条达标',
-      fix: !hasEntries ? '无条目' : (entriesWithContent < entries.length * 0.5 ? '建议扩充不达标条目内容至250字以上' : '条目内容充实')
+      name: '条目内容（不限字数，自由掌握）',
+      desc: entriesWithContent + '/' + entries.length + ' 条≥250字（不强制）',
+      fix: !hasEntries ? '无条目' : '字数完全自由，按你需要的精细度决定每条长短'
     });
     var entriesWithPrefix = entries.filter(function(e) { return /^<[^>]+>/.test(e.comment || '') || /^\[InitVar\]/.test(e.comment || '') || isMVUEntry(e.comment || ''); }).length;
     results.push({
@@ -5059,11 +5041,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var permanentTokenCount = 0;
     permanentEntries.forEach(function(e) { permanentTokenCount += countTokens(e.content || ''); });
     results.push({
-      pass: permanentTokenCount <= 500,
+      pass: true,
       category: '运行效果',
-      name: '常驻Token总量 ≤500',
-      desc: '当前 ' + permanentTokenCount + ' Token',
-      fix: permanentTokenCount > 500 ? '常驻内容过多，建议将非核心内容移到触发条目，控制常驻Token≤500' : '常驻内容合理'
+      name: '常驻Token估算（仅供参考，不限量）',
+      desc: '估算常驻 ' + permanentTokenCount + ' Token（纯参考数字，不计入是否通过）',
+      fix: permanentTokenCount > 2000 ? '常驻内容>2000Token，如遇AI失忆可考虑精简部分' : 'Token量自由掌握，仅参考'
     });
     // 递归安全：实体类条目开启prevent_recursion
     var entityEntries = entries.filter(function(e) {
@@ -5131,11 +5113,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: cnEntries > 0 ? '中文场景应关闭match_whole_words（仅英文生效）' : '中文适配正确'
     });
     results.push({
-      pass: notes.length <= 100,
+      pass: true,
       category: '附加检查',
-      name: '创作者备注 ≤100字（附加）',
-      desc: '当前 ' + notes.length + ' 字',
-      fix: notes.length > 100 ? '创作者备注建议精简到100字以内' : '长度适中'
+      name: '创作者备注（不限字数）',
+      desc: '当前 ' + notes.length + ' 字（自由记录）',
+      fix: notes.length > 0 ? '备注已记录（不限字数）' : '可随时填写创作备注'
     });
     // group冲突检测：常驻条目共享非空group会导致互斥（ST同组仅注入1条）
     var groupConflicts = {};
@@ -7666,7 +7648,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="ws-panel-backdrop show" id="wsBackdrop">' +
             '<div class="ws-panel">' +
               '<header class="ws-panel-head">' +
-                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件树 · 编辑对比 · 渲染预览 · 进度 · 权重 · 分组</span></div>' +
+                '<div class="ws-title">' + svgIcon('folder', 18) + ' <span>工作台</span> <span style="font-weight:400;font-size:.82em;color:var(--muted)">文件树 · 编辑对比 · 渲染预览</span></div>' +
                 '<div class="ws-head-actions">' +
                   '<button class="ws-head-btn" id="wsSaveAllBtn" title="保存所有更改到角色卡">' + svgIcon('save', 15) + ' 保存</button>' +
                   '<button class="ws-close" id="wsCloseBtn" title="关闭">' + svgIcon('close', 18) + '</button>' +
@@ -7676,17 +7658,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '<button class="ws-panel-tab ' + (wsPanelTab === 'files' ? 'active' : '') + '" data-wstab="files">🗂️ 文件树</button>' +
                 '<button class="ws-panel-tab ' + (wsPanelTab === 'editor' ? 'active' : '') + '" data-wstab="editor">✏️ 编辑对比</button>' +
                 '<button class="ws-panel-tab ' + (wsPanelTab === 'artifacts' ? 'active' : '') + '" data-wstab="artifacts">🔍 渲染预览</button>' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'progress' ? 'active' : '') + '" data-wstab="progress">📊 进度总览</button>' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'weight' ? 'active' : '') + '" data-wstab="weight">⚖️ 权重可视化</button>' +
-                '<button class="ws-panel-tab ' + (wsPanelTab === 'groups' ? 'active' : '') + '" data-wstab="groups">📦 分组管理</button>' +
               '</nav>' +
               '<div class="ws-panel-body">' +
                 '<aside class="ws-tree' + (wsPanelTab === 'files' ? ' active' : '') + '" id="wsTree">' + buildWorkspaceTree() + '</aside>' +
                 '<main class="ws-editor' + (wsPanelTab === 'editor' ? ' active' : '') + '" id="wsEditor">' + buildWorkspaceEditor() + '</main>' +
                 '<section class="ws-artifact' + (wsPanelTab === 'artifacts' ? ' active' : '') + '" id="wsArtifact">' + buildWorkspaceArtifact() + '</section>' +
-                '<section class="ws-progress' + (wsPanelTab === 'progress' ? ' active' : '') + '" id="wsProgress">' + buildProgressOverviewPanel() + '</section>' +
-                '<section class="ws-weight' + (wsPanelTab === 'weight' ? ' active' : '') + '" id="wsWeight">' + buildWeightVisualPanel() + '</section>' +
-                '<section class="ws-groups' + (wsPanelTab === 'groups' ? ' active' : '') + '" id="wsGroups">' + buildGroupsPanel() + '</section>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -7722,9 +7698,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             container.querySelector('#wsTree').classList.toggle('active', wsPanelTab === 'files');
             container.querySelector('#wsEditor').classList.toggle('active', wsPanelTab === 'editor');
             container.querySelector('#wsArtifact').classList.toggle('active', wsPanelTab === 'artifacts');
-            container.querySelector('#wsProgress').classList.toggle('active', wsPanelTab === 'progress');
-            container.querySelector('#wsWeight').classList.toggle('active', wsPanelTab === 'weight');
-            container.querySelector('#wsGroups').classList.toggle('active', wsPanelTab === 'groups');
           });
         });
         // 树节点点击
@@ -8857,12 +8830,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + icHtml + a.label + '</button>';
         });
-        // 5 个快捷按钮
-        h += '<button class="qa-mini" id="btnProgressOverview" title="进度总览">' + svgIcon('chart', 14) + ' 进度总览</button>';
-        h += '<button class="qa-mini" id="btnQualityCheck" title="32项质检">' + svgIcon('checkCircle', 14) + ' 32项质检</button>';
-        h += '<button class="qa-mini" id="btnAIOptimize" title="AI优化">' + svgIcon('wrench', 14) + ' AI优化</button>';
-        h += '<button class="qa-mini" id="btnWeightView" title="权重可视化">' + svgIcon('chart', 14) + ' 权重可视化</button>';
-        h += '<button class="qa-mini" id="btnGroupManage" title="分组管理">' + svgIcon('folder', 14) + ' 分组管理</button>';
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
@@ -8876,274 +8843,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         bindToolbarButtons();
       }
 
-      function buildProgressOverviewPanel() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var tagBuckets = {};
-        entries.forEach(function(e) {
-          if (isMVUEntry(e.comment || '')) return;
-          var m = /^<([^>]+)>/.exec(e.comment || '');
-          var k = m ? m[1] : '未分类';
-          if (!tagBuckets[k]) tagBuckets[k] = { count: 0, totalLen: 0 };
-          tagBuckets[k].count++;
-          tagBuckets[k].totalLen += (e.content || '').length;
-        });
-        var basicFields = [
-          { key: 'name', label: '名称' },
-          { key: 'description', label: '角色描述' },
-          { key: 'first_mes', label: '第一条消息' },
-          { key: 'mes_example', label: '对话示例' },
-          { key: 'scenario', label: '场景设定' },
-          { key: 'personality', label: '个性/性格' },
-          { key: 'creator', label: '作者' },
-          { key: 'character_version', label: '版本' }
-        ];
-        var missingList = [];
-        basicFields.forEach(function(f) {
-          var v = cardData[f.key];
-          if (!v || String(v).trim().length < (f.key === 'name' ? 1 : 20)) missingList.push(f.label);
-        });
-        var html = '<div style="padding:14px 16px;overflow-y:auto;height:100%">';
-        html += '<div class="ws-art-summary" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">' +
-          '<div class="ws-art-stat"><span class="ws-stat-num">' + (progress || 0) + '%</span><span class="ws-stat-label">整体进度</span></div>' +
-          '<div class="ws-art-stat"><span class="ws-stat-num">' + entries.length + '</span><span class="ws-stat-label">条目总数</span></div>' +
-          '<div class="ws-art-stat"><span class="ws-stat-num">' + Object.keys(tagBuckets).length + '</span><span class="ws-stat-label">标签分组</span></div>' +
-        '</div>';
-        html += '<div class="ws-art-section-title">基础字段完成度</div>';
-        basicFields.forEach(function(f) {
-          var v = cardData[f.key];
-          var pct = v ? Math.min(100, Math.round(String(v).length / (f.key === 'description' ? 800 : f.key === 'first_mes' ? 300 : 50) * 100)) : 0;
-          html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.76em;margin-bottom:3px"><span>' + f.label + '</span><span style="color:var(--muted)">' + String(v || '').length + ' 字</span></div>' +
-            '<div style="height:6px;background:var(--surface-sink);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--accent),var(--accent-deep));border-radius:3px"></div></div></div>';
-        });
-        if (Object.keys(tagBuckets).length > 0) {
-          html += '<div class="ws-art-section-title" style="margin-top:14px">标签分组字数统计</div>';
-          for (var k in tagBuckets) {
-            html += '<div class="ws-art-card" style="padding:8px 12px;margin-bottom:6px">' +
-              '<div style="display:flex;justify-content:space-between;font-size:.78em;font-weight:600"><span>📚 &lt;' + k + '&gt;</span><span style="color:var(--accent-deep)">' + tagBuckets[k].count + ' 条 / ' + tagBuckets[k].totalLen + ' 字</span></div></div>';
-          }
-        }
-        if (missingList.length > 0) {
-          html += '<div class="ws-art-section-title" style="margin-top:14px">缺失项建议（下一步）</div>';
-          html += '<div style="background:var(--amber-soft);border:1px solid var(--amber-border);border-radius:8px;padding:10px 12px;font-size:.8em;color:var(--amber-text)">' +
-            svgIcon('alert', 14) + ' 建议优先补充：<b>' + missingList.join('、') + '</b>' +
-            '<div style="margin-top:8px"><button class="ws-head-btn" id="poJumpNext">' + svgIcon('play', 12) + ' 去补全缺失项</button></div></div>';
-        }
-        html += '</div>';
-        return html;
-      }
 
-      function buildWeightVisualPanel() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var rows = [];
-        entries.forEach(function(e, i) {
-          var isMVU = isMVUEntry(e.comment || '');
-          var orderN = e.order != null ? e.order : 100;
-          var constantMul = e.constant ? 3 : 1;
-          var depthVal = e.depth != null ? Math.max(1, e.depth) : 4;
-          var weight = Math.round(orderN * constantMul / depthVal * 10) / 10;
-          var len = (e.content || '').length;
-          var tokens = Math.round(len / 2);
-          var activateBadge = '';
-          if (isMVU) activateBadge = '<span class="ws-badge mvu">MVU</span>';
-          else if (e.vectorized) activateBadge = '<span class="ws-badge purple">向量化</span>';
-          else if (e.constant) activateBadge = '<span class="ws-badge blue">蓝灯·常驻</span>';
-          else activateBadge = '<span class="ws-badge green">绿灯·关键词</span>';
-          rows.push({
-            idx: i, isMVU: isMVU,
-            comment: e.comment || ('条目' + (i + 1)),
-            activateBadge: activateBadge,
-            position: e.position || '-',
-            depth: e.depth != null ? e.depth : 4,
-            order: orderN,
-            len: len, tokens: tokens,
-            weight: weight
-          });
-        });
-        rows.sort(function(a, b) { return b.weight - a.weight; });
-        var maxW = rows.length > 0 ? Math.max.apply(null, rows.map(function(r) { return r.weight; })) : 1;
-        var html = '<div style="padding:10px 0 0 0;height:100%;display:flex;flex-direction:column;overflow:hidden">';
-        html += '<div style="padding:0 14px 8px;font-size:.78em;color:var(--muted)">权重公式：order × constant倍数(×1或×3) ÷ max(1, depth)，按权重从大到小排序</div>';
-        html += '<div style="flex:1;overflow-y:auto;padding:0 6px"><table class="ws-weight-table"><thead><tr>' +
-          '<th>#</th><th>激活策略</th><th>条目名</th><th>位置</th><th>深度</th><th>order</th><th>内容长度</th><th>≈Token</th><th>权重</th>' +
-          '</tr></thead><tbody>';
-        rows.forEach(function(r, n) {
-          var barW = Math.max(2, Math.round(r.weight / maxW * 120));
-          html += '<tr>' +
-            '<td>' + (n + 1) + '</td>' +
-            '<td>' + r.activateBadge + '</td>' +
-            '<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(r.comment) + '</td>' +
-            '<td>' + r.position + '</td>' +
-            '<td>' + r.depth + '</td>' +
-            '<td>' + r.order + '</td>' +
-            '<td>' + r.len + '</td>' +
-            '<td>' + r.tokens + '</td>' +
-            '<td><span class="ws-weight-bar" style="width:' + barW + 'px"></span>' + r.weight + '</td>' +
-          '</tr>';
-        });
-        if (rows.length === 0) {
-          html += '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted)">暂无条目，开始创作后这里会显示权重分布</td></tr>';
-        }
-        html += '</tbody></table></div></div>';
-        return html;
-      }
-
-      function buildGroupsPanel() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var groups = {};
-        var mvuList = [];
-        entries.forEach(function(e, i) {
-          if (isMVUEntry(e.comment || '')) { mvuList.push(i); return; }
-          var m = /^<([^>]+)>/.exec(e.comment || '');
-          var k = m ? m[1] : '未分类';
-          if (!groups[k]) groups[k] = [];
-          groups[k].push(i);
-        });
-        var groupNames = Object.keys(groups);
-        groupNames.push('MVU变量');
-        var html = '<div class="ws-groups-3col" style="height:100%">';
-        html += '<div class="ws-groups-col"><div class="ws-groups-head">所有分组</div><div class="ws-groups-body" id="gmGroupList">';
-        groupNames.forEach(function(gn, n) {
-          var count = gn === 'MVU变量' ? mvuList.length : groups[gn].length;
-          html += '<div class="ws-group-item' + (n === 0 ? ' selected' : '') + '" data-gm-group="' + gn + '">' +
-            (gn === 'MVU变量' ? '🔧' : '📁') + ' ' + gn + ' <span style="margin-left:auto;color:var(--muted)">' + count + '</span>' +
-          '</div>';
-        });
-        html += '</div></div>';
-        html += '<div class="ws-groups-col"><div class="ws-groups-head">当前组条目</div><div class="ws-groups-body" id="gmEntriesList">';
-        var firstGroup = groupNames[0];
-        var initEntries = (firstGroup === 'MVU变量') ? mvuList : (groups[firstGroup] || []);
-        initEntries.forEach(function(i) {
-          var e = entries[i];
-          var en = (e && e.enabled === false) ? '🔘' : '🟢';
-          html += '<div class="ws-entry-drag" data-entry-idx="' + i + '">' + en + ' ' + escHtml((e && e.comment) || ('条目' + (i + 1))) +
-            '<span style="margin-left:auto;font-size:.7em;color:var(--muted)">' + String((e && e.content) || '').length + '字</span></div>';
-        });
-        html += '</div></div>';
-        html += '<div class="ws-groups-col"><div class="ws-groups-head">组配置 / 批量操作</div><div class="ws-groups-body">' +
-          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">重命名组</label>' +
-          '<input type="text" id="gmRenameInput" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%" placeholder="新组名"></div>' +
-          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">组权重 (groupWeight)</label>' +
-          '<input type="number" id="gmGroupWeight" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%" value="10" min="0" max="1000"></div>' +
-          '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">' +
-          '<button class="ws-head-btn" id="gmApplyRename" style="flex:1">' + svgIcon('edit', 12) + ' 应用</button>' +
-          '<button class="ws-head-btn" id="gmDeleteEmpty" style="flex:1">' + svgIcon('trash', 12) + ' 清理空组</button>' +
-          '</div>' +
-          '<div style="font-size:.8em;margin-bottom:8px"><label style="display:block;margin-bottom:4px;font-weight:600">移动选中条目到：</label>' +
-          '<select id="gmMoveToGroup" class="chat-input" style="font-size:.8em;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%">';
-        groupNames.forEach(function(gn) {
-          html += '<option value="' + gn + '">' + gn + '</option>';
-        });
-        html += '</select></div>' +
-          '<button class="ws-head-btn" id="gmMoveBtn" style="width:100%;margin-bottom:10px">' + svgIcon('folderOpen', 12) + ' 批量移动到该组</button>' +
-          '<div style="padding:10px;background:var(--surface-soft);border-radius:8px;font-size:.76em;color:var(--ink-soft);line-height:1.6">' +
-          svgIcon('info', 13) + ' <b>说明：</b>条目按 comment 前缀自动分组，格式为 <code style="background:var(--surface);padding:1px 4px;border-radius:3px">&lt;标签前缀&gt; 条目名</code>。移动条目会自动为其 comment 加上所选标签前缀。' +
-          '</div>';
-        html += '</div></div>';
-        html += '</div>';
-        return html;
-      }
-
-      function openFeatureModal(title, buildFn) {
-        var container = doc.getElementById('wsPanelContainer');
-        if (!container) return;
-        var html = '<div id="featBackdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px">' +
-          '<div class="ws-panel" style="width:min(960px,96vw);height:min(720px,90vh);max-width:1100px;display:flex;flex-direction:column">' +
-            '<header class="ws-header" style="padding:12px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px">' +
-              '<div class="ws-title" style="font-size:.96em;font-weight:700;color:var(--accent-deep)">' + title + '</div>' +
-              '<button class="icon-btn icon-btn-square danger" id="featCloseBtn" style="margin-left:auto">' + svgIcon('close', 15) + '</button>' +
-            '</header>' +
-            '<div id="featBody" style="flex:1;min-height:0;overflow:hidden">' + buildFn() + '</div>' +
-          '</div></div>';
-        container.innerHTML = html;
-        function _close() { var b = doc.getElementById('featBackdrop'); if (b) b.remove(); }
-        var cBtn = doc.getElementById('featCloseBtn');
-        if (cBtn) cBtn.addEventListener('click', _close);
-        var bd = doc.getElementById('featBackdrop');
-        if (bd) bd.addEventListener('click', function(e) { if (e.target === this) _close(); });
-      }
-
-      function runAIOptimize() {
-        var prompt = '请根据当前角色卡，对未达标/字数偏少/缺失的部分进行优化，用:::操作块输出。以下是当前角色卡数据：\n\n';
-        prompt += '【基础字段】\n';
-        ['name','description','first_mes','mes_example','scenario','personality','creator','character_version','creator_notes','tags'].forEach(function(k) {
-          if (cardData[k]) prompt += k + ': ' + String(cardData[k]).substring(0, 300) + '\n';
-        });
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length > 0) {
-          prompt += '\n【世界书条目】共' + entries.length + '条，以下为内容偏短的条目：\n';
-          entries.forEach(function(e, i) {
-            var len = (e.content || '').length;
-            if (len < 80) prompt += '- ' + (e.comment || ('条目' + (i+1))) + '（仅' + len + '字）: ' + String(e.content || '').substring(0, 200) + '\n';
-          });
-        }
-        addUserMsg(prompt);
-        openFeatureModal('✅ AI优化指令已发送', function() {
-          return '<div style="padding:30px;text-align:center">' + svgIcon('sparkle', 48) +
-            '<div style="font-size:1.1em;font-weight:700;margin-top:14px;color:var(--accent-deep)">AI 优化指令已发送</div>' +
-            '<div style="margin-top:10px;color:var(--ink-soft);font-size:.88em;line-height:1.7">正在分析角色卡缺失项并生成优化建议...<br>请查看对话面板等待 AI 回复（通常 10~30 秒）</div></div>';
-        });
-      }
-
-      function doRunLocalQC() {
-        var items = [];
-        function add(t, ok, d) { items.push({ title: t, ok: ok, detail: d || '' }); }
-        // 8基础
-        add('名称存在', !!(cardData.name && String(cardData.name).trim().length >= 1), cardData.name ? '当前：' + String(cardData.name).substring(0, 30) : '缺失');
-        add('角色描述≥300字', !!(cardData.description && String(cardData.description).length >= 300), cardData.description ? String(cardData.description).length + ' 字' : '缺失');
-        add('开场白≥80字', !!(cardData.first_mes && String(cardData.first_mes).length >= 80), cardData.first_mes ? String(cardData.first_mes).length + ' 字' : '缺失');
-        add('对话示例存在', !!(cardData.mes_example && String(cardData.mes_example).length >= 50), cardData.mes_example ? String(cardData.mes_example).length + ' 字' : '缺失');
-        add('场景设定存在', !!(cardData.scenario && String(cardData.scenario).trim().length >= 20), cardData.scenario ? '有' : '缺失');
-        add('个性/性格存在', !!(cardData.personality && String(cardData.personality).trim().length >= 10), cardData.personality ? '有' : '缺失');
-        add('作者字段存在', !!(cardData.creator && String(cardData.creator).trim().length >= 1), cardData.creator ? '当前：' + cardData.creator : '缺失');
-        add('版本字段存在', !!(cardData.character_version && String(cardData.character_version).trim().length >= 1), cardData.character_version ? '当前：v' + cardData.character_version : '缺失');
-        // 4高价值
-        var entries = (cardData.character_book || {}).entries || [];
-        var nonMVU = entries.filter(function(e) { return !isMVUEntry(e.comment || ''); });
-        add('世界书条目≥12条', nonMVU.length >= 12, nonMVU.length + ' 条（建议≥12）');
-        var avgLen = nonMVU.length > 0 ? Math.round(nonMVU.reduce(function(s, e) { return s + (e.content || '').length; }, 0) / nonMVU.length) : 0;
-        add('条目平均字数≥120字', avgLen >= 120, '平均 ' + avgLen + ' 字（建议≥120）');
-        var hasConstant = nonMVU.some(function(e) { return !!e.constant; });
-        add('至少1条蓝灯(常驻)条目', hasConstant, hasConstant ? '有' : '建议设1~3条基础公理为蓝灯');
-        var hasTags = cardData.tags && String(cardData.tags).trim().split(',').filter(Boolean).length >= 3;
-        add('标签≥3个', hasTags, hasTags ? String(cardData.tags).split(',').filter(Boolean).length + ' 个' : '不足3个');
-        // 6世界书基础
-        var tagMap = {};
-        nonMVU.forEach(function(e) { var m = /^<([^>]+)>/.exec(e.comment || ''); if (m) tagMap[m[1]] = (tagMap[m[1]] || 0) + 1; });
-        var coreTagCount = (tagMap['核心铁则'] || 0) + (tagMap['基础公理'] || 0);
-        add('核心铁则≥2条', coreTagCount >= 2, coreTagCount + ' 条（建议≥2）');
-        add('交互软规则≥2条', (tagMap['交互软规则'] || 0) >= 2, (tagMap['交互软规则'] || 0) + ' 条');
-        add('近场强约束≥1条', (tagMap['近场强约束'] || 0) >= 1, (tagMap['近场强约束'] || 0) + ' 条');
-        add('场景机制≥1条', (tagMap['场景机制'] || 0) >= 1, (tagMap['场景机制'] || 0) + ' 条');
-        add('实体交互≥2条', (tagMap['实体交互'] || 0) >= 2, (tagMap['实体交互'] || 0) + ' 条');
-        add('叙事背景≥1条', (tagMap['叙事背景'] || 0) >= 1, (tagMap['叙事背景'] || 0) + ' 条');
-        // 6正则
-        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-        add('正则脚本≥2条', rxScripts.length >= 2, rxScripts.length + ' 条（用于动态效果）');
-        add('备注字段≥50字', !!(cardData.creator_notes && String(cardData.creator_notes).length >= 50), cardData.creator_notes ? String(cardData.creator_notes).length + ' 字' : '缺失');
-        var okCount = items.filter(function(i) { return i.ok; }).length;
-        var pct = Math.round(okCount / items.length * 100);
-        var html = '<div style="padding:14px 16px;height:100%;overflow-y:auto">';
-        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">' +
-          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:' + (pct >= 80 ? 'var(--sage-text)' : pct >= 60 ? 'var(--amber-text)' : 'var(--terra-text)') + '">' + pct + '%</span><span class="ws-stat-label">达标率</span></div>' +
-          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:var(--sage-text)">' + okCount + '</span><span class="ws-stat-label">通过项</span></div>' +
-          '<div class="ws-art-stat"><span class="ws-stat-num" style="color:var(--terra-text)">' + (items.length - okCount) + '</span><span class="ws-stat-label">不通过</span></div>' +
-          '<div class="ws-art-stat"><span class="ws-stat-num">' + items.length + '</span><span class="ws-stat-label">总项数</span></div>' +
-        '</div>';
-        items.forEach(function(it) {
-          html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:6px;background:' + (it.ok ? 'var(--sage-soft)' : 'var(--terra-soft)') + ';border:1px solid ' + (it.ok ? 'var(--sage-border)' : 'var(--terra-border)') + '">' +
-            svgIcon(it.ok ? 'checkCircle' : 'alert', 14, it.ok ? '' : '') +
-            '<div style="flex:1"><div style="font-size:.82em;font-weight:600;color:' + (it.ok ? 'var(--sage-text)' : 'var(--terra-text)') + '">' + it.title + '</div>' +
-            '<div style="font-size:.74em;color:var(--ink-soft);margin-top:2px">' + it.detail + '</div></div></div>';
-        });
-        if (pct < 80) {
-          html += '<div style="margin-top:12px;padding:10px 12px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:8px">' +
-            '<div style="font-weight:700;color:var(--accent-deep);margin-bottom:6px">💡 建议操作</div>' +
-            '<button class="ws-head-btn" id="qcOptNow" style="margin-right:6px">' + svgIcon('wrench', 12) + ' 一键AI优化未达标项</button>' +
-            '<button class="ws-head-btn" id="qcClose">' + svgIcon('close', 12) + ' 关闭</button></div>';
-        }
-        html += '</div>';
-        return { html: html, pct: pct, okCount: okCount, total: items.length };
-      }
 
       // 绑定导出/清空按钮（位于 quick-actions 内，每次重建后需重新绑定）
       function bindToolbarButtons() {
@@ -9176,20 +8876,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 同步禁用态（生成中）
         if (saveBtn) saveBtn.disabled = isGenerating;
-        // 5 个快捷功能按钮事件
-        var poBtn = doc.getElementById('btnProgressOverview');
-        if (poBtn) poBtn.addEventListener('click', function() { openFeatureModal('📊 进度总览', buildProgressOverviewPanel); });
-        var qcBtn = doc.getElementById('btnQualityCheck');
-        if (qcBtn) qcBtn.addEventListener('click', function() {
-          var res = doRunLocalQC();
-          openFeatureModal('✅ 32项质检结果（' + res.okCount + '/' + res.total + '）', function() { return res.html; });
-        });
-        var aiBtn = doc.getElementById('btnAIOptimize');
-        if (aiBtn) aiBtn.addEventListener('click', function() { if (isGenerating) { showToast('⚠️ AI正在生成中，请稍后', 'warning'); return; } runAIOptimize(); });
-        var wvBtn = doc.getElementById('btnWeightView');
-        if (wvBtn) wvBtn.addEventListener('click', function() { openFeatureModal('⚖️ 权重可视化', buildWeightVisualPanel); });
-        var gmBtn = doc.getElementById('btnGroupManage');
-        if (gmBtn) gmBtn.addEventListener('click', function() { openFeatureModal('🗂️ 分组管理', buildGroupsPanel); });
       }
 
       function handleQuickAction(action) {
@@ -10017,7 +9703,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '请全面分析当前角色卡内容，完成以下任务：\n' +
             '1. 评估每个体系的完成度（0-100），输出到```json代码块\n' +
             '2. JSON格式（严格）：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
-            '   评分标准：0=无内容，30=有1条短内容，60=有1条≥250字，80=有1条≥500字，100=≥2条且总长≥500字\n' +
+            '   评分标准：0=无内容，30=有1条极简内容，60=有1条内容充实，80=有1条内容详细，100=≥2条且信息密度高（字数仅供参考，不做硬性要求）\n' +
             '3. 用自然语言给出每个体系的改进建议和下一步行动方向\n' +
             '4. 最后给出一条适合用户直接输入的建议指令（放在<suggestion>标签中，标签内是纯指令文本，不含解释）\n\n' +
             '=== 当前角色卡内容 ===\n' +
@@ -11868,15 +11554,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '\n\n=== 生成指令 ===\n' +
             '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
             '=== 必须达到的字段标准 ===\n' +
-            '- name：简洁有力的世界/角色名称（≤15字）\n' +
-            '- description：≥400字，覆盖世界核心设定、地理、历史、文化、社会结构\n' +
-            '- first_mes：500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
-            '- system_prompt：≤50字，仅AI身份定位一句话\n' +
-            '- personality/scenario：必须留空（世界模式规范）\n' +
-            '- alternate_greetings：≥3个差异化备用开局\n' +
-            '- extensions.depth_prompt：新手引导（depth=0）\n' +
-            '- extensions.regex_scripts：2-3条通用正则（如行动标签、关键词高亮、状态栏标签通用格式化），禁止MVU相关正则\n' +
-            '- character_book.entries：≥12条，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条content≥250字\n' +
+            '- name：简洁有力的世界/角色名称（字数自由）\n' +
+            '- description：不限字数，覆盖世界核心设定（内容自由掌握）\n' +
+            '- first_mes：不限字数，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
+            '- 身份定位：自动从 personality/description 提取，无需手动写 system_prompt\n' +
+            '- personality/scenario：内容自由（纯世界模式可留空，角色模式建议填写）\n' +
+            '- 多开局机制：使用 <动态适配> 分支开局条目，或在开场白内嵌互动选项（二选一或组合）\n' +
+            '- extensions.depth_prompt：新手引导（depth=0，可选）\n' +
+            '- extensions.regex_scripts：按需生成通用正则（如行动标签、关键词高亮），禁止MVU相关正则\n' +
+            '- character_book.entries：不限数量，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条字数自由\n' +
             '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
             '=== 已有内容（参考，不要丢失） ===\n' +
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
@@ -12440,20 +12126,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // field 字段用于在弹窗中按字段分组展示，并驱动 AI 优化目标字段
         var instructionMap = {
           // === 基础字段 ===
-          '世界/角色名称': { field: 'name', instr: '问题：世界/角色名称为空\n影响：无法识别卡片主体\n修复：设置一个简洁有力的世界名称（如「青云大陆」），不超过15字' },
-          '世界观描述 ≥400字': { field: 'description', instr: '问题：世界观描述不足400字\n影响：世界背景单薄，AI缺乏设定锚点\n修复：补充到≥400字，覆盖世界核心设定、地理、历史、文化、社会结构，语言生动具体避免抽象' },
-          '性格描述（世界模式留空）': { field: 'personality', instr: '问题：世界模式下 personality 非空\n影响：与世界观模式规范冲突，可能干扰AI\n修复：清空 personality 字段（世界模式人设由世界书条目承载）' },
-          '场景设定（世界模式留空）': { field: 'scenario', instr: '问题：世界模式下 scenario 非空\n影响：与世界观模式规范冲突\n修复：清空 scenario 字段（场景由世界书触发条目动态提供）' },
-          '开场白 ≥500字': { field: 'first_mes', instr: '问题：开场白不足500字\n影响：代入感弱，玩家难以进入情境\n修复：扩展到500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符' },
-          '身份自洽（personality/description/scenario/first_mes一致）': { field: 'personality', instr: '问题：personality/description/scenario/first_mes 四处对角色身份描述有冲突\n影响：AI输出人格分裂，前后设定矛盾\n修复：统一四处的身份描述，确保角色自称、职业、种族、时空背景等信息一致（system_prompt 由写卡器自动从 personality/description 提取≤50字身份提示，无需手动写）' },
+          '世界/角色名称': { field: 'name', instr: '问题：世界/角色名称为空\n影响：无法识别卡片主体\n修复：设置一个简洁有力的世界名称（如「青云大陆」），字数自由掌握' },
+          '角色/世界观描述（不限字数）': { field: 'description', instr: '问题：角色/世界观描述为空\n影响：世界背景缺乏内容，AI缺乏设定锚点\n修复：填写描述内容，字数自由（建议覆盖世界核心设定、地理、历史、文化、社会结构等，语言生动具体）' },
+          '个性/性格描述（不限字数）': { field: 'personality', instr: '问题：个性/性格描述待设置（非硬性必填）\n影响：纯世界模式无影响，角色模式下核心性格不明确\n修复：纯世界模式无需设置；角色模式建议填写核心性格（非必填，自由掌握）' },
+          '场景设定（不限字数）': { field: 'scenario', instr: '问题：场景设定待设置（非硬性必填）\n影响：核心情境可放在描述中，不强制单独写\n修复：非必填，核心情境可放描述中自由掌握；如需要独立开场情境可填写' },
+          '开场白（不限字数）': { field: 'first_mes', instr: '问题：开场白为空\n影响：代入感弱，玩家难以进入情境\n修复：填写开场白内容，字数自由（建议结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符）' },
+          '身份自洽：四处身份描述一致': { field: 'personality', instr: '问题：personality/description/scenario/first_mes 四处对角色身份描述有冲突\n影响：AI输出人格分裂，前后设定矛盾\n修复：统一四处的身份描述，确保角色自称、职业、种族、时空背景等信息一致（身份定位由写卡器自动从 personality/description 提取，无需手动写 system_prompt）' },
           // === 高价值字段 ===
-          '多开局机制（<动态适配>分支开局+initvar 或 first_mes内嵌选项）': { field: 'entries', instr: '问题：缺少多开局分支机制\n影响：重玩价值低，开局体验单一\n修复：用 <动态适配>分支开局世界书条目(selective=true, keys含选择关键词) + <UpdateVariable><initvar>块覆盖MVU初始变量，或在 first_mes 末尾内嵌分支选择提示。禁止写入 alternate_greetings 字段，由写卡器自动管理兼容。' },
-          'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效）' },
-          'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：生成3-5条实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换' },
+          '多开局机制（不限形式）': { field: 'entries', instr: '问题：缺少多开局分支机制\n影响：重玩价值低，开局体验单一\n修复：用 <动态适配>分支开局世界书条目(selective=true, keys含选择关键词) + MVU initvar 覆盖，或在 first_mes 末尾内嵌分支选择提示（二选一或组合）。alternate_greetings 由写卡器自动管理兼容。' },
+          'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效，可选）' },
+          'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本（按需生成）\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：按需生成实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换等（数量自由）' },
           // === 世界书基础 ===
-          '条目数 12-30条': { field: 'entries', instr: '问题：世界书条目数不在12-30范围\n影响：覆盖不全或Token浪费\n修复：调整到12-30条，覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块' },
+          '世界书条目（不限数量）': { field: 'entries', instr: '问题：世界书条目数为0\n影响：完全没有条目内容承载设定\n修复：至少创建1条世界书条目，数量不限（自由增减，按创作进度自然增加），覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块' },
           '触发词覆盖率 ≥50%': { field: 'entries', instr: '问题：触发词覆盖率不足50%\n影响：触发条目无法被正确激活\n修复：为≥50%的条目设置精准 keys 触发词，避免泛用词（如"的""是"）' },
-          '条目内容 ≥250字': { field: 'entries', instr: '问题：超过半数条目内容不足250字\n影响：信息密度低，触发后AI可参考内容不足\n修复：将≥50%的条目内容扩充到≥250字，提供完整自包含的信息' },
+          '条目内容（不限字数，自由掌握）': { field: 'entries', instr: '问题：条目内容字数自由（无硬性限制）\n影响：按创作需要的精细度决定长短\n修复：字数完全自由，按你需要的精细度决定每条长短（短条目也行，详细长条目也行）' },
           '条目命名规范 ≥50%': { field: 'entries', instr: '问题：条目命名不规范\n影响：难以识别条目职能与权重层级\n修复：为≥50%的条目使用规范前缀：<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>；MVU条目用[InitVar]前缀' },
           '权重合理性：核心规则在高权重位': { field: 'entries', instr: '问题：核心规则未在高权重位\n影响：AI容易忽略核心规则\n修复：核心规则必须放在 <核心铁则> 条目（高权重位），近场约束放适当位置' },
           'content自包含性（无上下文依赖）': { field: 'entries', instr: '问题：条目content含上下文依赖词\n影响：条目单独触发时信息不完整\n修复：移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息' },
@@ -12474,7 +12160,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           'substituteRegex范围（0-2）': { field: 'regex_scripts', instr: '问题：substituteRegex超出0-2范围\n影响：宏替换行为异常\n修复：设为0(不替换宏)/1(原始替换)/2(转义替换)，一般用1' },
           '状态栏/MVU脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏/MVU脚本开启了runOnEdit（违反StageDog标准）\n影响：编辑消息时重复执行脚本，状态栏闪烁或初始化异常\n修复：MVU/状态栏/思维链/变量美化类脚本设置 runOnEdit=false（对齐tavern_helper_template标准）' },
           // === 运行效果 ===
-          '常驻Token总量 ≤500': { field: 'entries', instr: '问题：常驻Token总量超过500\n影响：挤占上下文预算，长对话记忆受损\n修复：将非核心内容从constant条目移到触发条目，控制常驻Token≤500' },
+          '常驻Token估算（仅供参考，不限量）': { field: 'entries', instr: '问题：常驻Token量仅供参考（不硬性限制）\n影响：AI失忆时再考虑精简\n修复：常驻内容>2000Token，如遇AI失忆可考虑精简部分；否则自由掌握，仅参考' },
           '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
           '冷却防抖：场景类条目开启cooldown': { field: 'entries', instr: '问题：场景类条目未设置cooldown\n影响：内容刷屏\n修复：为<场景机制>、<核心玩法>等条目设置 extensions.cooldown=3' },
           // === MVU变量系统 ===
@@ -12588,26 +12274,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '只优化以下字段，其他字段保持不变：' + selectedOptFields.join(', ') + '\n\n' +
             (customReq ? '=== 用户额外要求 ===\n' + customReq + '\n\n' : '') +
             '=== 字段优化细则（必须严格遵守） ===\n' +
-            '【description 世界观描述】\n' +
-            '- 字数：≥400字\n' +
+            '【description 世界观/角色描述】\n' +
+            '- 字数：不限（自由掌握）\n' +
             '- 内容：包含世界核心设定、地理、历史、文化、社会结构等，提升沉浸感\n' +
             '- 语言：生动具体，避免抽象描述\n\n' +
             '【first_mes 开场白】\n' +
-            '- 字数：500-800字\n' +
+            '- 字数：不限（自由掌握）\n' +
             '- 结构：场景描写 → 动作驱动 → 内心独白 → 自然对话 → 结尾留钩\n' +
             '- 必须包含完整文本，严禁使用占位符\n\n' +
-            '【system_prompt 系统指令】\n' +
-            '- 字数：≤50字\n' +
-            '- 内容：仅AI身份定位（如"你是一个神秘的酒馆老板"）\n\n' +
-            '【alternate_greetings 备用开局】\n' +
-            '- 数量：至少3个\n' +
-            '- 差异化：不同身份/难度/场景的开场白\n' +
-            '- 提升重玩价值\n\n' +
+            '【身份定位（替代 system_prompt）】\n' +
+            '- 身份定位由写卡器自动从 personality/description 提取，无需手动输出 system_prompt 字段\n' +
+            '- 确保 personality/description 中包含清晰的AI身份定位信息\n\n' +
+            '【多开局机制（替代 alternate_greetings）】\n' +
+            '- 实现方式：<动态适配> 分支开局世界书条目 或 在 first_mes 末尾内嵌互动选项（二选一或组合）\n' +
+            '- <动态适配>条目标配：selective=true, keys 含选择关键词\n' +
+            '- 差异化：不同身份/难度/场景的开局分支\n' +
+            '- 提升重玩价值；alternate_greetings 字段由写卡器自动管理兼容\n\n' +
             '【depth_prompt 新手引导】\n' +
-            '- prompt：新手引导内容，教玩家如何互动\n' +
+            '- prompt：新手引导内容，教玩家如何互动（可选）\n' +
             '- depth：默认0（表示对所有玩家生效）\n\n' +
             '【regex_scripts 状态同步正则】\n' +
-            '- 数量：3-5条实用脚本\n' +
+            '- 数量：按需生成，自由掌握\n' +
             '- 格式规范：\n' +
             '  * findRegex：/模式/flags格式（必须包含g全局匹配，中文加i忽略大小写）\n' +
             '  * replaceString：支持$1-$9捕获组、{{match}}宏、$&完整匹配\n' +
@@ -12621,9 +12308,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '  * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
             '  * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n\n' +
             '【entries 世界书条目】\n' +
-            '- 数量：12-30条\n' +
+            '- 数量：不限（自由增减，按创作进度自然增长）\n' +
             '- 命名规范：使用<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>等前缀\n' +
-            '- content要求：≥250字，完整自包含，严禁使用"如上所述""见上文"等上下文依赖词\n' +
+            '- content要求：字数自由（完整自包含即可），严禁使用"如上所述""见上文"等上下文依赖词\n' +
             '- keys：精准触发词，避免泛用词（如"的""是"）\n' +
             '- 核心配置：\n' +
             '  * constant=true：常驻条目（核心规则、基础公理），position应≤1\n' +
@@ -13054,7 +12741,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
-        h += sec('bolt', '系统指令', cardData.system_prompt, cardData.system_prompt ? (cardData.system_prompt.length + '字') : '');
+        // 身份定位（自动提取：personality+description 前 50 字）
+        var autoIdExtract = '';
+        if (cardData.personality || cardData.description) {
+          var rawId = (cardData.personality ? (cardData.personality + ' ') : '') + (cardData.description || '');
+          autoIdExtract = rawId.substring(0, 50) + (rawId.length > 50 ? '...' : '');
+        }
+        var idLen = autoIdExtract.length;
+        h += sec('bolt', '身份定位（自动提取）', autoIdExtract || '(从 personality/description 自动生成，无需手动写 system_prompt)', idLen > 0 ? ('~' + idLen + '字 · 自动提取') : '');
+        // 多开局机制：动态适配分支 X 条 / 开场白内嵌选项 X 个
+        var allEntriesForMulti = (cardData.character_book && cardData.character_book.entries) || [];
+        var multiOpenEntries = allEntriesForMulti.filter(function(e) { return (e.comment || '').indexOf('<动态适配>') >= 0 || (e.comment || '').indexOf('分支开局') >= 0; }).length;
+        var firstForMulti = cardData.first_mes || '';
+        var firstMesHasChoice = firstForMulti.indexOf('①') >= 0 || firstForMulti.indexOf('②') >= 0 || firstForMulti.indexOf('③') >= 0 || firstForMulti.indexOf('选项') >= 0 || firstForMulti.indexOf('选择') >= 0 || (firstForMulti.indexOf('1.') >= 0 && firstForMulti.indexOf('2.') >= 0);
+        var choiceCount = 0;
+        if (firstMesHasChoice) {
+          var circleNum = (firstForMulti.match(/[①②③④⑤⑥⑦⑧⑨⑩]/g) || []).length;
+          choiceCount = circleNum > 0 ? circleNum : 2;
+        }
+        var multiDesc = '<动态适配>分支: ' + multiOpenEntries + ' 条';
+        if (firstMesHasChoice) multiDesc += ' | 开场白内嵌选项: ' + choiceCount + ' 个';
+        var multiContent = multiOpenEntries >= 1 || firstMesHasChoice
+          ? ('已配置多开局机制：' + multiDesc)
+          : '尚未配置多开局。可通过 <动态适配> 分支开局世界书条目，或在开场白内嵌互动选项实现。';
+        var multiRight = ((multiOpenEntries >= 1 || firstMesHasChoice) ? '✅ ' : '⚠️ ') + multiOpenEntries + '分支 / ' + choiceCount + '选项';
+        h += sec('refreshCycle', '多开局机制（替代 alternate_greetings）', multiContent, multiRight);
 
         h += sec('edit', '创作者备注', cardData.creator_notes);
 
