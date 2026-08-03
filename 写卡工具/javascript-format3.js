@@ -2533,6 +2533,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var neContent = (newEntry.content || '').trim();
     var nePrefix = extractEntryPrefix(neComment);
 
+    // 🐛修复-去括号：AI 一会儿给 comment 包⟦⟧/【】一会儿不包。统一剥去最外层的装饰括号对。
+    // 支持括号对：⟦⟧ 【】 「」 『』 ［］《》 〈〉 () [] {} <>（其中< >保留真实<角色>前缀那种内部尖括号不剥）
+    var stripOuterBrackets = function(s) {
+      if (!s) return '';
+      var r = String(s).trim();
+      for (var iter = 0; iter < 2; iter++) {  // 最多剥2层嵌套，如 ⟦【xxx】⟧
+        var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+        var matched = false;
+        for (var pi = 0; pi < pairs.length; pi++) {
+          var L = pairs[pi][0], R = pairs[pi][1];
+          if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length-1) === R) {
+            r = r.slice(1, -1).trim();
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) break;
+      }
+      return r;
+    };
+    var normMatchKey = function(s) { return stripOuterBrackets(s).trim().toLowerCase(); };
+
     // 辅助：提取 comment 去掉前缀后的后缀（去掉首尾空白和常见分隔符）
     var getSuffix = function(comment, prefix) {
       if (!comment || !prefix) return String(comment || '');
@@ -2558,8 +2580,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return uni > 0 ? inter / uni : 0;
     };
 
-    // 第1优先级：精确 comment 匹配（最可靠）
-    var exactIdx = existingArr.findIndex(function(e) { return (e.comment || '') === neComment; });
+    // 第1优先级：规范化精确 comment 匹配（去掉⟦⟧/【】等外层装饰括号 + trim + 大小写不敏感）
+    var nk = normMatchKey(neComment);
+    var exactIdx = -1;
+    if (nk !== '') {
+      for (var fi = 0; fi < existingArr.length; fi++) {
+        if (normMatchKey(existingArr[fi].comment) === nk) { exactIdx = fi; break; }
+      }
+    }
+    if (exactIdx < 0) {
+      // 兜底：原始字符串全等比较也保留，应对极端情况
+      exactIdx = existingArr.findIndex(function(e) { return (e.comment || '') === neComment; });
+    }
     if (exactIdx >= 0) return { index: exactIdx, mode: 'exact' };
 
     // 第2优先级：同规范前缀下只有1条现有条目 + 后缀有相关性（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
@@ -2918,8 +2950,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         delete partial[dk];
       }
     });
-    // 规范化 key：trim + 大小写不敏感（中英文 comment 前后空格/大小写差异导致精确匹配失败）
-    var normKey = function(s) { return String(s || '').trim().toLowerCase(); };
+    // 规范化 key：trim + 大小写不敏感 + 剥去⟦⟧/【】等外层装饰括号（解决AI一会儿加括号一会儿不加）
+    var _stripOuterBrackets = function(s) {
+      if (!s) return '';
+      var r = String(s).trim();
+      for (var iter = 0; iter < 2; iter++) {
+        var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+        var matched = false;
+        for (var pi = 0; pi < pairs.length; pi++) {
+          var L = pairs[pi][0], R = pairs[pi][1];
+          if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length-1) === R) {
+            r = r.slice(1, -1).trim();
+            matched = true; break;
+          }
+        }
+        if (!matched) break;
+      }
+      return r;
+    };
+    var normKey = function(s) { return _stripOuterBrackets(s).trim().toLowerCase(); };
     var deletedCommentKeySet = {};  // 命中则：新增丢弃 + 更新丢弃（整轮彻底消失）
     var entryPrefixForScan = 'character_book.entries.';
     // 从 deletePaths 中提取所有 comment 形式的 key 放入屏障集合
@@ -2997,6 +3046,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else {
             ne.comment = '条目' + (existing.length + 1);
           }
+        }
+        // ===== 🐛修复#2.5：入存前剥去⟦⟧/【】等外层装饰括号，统一 entries.comment 风格，避免一会儿带括号一会儿不带 =====
+        // （注意：保留内部的 <xxx> / [xxx] 前缀，只剥最外层装饰用括号；若剥完为空则保留原值）
+        if (ne.comment && typeof ne.comment === 'string') {
+          var stripped = _stripOuterBrackets(ne.comment);
+          if (stripped && stripped.length > 0) ne.comment = stripped;
         }
         // ===== 🐛修复#2：命中删除屏障 → 整轮直接丢弃（既不新增也不更新）=====
         if (deletedCommentKeySet[normKey(ne.comment)]) {
