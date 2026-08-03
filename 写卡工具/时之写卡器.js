@@ -6336,6 +6336,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return outEntries;
   }
 
+  // ===== 去重写入：参考 javascript-format 的 name/comment 路径匹配 =====
+  // 旧方案用 extra.source === SOURCE_TAG 过滤再 createWorldbookEntries 追加，
+  // 但 extra 字段经酒馆持久化后不一定能原样读回，过滤失效 → 条目叠加。
+  // 新方案：updateWorldbookWith 一次性按 name 匹配，命中则覆盖，未命中才追加。
+  function _normWiPath(p) {
+    var n = String(p == null ? '' : p).replace(/\\/g, '/').replace(/\/+/g, '/').trim();
+    if (!n) return '';
+    if (n.charAt(0) !== '/') n = '/' + n;
+    return '/' + n.split('/').filter(Boolean).join('/');
+  }
+  function _wiEntryMatch(worldbookName, targetName, oldEntry) {
+    var target = _normWiPath('/Worldbooks/' + worldbookName + '/' + (targetName || ''));
+    if (!target) return false;
+    var byComment = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.comment) || ''));
+    var byName = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.name) || ''));
+    return byComment === target || byName === target;
+  }
+
   async function _tavernWriteWorldbook(worldbookName, entries) {
     var SOURCE_TAG = 'modelo-char-generator';
     var getWorldbookNames = _tavernFn('getWorldbookNames');
@@ -6368,22 +6386,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       await createWorldbook(worldbookName);
     }
 
-    // 删除本工具标记的旧条目（仅当世界书已存在时；新建的空世界书无需此步）
-    if (exists && updateWorldbookWith) {
-      try {
-        await updateWorldbookWith(worldbookName, function(oldEntries) {
-          return (oldEntries || []).filter(function(e) {
-            return !(e.extra && e.extra.source === SOURCE_TAG);
-          });
-        }, { render: 'debounced' });
-      } catch(_e) { console.warn('[worldbook] 清理旧标记条目失败:', _e && _e.message); }
-    }
-
-    // 新增条目
-    if (createWorldbookEntries) {
+    // ===== 去重写入：按 name/comment 路径匹配，命中则覆盖，未命中才追加 =====
+    // （参考 javascript-format 的 ba + updateWorldbookWith 实现，避免条目叠加）
+    if (updateWorldbookWith) {
+      await updateWorldbookWith(worldbookName, function(oldEntries) {
+        var list = (oldEntries || []).slice();
+        for (var i = 0; i < converted.length; i++) {
+          var newEntry = converted[i];
+          var idx = -1;
+          for (var j = 0; j < list.length; j++) {
+            if (_wiEntryMatch(worldbookName, newEntry.name, list[j])) { idx = j; break; }
+          }
+          if (idx >= 0) {
+            // 命中同名条目：保留原 uid/displayIndex 等元数据，覆盖内容与配置
+            list[idx] = Object.assign({}, list[idx], newEntry);
+          } else {
+            // 未命中：追加新条目
+            list.push(newEntry);
+          }
+        }
+        return list;
+      }, { render: 'immediate' });
+    } else if (createWorldbookEntries) {
+      // 回退兜底：无 updateWorldbookWith 时走追加（旧版本可能叠加）
       await createWorldbookEntries(worldbookName, converted, { render: 'immediate' });
     } else {
-      throw new Error('酒馆不支持 createWorldbookEntries API');
+      throw new Error('酒馆不支持 updateWorldbookWith / createWorldbookEntries API');
     }
   }
 
