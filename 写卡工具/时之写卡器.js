@@ -1350,19 +1350,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '\n' +
     '## 9.1 五大核心组件（4条世界书条目 + 1脚本）\n' +
     '9.1.1 [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量初始值\n' +
+    '     · 【强约束1：依据变量结构脚本生成】必须严格按变量结构.js（zod Schema）的字段名、嵌套层级、类型生成 YAML。schema 有的字段必须有默认值；schema 用 z.record/z.partialRecord 的动态键，InitVar 用空对象 {} 占位（如 物品栏: {}）；schema 用 z.prefault 的字段可在 InitVar 中省略（脚本会自动填）\n' +
+    '     · 【强约束2：schema 一改，InitVar 必须跟改】修改变量结构脚本时（增/删/改字段、改类型），同步重写 [InitVar] 初始变量条目，保证字段名/层级与 schema 完全一致。禁止出现"schema 已删的字段还在 InitVar 里""schema 已加的字段 InitVar 没有"的错配情况\n' +
+    '     · 【强约束3：enabled=false】初始变量条目的 enabled 必须为 false（MVU 只读禁用条目做初始化，开启会导致每次发送都注入旧初始值覆盖最新变量）。写卡器自动维护，AI 生成时不要写 enabled 字段\n' +
     '     · YAML用缩进表示层级，冒号后空格建立从属关系\n' +
     '     · 三种基本类型：数值(number)、文本(string)、真假值(boolean)\n' +
     '     · 示例：\n' +
-    '       白娅:\n' +
-    '         依存度: 35\n' +
-    '         着装:\n' +
-    '           上装: 深蓝色校服外套\n' +
-    '         受孕: false\n' +
-    '       主角:\n' +
-    '         物品栏:\n' +
-    '           薄荷糖:\n' +
-    '             描述: 提神用薄荷糖\n' +
-    '             数量: 1\n' +
+    '       络络:\n' +
+    '         亲密度: 0\n' +
+    '         阅读日记数量: 0\n' +
+    '         拥有联系方式: false\n' +
+    '         物品栏: {}\n' +
+    '       世界:\n' +
+    '         当前日期: 2025-07-26\n' +
+    '         当前星期: 星期五\n' +
+    '         当前时间: 17:36\n' +
     '9.1.2 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
     '     · 固定内容：---\\n<status_current_variables>\\n{{format_message_variable::stat_data}}\\n</status_current_variables>\n' +
     '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
@@ -6591,7 +6593,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         constant: e.constant !== undefined ? e.constant : isConst,
         selective: e.selective !== undefined ? e.selective : isSel,
         insertion_order: e.insertion_order || order,
-        enabled: isInitVar ? true : (isVarFormatEmphasis ? (e.enabled !== undefined ? e.enabled : false) : (e.enabled !== undefined ? e.enabled : defaultEnabled)),
+        enabled: isInitVar ? false : (isVarFormatEmphasis ? (e.enabled !== undefined ? e.enabled : false) : (e.enabled !== undefined ? e.enabled : defaultEnabled)),
         position: topPosStr,
         use_regex: e.use_regex !== undefined ? e.use_regex : true,
         extensions: {
