@@ -5962,6 +5962,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
+  // 通过 importRawCharacter 导入完整角色卡 JSON（确保 mes_example/post_history_instructions/tags 等 v2/v3 字段写入酒馆）
+  // 参考仓库 tavern_helper_template 的 Character 类型不包含这三个字段，updateCharacterWith 无法写入；
+  // importRawCharacter 像酒馆 UI 导入一样，能正确写入所有 v2/v3 字段。
+  async function _tavernImportRawCard(name, exportCardObj) {
+    var validated = _tavernValidateName(name);
+    // importRawCharacter 在 window.TavernHelper 上（非全局 window）
+    var importFn = null;
+    try {
+      if (window.TavernHelper && typeof window.TavernHelper.importRawCharacter === 'function') importFn = window.TavernHelper.importRawCharacter;
+      else if (window.parent && window.parent.TavernHelper && typeof window.parent.TavernHelper.importRawCharacter === 'function') importFn = window.parent.TavernHelper.importRawCharacter;
+    } catch(e) {}
+    if (!importFn) {
+      console.warn('[时之写卡器] importRawCharacter 不可用，跳过完整角色卡导入');
+      return false;
+    }
+    // 构造干净的 v2/v3 角色卡 JSON（移除 avatar 等可能导致导入异常的字段）
+    var cardCopy = JSON.parse(JSON.stringify(exportCardObj));
+    delete cardCopy.avatar;
+    var jsonStr = JSON.stringify(cardCopy);
+    // 创建 Blob（与酒馆 UI 导入 JSON 文件一致）
+    var blob = new Blob([jsonStr], { type: 'application/json' });
+    var filename = validated + '.json';
+    await _tavernRetry('导入完整角色卡(importRawCharacter)', function() {
+      return importFn(filename, blob);
+    });
+    return true;
+  }
+
   // 规范化脚本对象（Hr）
   function _normalizeScript(s) {
     return {
@@ -12856,6 +12884,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 关联世界书：写入 character.data.world，让酒馆自动加载该世界书
             world: (entries.length > 0) ? worldbookName : undefined
           });
+
+          // ===== 步骤2.5：通过 importRawCharacter 导入完整角色卡 JSON =====
+          // updateCharacterWith 的 Character 类型不包含 mes_example/post_history_instructions/tags，
+          // 需用 importRawCharacter 像酒馆 UI 导入一样写入完整 v2/v3 角色卡
+          try {
+            var importOk = await _tavernImportRawCard(cardData.name, exportCard);
+            if (importOk) {
+              console.log('[时之写卡器] importRawCharacter 成功写入完整角色卡（含 mes_example/post_history_instructions/tags）');
+            }
+          } catch(_ie) {
+            console.warn('[时之写卡器] importRawCharacter 失败，字段写入依赖步骤2:', _ie && _ie.message);
+          }
 
           // ===== 步骤3：写入开场白 =====
           if (data.first_mes && data.first_mes.trim()) {
