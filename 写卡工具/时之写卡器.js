@@ -3455,6 +3455,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         return true;
       });
+      // ===== 防御 newEntries 里混入字符串（AI/用户误传 depth_prompt.prompt 直接进数组）=====
+      newEntries = newEntries.map(function(ne) {
+        if (typeof ne === 'string' && ne.trim()) {
+          var firstLine = ne.split('\n')[0].trim().slice(0, 40) || '未命名文本块';
+          console.warn('[mergePartial] newEntries含字符串元素，已包装为条目:', firstLine);
+          return { comment: firstLine, content: ne };
+        }
+        return ne;
+      });
       newEntries.forEach(function(ne) {
         if (!ne || typeof ne !== 'object') return;
         if (!ne.comment || !String(ne.comment).trim()) {
@@ -6596,7 +6605,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return k.filter(function(x) { return typeof x === 'string' && x; });
     };
     return list
-      .filter(function(e) { return e && typeof e === 'object' && !Array.isArray(e); })
+      .map(function(e, i) {
+        // 防御：entries 里混了纯字符串/数字（典型：depth_prompt.prompt 被误 push）→ 包装成匿名条目避免后面对字符串写 .depth
+        if (e == null) return null;
+        if (typeof e === 'string') {
+          var firstL = e.split('\n')[0].trim().slice(0, 40) || ('误写字符串条目' + (i + 1));
+          console.warn('[sanitize] entries里发现字符串元素，已包装为匿名条目:', firstL.slice(0, 20));
+          return { name: firstL, content: e };
+        }
+        if (typeof e === 'number' || typeof e === 'boolean') {
+          return { name: '误写标量条目' + (i + 1), content: String(e) };
+        }
+        if (Array.isArray(e)) return null;
+        return e;
+      })
+      .filter(function(e) { return e && typeof e === 'object'; })
       .map(function(e, i) {
         var pos = (e.position && typeof e.position === 'object') ? e.position : {};
         var strat = (e.strategy && typeof e.strategy === 'object') ? e.strategy : {};
@@ -7045,6 +7068,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           ignore_budget: false
         }
       };
+    });
+    // ===== 深度防御：entries 里混入字符串/null/非对象时立即清理（常见于 depth_prompt.prompt 被误写入 entries 或用户工作台删了但残留字符串）=====
+    entries = entries.filter(function(e) { return e && typeof e === 'object' && !Array.isArray(e); });
+    // ===== 额外保险：如果 entry.comment 缺失但 content 像 "【...】：..." 这种 depth_prompt 式长文本，加一个 fallback comment 防止后续流程炸 =====
+    entries = entries.map(function(e) {
+      if (!e.comment && e.content && typeof e.content === 'string') {
+        var first = e.content.split('\n')[0].trim();
+        if (first.length > 8 && first.length <= 60) e = Object.assign({}, e, { comment: first.slice(0, 40) });
+      }
+      return e;
     });
     // ST规范：换行符统一使用 \r\n
     var toCRLF = function(str) {
@@ -10326,8 +10359,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var dk = _opNormKey(op.key);
             if (!dk) { console.warn('[opblock] delete空key'); return; }
             var removeCount = 0;
+            var strippedDk = dk.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
             cd.character_book.entries = cd.character_book.entries.filter(function(e) {
-              var shouldDelete = _opNormKey(e.comment) === dk;
+              if (!e || typeof e !== 'object') { removeCount++; return false; }  // 防御：null/字符串/数字直接当脏数据删掉
+              var ek = _opNormKey(e.comment || '');
+              var strippedEk = ek.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
+              // 精确匹配优先；否则短 key 用 includes 模糊（dk.length>=4 避免乱删）
+              var shouldDelete = (ek === dk)
+                || (strippedDk && strippedEk && strippedEk === strippedDk)
+                || (strippedDk && strippedEk && strippedDk.length >= 4 && strippedEk.indexOf(strippedDk) >= 0)
+                || (dk.length >= 6 && ek.indexOf(dk) >= 0);
+              // 额外：如果用户删的内容本身和某条 entry.content 前 50 字匹配度>80%（常见于"把这段删掉"）也命中删除
+              if (!shouldDelete && strippedDk && strippedDk.length >= 10 && e.content && typeof e.content === 'string') {
+                var headContent = e.content.slice(0, Math.max(60, strippedDk.length + 20));
+                if (headContent.indexOf(strippedDk) >= 0) shouldDelete = true;
+              }
               if (shouldDelete) removeCount++;
               return !shouldDelete;
             });
