@@ -940,7 +940,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
            c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
            c.indexOf('状态变量输出') >= 0 || c.indexOf('updatevariable') >= 0 ||
            c.indexOf('变量分段') >= 0 || c.indexOf('分段提示') >= 0 ||
-           c.indexOf('ejs') >= 0;
+           c.indexOf('ejs') >= 0 ||
+           c.indexOf('状态栏') >= 0 || c.indexOf('statusplaceholder') >= 0;
   }
 
   // 判断是否为MVU核心条目（五大核心：[initvar]/变量列表/变量更新规则/变量输出格式/变量输出格式强调）
@@ -3658,7 +3659,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         commentListText += '⚠️ 记住：comment 不精确匹配 = 只加新条目不删旧条目 = 用户骂你！\n';
         parts.push(commentListText);
       }
-      if (cd.tags && cd.tags.length) parts.push('标签：' + cd.tags.join('、'));
+      if (Array.isArray(cd.tags) && cd.tags.length) parts.push('标签：' + cd.tags.join('、'));
       if (parts.length > 0) existingInfo = '\n\n=== 当前角色卡已有内容（不要重复输出，除非增/删/改）【角色卡Tab：不含MVU变量系统内容】 ===\n' + parts.join('\n');
     }
 
@@ -3845,7 +3846,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
     if (cd.description) ctxParts.push('世界观描述摘要：' + (cd.description||'').substring(0, 500));
     if (cd.first_mes) ctxParts.push('开场白摘要：' + (cd.first_mes||'').substring(0, 200));
-    if (cd.tags && cd.tags.length) ctxParts.push('标签：' + cd.tags.join('、'));
+    if (Array.isArray(cd.tags) && cd.tags.length) ctxParts.push('标签：' + cd.tags.join('、'));
     // 从现有角色卡条目中，提取4条MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
     var entries = (cd.character_book || {}).entries || [];
     // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
@@ -5854,7 +5855,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (data.system_prompt !== undefined) charData.system_prompt = data.system_prompt;
       if (data.post_history_instructions !== undefined) charData.post_history_instructions = data.post_history_instructions;
       if (data.creator_notes !== undefined) charData.creator_notes = data.creator_notes;
-      if (data.tags !== undefined) charData.tags = data.tags;
+      if (data.tags !== undefined) charData.tags = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
       if (data.creator !== undefined) charData.creator = data.creator;
       if (data.character_version !== undefined) charData.character_version = data.character_version;
       if (data.alternate_greetings !== undefined) charData.alternate_greetings = data.alternate_greetings;
@@ -7894,7 +7895,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         cardData.creator_notes = cd.creator_notes || (rawData.creatorcomment !== undefined ? rawData.creatorcomment : '');
         cardData.system_prompt = cd.system_prompt || '';
         cardData.post_history_instructions = cd.post_history_instructions || '';
-        cardData.tags = cd.tags || [];
+        cardData.tags = Array.isArray(cd.tags) ? cd.tags : (typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []);
         cardData.creator = cd.creator || '时之写卡器';
         cardData.character_version = cd.character_version !== undefined ? cd.character_version : '';
         cardData.alternate_greetings = cd.alternate_greetings || [];
@@ -8139,7 +8140,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
             if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = { scripts: [], variables: {} };
             if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
-            if (!cardData.tags) cardData.tags = [];
+            if (!Array.isArray(cardData.tags)) cardData.tags = (typeof cardData.tags === 'string' && cardData.tags.trim() ? cardData.tags.split(/[,，、\s]+/).filter(Boolean) : []);
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
 
             // ========== Tab 隔离：优先加载 chatSessions 对象，其次从独立字段重建 ==========
@@ -11083,7 +11084,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
             (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
-            (cardData.tags && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
+            (Array.isArray(cardData.tags) && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
             '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
           var aiResponse = await callAI(genPrompt);
           removeTyping();
@@ -11233,7 +11234,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         var doneCount = modKeys.filter(function(k) { return mp[k] === true; }).length;
         score += doneCount * 5;
-        if (cardData.tags && cardData.tags.length >= 2) score += 5;
+        if (Array.isArray(cardData.tags) && cardData.tags.length >= 2) score += 5;
         if (cardData.creator_notes && cardData.creator_notes.length >= 10) score += 2;
         return Math.min(score, 100);
       }
@@ -12267,6 +12268,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
+        h += sec('lock', '核心铁则', cardData.post_history_instructions, cardData.post_history_instructions ? (cardData.post_history_instructions.length + '字') : '');
         h += sec('bolt', '系统指令', cardData.system_prompt, cardData.system_prompt ? (cardData.system_prompt.length + '字') : '');
 
         var tags = cardData.tags || [];
