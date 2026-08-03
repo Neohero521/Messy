@@ -3362,6 +3362,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             return;
           }
         }
+        // tags 字段：确保存储为数组（AI可能输出逗号分隔的字符串）
+        if (f === 'tags' && typeof val === 'string') {
+          val = val.split(/[,，、\s]+/).filter(Boolean);
+        }
         if (JSON.stringify(oldVal) !== JSON.stringify(val)) {
           cd[f] = val;
           modified = true; changeLog.fieldUpdates++;
@@ -5930,21 +5934,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
     await updateCharacterWith(validated, function(charData) {
-      if (data.description !== undefined) charData.description = data.description;
-      if (data.personality !== undefined) charData.personality = data.personality;
-      if (data.scenario !== undefined) charData.scenario = data.scenario;
-      if (data.mes_example !== undefined) charData.mes_example = data.mes_example;
-      if (data.system_prompt !== undefined) charData.system_prompt = data.system_prompt;
-      if (data.post_history_instructions !== undefined) charData.post_history_instructions = data.post_history_instructions;
-      if (data.creator_notes !== undefined) charData.creator_notes = data.creator_notes;
-      if (data.tags !== undefined) charData.tags = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
-      if (data.creator !== undefined) charData.creator = data.creator;
-      if (data.character_version !== undefined) charData.character_version = data.character_version;
-      if (data.alternate_greetings !== undefined) charData.alternate_greetings = data.alternate_greetings;
-      if (data.depth_prompt !== undefined) charData.depth_prompt = data.depth_prompt;
+      // 确保 charData.data 存在（v3规范字段存放在 data 层）
+      if (!charData.data) charData.data = {};
+      if (data.description !== undefined) { charData.description = data.description; charData.data.description = data.description; }
+      if (data.personality !== undefined) { charData.personality = data.personality; charData.data.personality = data.personality; }
+      if (data.scenario !== undefined) { charData.scenario = data.scenario; charData.data.scenario = data.scenario; }
+      if (data.mes_example !== undefined) { charData.mes_example = data.mes_example; charData.data.mes_example = data.mes_example; }
+      if (data.system_prompt !== undefined) { charData.system_prompt = data.system_prompt; charData.data.system_prompt = data.system_prompt; }
+      if (data.post_history_instructions !== undefined) { charData.post_history_instructions = data.post_history_instructions; charData.data.post_history_instructions = data.post_history_instructions; }
+      if (data.creator_notes !== undefined) { charData.creator_notes = data.creator_notes; charData.data.creator_notes = data.creator_notes; }
+      if (data.tags !== undefined) {
+        var tagsVal = Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.trim() ? data.tags.split(/[,，、\s]+/).filter(Boolean) : []);
+        charData.tags = tagsVal;
+        charData.data.tags = tagsVal;
+      }
+      if (data.creator !== undefined) { charData.creator = data.creator; charData.data.creator = data.creator; }
+      if (data.character_version !== undefined) { charData.character_version = data.character_version; charData.data.character_version = data.character_version; }
+      if (data.alternate_greetings !== undefined) { charData.alternate_greetings = data.alternate_greetings; charData.data.alternate_greetings = data.alternate_greetings; }
+      if (data.depth_prompt !== undefined) { charData.data.depth_prompt = data.depth_prompt; }
       // 关联世界书：写入 character.data.world（v3 规范位置），让酒馆自动加载该世界书
       if (data.world !== undefined && data.world) {
-        if (!charData.data) charData.data = {};
         charData.data.world = data.world;
         // 兼容旧版 v2 卡：顶层也写一份
         charData.world = data.world;
@@ -6713,7 +6722,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       creator_notes: cardCreatorNotes,
       system_prompt: cardSysPrompt,
       post_history_instructions: cardPostHist,
-      tags: cd.tags && cd.tags.length ? cd.tags : [],
+      tags: (cd.tags && Array.isArray(cd.tags) && cd.tags.length) ? cd.tags : (cd.tags && typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []),
       creator: '时之写卡器',
       character_version: '',
       alternate_greetings: cardAltGreetings,
@@ -6969,7 +6978,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       avatar: 'none',
       talkativeness: '0.5',
       fav: false,
-      tags: cd.tags && cd.tags.length ? cd.tags : [],
+      tags: (cd.tags && Array.isArray(cd.tags) && cd.tags.length) ? cd.tags : (cd.tags && typeof cd.tags === 'string' && cd.tags.trim() ? cd.tags.split(/[,，、\s]+/).filter(Boolean) : []),
       create_date: new Date().toISOString(),
       spec: 'chara_card_v3',
       spec_version: '3.0',
@@ -7589,6 +7598,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           { key: 'first_mes', label: '开场白' },
           { key: 'system_prompt', label: '系统指令' },
           { key: 'post_history_instructions', label: '核心铁则' },
+          { key: 'mes_example', label: '对话示例' },
+          { key: 'tags', label: '标签', isArray: true },
           { key: 'alternate_greetings', label: '分支问候', isArray: true }
         ];
         var cardNodes = [];
@@ -7706,7 +7717,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       function _wsGetTitle(node) {
         if (node.type === 'field') {
-          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', post_history_instructions: '核心铁则', alternate_greetings: '分支问候' };
+          var labels = { name: '名称', description: '世界观描述', first_mes: '开场白', system_prompt: '系统指令', post_history_instructions: '核心铁则', mes_example: '对话示例', tags: '标签', alternate_greetings: '分支问候' };
           var label = labels[node.key] || node.key;
           if (node.index != null && Array.isArray(cardData[node.key])) return label + ' #' + (node.index + 1);
           return label;
@@ -9933,7 +9944,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else if (op.action === 'set') {
             var fieldName = op.key.toLowerCase().trim();
             if (validFields.indexOf(fieldName) >= 0) {
-              cd[fieldName] = op.content;
+              // tags 字段需要转为数组（::: set tags 内容是逗号/顿号分隔的字符串）
+              if (fieldName === 'tags') {
+                cd.tags = op.content.split(/[,，、\s]+/).filter(Boolean);
+              } else if (fieldName === 'alternate_greetings') {
+                // alternate_greetings 也需要转为数组
+                cd.alternate_greetings = op.content.split(/\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+              } else {
+                cd[fieldName] = op.content;
+              }
               modified = true;
               changeLog.fieldUpdates++;
             } else {
@@ -12596,6 +12615,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
         h += sec('lock', '核心铁则', cardData.post_history_instructions, cardData.post_history_instructions ? (cardData.post_history_instructions.length + '字') : '');
         h += sec('bolt', '系统指令', cardData.system_prompt, cardData.system_prompt ? (cardData.system_prompt.length + '字') : '');
+        h += sec('chat', '对话示例', cardData.mes_example, cardData.mes_example ? (cardData.mes_example.length + '字') : '');
 
         var tags = cardData.tags || [];
         if (tags.length > 0) {
