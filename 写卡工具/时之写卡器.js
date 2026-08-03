@@ -1410,52 +1410,67 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       <UpdateVariable>\\n<Analysis>\\n- Time advanced by 10 minutes\\n- 白娅.依存度: 接受薄荷糖，情感冲击显著，应增加\\n- 主角.物品栏.薄荷糖: 已送出，应删除\\n</Analysis>\\n<JSONPatch>\\n[\\n { "op": "replace", "path": "/白娅/依存度", "value": 40 },\\n { "op": "remove", "path": "/主角/物品栏/薄荷糖" }\\n]\\n</JSONPatch>\\n</UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
     '9.1.5 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
-    '     · 数值用z.coerce.number()（非z.number()，防AI把数值更新成文本）；但布尔直接用z.boolean()，不要用z.coerce.boolean()\n' +
-    '     · 范围限制用.transform(v => _.clamp(v, 0, 100))（非.min().max()，后者会拒绝超范围值，用户期望部分更新而非整体丢弃）\n' +
-    '     · 默认值用.prefault(默认值)（非z.default；AI漏写字段时自动填充）；复合类型若用prefault，其所有子字段也必须prefault\n' +
-    '     · 幂等性要求（核心）：Schema.parse(Schema.parse(input)) 必须等于 Schema.parse(input)；z.transform需谨慎，不可破坏幂等性\n' +
-    '     · z.transform限制：fn只能接收解析后的output，绝不可以用context；例 z.object({好感度:z.coerce.number()}).transform(d=>({好感度:_.clamp(d.好感度,0,100)}))\n' +
-    '     · z.prefault限制：value必须是该schema自身的合法input；可以是值或函数（如 .prefault(()=>Date.now())）\n' +
-    '     · z.extend限制：只有z.object/z.looseObject/z.strictObject能被extend；z.object(...).prefault({})不能再extend\n' +
-    '     · ⚠️禁止使用z.passthrough/z.strict（不存在，永远不要用）\n' +
-    '     · 5种对象场景（按需选用）：\n' +
-    '       (a) 固定必填键+同类型值：z.record(z.enum([\'上装\',\'下装\']), z.string())\n' +
-    '       (b) 固定可选键+同类型值：z.partialRecord(z.enum([...]), 值类型)\n' +
-    '       (c) 动态可选键+同类型值：z.record(z.string(), 值类型)\n' +
-    '       (d) 固定必填键+不同类型值：z.object({ key1: 类型1, key2: 类型2 })\n' +
-    '       (e) 部分必填+动态同类型：z.intersection(z.object({必填字段}), z.record(z.string(), 值类型))\n' +
-    '     · 可清除对象（会被remove op删除的）：用 z.object({字段:类型.prefault(...)}).prefault({}) 而非 z.object({...}).optional()\n' +
-    '     · 枚举限制用z.enum([\'值1\',\'值2\',...])（如状态/品质/属性/阵营）\n' +
-    '     · 联合类型用z.union([z.literal(\'待初始化\'), z.coerce.number()])（允许"待初始化"或数值）\n' +
-    '     · 格式化字符串优先用z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...])（优于正则或手动解析）\n' +
-    '     · 字段含义用.describe(\'描述\')（仅当字段名无法自解释时用，如z.record的key类型；字段名已说明用途时不要画蛇添足）\n' +
-    '     · 插入顺序：若需按插入时间管理key，用_(data).entries()（按插入序列出）；配合 $time: z.coerce.number().prefault(()=>Date.now()) 自动时间戳\n' +
-    '     · 【三条命名铁律（严格执行）】\n' +
-    '       1) 字段用中文（SillyTavern中文生态），禁止中英混杂\n' +
-    '       2) 层级：一级=大分类(世界/角色名/主角/系统)，二级=属性，三级=子属性；禁止平铺(禁止"角色_白娅_好感度")；深度≤4\n' +
-    '       3) 前缀：_开头=AI只读不更新（schema需写注释），renderTree默认跳过；例：_当前回合\n' +
-    '                 $开头=派生显示专用字段（zod transform自动生成），**renderTree显示、AI不更新**；例：$依存度阶段\n' +
-    '                 无前缀=普通可读写字段\n' +
-    '     · transform 后处理可实现：称号数量依赖依存度、物品数量<=0自动过滤、派生$阶段字段等动态规则\n' +
-    '     · 完整示例：\n' +
+    '     · 创作流程（严格按3步执行，不要跳步）：\n' +
+    '       第一步：了解需求，向用户询问\n' +
+    '         1) 这是什么类型的角色卡/世界观？（角色扮演/模拟经营/军事模拟等）\n' +
+    '         2) 需要追踪哪些主要内容？——角色（主角/配角/NPC）、系统变量（时间/日期/金钱等）、每角色追踪字段（好感度/位置/状态等）\n' +
+    '         3) 哪些部分需要限定值？——数值范围/文本格式、是否可加新角色、哪些对象可增删键（物品栏/成就/技能）、是否限对象键数量\n' +
+    '       第二步：确认结构，用自然语言列出结构大纲让用户确认\n' +
+    '         顶层结构：┬ 系统变量（日期/时间/...）├ 角色1（基础属性/...）├ 角色2 └ ...\n' +
+    '       第三步：按zod 4规范编写变量结构.js脚本（严格遵循下面的zod要求和头尾模板）\n' +
+    '     · zod 4 额外zod要求（强制遵守）：\n' +
+    '       - 库：`z` from zod 4.x（只用4.x API！）；`_` from lodash；两库默认可用，不要 import；不要用 z.passthrough/z.strict（不存在）\n' +
+    '       - 幂等：Schema.parse(Schema.parse(input)) === Schema.parse(input)；z.transform 谨慎写，fn 只能接 output，**不可用 context**\n' +
+    '       - 数值：z.coerce.number()（非 z.number()，防AI把数值更新成文本）；boolean 直接 z.boolean()，不要 z.coerce.boolean()\n' +
+    '       - 选对象不选数组：用 物品栏: z.record(z.string().describe(\'物品名\'), z.object({描述:z.string(), ...})) 而非 z.array(...) （数组下标难维护）\n' +
+    '       - 对象 5 种场景：\n' +
+    '         (a) 固定必填键+同类型值：z.record(z.enum([\'上装\',\'下装\']), z.string())\n' +
+    '         (b) 固定可选键+同类型值：z.partialRecord(z.enum([...]), 值类型)\n' +
+    '         (c) 动态可选键+同类型值：z.record(z.string(), 值类型)\n' +
+    '         (d) 固定必填键+不同类型值：z.object({ key1: 类型1, key2: 类型2 })\n' +
+    '         (e) 部分必填+动态同类型：z.intersection(z.object({必填字段}), z.record(z.string(), 值类型))\n' +
+    '       - 可清除对象（会被 remove op 删的）：z.object({字段: 类型.prefault(...), ...}).prefault({})，**不要** z.object({...}).optional()\n' +
+    '       - 约束优先 transform 而不是 min/max：clamp(v,0,100) 而不是 .min(0).max(100)（超范围用户期望部分生效而非整体丢弃）。键上限按插入时间清旧：_(data).entries().takeRight(10)\n' +
+    '       - 默认值：.prefault() 优先于 .default()；复合类型 prefault → 所有子字段也必须 prefault；其他情况不要随便 prefault\n' +
+    '       - describe：仅字段名不能自解释时（如 z.record 的 key 类型）才用；不要画蛇添足\n' +
+    '       - 插入顺序管理：按插入时间清/取 → _(data).entries()；需排序追踪 → 加 $time: z.coerce.number().prefault(() => Date.now())\n' +
+    '       - DRY：相同 schema 直接在 export const Schema = z.object({...}) 内复用，不额外定义中间量\n' +
+    '       - 特殊格式字符串：z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...]) 优先于正则/手动解析\n' +
+    '     · 既有规则（继续严格执行）：\n' +
+    '       - 范围限制用 .transform(v => _.clamp(v, 0, 100))（非 .min().max()）\n' +
+    '       - .transform限制：fn 只能接 output，不可用 context；例：z.object({好感度:z.coerce.number()}).transform(d=>({好感度:_.clamp(d.好感度,0,100)}))\n' +
+    '       - .prefault限制：value 必须是该 schema 的合法 input；可为值/函数（如 () => Date.now()）\n' +
+    '       - .extend限制：只有 z.object/z.looseObject/z.strictObject 能 extend；z.object(...).prefault({}) 不能再 extend\n' +
+    '       - 枚举限制用 z.enum([\'值1\',\'值2\',...])；联合类型用 z.union([z.literal(\'待初始化\'), z.coerce.number()])\n' +
+    '     · 三条命名铁律（严格执行）：\n' +
+    '       1) 字段用中文，禁止中英混杂\n' +
+    '       2) 层级：一级=大分类(世界/角色名/主角/系统)，二级=属性，三级=子属性；禁止平铺（"角色_白娅_好感度"）；深度≤4\n' +
+    '       3) 前缀：_开头=AI只读不更新；$开头=派生显示专用字段（zod transform生成，renderTree显示、AI不更新）；无前缀=普通可读写\n' +
+    '     · 头尾模板（必须原封不动抄，不要改 import URL 和 registerMvuSchema 调用）：\n' +
+    '       文件头：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
+    '       中段：export const Schema = z.object({ ...你的schema... });\n' +
+    '       文件尾：$(() => { registerMvuSchema(Schema); })\n' +
+    '     · transform 后处理可实现：称号数量依存度绑定、物品数量<=0自动过滤、派生$阶段字段等动态规则\n' +
+    '     · 完整示例（按此格式输出为```js代码块）：\n' +
     '       import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '       export const Schema = z.object({\n' +
     '         世界: z.object({\n' +
     '           当前时间: z.string(),\n' +
+    '           当前地点: z.string(),\n' +
     '           近期事务: z.record(z.string().describe(\'事务名\'), z.string().describe(\'事务描述\')),\n' +
     '         }),\n' +
     '         白娅: z.object({\n' +
     '           依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
-    '           $依存度阶段: z.string().optional(),  /* 派生显示字段：AI不更新，renderTree显示 */\n' +
-    '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\']), z.string().describe(\'服装描述\')),\n' +
-    '         }),\n' +
+    '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\',\'袜子\',\'鞋子\',\'饰品\']), z.string().describe(\'服装描述\')),\n' +
+    '           称号: z.record(z.string().describe(\'称号名\'), z.object({效果: z.string(), 自我评价: z.string()})),\n' +
+    '         }).transform(data => ({ ...data, 称号: _(data.称号).entries().takeRight(Math.ceil(data.依存度/10)).fromPairs().value() })),\n' +
     '         主角: z.object({\n' +
-    '           物品栏: z.record(z.string().describe(\'物品名\'), z.object({\n' +
-    '             描述: z.string(), 数量: z.coerce.number(),\n' +
-    '           })).transform(d => _.pickBy(d, ({数量}) => 数量 > 0)),\n' +
+    '           物品栏: z.record(z.string().describe(\'物品名\'), z.object({描述: z.string(), 数量: z.coerce.number()}))\n' +
+    '             .transform(d => _.pickBy(d, ({数量}) => 数量 > 0)),\n' +
     '         }),\n' +
-    '       }).transform(data => ({ ...data, 白娅: { ...data.白娅, $依存度阶段: data.白娅.依存度 < 20 ? \'消极自毁\' : data.白娅.依存度 < 40 ? \'冷漠疏离\' : data.白娅.依存度 < 60 ? \'平淡同事\' : data.白娅.依存度 < 80 ? \'信任伙伴\' : \'完全依赖\' } }));\n' +
+    '       });\n' +
     '       $(() => { registerMvuSchema(Schema); })\n' +
+    '     · 注意事项：①变量名可用中文；②此脚本只是变量结构，还需配[InitVar]初始变量、变量更新规则、变量输出格式 3 条世界书条目；③写MVU Tab时，脚本输出后给用户一句："这只是变量结构，是否继续生成[InitVar]初始变量和变量更新规则？"\n' +
     '\n' +
     '## 9.2 三条联动机制\n' +
     '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
@@ -5126,13 +5141,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   function generateMvuSchemaScript(initVarContent) {
-    // ⚠️改进R2+R3+R7：对齐tavern_helper_template标准实现
-    // 1. HEADER 补充 z 和 _ 的 import（运行期裸用会 ReferenceError）
-    // 2. FOOTER 补充 registerMvuSchema(Schema) 调用（否则 schema 定义了但未注册到 MVU）
-    // 3. transform 中的 _.clamp 改为纯 JS Math.max/Math.min（去 lodash 依赖）
-    // 4. R7：追加派生字段 transform（$好感度阶段 / $关系阶段 / $心情阶段 等），
-    //    基于同名数值字段自动派生，renderTree可显示、AI不更新、符合前缀命名铁律
-    var HEADER = "import { z, registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    // ⚠️对齐用户规范（zod 4 + lodash 默认可用，不需要 import
+    // 1. HEADER 只 import registerMvuSchema（z 和 _ 运行期全局可用，不要 import）
+    // 2. FOOTER 补 registerMvuSchema(Schema) 注册
+    // 3. transform 用 _.clamp（_ 默认可用
+    // 4. R7：追加派生字段 transform（$好感度阶段/$关系阶段/$心情阶段 等
+    //    基于同名数值字段自动派生，renderTree可显示、AI不更新
+    var HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
 
     function isAffinityLike(name) {
       return /好感|依存|信任|忠诚|友好|亲密/.test(name);
@@ -5160,8 +5175,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       if (typeof val === 'number') {
         if (isAffinityLike(key)) {
-          // ⚠️R3：用纯 JS Math.max/Math.min 替代 _.clamp，去 lodash 依赖
-          return 'z.coerce.number().prefault(' + val + ').transform(value => Math.max(0, Math.min(100, value)))';
+          // ⚠️用户规范：lodash _ 默认可用，用 _.clamp
+          return 'z.coerce.number().prefault(' + val + ').transform(value => _.clamp(value, 0, 100))';
         }
         return 'z.coerce.number().prefault(' + val + ')';
       }
