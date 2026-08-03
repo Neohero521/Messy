@@ -3341,10 +3341,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 固定正则特征匹配（兜底，防止AI改id）
       if (rxFind.indexOf('Analysis') >= 0 && r.promptOnly) return true;  // 正则1
       if (rxFind.indexOf('UpdateVariable') >= 0 && r.promptOnly) return true;  // 正则2
-      if (rxFind.indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly) {
-        var rs = String(r.replaceString || '');
-        if (rs.indexOf('mvu-done') >= 0 || rs.indexOf('mvu-thinking') >= 0) return true;  // 正则3/4
-      }
+      if (rxFind.indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly) return true;  // 正则3/4
       if (rxFind.indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly) return true;  // 正则5
       return false;
     }
@@ -6765,7 +6762,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // 正则3：[美化]变量完成 - 美化已完成的UpdateVariable显示（markdownOnly）
           var hasBeautifyCompleteRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-done') >= 0;
+            return r.id === '6fb572ae-a9ea-436d-9779-ad100f1ff7f5';
           });
           if (!hasBeautifyCompleteRegex) {
             mvuRegex.push({
@@ -6786,7 +6783,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // 正则4：[美化]变量更新中 - 美化流式输出中的UpdateVariable显示
           var hasBeautifyThinkingRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-thinking') >= 0;
+            return r.id === 'bf1b7441-5cf1-426d-bd6c-911332be9923';
           });
           if (!hasBeautifyThinkingRegex) {
             mvuRegex.push({
@@ -10449,6 +10446,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var rxList = cardData.extensions.regex_scripts;
         var injected = [];
 
+        // === 0. 去重清理：移除已累积的重复固定正则（只保留每个id的第一份）===
+        var _fixedRxIds = {
+          'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36': true,
+          '5bb4b588-23ca-4564-8df5-882104eff764': true,
+          '6fb572ae-a9ea-436d-9779-ad100f1ff7f5': true,
+          'bf1b7441-5cf1-426d-bd6c-911332be9923': true,
+          'mvu-status-hide': true
+        };
+        var _seenRxIds = {};
+        var _dedupedRx = [];
+        for (var _ri = 0; _ri < rxList.length; _ri++) {
+          var _r = rxList[_ri];
+          if (!_r) continue;
+          var _rid = _r.id || '';
+          if (_rid && _fixedRxIds[_rid]) {
+            if (_seenRxIds[_rid]) continue;
+            _seenRxIds[_rid] = true;
+          }
+          _dedupedRx.push(_r);
+        }
+        if (_dedupedRx.length !== rxList.length) {
+          cardData.extensions.regex_scripts = _dedupedRx;
+          rxList = _dedupedRx;
+        }
+
         // === 1. 注入 bundle.js（MVU本体脚本）===
         var hasBundle = thScripts.some(function(s) { return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0; });
         if (!hasBundle) {
@@ -10493,7 +10515,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 4. 注入正则1：仅格式思维链（移除<Analysis>段）===
-        var hasR1 = rxList.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
+        var hasR1 = rxList.some(function(r) { return r.id === 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36' || ((r.findRegex || r.find_regex || '').indexOf('Analysis') >= 0 && r.promptOnly); });
         if (!hasR1) {
           rxList.push({ id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36', scriptName: '仅格式思维链',
             findRegex: '/<Analysis>[\\s\\S]+?<\\/Analysis>/gm', replaceString: '', trimStrings: [],
@@ -10503,7 +10525,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 5. 注入正则2：只发送最新2楼的变量更新 ===
-        var hasR2 = rxList.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly; });
+        var hasR2 = rxList.some(function(r) { return r.id === '5bb4b588-23ca-4564-8df5-882104eff764' || ((r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly); });
         if (!hasR2) {
           rxList.push({ id: '5bb4b588-23ca-4564-8df5-882104eff764', scriptName: '只发送最新2楼的变量更新',
             findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm', replaceString: '', trimStrings: [],
@@ -10513,9 +10535,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 6. 注入正则3：[美化]变量完成 ===
-        var hasR3 = rxList.some(function(r) {
-          return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-done') >= 0;
-        });
+        var hasR3 = rxList.some(function(r) { return r.id === '6fb572ae-a9ea-436d-9779-ad100f1ff7f5'; });
         if (!hasR3) {
           rxList.push({ id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5', scriptName: '[美化]变量完成',
             findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
@@ -10525,9 +10545,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 7. 注入正则4：[美化]变量更新中 ===
-        var hasR4 = rxList.some(function(r) {
-          return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.markdownOnly && !r.promptOnly && (r.replaceString || '').indexOf('mvu-thinking') >= 0;
-        });
+        var hasR4 = rxList.some(function(r) { return r.id === 'bf1b7441-5cf1-426d-bd6c-911332be9923'; });
         if (!hasR4) {
           rxList.push({ id: 'bf1b7441-5cf1-426d-bd6c-911332be9923', scriptName: '[美化]变量更新中',
             findRegex: '/<UpdateVariable(?:variable)?>(?!.*<\\/UpdateVariable(?:variable)?>)\\s*(.*)\\s*$/gsi',
@@ -10538,7 +10556,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // === 8. 注入正则5：[不发送]隐藏状态栏标记 ===
         var hasR5 = rxList.some(function(r) {
-          return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly;
+          return r.id === 'mvu-status-hide' || ((r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly);
         });
         if (!hasR5) {
           rxList.push({ id: 'mvu-status-hide', scriptName: '[不发送]隐藏状态栏标记',
