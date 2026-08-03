@@ -1965,6 +1965,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         缺任何一个模块都不会保存，避免生成残缺不可用的状态栏\n' +
     '         修改时旧状态栏保持不变，直到新模块全部收集完毕才覆盖\n' +
     '\n' +
+    '      ▶ Step 0（最重要一步）：了解用户的初始变量结构\n' +
+    '        仔细阅读用户的变量结构脚本（zod Schema）和 [InitVar] 初始变量，识别：\n' +
+    '          · 变量路径是什么？（例：角色.络络.好感度 → 实际 _.get 路径 stat_data.络络.好感度）\n' +
+    '          · 有哪些核心字段需要显示？（_前缀只读跳过；$前缀派生显示字段需保留；其他全显示）\n' +
+    '          · 数据是怎么组织的？（对象/数组/嵌套层级，决定渲染方式）\n' +
+    '        问用户：①要追踪哪些核心变量？②什么 UI 风格？（卡片/列表/进度条/Tab 等）③有没有特殊显示需求？\n' +
+    '        交付：用自然语言复述变量结构 + 确认用户想要的 UI 风格，问"理解对吗？可以进 Step 1 变量盘点吗？"\n' +
+    '        结尾给用户的提示：简单告诉用户"下一步是 Step 1 变量盘点表，说继续"即可，不要装饰符号、表情、分隔线\n' +
+    '\n' +
     '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）【改进9：扩展7列】\n' +
     '        产出：表格（7列，顺序固定） | 变量路径 | 类型 | 派生规则（如有） | 空值兜底 | 是否跳过（_/$开头需明确） | 显示格式 | 分组 | 显示名 |\n' +
     '        范围：从用户zod schema提取所有字段。不要直接跳过_/$开头的——先看【是否跳过】列再决定：\n' +
@@ -2013,6 +2022,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          · 不为每个变量写id（递归 renderTree 会自动生成 .stat-item DOM）\n' +
     '          · 不写style属性、不写script\n' +
     '        · 三层核心骨架必须保留（不可缺）：.mvu-status-card > .card-body[id=render-root] > .loading-state （加载占位）\n' +
+    '        · 【页面支撑铁律（用户规范补充）】\n' +
+    '          - 页面必须有外部支撑，主体内容**禁止**使用 position:absolute 等脱离文档流的样式\n' +
+    '          - 页面整体应适配容器宽度，**不产生横向滚动条**\n' +
+    '          - 如果样式更适合卡片形状，则**不要有背景颜色**（除非用户明确要求）\n' +
     '        示例片段（含status-tabs固定结构层）：\n' +
     '          <div class="mvu-status-card">\n' +
     '            <div class="status-tabs">/* 固定Tab导航：状态/背包/关系/日志 */\n' +
@@ -2031,7 +2044,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          核心必含：.mvu-status-card/.category-title/.stat-grid/.nested-group(嵌套对象左侧虚线缩进容器)/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4\n' +
     '          显示格式可选：.progress-bar(进度条容器背景)+.progress-bar-fill(进度条fill)\n' +
     '          固定结构层可选（如有）：.status-header/.status-tabs/.status-footer 及对应交互态.active\n' +
-    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度\n' +
+    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片状不要背景色（除非用户明确要求）\n' +
     '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
     '        结尾给用户的提示：简单告诉用户"下一步Step 5渲染函数，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
@@ -2041,6 +2054,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          · 【_getVars作用域必须正确】必须定义在refreshStatus外部（顶层作用域），否则Step6的while循环访问不到会ReferenceError\n' +
     '          · 定义helper _getVars()：优先getVariables({type:"message",message_id:"latest"})，try/catch fallback到getAllVariables()（StageDog标准：UI用消息级scope）\n' +
     '          · 用 _.get(_getVars(), "stat_data", {}) 读变量（根路径与InitVar YAML根字段一致）\n' +
+    '          · 【注释规范（用户铁律）】仅能使用 /*注释*/，**禁止使用 // 注释**（否则可能渲染失败）\n' +
+    '          · 【DOM操作（用户铁律）】使用 jquery（如 $(\'#id\').text(value)）而非原生 DOM 操作。例外：renderTree 内部拼接 HTML 字符串后用 document.getElementById("render-root").innerHTML 写入是允许的（性能优化的标准模式）\n' +
     '          · 递归 renderTree 遍历对象生成HTML字符串：\n' +
     '              - 跳键规则（严格按Step1是否跳过列）：_前缀纯只读=跳过；$前缀派生显示字段如$阶段=不跳过；$前缀纯元数据如$time=跳过\n' +
     '              - 【嵌套对象加 .nested-group 容器】（Step1有>2层嵌套时必须加）：category-title+下一级stat-grid包裹在<div class="nested-group">中（左侧虚线框明确从属关系）\n' +
@@ -2089,38 +2104,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '        结尾给用户的提示：简单告诉用户"下一步Step 6入口，说继续"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
     '      ▶ Step 6：异步入口+轮询绑定（仅JS入口代码，StageDog标准两步就绪+2秒轮询+事件兜底）\n' +
-    '        产出（完整入口代码块）：\n' +
-    '          $(async function() {\n' +
-    '            try {\n' +
-    '              /* 1. 等MVU框架挂载 */\n' +
-    '              await waitGlobalInitialized(\'Mvu\');\n' +
-    '              /* 2. StageDog waitUntil模式：等stat_data存在（最多15秒） */\n' +
-    '              var _waitCount = 0;\n' +
-    '              while (!_.has(_getVars(), "stat_data") && _waitCount < 15) {\n' +
-    '                await new Promise(function(r) { setTimeout(r, 1000); });\n' +
-    '                _waitCount++;\n' +
-    '              }\n' +
-    '              /* 3. 首次渲染 */\n' +
-    '              refreshStatus();\n' +
-    '              /* 4. StageDog主机制：每2秒轮询同步（与defineMvuDataStore相同策略） */\n' +
-    '              setInterval(refreshStatus, 2000);\n' +
-    '              /* 5. 事件绑定：仅作加分兜底，UI不得依赖事件（StageDog标准） */\n' +
-    '              try {\n' +
-    '                if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
-    '                  eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n' +
-    '                  eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n' +
-    '                }\n' +
-    '              } catch(e) {}\n' +
-    '            } catch(err) {\n' +
-    '              console.warn(\'[statusbar] init failed:\', err && err.message, err && err.stack);\n' +
-    '              try { var root = document.getElementById("render-root") || document.body; if (root) root.innerHTML = \'<div style="padding:12px;color:#fca5a5;font-size:12px">初始化失败：\' + (err && err.message ? err.message : String(err)) + \'</div>\'; } catch(e) {}\n' +
+    '        产出（完整入口代码块）——【用户铁律：init 函数用 errorCatched 包装后放入 $(() => {})】：\n' +
+    '          async function init() {\n' +
+    '            /* 1. 等MVU框架挂载（用户铁律：入口必须 await waitGlobalInitialized(\'Mvu\')）*/\n' +
+    '            await waitGlobalInitialized(\'Mvu\');\n' +
+    '            /* 2. StageDog waitUntil模式：等stat_data存在（最多15秒） */\n' +
+    '            var _waitCount = 0;\n' +
+    '            while (!_.has(_getVars(), "stat_data") && _waitCount < 15) {\n' +
+    '              await new Promise(function(r) { setTimeout(r, 1000); });\n' +
+    '              _waitCount++;\n' +
     '            }\n' +
-    '          });\n' +
-    '        规则（StageDog铁则）：\n' +
-    '          · 顶层入口用 $(async function(){ try {...} catch(err){} }) —— jQuery ready + async。顶层禁止用errorCatched包裹（仅pinia store内部setup可用）\n' +
+    '            /* 3. 首次渲染 */\n' +
+    '            refreshStatus();\n' +
+    '            /* 4. StageDog主机制：每2秒轮询同步（与defineMvuDataStore相同策略） */\n' +
+    '            setInterval(refreshStatus, 2000);\n' +
+    '            /* 5. 事件绑定：仅作加分兜底，UI不得依赖事件（StageDog标准） */\n' +
+    '            try {\n' +
+    '              if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu && Mvu.events) {\n' +
+    '                eventOn(Mvu.events.VARIABLE_INITIALIZED, refreshStatus);\n' +
+    '                eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus);\n' +
+    '              }\n' +
+    '            } catch(e) {}\n' +
+    '          }\n' +
+    '          $(errorCatched(init));\n' +
+    '        规则（StageDog铁则 + 用户铁律合并）：\n' +
+    '          · 【用户铁律】init 函数经过 errorCatched 包装后放入 $(() => {}) 中，即 $(errorCatched(init))\n' +
+    '          · 【用户铁律】入口必须 await waitGlobalInitialized(\'Mvu\')；除 waitGlobalInitialized 外，**禁止使用 Mvu 做任何事**（Mvu.watch/Mvu.observe 等接口并不存在）\n' +
     '          · 必须有两步就绪：先waitGlobalInitialized("Mvu")，再while+setTimeout轮询stat_data就绪（StageDog waitUntil模式）\n' +
     '          · 主同步机制：setInterval(refreshStatus, 2000) —— 每2秒轮询，等同于defineMvuDataStore内部useIntervalFn(2000)\n' +
-    '          · 事件仅作加分兜底：try/catch双重包裹调用eventOn；UI不得依赖事件（禁用Mvu.watch等不存在接口）\n' +
+    '          · 事件仅作加分兜底：try/catch双重包裹调用eventOn；UI不得依赖事件\n' +
+    '          · 【用户铁律】可直接使用 jquery/jqueryui/lodash/yaml/zod/toastr，无需额外导入\n' +
+    '          · 【用户铁律】变量从全局 _.get(getAllVariables(), "stat_data") 获取（_getVars helper 已封装此读取逻辑）\n' +
     '        交付：展示完整入口代码，问"2秒轮询+事件兜底OK吗？"\n' +
     '        结尾给用户的提示：简单告诉用户"完成，自查"即可，不要装饰符号、表情、分隔线\n' +
     '\n' +
@@ -2132,20 +2146,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '          ① 确认 Step 2-6 的代码块都已输出（写卡器自动识别各Step代码块，无需 /* === Step N === */ 标记）\n' +
     '          ② 模块间交叉对照自查（发现问题回到对应Step修正——但每次只能重新输出一个Step）：\n' +
     '            a. HTML结构：Step 3骨架是合法HTML片段，含 id="render-root" 根容器\n' +
-    '            b. 注释规范：全文无 // 注释，仅 /* */\n' +
-    '            c. DOM规范：用 document.getElementById("render-root")，非jQuery $("#stat-xxx")\n' +
+    '            b. 注释规范：全文无 // 注释，仅 /* */（用户铁律，否则可能渲染失败）\n' +
+    '            c. DOM规范：renderTree 内部用 document.getElementById("render-root").innerHTML 写入是允许的（性能模式）；其他 DOM 操作用 jquery（$(\'#id\').text() 等）\n' +
     '            d. 变量路径：_getVars() helper存在，优先getVariables({type:"message"})，fallback getAllVariables()；_.get 根路径为 "stat_data" 与InitVar一致\n' +
     '            e. 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
-    '            f. StageDog异步就绪：Step 6有两步（waitGlobalInitialized + while轮询stat_data），顶层入口用 $(async function(){try/catch})\n' +
+    '            f. 异步就绪（用户铁律）：Step 6 入口必须 await waitGlobalInitialized(\'Mvu\')，再用 while+setTimeout 轮询 stat_data；init 函数用 errorCatched 包装后放入 $(() => {})，即 $(errorCatched(init))\n' +
     '            g. StageDog同步机制：Step 6含 setInterval(refreshStatus, 2000)（主机制）；事件仅为try/catch包裹的兜底\n' +
-    '            h. 布局安全：无vh单位、无position:absolute、无min-height/overflow:auto\n' +
-    '            i. 隐藏接口：未使用Mvu.watch/Mvu.observe等不存在的接口；顶层没调用errorCatched\n' +
+    '            h. 布局安全：无vh单位（用width+aspect-ratio）、无position:absolute、无min-height/overflow:auto、适配容器宽度不横向滚动、卡片状不要背景色（除非用户明确要求）\n' +
+    '            i. 隐藏接口：除 waitGlobalInitialized(\'Mvu\') 外，未使用 Mvu.watch/Mvu.observe 等不存在的接口\n' +
     '            j. ⚠️模块间一致性对照（核心）：\n' +
     '               - Step 3的id命名 vs Step 6的DOM操作目标 → 必须一一对应\n' +
     '               - Step 5的_getVars辅助函数 vs Step 6中while循环的_.has(_getVars(),"stat_data")调用 → 必须命名完全一致\n' +
     '               - Step 2的CSS变量名 vs Step 5的className引用 → 必须完全一致\n' +
     '               - Step 3的class命名 vs Step 4的选择器 → 必须一一对应\n' +
     '               - Step 1的变量路径 vs Step 5的_.get路径 → 必须完全一致\n' +
+    '               - Step 6 的 init 函数 vs $(errorCatched(init)) 调用 → 命名必须一致\n' +
     '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
     '        ⚠️禁止在Step 7重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
     '        ⚠️Step 7不输出任何代码块，仅做文字确认和自查报告\n' +
