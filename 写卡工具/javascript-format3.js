@@ -3788,10 +3788,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
+      // 🐛修复：助手消息中可能包含代码块（JSON/statusblock），发送给AI前清理掉以节省token
+      var msgContent = m.content || '';
+      if (m.role === 'assistant') {
+        msgContent = msgContent
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/<details[\s\S]*?<\/details>/gi, '')
+          .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
+          .trim();
+        if (!msgContent || msgContent.length <= 5) msgContent = '（已应用修改）';
+      }
       if (isLast && m.role === 'user') {
-        fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + m.content + '\n\n';
+        fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + msgContent + '\n\n';
       } else {
-        fullPrompt += roleLabel + ': ' + m.content + '\n\n';
+        fullPrompt += roleLabel + ': ' + msgContent + '\n\n';
       }
     });
     fullPrompt += '助手: ';
@@ -4210,10 +4220,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
+      // 🐛修复：助手消息中可能包含代码块（JSON/statusblock），发送给AI前清理掉以节省token
+      var msgContent = m.content || '';
+      if (m.role === 'assistant') {
+        msgContent = msgContent
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/<details[\s\S]*?<\/details>/gi, '')
+          .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
+          .trim();
+        if (!msgContent || msgContent.length <= 5) msgContent = '（已应用修改）';
+      }
       if (isLast && m.role === 'user') {
-        fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + m.content + '\n\n';
+        fullPrompt += '>>>【当前需要处理的最新指令】<<<\n' + roleLabel + ': ' + msgContent + '\n\n';
       } else {
-        fullPrompt += roleLabel + ': ' + m.content + '\n\n';
+        fullPrompt += roleLabel + ': ' + msgContent + '\n\n';
       }
     });
     fullPrompt += '助手: ';
@@ -8858,29 +8878,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
       function exportChatLogs() {
-        var log = {
-          exportTime: new Date().toISOString(),
-          toolVersion: 'Card_making_tool',
-          cardData: cardData,
-          currentTab: currentTab,
-          cardMessages: cardMessages,
-          mvuMessages: mvuMessages,
-          mvuTabStatusBarModules: mvuTabStatusBarModules,
-          mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep,
-          statusBarModules: statusBarModules,
-          progress: progress,
-          moduleProgress: moduleProgress
-        };
-        var blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a = doc.createElement('a');
-        a.href = url;
-        a.download = 'chatlog_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
-        doc.body.appendChild(a);
-        a.click();
-        doc.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('✅ 已导出聊天记录和后台记录', 'success');
+        try {
+          var log = {
+            exportTime: new Date().toISOString(),
+            toolVersion: 'Card_making_tool',
+            cardData: cardData,
+            currentTab: currentTab,
+            cardMessages: cardMessages,
+            mvuMessages: mvuMessages,
+            mvuTabStatusBarModules: mvuTabStatusBarModules,
+            mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep,
+            statusBarModules: statusBarModules,
+            progress: progress,
+            moduleProgress: moduleProgress
+          };
+          var blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json;charset=utf-8' });
+          var url = URL.createObjectURL(blob);
+          var a = doc.createElement('a');
+          a.href = url;
+          a.download = 'chatlog_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+          doc.body.appendChild(a);
+          a.click();
+          doc.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('✅ 已导出聊天记录和后台记录', 'success');
+        } catch(err) {
+          console.error('[exportChatLogs] error:', err);
+          showToast('❌ 导出失败：' + (err && err.message ? err.message : '未知错误'), 'error');
+        }
       }
       function appendMsg(role, content) {
         var c = doc.getElementById('chatMessages');
@@ -8909,7 +8934,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         }
         if (bubbleHtml) {
-          div.innerHTML = avatarHtml + '<div class="bubble" data-raw-text="' + content.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">' + bubbleHtml + '</div>';
+          // 🐛修复：转义顺序必须是 & → " → < → >，否则 &lt; 等已有实体会被二次解码
+          div.innerHTML = avatarHtml + '<div class="bubble" data-raw-text="' + content.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">' + bubbleHtml + '</div>';
         } else {
           div.innerHTML = avatarHtml + '<div class="bubble"></div>';
           var bubbleEl = div.querySelector('.bubble');
@@ -9049,7 +9075,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return merged;
       }
       function renderMessageSections(sections, msgId) {
-        if (!sections || (sections.length === 1 && sections[0].type === 'content')) {
+        // 🐛修复：单段长文本（>200字）也用折叠包裹，让用户可以缩放
+        // 之前只有多段才折叠，导致第一句话（欢迎语）等单段长文本无法缩放
+        if (!sections || (sections.length === 1 && sections[0].type === 'content' && sections[0].content.length <= 200)) {
           return fmtBubble(sections ? sections[0].content : '');
         }
         var html = '';
@@ -10911,22 +10939,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               });
             }
           }
-          // 对话框显示：用原始 aiResponse（保留JSON代码块和statusblock让用户看到完整输出）
-          // 历史存储：用清理后的文本（去掉JSON块和statusblock HTML，节省token防止历史膨胀）
+          // 对话框显示与历史存储：统一用原始 aiResponse（保留JSON代码块和statusblock）
+          // 🐛修复：之前存储 cleanContent（去掉代码块），导致「继续上次」后代码块消失、正文无法折叠
+          // 现在改为存储 rawContent，在 buildPrompt 发送给AI时再清理代码块（节省token）
           var rawContent = aiResponse;
-          var cleanContent = aiResponse
-            .replace(/```[\s\S]*?```/g, '')
-            .replace(/<details[\s\S]*?<\/details>/gi, '')
-            .trim();
 
-          // 1. 先显示完整内容到对话框（用户需要看到JSON和statusblock）
+          // 1. 显示完整内容到对话框（用户需要看到JSON和statusblock）
           try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
 
-          // 2. 再存储清理后的对话文本到历史（Tab隔离：存到当前Tab的专属数组）
-          if (cleanContent && cleanContent.length > 5) {
-            curTabMessages.push({ role: 'assistant', content: cleanContent });
+          // 2. 存储原始内容到历史（Tab隔离：存到当前Tab的专属数组）
+          if (rawContent && rawContent.trim().length > 0) {
+            curTabMessages.push({ role: 'assistant', content: rawContent });
           } else {
-            // 清理后太短说明AI只输出了JSON没有自然对话，用简短摘要
             curTabMessages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
           }
           saveToStorage();
