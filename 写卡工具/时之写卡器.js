@@ -1341,7 +1341,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）【改进19：结构化分段（弱模型召回）】\n' +
-    '- 【总览】五大核心组件 + 三条联动机制 + 九条铁则（写卡器自动注入脚本/正则1-5/占位符提醒条目；4条MVU变量条目和正则6由AI生成）\n' +
+    '- 【总览】五大核心组件 + 三条联动机制 + 九条铁则（写卡器自动注入 bundle.js/正则1-5；变量结构脚本/4条MVU变量条目/正则6/<状态栏>占位符提醒条目均由AI在MVU Tab一条一条生成）\n' +
     '- 【Tab隔离】状态栏生成/正则6/4条MVU条目已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成。如需生成，请提示用户切换Tab。\n' +
     '- 【灰色模式】本Tab可在普通世界书条目中讨论/规划变量结构（如"变量设计说明""schema草案"），但带[InitVar]/[mvu_update]/StatusPlaceHolderImpl/<UpdateVariable>/format_message_variable/stat_data等功能性标记的真实MVU条目仍会被拦截——这些必须到MVU Tab生成。\n' +
     '- 【状态栏实现二选一】简单项目=【写卡器标准原生方案】（MVU Tab的Step 1-7流程，教的就是这个）；复杂大型界面=【StageDog官方Vue3+Pinia组件化方案】（需webpack打包，参考示例但不在本流程）。绝对禁止混用！\n' +
@@ -1407,7 +1407,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 内容完全固定，**原封不动地输出以下 YAML，不要修改任何字段、不要加注释、不要替换占位符**：\n' +
     '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
-    '9.1.5 变量结构脚本：tavern_helper.scripts脚本（写卡器自动注入），用zod 4库定义变量结构并registerMvuSchema注册\n' +
+    '9.1.5 变量结构脚本：tavern_helper.scripts脚本（AI在MVU Tab按工作流一条一条生成），用zod 4库定义变量结构并registerMvuSchema注册\n' +
     '     · 创作流程（严格按3步执行，不要跳步）：\n' +
     '       第一步：了解需求，向用户询问\n' +
     '         1) 这是什么类型的角色卡/世界观？（角色扮演/模拟经营/军事模拟等）\n' +
@@ -1470,6 +1470,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       $(() => { registerMvuSchema(Schema); })\n' +
     '     · 注意事项：①变量名可用中文；②此脚本只是变量结构，还需配[InitVar]初始变量、变量更新规则、变量输出格式 3 条世界书条目；③写MVU Tab时，脚本输出后给用户一句："这只是变量结构，是否继续生成[InitVar]初始变量和变量更新规则？"\n' +
     '\n' +
+    '## 9.1.6 MVU变量条目生成工作流（⚠️一条一条写，禁止一次性塞全部）\n' +
+    '     · 用户在 MVU Tab 要求"生成变量系统"时，按以下顺序**逐条**生成，每生成一条停下等用户说"继续"再生成下一条：\n' +
+    '       第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）—— 见 9.1.5 工作流\n' +
+    '       第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 依据第1条 schema 生成 YAML，见 9.1.1\n' +
+    '       第3条：变量列表（世界书条目，constant=true depth=0）—— 固定内容，见 9.1.2\n' +
+    '       第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条 schema 生成 check/type/range，见 9.1.3\n' +
+    '       第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定 YAML，原封不动输出，见 9.1.4\n' +
+    '       第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认 enabled=false）—— 固定 YAML，原封不动输出\n' +
+    '       第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒 AI 每条回复底部输出 <StatusPlaceHolderImpl/>\n' +
+    '       第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true）—— 走 Step 0-7 状态栏生成流程\n' +
+    '     · 【铁律1：一条一条】每次只输出一条条目/脚本，输出后停下问用户"要继续下一条吗？"\n' +
+    '     · 【铁律2：schema 驱动】第2/4条必须严格依据第1条的 schema 字段名/层级/类型生成，schema 一改这两条必跟改\n' +
+    '     · 【铁律3：固定内容原样输出】第3/5/6条是固定 YAML/固定内容，原封不动输出，不要修改任何字段\n' +
+    '     · 【铁律4：第7条之后才进状态栏】<状态栏>占位符提醒条目生成完，才进 Step 0-7 状态栏 HTML 生成流程\n' +
+    '     · 【写卡器自动注入范围】以下由写卡器自动注入，AI **不要生成**：\n' +
+    '       - MVU 本体脚本 bundle.js（tavern_helper.scripts）\n' +
+    '       - 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）\n' +
+    '       其他所有变量条目、变量结构脚本、正则6、<状态栏>占位符提醒条目均由 AI 按本工作流一条一条生成\n' +
+    '\n' +
     '## 9.2 三条联动机制\n' +
     '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
     '     · 变量读取（状态栏渲染推荐）：优先getVariables({type:"message", message_id:"latest"})，fallback getAllVariables()；用_.get(res,"stat_data",{})取根。UI用消息级scope，不要直接Mvu.getVar（有时序失效问题）\n' +
@@ -1505,7 +1524,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 正则3（markdownOnly）：美化已完成的<UpdateVariable>折叠显示\n' +
     '     · 正则4（markdownOnly）：美化正在输出的<UpdateVariable>流式动画\n' +
     '     · 正则5（promptOnly）：从提示词移除<StatusPlaceHolderImpl/>占位符\n' +
-    '9.3.2 <状态栏>占位符提醒条目（写卡器自动注入，constant=true常驻）：提醒AI每条消息底部输出<StatusPlaceHolderImpl/>\n' +
+    '9.3.2 <状态栏>占位符提醒条目（AI在MVU Tab按9.1.6工作流一条一条生成，constant=true常驻）：提醒AI每条消息底部输出<StatusPlaceHolderImpl/>\n' +
     '9.3.3 正则6【AI必须生成】：[美化]MVU状态栏（markdownOnly=true, promptOnly=false）\n' +
     '     · findRegex = /<StatusPlaceHolderImpl\\/>/g；replaceString = 用```包裹的完整HTML状态栏（MVU Tab Step 2-6共5槽位拼接）\n' +
     '     · 三版正则区分：promptOnly只改发给AI的提示词；markdownOnly只改显示渲染；全局版（无标记）改所有内容\n' +
@@ -2332,7 +2351,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
-    '注6：MVU脚本（bundle.js/zod schema）、正则1-5和<状态栏>占位符提醒条目由写卡器自动注入，无需AI生成；正则6（美化状态栏）和4条MVU变量条目需AI生成\n\n' +
+    '注6：MVU脚本（bundle.js）和正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需AI生成；变量结构脚本（zod schema）、<状态栏>占位符提醒条目、正则6（美化状态栏）和4条MVU变量条目（[InitVar]初始变量/变量列表/变量更新规则/变量输出格式）由AI在MVU Tab按9.1.6工作流一条一条生成\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -2437,12 +2456,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · 参考：MagVarUpdate example_src\n' +
     '- MVU zod安装清单：\n' +
     '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'【写卡器自动注入】\n' +
-    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定【写卡器自动注入】\n' +
-    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【写卡器自动注入】\n' +
-    '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI生成\n' +
+    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定【AI按需在MVU Tab生成】\n' +
+    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【AI在MVU Tab按9.1.5/9.1.6工作流一条一条生成】\n' +
+    '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI在MVU Tab按9.1.6工作流生成\n' +
     '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
-    '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【写卡器自动注入】\n' +
-    '  7. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI生成】\n\n' +
+    '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【AI在MVU Tab按9.1.6工作流一条一条生成】\n' +
+    '  7. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI在MVU Tab按9.1.6工作流一条一条生成】\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -3563,21 +3582,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!_topRegexScriptsProcessed) mergeRegexScripts(partial.extensions.regex_scripts);
           } else if (ek === 'tavern_helper') {
             // 修复版：支持脚本删除 / 按 id/name 替换，不再只追加
-            // ⚠️ MVU固定脚本白名单拦截：bundle.js（MVU本体）、WTC（世界书调用脚本）由写卡器导出时自动注入，
+            // ⚠️ MVU固定脚本白名单拦截：bundle.js（MVU本体）由写卡器自动注入，
             //   禁止AI写入cardData（避免导出时重复注入2份）
-            //   只允许AI修改：变量结构 (id=mvu-schema 或 name='变量结构' 或 含 mvu_zod)
+            //   允许AI修改：变量结构 (id=mvu-schema 或 name='变量结构' 或 含 mvu_zod)、WTC（世界书调用，AI按需生成）
             var MVU_FIXED_SCRIPT_IDS = {
-              '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)',
-              'wtc-lorebook-call': '世界书调用 (WTC)'
+              '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)'
             };
             function isFixedMvuScript(scr) {
               if (!scr) return false;
               if (scr.id && MVU_FIXED_SCRIPT_IDS[scr.id]) return true;
-              var sName = String(scr.name || '');
               var sContent = String(scr.content || '');
-              // 特征兜底：bundle.js / MagVarUpdate = MVU本体；LorebookToolCall / wtc = 世界书调用脚本
+              // 特征兜底：bundle.js / MagVarUpdate = MVU本体（唯一受保护的固定资产）
               if (sContent.indexOf('MagVarUpdate') >= 0 || sContent.indexOf('bundle.js') >= 0) return true;
-              if (sContent.indexOf('LorebookToolCall') >= 0 || (sName.indexOf('世界书调用') >= 0 && sContent.indexOf('wtc') >= 0)) return true;
               return false;
             }
             function isAllowedMvuScript(scr) {
@@ -3585,6 +3601,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (scr.id === 'mvu-schema') return true;
               if (String(scr.name || '').indexOf('变量结构') >= 0) return true;
               if (String(scr.content || '').indexOf('mvu_zod') >= 0) return true;
+              // WTC（世界书调用）由 AI 按需生成，允许修改
+              if (scr.id === 'wtc-lorebook-call') return true;
+              if (String(scr.content || '').indexOf('LorebookToolCall') >= 0) return true;
               return false;
             }
             if (partial.extensions[ek] && typeof partial.extensions[ek] === 'object') {
@@ -6773,57 +6792,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               data: {}
             });
           }
-          // 自动注入"变量结构"zod schema 脚本
-          // 该脚本用 zod 4 定义变量结构（export const Schema），MVU 自动检测 Schema 导出并据此校验/修复变量更新
-          // ===== 完整性检测：只要有 import + Schema 定义块即为完整，不强制要求 registerMvuSchema 调用 =====
-          function isMvuSchemaComplete(content) {
-            if (!content || typeof content !== 'string') return false;
-            var hasImport = content.indexOf('tavern_resource/dist/util/mvu_zod') >= 0;
-            var hasSchemaBlock = content.indexOf('z.object') >= 0 && content.indexOf('Schema') >= 0;
-            return hasImport && hasSchemaBlock;
-          }
-          var schemaScriptIdx = -1;
-          var hasSchema = mvuScripts.some(function(s, i) {
-            var match = s.name === '变量结构' || (s.content || '').indexOf('mvu_zod') >= 0;
-            if (match) schemaScriptIdx = i;
-            return match;
-          });
-          var schemaInitEntry = filledEntries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
-          var schemaInitContent = schemaInitEntry ? (schemaInitEntry.content || '') : '';
-          if (!hasSchema) {
-            // 不存在 → 生成并注入完整脚本
-            var fullSchemaContent = generateMvuSchemaScript(schemaInitContent);
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: '变量结构',
-              id: 'mvu-schema',
-              content: fullSchemaContent,
-              info: '自动生成的 MVU 变量结构脚本。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
-          } else if (schemaScriptIdx >= 0 && !isMvuSchemaComplete(mvuScripts[schemaScriptIdx].content)) {
-            // 脚本存在但不完整（缺import或Schema定义）→ 重新生成
-            mvuScripts[schemaScriptIdx].content = generateMvuSchemaScript(schemaInitContent);
-          }
-          // 自动注入"世界书调用"(WTC) 脚本
-          // 用途：将世界书内容用 <observed_piece class="剧情/设定"> 标签包裹，让 AI 区分剧情推进和设定信息
-          // 这有助于 AI 在变量更新时正确识别哪些是世界书设定、哪些是当前剧情
-          var hasWTC = mvuScripts.some(function(s) { return (s.content || '').indexOf('LorebookToolCall') >= 0 || (s.content || '').indexOf('wtc') >= 0; });
-          if (!hasWTC) {
-            mvuScripts.push({
-              type: 'script',
-              enabled: true,
-              name: '世界书调用',
-              id: 'wtc-lorebook-call',
-              content: "import 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js';",
-              info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
-              button: { enabled: true, buttons: [] },
-              data: {}
-            });
-          }
-          // 自动注入MVU必备正则脚本（6条）
+          // ⚠️用户要求：变量结构脚本（zod schema）由 AI 在 MVU Tab 按 9.1.5/9.1.6 工作流一条一条生成，不再导出时自动注入
+          // （原 isMvuSchemaComplete / hasSchema / generateMvuSchemaScript 自动注入逻辑已移除）
+          // ⚠️用户要求：WTC（世界书调用脚本）不再自动注入，由 AI 按需在 MVU Tab 生成
+          // （原 hasWTC 自动注入逻辑已移除）
+          // 自动注入MVU必备正则脚本（5条：正则1-5；正则6 美化状态栏由 AI 在 MVU Tab 生成）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
           var hasAnalysisRegex = mvuRegex.some(function(r) { return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly; });
           if (!hasAnalysisRegex) {
@@ -6928,30 +6901,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               maxDepth: null
             });
           }
-          // 正则6：[美化]MVU状态栏 - 将 <StatusPlaceHolderImpl/> 替换为状态栏HTML（仅格式显示）
-          // 检测AI是否已生成美化状态栏正则（findRegex含StatusPlaceHolderImpl + markdownOnly + 非promptOnly）
-          var hasStatusBarRegex = mvuRegex.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly;
-          });
-          if (!hasStatusBarRegex) {
-            // AI未生成时回退：用 ``` 代码块包裹默认状态栏HTML（StageDog标准，纯三引号不指定语言）
-            var statusBarReplace = '```\n' + MVU_STATUS_BAR_HTML + '\n```';
-            mvuRegex.push({
-              id: 'mvu-status-bar',
-              scriptName: '[美化]MVU状态栏',
-              findRegex: '/<StatusPlaceHolderImpl\\/>/g',
-              replaceString: statusBarReplace,
-              trimStrings: [],
-              placement: [2],
-              disabled: false,
-              markdownOnly: true,
-              promptOnly: false,
-              runOnEdit: false, // StageDog标准：避免编辑消息时重复执行
-              substituteRegex: 0,
-              minDepth: null,
-              maxDepth: null
-            });
-          }
+          // ⚠️用户要求：正则6（[美化]MVU状态栏）由 AI 在 MVU Tab 按 9.1.6 工作流一条一条生成，不再导出时自动注入
+          // （原 hasStatusBarRegex / MVU_STATUS_BAR_HTML 回退注入逻辑已移除）
         }
         return {
           talkativeness: '0.5',
@@ -7152,7 +7103,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           statusBarModules = chatSessions.mvu.modules;
           statusBarCurrentStep = chatSessions.mvu.currentStep;
           statusBarMode = chatSessions.mvu.statusBarMode;
-          // ===== 进入MVU Tab时自动注入固定资产（bundle.js/WTC/正则1-5/变量结构zod）=====
+          // ===== 进入MVU Tab时自动注入固定资产（bundle.js + 正则1-5）=====
+          // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
           // 这些资产固定不变，提前注入让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
           var injectedAssets = ensureFixedMvuAssetsInCardData();
           if (injectedAssets && injectedAssets.length > 0) {
@@ -9795,14 +9747,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             c.indexOf('状态变量输出') >= 0;
         }
 
-        // 固定MVU脚本（禁止AI删除/覆盖）
+        // 固定MVU脚本（禁止AI删除/覆盖）—— 仅 bundle.js；变量结构/WTC/正则6 由 AI 生成可改
         function _isFixedMvuScript(s) {
           var id = (s.id || '').toLowerCase();
           var content = (s.content || '').toLowerCase();
           return id === '961f366d-e403-45c2-8155-3d14ec86de53' || // bundle.js
-            id === 'wtc-lorebook-call' || // WTC
-            content.indexOf('magvarupdate') >= 0 || content.indexOf('bundle.js') >= 0 ||
-            content.indexOf('lorebooktoolcall') >= 0;
+            content.indexOf('magvarupdate') >= 0 || content.indexOf('bundle.js') >= 0;
         }
 
         ops.forEach(function(op) {
@@ -10561,7 +10511,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return true;
       }
 
-      // ===== 进入MVU Tab时自动注入固定资产（bundle.js/WTC/正则1-5/变量结构zod）=====
+      // ===== 进入MVU Tab时自动注入固定资产（bundle.js + 正则1-5）=====
+      // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
       // 这些资产固定不变，由写卡器自动管理，AI无权写入/删除（白名单拦截）
       // 提前注入到cardData，让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
       function ensureFixedMvuAssetsInCardData() {
@@ -10614,33 +10565,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           injected.push('bundle.js');
         }
 
-        // === 2. 注入 WTC（世界书调用脚本）===
-        var hasWTC = thScripts.some(function(s) { return (s.content || '').indexOf('LorebookToolCall') >= 0 || (s.content || '').indexOf('wtc') >= 0; });
-        if (!hasWTC) {
-          thScripts.push({
-            type: 'script', enabled: true, name: '世界书调用', id: 'wtc-lorebook-call',
-            content: "import 'https://cdn.jsdelivr.net/gh/MagicalAstrogy/LorebookToolCall/dist/wtc/index.js';",
-            info: '世界书调用脚本：用 <observed_piece> 标签包裹世界书内容，区分剧情与设定。',
-            button: { enabled: true, buttons: [] }, data: {}
-          });
-          injected.push('WTC');
-        }
-
-        // === 3. 注入变量结构 zod 脚本（如果有 InitVar 条目）===
-        var entries = (cardData.character_book || {}).entries || [];
-        var initVarEntry = entries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
-        if (initVarEntry && initVarEntry.content) {
-          var hasSchema = thScripts.some(function(s) { return s.name === '变量结构' || (s.content || '').indexOf('mvu_zod') >= 0; });
-          if (!hasSchema) {
-            var schemaContent = generateMvuSchemaScript(initVarEntry.content);
-            thScripts.push({
-              type: 'script', enabled: true, name: '变量结构', id: 'mvu-schema',
-              content: schemaContent, info: '自动生成的 MVU 变量结构脚本。',
-              button: { enabled: true, buttons: [] }, data: {}
-            });
-            injected.push('变量结构zod');
-          }
-        }
+        // === 2. 注入变量结构 zod 脚本（如果有 InitVar 条目）===
+        // ⚠️用户要求：变量结构脚本由 AI 在 MVU Tab 一条一条生成，不再自动注入
+        // （原逻辑已移除，AI 按 9.1.5 工作流生成）
 
         // === 4. 注入正则1：仅格式思维链（移除<Analysis>段）===
         var hasR1 = rxList.some(function(r) { return r.id === 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36' || ((r.findRegex || r.find_regex || '').indexOf('Analysis') >= 0 && r.promptOnly); });
@@ -10694,30 +10621,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           injected.push('正则5(隐藏状态栏标记)');
         }
 
-        // === 9. 注入<状态栏>美化样式定义条目（提醒AI每条回复底部输出占位符）===
-        // 参考卡Entry 17：constant=true常驻注入，确保AI始终输出<StatusPlaceHolderImpl/>
-        // 没有此条目，状态栏正则6无内容可替换，后续消息不会显示状态栏
-        var sbEntriesList = (cardData.character_book || {}).entries || [];
-        var hasSbReminder = sbEntriesList.some(function(e) {
-          return e && String(e.comment || '').indexOf('<状态栏>') >= 0 && String(e.content || '').indexOf('StatusPlaceHolderImpl') >= 0;
-        });
-        if (!hasSbReminder) {
-          cardData.character_book = cardData.character_book || { entries: [] };
-          cardData.character_book.entries = cardData.character_book.entries || [];
-          cardData.character_book.entries.push({
-            keys: [], secondary_keys: [],
-            comment: '<状态栏>美化样式定义',
-            content: '你必须在回复底部使用 <StatusPlaceHolderImpl/> 占位符。',
-            constant: true, selective: true, enabled: true,
-            position: 2, depth: 2, order: 35,
-            prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0,
-            cooldown: null, delay: null, sticky: null,
-            use_regex: true, match_whole_words: null, scan_depth: 3,
-            selectiveLogic: 0, probability: 100, useProbability: true,
-            group: '', group_weight: 100
-          });
-          injected.push('<状态栏>占位符提醒条目');
-        }
+        // === 9. <状态栏>占位符提醒条目 ===
+        // ⚠️用户要求：占位符提醒条目由 AI 在 MVU Tab 一条一条生成，不再自动注入
+        // （原逻辑已移除，AI 在生成状态栏相关条目时一并生成）
 
         if (injected.length > 0) {
           console.log('[MVU Tab] 自动注入固定资产:', injected.join('、'));
@@ -10894,9 +10800,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   cardGenerated = true;
                 }
                 progress = calcProgress();
-                // ===== MVU Tab：合并后自动注入/更新固定资产（变量结构zod等）=====
-                // 当AI生成了InitVar条目后，需要自动生成对应的变量结构zod脚本
-                // 同时确保bundle.js/WTC/正则1-5等固定资产始终存在
+                // ===== MVU Tab：合并后确保固定资产（bundle.js + 正则1-5）始终存在 =====
+                // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
+                // 当AI生成了InitVar条目后，触发一次补注入（确保固定资产不丢）
                 if (currentTab === 'mvu') {
                   var mvuEntriesAfterMerge = (cardData.character_book || {}).entries || [];
                   var hasInitVarAfterMerge = mvuEntriesAfterMerge.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
@@ -12817,10 +12723,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (hasMVU) {
             // 4a. 写入 MVU bundle.js 运行时脚本
             await _tavernWriteMvuRuntime(cardData.name);
-            // 4b. 写入变量结构 zod schema 脚本（从 [InitVar] 条目内容生成）
-            var initVarEntry = entries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
-            var schemaInitContent = initVarEntry ? (initVarEntry.content || '') : '';
-            var schemaContent = generateMvuSchemaScript(schemaInitContent);
+            // 4b. 写入变量结构 zod schema 脚本
+            // ⚠️优先使用 AI 在 MVU Tab 按 9.1.5/9.1.6 工作流生成的变量结构脚本；
+            //   若 AI 未生成，则从 [InitVar] 条目内容兜底生成（保证导出到酒馆不缺 schema）
+            var existingScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+            var aiSchemaScript = null;
+            for (var _si = 0; _si < existingScripts.length; _si++) {
+              var _ss = existingScripts[_si];
+              if (!_ss) continue;
+              if (_ss.id === 'mvu-schema' || String(_ss.name || '').indexOf('变量结构') >= 0 ||
+                  String(_ss.content || '').indexOf('mvu_zod') >= 0) {
+                aiSchemaScript = _ss;
+                break;
+              }
+            }
+            var schemaContent = '';
+            if (aiSchemaScript && aiSchemaScript.content && String(aiSchemaScript.content).indexOf('z.object') >= 0) {
+              schemaContent = aiSchemaScript.content;
+            } else {
+              var initVarEntry = entries.filter(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })[0];
+              var schemaInitContent = initVarEntry ? (initVarEntry.content || '') : '';
+              schemaContent = generateMvuSchemaScript(schemaInitContent);
+            }
             await _tavernWriteMvuSchema(cardData.name, schemaContent);
             // 4c. 写入 6 条正则脚本（含状态栏 HTML）
             // 优先使用用户在 MVU Tab 自定义生成的状态栏 HTML，其次自动生成
