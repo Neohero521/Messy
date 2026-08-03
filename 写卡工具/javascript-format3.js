@@ -1097,22 +1097,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '4. 你的回复应该是自然的对话，直接对用户说话，不要扮演任何"果农"之类的人格\n' +
     '5. 不要在回复中加入任何元信息、调试信息、思考链\n\n' +
     '=== ⚠️ 关键规则速查（最高优先级，每次回复前必读） ===\n\n' +
-    '**JSON输出铁律**：\n' +
-    '1. 字段平铺在顶层，**严禁使用 "character" 包装对象**\n' +
-    '2. name字段是角色/世界的名称，例如"星陨大陆"，不要加任何前缀后缀\n' +
-    '3. 增/改：直接输出字段，如 {"name":"新名称","description":"新描述"}\n' +
-    '4. 世界书条目：用顶层 "entries" 数组，通过 comment 智能匹配覆盖（相同comment=精确更新；相同<前缀>且同类型单条=自动更新；内容相似度>35%同前缀=智能更新）\n' +
-    '5. ⚠️【删除铁律 - 最高优先级 - 不遵守则你的修改无效】\n' +
-    '   删除条目**必须使用以下任一方式**，不写删除动作=只加不删=用户骂你！\n' +
-    '   · 方式A：顶层 "_delete" / "delete" / "remove" 数组，值为 ["character_book.entries.<精确comment>"] 或 ["character_book.entries.<关键词包含匹配>"]\n' +
-    '   · 方式B（⭐AI最容易写对⭐）：在 entries 数组内该条目加上 { "_action":"delete" , "comment":"<要删的comment>" }\n' +
-    '   · 方式C："deleted_entries" 数组，值为 comment 列表\n' +
-    '6. ⚠️【修改铁律 - 不遵守则变成叠加】\n' +
-    '   修改条目=**先删旧条目+再加新条目**，或确保新条目comment与旧条目精确完全一致（字符级匹配，空格标点都要相同）\n' +
-    '   用户说"修改/优化/重写XX条目"时，绝不能只加一条新的！必须删除旧条目后再新增，或用完全相同comment覆盖\n' +
-    '7. 无变化：{"_nochange":true}\n' +
-    '8. JSON前1-2句说明，JSON后不解释\n' +
-    '9. **严禁输出完整 chara_card_v3 JSON**（除非用户说"生成角色卡"）\n\n' +
+    '**输出格式铁律（:::操作块协议）**：\n' +
+    '1. 使用:::操作块协议输出修改指令，格式：::: 动作 条目名\\n内容\\n:::\n' +
+    '2. 5种动作：\n' +
+    '   · upsert 条目名 — 有则更新，无则新增（最常用，不需要判断是否已存在）\n' +
+    '   · update 条目名 — 仅更新已存在的条目（不存在时警告，不新增）\n' +
+    '   · delete 条目名 — 删除指定条目\n' +
+    '   · set 字段名 — 设置顶层字段（name/description/first_mes/system_prompt/personality/scenario/creator_notes/mes_example/post_history_instructions/tags/alternate_greetings）\n' +
+    '   · rename 旧名 → 新名 — 重命名条目（也可以用 -> 或 => 分隔）\n' +
+    '3. 条目名就是世界书条目的comment，用<前缀>分类，如<人物>主角、<基础>世界\n' +
+    '4. 每个操作块用:::开头和:::结尾，内容在中间，不需要代码块包裹\n' +
+    '5. JSON前1-2句说明，操作块后不解释\n' +
+    '6. 无变化时回复"本次无修改"\n\n' +
+    '**示例**：\n' +
+    '::: upsert <人物>主角\\n姓名：星野\\n年龄：18岁\\n性格：热血冲动\\n:::\\n\\n' +
+    '::: upsert <人物>女配\\n姓名：月华\\n年龄：19岁\\n性格：冷静沉着\\n:::\\n\\n' +
+    '::: delete <人物>反派\\n\\n::: set description\\n这是一个奇幻世界...\\n:::\\n\\n' +
     '**写卡器自检状态栏（<statusblock>，本聊天界面用）铁律**：\n' +
     '- 注意：这是【写卡器聊天界面自身】的输出状态块，和角色卡的【MVU状态栏】（StatusPlaceHolderImpl）完全是两件事，不要混淆\n' +
     '- 每次回复必须包含 `<statusblock>` 状态块\n' +
@@ -9675,6 +9675,195 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return null;
       }
 
+      // ===== 🆕 ::: 操作块协议解析器 =====
+      // 新协议：AI 用 ::: action key ... ::: 声明每条操作，无需JSON代码块
+      // 支持5种操作：upsert / update / delete / set / rename
+      // 兼容旧JSON：如果AI仍输出```json块，走原有 extractJSON + mergePartial 路径
+
+      // 规范化key：去装饰括号 + trim + 大小写折叠（复用已有逻辑）
+      function _opNormKey(s) {
+        if (!s) return '';
+        var r = String(s).trim();
+        for (var iter = 0; iter < 2; iter++) {
+          var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+          var matched = false;
+          for (var pi = 0; pi < pairs.length; pi++) {
+            var L = pairs[pi][0], R = pairs[pi][1];
+            if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length-1) === R) {
+              r = r.slice(1, -1).trim(); matched = true; break;
+            }
+          }
+          if (!matched) break;
+        }
+        return r.toLowerCase();
+      }
+
+      // 解析 ::: 操作块，返回操作数组
+      function parseOpBlocks(rawText) {
+        if (!rawText) return [];
+        var ops = [];
+        // 匹配 ::: action key ... 格式（key 到换行/行尾为止，content 到下一个 ::: 为止）
+        // 用单个 \n 分隔 key 和 content，避免 [\r\n]+ 贪婪吃掉多个换行导致 content 起点错误
+        // 前瞻允许中间有空行（\n\s*:::），解决 delete 后紧跟空行再接下一个操作的问题
+        var re = /:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n\s*:::|$)/gi;
+        var m;
+        while ((m = re.exec(rawText)) !== null) {
+          var action = m[1].toLowerCase();
+          var key = m[2].trim();
+          var content = (m[3] || '').trim();
+          // rename 格式：::: rename oldKey → newKey
+          if (action === 'rename') {
+            var arrowMatch = key.match(/^(.+?)\s*(?:->|→|=>)\s*(.+)$/);
+            if (arrowMatch) {
+              ops.push({ action: 'rename', oldKey: arrowMatch[1].trim(), newKey: arrowMatch[2].trim(), content: '' });
+            } else {
+              // 没有箭头，尝试用空格分割
+              var parts = key.split(/\s+/);
+              if (parts.length >= 2) {
+                ops.push({ action: 'rename', oldKey: parts[0], newKey: parts.slice(1).join(' '), content: '' });
+              }
+            }
+          } else {
+            ops.push({ action: action, key: key, content: content });
+          }
+        }
+        return ops;
+      }
+
+      // 检测AI回复是否包含:::操作块
+      function hasOpBlocks(rawText) {
+        if (!rawText) return false;
+        return /:::\s*(upsert|update|delete|set|rename)\s+/i.test(rawText);
+      }
+
+      // 执行操作数组，返回 { modified, changeLog }
+      function applyOps(ops, cd) {
+        if (!ops || !ops.length || !cd) return { modified: false, changeLog: { added: 0, updated: 0, deleted: 0, fieldUpdates: 0, renamed: 0 } };
+        var modified = false;
+        var changeLog = { added: 0, updated: 0, deleted: 0, fieldUpdates: 0, renamed: 0 };
+
+        // 确保基础结构存在
+        if (!cd.character_book) cd.character_book = { entries: [] };
+        if (!cd.character_book.entries) cd.character_book.entries = [];
+        if (!cd.extensions) cd.extensions = {};
+
+        // 合法的顶层字段（set操作用）
+        var validFields = ['name','description','first_mes','mes_example','system_prompt','personality','scenario','creator_notes','post_history_instructions','tags','alternate_greetings','creator','character_version','depth_prompt'];
+
+        ops.forEach(function(op) {
+          if (op.action === 'upsert' || op.action === 'update') {
+            var nk = _opNormKey(op.key);
+            if (!nk) { console.warn('[opblock] 跳过空key'); return; }
+
+            // 剥去入存comment的外层装饰括号
+            var cleanComment = op.key;
+            for (var iter = 0; iter < 2; iter++) {
+              var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+              var didStrip = false;
+              for (var pi = 0; pi < pairs.length; pi++) {
+                var L = pairs[pi][0], R = pairs[pi][1];
+                if (cleanComment.length >= 4 && cleanComment.charAt(0) === L && cleanComment.charAt(cleanComment.length-1) === R) {
+                  cleanComment = cleanComment.slice(1, -1).trim(); didStrip = true; break;
+                }
+              }
+              if (!didStrip) break;
+            }
+
+            // 精确匹配现有条目
+            var foundIdx = -1;
+            for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
+              if (_opNormKey(cd.character_book.entries[fi].comment) === nk) { foundIdx = fi; break; }
+            }
+
+            if (foundIdx >= 0) {
+              // 更新
+              var oldEntry = cd.character_book.entries[foundIdx];
+              if (op.content && op.content.trim().length > 0) {
+                cd.character_book.entries[foundIdx] = Object.assign({}, oldEntry, {
+                  comment: cleanComment,
+                  content: op.content
+                });
+              } else {
+                cd.character_book.entries[foundIdx] = Object.assign({}, oldEntry, { comment: cleanComment });
+              }
+              modified = true;
+              changeLog.updated++;
+            } else {
+              // upsert: 新增；update: 警告不新增
+              if (op.action === 'update') {
+                console.warn('[opblock] update 找不到条目:', op.key);
+              } else {
+                cd.character_book.entries.push({
+                  comment: cleanComment,
+                  content: op.content || '',
+                  constant: false,
+                  position: 0
+                });
+                modified = true;
+                changeLog.added++;
+              }
+            }
+          } else if (op.action === 'delete') {
+            var dk = _opNormKey(op.key);
+            if (!dk) { console.warn('[opblock] delete空key'); return; }
+            var removeCount = 0;
+            cd.character_book.entries = cd.character_book.entries.filter(function(e) {
+              var shouldDelete = _opNormKey(e.comment) === dk;
+              if (shouldDelete) removeCount++;
+              return !shouldDelete;
+            });
+            if (removeCount > 0) {
+              modified = true;
+              changeLog.deleted += removeCount;
+            } else {
+              console.warn('[opblock] delete 找不到条目:', op.key);
+            }
+          } else if (op.action === 'set') {
+            var fieldName = op.key.toLowerCase().trim();
+            if (validFields.indexOf(fieldName) >= 0) {
+              cd[fieldName] = op.content;
+              modified = true;
+              changeLog.fieldUpdates++;
+            } else {
+              console.warn('[opblock] set 未知字段:', fieldName);
+            }
+          } else if (op.action === 'rename') {
+            var oldK = _opNormKey(op.oldKey);
+            var newK = op.newKey.trim();
+            if (!oldK || !newK) { console.warn('[opblock] rename 空key'); return; }
+            // 剥去newKey装饰括号
+            var cleanNewKey = newK;
+            for (var iter2 = 0; iter2 < 2; iter2++) {
+              var pairs2 = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+              var didStrip2 = false;
+              for (var pi2 = 0; pi2 < pairs2.length; pi2++) {
+                var L2 = pairs2[pi2][0], R2 = pairs2[pi2][1];
+                if (cleanNewKey.length >= 4 && cleanNewKey.charAt(0) === L2 && cleanNewKey.charAt(cleanNewKey.length-1) === R2) {
+                  cleanNewKey = cleanNewKey.slice(1, -1).trim(); didStrip2 = true; break;
+                }
+              }
+              if (!didStrip2) break;
+            }
+            var renamed = false;
+            for (var ri = 0; ri < cd.character_book.entries.length; ri++) {
+              if (_opNormKey(cd.character_book.entries[ri].comment) === oldK) {
+                cd.character_book.entries[ri].comment = cleanNewKey;
+                renamed = true;
+                break;
+              }
+            }
+            if (renamed) {
+              modified = true;
+              changeLog.renamed++;
+            } else {
+              console.warn('[opblock] rename 找不到条目:', op.oldKey);
+            }
+          }
+        });
+
+        return { modified: modified, changeLog: changeLog };
+      }
+
       // ===== 兜底：从AI回复中提取状态栏HTML（当AI只输出```html而非JSON时）=====
       // 场景：用户让AI"改状态栏"，AI直接输出了```html代码块而非JSON的regex_scripts
       // 此时extractJSON提取不到，需要这个兜底机制把HTML保存到cardData.extensions.regex_scripts
@@ -10482,7 +10671,49 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var aiResponse = await callAI(prompt);
           aiResponse = cleanAIReply(aiResponse);
           removeTyping();
-          var parsed = extractJSON(aiResponse);
+
+          // ========== 🆕 ::: 操作块协议优先检测 ==========
+          // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
+          // 否则回退到旧JSON路径（兼容）
+          if (hasOpBlocks(aiResponse)) {
+            var ops = parseOpBlocks(aiResponse);
+            if (ops.length > 0) {
+              var opResult = applyOps(ops, cardData);
+              if (opResult.modified) {
+                if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
+                  cardGenerated = true;
+                }
+                progress = calcProgress();
+                // MVU Tab：合并后自动注入固定资产
+                if (currentTab === 'mvu') {
+                  var mvuEntriesAfterOps = (cardData.character_book || {}).entries || [];
+                  var hasInitVarAfterOps = mvuEntriesAfterOps.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+                  if (hasInitVarAfterOps) {
+                    var newlyInjectedOps = ensureFixedMvuAssetsInCardData();
+                    if (newlyInjectedOps && newlyInjectedOps.length > 0) renderPreview();
+                  }
+                }
+                // 显示变更统计
+                var crOps = opResult.changeLog;
+                var partsOps = [];
+                if (crOps.added) partsOps.push('➕新增' + crOps.added + '条');
+                if (crOps.updated) partsOps.push('🔄更新' + crOps.updated + '条');
+                if (crOps.deleted) partsOps.push('🗑️删除' + crOps.deleted + '条');
+                if (crOps.fieldUpdates) partsOps.push('📝字段' + crOps.fieldUpdates + '项');
+                if (crOps.renamed) partsOps.push('✏️重命名' + crOps.renamed + '条');
+                if (partsOps.length) showToast('✅ 已应用修改：' + partsOps.join('，'), 'success');
+                renderPreview();
+                saveToStorage();
+              } else if (ops.length > 0) {
+                showToast('⚠️ AI返回了操作指令，但未匹配到任何条目。请检查条目名称是否正确', 'warning', 6000);
+              }
+            }
+            // 跳过旧JSON路径
+            var parsed = null;
+          } else {
+            // ========== 旧JSON路径（兼容） ==========
+            var parsed = extractJSON(aiResponse);
+          }
           if (parsed) {
             // ========== Tab 隔离：角色卡Tab下，严格过滤掉AI违规生成的MVU条目 ==========
             if (currentTab === 'card') {
