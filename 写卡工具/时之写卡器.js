@@ -1238,6 +1238,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                            if (s.ai_output) arr.push(2);
                            if (s.slash_command) arr.push(3);
                            if (s.world_info) arr.push(4);
+                           if (s.reasoning) arr.push(5);
                            return arr.length ? arr : [2];
                          })(script.source) : 2);
       var placement = Array.isArray(rawPlacement) ? rawPlacement : [rawPlacement];
@@ -6441,44 +6442,73 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
   }
 
-  // 写入角色卡基础字段（name/description/personality/scenario/system_prompt 等）
+  // 写入角色卡基础字段（对齐 tavern_helper Character 规范）
   async function _tavernWriteCharacterData(name, data) {
     var validated = _tavernValidateName(name);
     await _tavernEnsureCharacter(validated);
     var updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
     await updateCharacterWith(validated, function(charData) {
-      // 确保 charData.data 存在（v3规范字段存放在 data 层）
-      if (!charData.data) charData.data = {};
-      if (data.description !== undefined) { charData.description = data.description; charData.data.description = data.description; }
-      if (data.personality !== undefined) { charData.personality = data.personality; charData.data.personality = data.personality; }
-      if (data.scenario !== undefined) { charData.scenario = data.scenario; charData.data.scenario = data.scenario; }
-      if (data.system_prompt !== undefined) { charData.system_prompt = data.system_prompt; charData.data.system_prompt = data.system_prompt; }
-      if (data.creator_notes !== undefined) { charData.creator_notes = data.creator_notes; charData.data.creator_notes = data.creator_notes; }
-      if (data.creator !== undefined) { charData.creator = data.creator; charData.data.creator = data.creator; }
-      if (data.character_version !== undefined) { charData.character_version = data.character_version; charData.data.character_version = data.character_version; }
-      if (data.alternate_greetings !== undefined) { charData.alternate_greetings = data.alternate_greetings; charData.data.alternate_greetings = data.alternate_greetings; }
+      // ===== 对齐 tavern_helper Character 规范 =====
+      // 规范顶层字段：description / creator / creator_notes / version / first_messages
+      // 非规范字段 → extensions（extensions 支持 [other: string]: any）
+      // V3 data.* 兼容写入（SillyTavern 提示词构建器从 data.* 读取）
+
+      // --- 规范顶层字段 ---
+      if (data.description !== undefined) { charData.description = data.description; }
+      if (data.creator !== undefined) { charData.creator = data.creator; }
+      if (data.creator_notes !== undefined) { charData.creator_notes = data.creator_notes; }
+      // character_version → version（规范字段名为 version）
+      if (data.character_version !== undefined) { charData.version = data.character_version; }
+      // alternate_greetings → first_messages（规范用 first_messages: string[] 统一承载首条+备选）
+      if (data.alternate_greetings !== undefined && Array.isArray(data.alternate_greetings)) {
+        if (!Array.isArray(charData.first_messages)) charData.first_messages = [''];
+        // 保留 [0]（首条由 _tavernWriteFirstMes 写入），[1:] 替换为备选开场白
+        charData.first_messages = [charData.first_messages[0] || ''].concat(data.alternate_greetings);
+      }
+
+      // --- 非规范字段 → extensions ---
+      if (!charData.extensions) charData.extensions = {};
+      if (data.system_prompt !== undefined) { charData.extensions.system_prompt = data.system_prompt; }
+      if (data.personality !== undefined) { charData.extensions.personality = data.personality; }
+      if (data.scenario !== undefined) { charData.extensions.scenario = data.scenario; }
       if (data.depth_prompt !== undefined) {
         // 防御：depth_prompt 必须是对象，字符串会导致酒馆内部 "Cannot create property 'depth' on string"
         var _dp = data.depth_prompt;
-        if (typeof _dp === 'string') {
-          _dp = { prompt: _dp, depth: 4, role: 'system' };
-        } else if (!_dp || typeof _dp !== 'object') {
-          _dp = undefined;
-        }
-        if (_dp) charData.data.depth_prompt = _dp;
+        if (typeof _dp === 'string') { _dp = { prompt: _dp, depth: 4, role: 'system' }; }
+        else if (!_dp || typeof _dp !== 'object') { _dp = null; }
+        if (_dp) charData.extensions.depth_prompt = _dp;
       }
-      // 关联世界书：写入 character.data.world（v3 规范位置），让酒馆自动加载该世界书
+
+      // --- V3 兼容：同时写入 data.* 供 SillyTavern 提示词构建器读取 ---
+      if (!charData.data) charData.data = {};
+      if (data.description !== undefined) charData.data.description = data.description;
+      if (data.personality !== undefined) charData.data.personality = data.personality;
+      if (data.scenario !== undefined) charData.data.scenario = data.scenario;
+      if (data.system_prompt !== undefined) charData.data.system_prompt = data.system_prompt;
+      if (data.creator_notes !== undefined) charData.data.creator_notes = data.creator_notes;
+      if (data.creator !== undefined) charData.data.creator = data.creator;
+      if (data.character_version !== undefined) charData.data.character_version = data.character_version;
+      if (data.alternate_greetings !== undefined && Array.isArray(data.alternate_greetings)) {
+        charData.data.alternate_greetings = data.alternate_greetings;
+      }
+      if (data.depth_prompt !== undefined) {
+        var _dp2 = data.depth_prompt;
+        if (typeof _dp2 === 'string') { _dp2 = { prompt: _dp2, depth: 4, role: 'system' }; }
+        else if (!_dp2 || typeof _dp2 !== 'object') { _dp2 = null; }
+        if (_dp2) charData.data.depth_prompt = _dp2;
+      }
+
+      // --- 关联世界书（保持原样）---
       if (data.world !== undefined && data.world) {
         charData.data.world = data.world;
-        // 兼容旧版 v2 卡：顶层也写一份
         charData.world = data.world;
       }
       return charData;
     });
   }
 
-  // 规范化脚本对象（Hr）
+  // 规范化脚本对象（Hr）— 对齐 tavern_helper Script 规范
   function _normalizeScript(s) {
     return {
       type: s.type || 'script',
@@ -6491,7 +6521,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         enabled: (s.button && s.button.enabled !== undefined) ? s.button.enabled : true,
         buttons: (s.button && s.button.buttons) || []
       },
-      data: s.data || {}
+      data: s.data || {},
+      export_with: s.export_with || { data: true, button: true }
     };
   }
 
@@ -6580,14 +6611,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return '```html\n' + trimmed + '\n```';
   }
 
-  // 转换内部正则格式到 SillyTavern 正则脚本格式（ri）
+  // 转换内部正则格式到 SillyTavern 正则脚本格式（ri）— 对齐 tavern_helper TavernRegex 规范
   function _convertRegexScript(s) {
     var placement = s.placement || [];
     return {
       id: s.id,
       script_name: s.scriptName,
       enabled: (s.enabled !== undefined ? s.enabled : (s.disabled !== undefined ? !s.disabled : true)),
-      scope: s.scope || 'character',
       find_regex: s.findRegex,
       replace_string: s.replaceString,
       trim_strings: Array.isArray(s.trimStrings) ? s.trimStrings : (Array.isArray(s.trim_strings) ? s.trim_strings : []),
@@ -6595,7 +6625,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         user_input: placement.indexOf(1) >= 0,
         ai_output: placement.indexOf(2) >= 0,
         slash_command: placement.indexOf(3) >= 0,
-        world_info: placement.indexOf(4) >= 0
+        world_info: placement.indexOf(4) >= 0,
+        reasoning: placement.indexOf(5) >= 0
       },
       destination: {
         display: s.markdownOnly === true,
@@ -6681,11 +6712,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         id: _genId('qz-card-status-hide'),
         script_name: '隐藏状态栏标记',
         enabled: true,
-        scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
         replace_string: '',
-        trim_strings: '',
-        source: { user_input: false, ai_output: true, slash_command: false, world_info: false },
+        trim_strings: [],
+        source: { user_input: false, ai_output: true, slash_command: false, world_info: false, reasoning: false },
         destination: { display: false, prompt: true },
         run_on_edit: true,
         min_depth: null,
@@ -6696,11 +6726,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         id: _genId('qz-card-status'),
         script_name: 'MVU状态栏',
         enabled: true,
-        scope: 'character',
         find_regex: '/<StatusPlaceHolderImpl\\/>/g',
         replace_string: _wrapHtml(statusBarHtml),
-        trim_strings: '',
-        source: { user_input: false, ai_output: true, slash_command: false, world_info: false },
+        trim_strings: [],
+        source: { user_input: false, ai_output: true, slash_command: false, world_info: false, reasoning: false },
         destination: { display: true, prompt: false },
         run_on_edit: true,
         min_depth: null,
@@ -6754,7 +6783,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return true;
         });
         return filtered.concat(scripts);
-      }, { scope: 'character' });
+      }, { type: 'character' });
     }
   }
 
@@ -6896,10 +6925,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           name: String(e.name || e.comment || ('条目' + (i + 1))),
           content: _sanitizeContent,
           enabled: e.enabled !== false,
-          uid: typeof e.uid === 'string' ? e.uid : (e.uid != null ? String(e.uid) : undefined),
-          displayIndex: (typeof e.displayIndex === 'number' || typeof e.display_index === 'number')
-            ? (e.displayIndex != null ? e.displayIndex : e.display_index)
-            : undefined,
+          uid: (typeof e.uid === 'number' && isFinite(e.uid)) ? e.uid : (e.uid != null ? Number(e.uid) : undefined),
           strategy: {
             type: (typeof strat.type === 'string' && strat.type) ? strat.type : (e.constant ? 'constant' : (e.selective ? 'selective' : 'selective')),
             keys: safeKeys(rawKeys),
