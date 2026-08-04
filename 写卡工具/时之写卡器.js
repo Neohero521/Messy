@@ -1225,6 +1225,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
            c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0;
   }
 
+  // 获取 MVU 核心条目类型标识（用于删除标记/导出兜底跳过）
+  function _getMVUCoreType(comment) {
+    var c = (comment || '').toLowerCase();
+    if (c.indexOf('变量输出格式强调') >= 0) return 'outputfmt_emphasis';
+    if (c.indexOf('[initvar]') >= 0) return 'initvar';
+    if (c.indexOf('变量列表') >= 0) return 'varlist';
+    if (c.indexOf('变量更新规则') >= 0) return 'updaterule';
+    if (c.indexOf('变量输出格式') >= 0) return 'outputfmt';
+    return '';
+  }
+
   // ST规范：转换 regex_scripts 格式（导入/导出共用）
   function normalizeRegexScripts(rxScripts) {
     if (!rxScripts || !Array.isArray(rxScripts)) return [];
@@ -3667,6 +3678,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
         if (!hasComment && !hasMeaningfulContent) return;
 
+        // ===== 用户重新 upsert 该类型条目时，清除删除标记（恢复导出兜底能力）=====
+        var _upsertMvuType = _getMVUCoreType(ne.comment || '');
+        if (_upsertMvuType && cd._deletedMVUTypes) {
+          var _di = cd._deletedMVUTypes.indexOf(_upsertMvuType);
+          if (_di >= 0) cd._deletedMVUTypes.splice(_di, 1);
+        }
+
         var tmpl = getEntryTemplate(ne.comment || '');
         ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
         // ===== 🧹先清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
@@ -3823,6 +3841,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         allEntryDeletions.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
         uniqueIdx.forEach(function(uIdx) {
           if (uIdx < cd.character_book.entries.length) {
+            // ===== 记录用户主动删除的 MVU 核心条目类型，防止导出兜底"复活" =====
+            var _delComment = cd.character_book.entries[uIdx].comment || '';
+            var _delMvuType = _getMVUCoreType(_delComment);
+            if (_delMvuType) {
+              if (!cd._deletedMVUTypes) cd._deletedMVUTypes = [];
+              if (cd._deletedMVUTypes.indexOf(_delMvuType) < 0) cd._deletedMVUTypes.push(_delMvuType);
+            }
             cd.character_book.entries.splice(uIdx, 1);
             modified = true; changeLog.deleted++;
           }
@@ -7188,28 +7213,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 预填充结束 =====
     // ===== 改进Z5：MVU核心条目兜底——只要任意一项MVU条目存在，就自动补齐其余4类缺失条目 =====
     // 确保导出的角色卡永远包含完整可用的MVU系统
+    // ⚠️但跳过用户主动删除的条目类型（cd._deletedMVUTypes 记录）
+    var _deletedTypes = cd._deletedMVUTypes || [];
     var anyMVUExists = filledEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
     var mvuEntryExists = function(pred) { return filledEntries.some(pred); };
     if (anyMVUExists || statusBarMode || Object.keys(statusBarModules || {}).some(function(k) { return statusBarModules[k]; })) {
       var _toAppend = [];
       var _idx = filledEntries.length;
-      // InitVar
-      if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
+      // InitVar（跳过用户已删除的）
+      if (_deletedTypes.indexOf('initvar') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // 变量列表（含 format_message_variable::stat_data 宏）
-      if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
+      if (_deletedTypes.indexOf('varlist') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '变量列表', content: generateVarListContent(), constant: true, selective: false, insertion_order: 150, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量更新规则
-      if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
+      if (_deletedTypes.indexOf('updaterule') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量更新规则', content: generateVarUpdateRule(charNames), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量输出格式
-      if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
+      if (_deletedTypes.indexOf('outputfmt') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
