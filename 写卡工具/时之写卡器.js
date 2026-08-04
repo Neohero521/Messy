@@ -1044,6 +1044,84 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return null;
   }
 
+  // ===== 🔑 自动派生触发词（写卡器兜底防线 · 对齐 StageDog 绿灯/向量化/蓝灯策略）=====
+  // 仅当 keys 为空时才派生；蓝灯(constant=true)与向量化(vectorized=true)保持空不变
+  function _deriveEntryKeys(comment, tmpl, content) {
+    if (!comment) return [];
+    var template = tmpl || getEntryTemplate(comment);
+    var isConst = template && template.constant === true;
+    if (isConst) return [];                                          // 蓝灯：constant常驻，保持空
+    var stripped = _stripOuterBrackets(comment);                    // 先剥最外层装饰（⟦⟧【】等）
+    var m = stripped.match(/^<([^>]+)>\s*([\s\S]*)$/);             // <标签>名字后缀 → 取名字部分
+    var prefix = m ? m[1] : '';
+    var namePart = (m ? m[2] : stripped).trim();
+    // 中文字符片段（2字以上，过滤<标签>、通用停用词）作为触发词种子
+    var stopSet = {'的':1,'是':1,'有':1,'我':1,'你':1,'他':1,'她':1,'它':1,'在':1,'和':1,'了':1,'与':1,'及':1,'个':1,'相关':1,'条目':1,'内容':1,'设定':1,'体系':1,'背景':1,'机制':1,'规则':1,'玩法':1,'流程':1,'系统':1,'功能':1,'模块':1,'部分':1,'通用':1,'主要':1,'核心':1,'基础':1,'扩展':1,'补充':1,'细化':1,'深度':1,'类型':1,'状态':1,'当前':1,'阶段':1,'模式':1};
+    var candidates = [];
+    // 1) 先提取 名字后缀中"·中文点号"切分出的多段，作为多维度命名（如 白娅·人际关系 → 白娅/人际关系）
+    if (namePart) {
+      namePart.split(/[·\/,，、\-\\]+/).forEach(function(seg){
+        var s = seg.trim(); if (!s) return;
+        if (/[\u4e00-\u9fa5A-Za-z0-9]{2,}/.test(s) && !stopSet[s]) candidates.push(s);
+      });
+    }
+    // 2) 再从 content 前 300 字中抽取中文词组（2-6字）+ 典型实体特征词，去重追加
+    var headContent = (content || '').slice(0, 300);
+    try {
+      var re = /[\u4e00-\u9fa5]{2,6}|[A-Za-z][A-Za-z0-9_]{1,15}/g;
+      var mm;
+      while ((mm = re.exec(headContent)) !== null) {
+        var w = mm[0];
+        if (stopSet[w]) continue;
+        if (/^(姓名|身份|外貌|性格|背景|关系|人际关系|物品|地点|时间|年龄|特征|爱好|特长|家庭|称呼|位置|心情|智慧|魅力|体质|状态|好感度|好感|当前|内容|说明|描述|定义|介绍|概要|摘要|标签|以上|例如|比如|如果|因为|所以|但是|并且|或者|不是|还是|这是|一个|一种|一类|一下|一些|一起)$/.test(w)) continue;
+        if (candidates.indexOf(w) < 0) candidates.push(w);
+        if (candidates.length >= 12) break;
+      }
+    } catch(e) {}
+    // 3) 根据 <标签前缀> 语义补齐语义锚点（典型触发词），和 StageDog 绿灯策略一致
+    var categoryAnchors = {
+      '重要角色': ['角色','人物','出场','出现'],
+      '实体交互': ['交互','行动','动作','使用'],
+      '势力与组织': ['组织','势力','成员','会议'],
+      '物品': ['物品','道具','装备','获得'],
+      '地点场景': ['地点','场景','来到','到达','前往'],
+      '场景机制': ['机制','触发','回合','阶段'],
+      '核心玩法': ['玩法','系统','操作','行动'],
+      '世界规则': ['规则','世界','限定','违反'],
+      '近场强约束': ['情境','当前','现在','当下'],
+      '当前局势': ['局势','现状','剧情','当前'],
+      '引导机制': ['引导','新手','提示','选项'],
+      '互动选项': ['选项','选择','分支','接下来'],
+      '动态适配': ['模式','切换','变化','分支'],
+      '叙事背景': ['故事','背景','世界','历史'],
+      '故事发展': ['剧情','发展','主线','推进'],
+      '文化与习俗': ['文化','习俗','节日','传统'],
+      '历史事件': ['历史','事件','过去','曾经'],
+      '叙事': ['剧情','故事','叙述','回忆'],
+      '自定义条目': []
+    };
+    if (prefix && categoryAnchors[prefix]) {
+      categoryAnchors[prefix].forEach(function(a){ if (candidates.indexOf(a)<0) candidates.push(a); });
+    }
+    // 4) "<叙事背景>/<故事发展>/<文化与习俗>/<历史事件>" 属于向量化类，不强制填 keys（保持候选但留空可）——如果实在取不出名字才填
+    var vecCats = {'叙事背景':1,'故事发展':1,'文化与习俗':1,'历史事件':1,'叙事':1};
+    if (!m || !vecCats[prefix] || candidates.length < 2) {}
+    if (candidates.length < 1 && namePart) candidates.push(namePart);
+    // 去重 + 限制数量 3-10 个
+    var uniq = [];
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var c = String(candidates[ci]).trim();
+      if (!c || c.length < 1 || c.length > 24) continue;
+      if (uniq.indexOf(c) < 0) uniq.push(c);
+      if (uniq.length >= 10) break;
+    }
+    // 向量化类：最多 2 个弱锚点就好（让向量化主要靠语义）
+    if (prefix && vecCats[prefix]) {
+      return uniq.slice(0, 2);
+    }
+    return uniq;
+  }
+
   // 判断条目是否属于MVU变量系统
   // 兼容大小写前缀：[InitVar]/[initvar]、[mvu_update] 等
   // 扩展：包含4条核心条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
@@ -1243,9 +1321,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '5. 严禁同时输出JSON代码块和:::操作块！只能使用:::操作块协议，不要输出```json代码块\n' +
     '6. 操作块前可以有1-2句自然语言说明，操作块后不再解释\n' +
     '7. 无变化时回复"本次无修改"\n\n' +
+    '【🔑 触发词(keys)填写铁律 · StageDog 绿灯模式规范】\n' +
+    '① 每个条目**必须自带 keys/secondary_keys 元信息**（触发词），不要等写卡器兜底！写卡器兜底只是最后一道防线，你主动填写才是精准触发的保证。\n' +
+    '② keys 写在 ::: upsert/update 块的**第1个空行之前**（即块的开头，块体内的元信息头），使用「键=值」格式，keys 用英文逗号分隔数组（支持中文词组/人名/地点名/场景词），不要写进 content 正文！\n' +
+    '   ✅ 正确格式（块体第1行开始就是元信息头，空行后才是正文content）：\n' +
+    '     ::: upsert <重要角色>白娅\\nkeys=白娅,诗织,唯子,转学,女仆\\nsecondary_keys=好感度,依存,家庭,称呼\\nselectiveLogic=0\\n\\n身份：父母双亡的女高中生...\\n外貌：...\\n:::\n' +
+    '     ::: upsert <地点场景>天台观星台\\nkeys=天台,观星台,屋顶,星空,望远镜\\n\\n屋顶有一台古旧的望远镜...\\n:::\n' +
+    '   ❌ 错误1（把 keys 当作文本混进 content 正文）：\\n     keys=白娅,诗织\\n身份：... \\n→ ❌ 这会导致"触发词配置"和"角色正文"混在一起，渲染时把 keys 一行字显示出来。\n' +
+    '   ❌ 错误2（完全不写 keys）：::: upsert <重要角色>白娅\\n身份：... → ❌ 酒馆绿灯模式需要关键词才会注入，没 keys 的条目永远激活不了。\n' +
+    '   ❌ 错误3（keys 太泛）：keys=的,是,有,我 → ❌ 全局每轮都触发，token爆炸。\n' +
+    '③ StageDog 默认激活策略对照（绿灯带 keys 触发、向量化无 keys 靠语义、蓝灯constant常驻无扫描）：\n' +
+    '   · <重要角色> / <实体交互> / <势力与组织> / <物品> / <地点场景> → 绿灯带keys：keys=实体名+别称+常见搭配词（3-8个）\n' +
+    '   · <场景机制> / <核心玩法> / <世界规则> / <近场强约束> / <当前局势> → 绿灯带keys：keys=机制关键词+动作词（战斗/上课/约会/修炼/逛街/考试…）\n' +
+    '   · <叙事背景> / <故事发展> / <文化与习俗> / <历史事件> → 向量化(keys=空)或绿灯带语义锚点keys（任选其一）\n' +
+    '   · <基础公理> / <核心铁则> / <交互软规则> / <统一输出格式> / <角色边界> / <禁止项> / <变量列表> / [InitVar] / 变量更新规则/输出格式 → 蓝灯constant常驻，keys=空（写了也不生效）\n' +
+    '   · <引导机制> / <互动选项> / <动态适配> → 绿灯带keys：keys=新手,引导,选项,开局,模式…\n' +
+    '④ secondary_keys（次级键）+ extensions.selectiveLogic（0=AND_ANY,1=NOT_ALL,2=NOT_ANY,3=AND_ALL）：当条目需要"主词+限定词"时才填，例如 keys=战斗 + secondary_keys=野外,城市,秘境 + selectiveLogic=0 表示"战斗时只要出现任一地点词才触发"。\n' +
+    '⑤ ::: rename/delete/set 不需要 keys/secondary_keys，按原有格式写即可。\n\n' +
     '**示例**：\n' +
-    '::: upsert <人物>主角\\n姓名：星野\\n年龄：18岁\\n性格：热血冲动\\n:::\\n\\n' +
-    '::: upsert <人物>女配\\n姓名：月华\\n年龄：19岁\\n性格：冷静沉着\\n:::\\n\\n' +
+    '::: upsert <人物>主角\\nkeys=星野,主角\\n\\n姓名：星野\\n年龄：18岁\\n性格：热血冲动\\n:::\\n\\n' +
+    '::: upsert <人物>女配\\nkeys=月华,学姐,女配角\\nsecondary_keys=图书馆,天台,学生会\\nselectiveLogic=0\\n\\n姓名：月华\\n年龄：19岁\\n性格：冷静沉着\\n:::\\n\\n' +
     '::: delete <人物>反派\\n\\n::: set description\\n这是一个奇幻世界...\\n:::\\n\\n' +
     '**高级混合示例（改+增+删一次打包）**：\n' +
     '用户说："把主角改成19岁，再加个反派姐姐，把女配删掉" → AI一次输出：\n' +
@@ -3536,6 +3631,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         if (!ne.keys) ne.keys = [];
         if (!ne.secondary_keys) ne.secondary_keys = [];
+        // ===== ✅新增：processEntriesFn 空 keys 自动派生（mergePartial 路径的兜底）=====
+        if (ne.keys.length === 0 && !(tmpl && tmpl.constant) && ne.constant !== true) {
+          try {
+            var dk = _deriveEntryKeys(ne.comment || '', tmpl, ne.content || '');
+            if (dk && dk.length > 0) ne.keys = dk;
+          } catch(e3) {}
+        }
 
         var match = findMatchingEntry(ne, existing);
         if (match.index >= 0) {
@@ -6616,12 +6718,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (typeof e === 'string') {
           var firstL = e.split('\n')[0].trim().slice(0, 40) || ('误写字符串条目' + (i + 1));
           console.warn('[sanitize] entries里发现字符串元素，已包装为匿名条目:', firstL.slice(0, 20));
-          return { name: firstL, content: e };
+          return { name: firstL, comment: firstL, content: e };
         }
         if (typeof e === 'number' || typeof e === 'boolean') {
-          return { name: '误写标量条目' + (i + 1), content: String(e) };
+          return { name: '误写标量条目' + (i + 1), comment: '误写标量条目' + (i + 1), content: String(e) };
         }
         if (Array.isArray(e)) return null;
+        // 保证有 comment（写卡器用 comment 驱动一切；酒馆旧数据只有 name 时用 name 回退）
+        if (!e.comment && e.name) e = Object.assign({}, e, { comment: e.name });
+        if (!e.comment) e = Object.assign({}, e, { comment: e.name || String(e.content || '').split('\n')[0].trim().slice(0, 40) || ('条目' + (i + 1)) });
         return e;
       })
       .filter(function(e) { return e && typeof e === 'object'; })
@@ -6631,6 +6736,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var ks = (strat.keys_secondary && typeof strat.keys_secondary === 'object') ? strat.keys_secondary : {};
         var rec = (e.recursion && typeof e.recursion === 'object') ? e.recursion : {};
         var eff = (e.effect && typeof e.effect === 'object') ? e.effect : {};
+        // ===== ✅新增：写入酒馆前对空 keys 条目最后一次兜底派生（写酒馆的永久防线）=====
+        var rawKeys = (Array.isArray(strat.keys) && strat.keys.length>0) ? strat.keys
+                    : (Array.isArray(e.keys) && e.keys.length>0 ? e.keys : null);
+        if (!rawKeys || rawKeys.length === 0) {
+          var isConst = !!(e.constant || (strat.type === 'constant'));
+          if (!isConst) {
+            try {
+              var cmForDerive = e.comment || e.name || '';
+              var derTmpl = (typeof getEntryTemplate === 'function') ? getEntryTemplate(cmForDerive) : null;
+              if (!(derTmpl && derTmpl.constant)) {
+                var derived = (typeof _deriveEntryKeys === 'function')
+                  ? _deriveEntryKeys(cmForDerive, derTmpl, e.content || '')
+                  : [];
+                if (derived && derived.length > 0) rawKeys = derived;
+              }
+            } catch(eDer) {}
+          }
+        }
+        var rawSecondaryKeys = (Array.isArray(ks.keys) && ks.keys.length>0) ? ks.keys
+                             : (Array.isArray(e.secondary_keys) && e.secondary_keys.length > 0 ? e.secondary_keys : []);
         // position 类型（优先取新字段，否则回退 Tavern 旧常量）
         var posType = typeof pos.type === 'string' ? pos.type
           : (e.position === 'before_char' || e.position === 0 || pos.type === 0 ? 'before_character_definition'
@@ -6650,10 +6775,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             : undefined,
           strategy: {
             type: (typeof strat.type === 'string' && strat.type) ? strat.type : (e.constant ? 'constant' : (e.selective ? 'selective' : 'selective')),
-            keys: safeKeys(strat.keys || e.keys),
+            keys: safeKeys(rawKeys),
             keys_secondary: {
               logic: (typeof ks.logic === 'string' && ks.logic) ? ks.logic : 'and_any',
-              keys: safeKeys(ks.keys || e.secondary_keys)
+              keys: safeKeys(rawSecondaryKeys)
             },
             scan_depth: (strat.scan_depth === undefined || strat.scan_depth === null)
               ? (e.scan_depth != null ? e.scan_depth : 'same_as_global')
@@ -10180,7 +10305,61 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         while ((m = re.exec(rawText)) !== null) {
           var action = m[1].toLowerCase();
           var key = m[2].trim();
-          var content = (m[3] || '').trim();
+          var rawBody = (m[3] || '').trim();
+          var content = rawBody;
+          // ===== ✅新增：解析 upsert/update 块体开头的元信息头（keys/secondary_keys/selectiveLogic/constant/depth/cooldown等）=====
+          //   格式：块体第1行开始，连续出现 `键=值`（单行）行，直到遇到第1个空行或遇到不以"键名="开头的行为止。
+          //   之后的部分（空行之后 / 非键=值行开始之后）才是真正的 content 正文。
+          //   支持的键：keys, secondary_keys, selectiveLogic, constant, depth, cooldown, sticky, delay, vectorized,
+          //            prevent_recursion, exclude_recursion, delay_until_recursion, use_regex, probability, group, order
+          var metaFields = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
+                            'vectorized','prevent_recursion','exclude_recursion','delay_until_recursion','use_regex',
+                            'probability','group','order','insertion_order','position','useProbability','scan_depth',
+                            'match_whole_words','enabled','group_weight'];
+          var _stripMeta = function(bodyStr) {
+            var lines = bodyStr.split(/\r?\n/);
+            var meta = {};
+            var splitIdx = -1;  // 正文从第几行开始
+            for (var li = 0; li < lines.length; li++) {
+              var line = lines[li];
+              var tline = line.trim();
+              if (tline === '') { splitIdx = li + 1; break; }     // 空行 → 元信息结束
+              var eq = tline.indexOf('=');
+              if (eq < 2) { splitIdx = li; break; }               // 不以"键="开头 → 元信息结束
+              var k = tline.substring(0, eq).trim();
+              var v = tline.substring(eq + 1).trim();
+              var matchedKey = null;
+              for (var mi = 0; mi < metaFields.length; mi++) {
+                if (metaFields[mi].toLowerCase() === k.toLowerCase()) { matchedKey = metaFields[mi]; break; }
+              }
+              if (!matchedKey) { splitIdx = li; break; }          // 不是已知元信息键 → 元信息结束
+              // 值解析
+              if (matchedKey === 'keys' || matchedKey === 'secondary_keys') {
+                meta[matchedKey] = v.split(/[,，]/).map(function(s){return s.trim();}).filter(function(s){return s.length>0;});
+              } else if (matchedKey === 'constant' || matchedKey === 'vectorized' || matchedKey === 'prevent_recursion'
+                      || matchedKey === 'exclude_recursion' || matchedKey === 'use_regex' || matchedKey === 'useProbability'
+                      || matchedKey === 'match_whole_words' || matchedKey === 'enabled') {
+                meta[matchedKey] = /^(true|1|yes|是)$/i.test(v);
+              } else if (matchedKey === 'group') {
+                meta[matchedKey] = v;
+              } else {
+                var n = Number(v);
+                meta[matchedKey] = (!isNaN(n) && String(n) === v) ? n : v;
+              }
+            }
+            var bodyLines = (splitIdx >= 0) ? lines.slice(splitIdx) : lines;
+            return { meta: meta, content: bodyLines.join('\n').trim() };
+          };
+          if (action === 'upsert' || action === 'update') {
+            var r = _stripMeta(rawBody);
+            for (var mk in r.meta) { if (r.meta.hasOwnProperty(mk)) ops._metaFields = ops._metaFields || {}; }  // no-op 兼容
+            // 把解析出的元信息直接挂到 op 上（applyOps 里会用），content 用剥离元信息后的正文
+            content = r.content;
+            var opRec = { action: action, key: key, content: content };
+            for (var _mk in r.meta) { if (r.meta.hasOwnProperty(_mk)) opRec[_mk] = r.meta[_mk]; }
+            ops.push(opRec);
+            continue;
+          }
           // rename 格式：::: rename oldKey → newKey
           if (action === 'rename') {
             var arrowMatch = key.match(/^(.+?)\s*(?:->|→|=>)\s*(.+)$/);
@@ -10304,6 +10483,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (!didStrip) break;
             }
 
+            // ===== ✅新增：构造基础增量对象（含 AI 块体元信息头里的 keys/secondary_keys/selectiveLogic/constant/...）=====
+            var basePatch = { comment: cleanComment };
+            if (op.content && op.content.trim().length > 0) basePatch.content = op.content;
+            var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
+                               'vectorized','prevent_recursion','exclude_recursion','delay_until_recursion','use_regex',
+                               'probability','group','order','insertion_order','position','useProbability','scan_depth',
+                               'match_whole_words','enabled','group_weight'];
+            var extMap = { selectiveLogic:'selectiveLogic', depth:'depth', position:'position', sticky:'sticky',
+                           cooldown:'cooldown', delay:'delay', probability:'probability', useProbability:'useProbability',
+                           prevent_recursion:'prevent_recursion', exclude_recursion:'exclude_recursion',
+                           delay_until_recursion:'delay_until_recursion', scan_depth:'scan_depth',
+                           match_whole_words:'match_whole_words', group:'group', group_weight:'group_weight', role:'role' };
+            var extPatch = null;
+            for (var _mki = 0; _mki < metaKeysTop.length; _mki++) {
+              var _mk = metaKeysTop[_mki];
+              if (op[_mk] === undefined) continue;
+              if (extMap[_mk] !== undefined) {
+                extPatch = extPatch || {};
+                extPatch[extMap[_mk]] = op[_mk];
+              } else {
+                basePatch[_mk] = op[_mk];
+              }
+            }
+
             // 精确匹配现有条目
             var foundIdx = -1;
             for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
@@ -10313,14 +10516,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (foundIdx >= 0) {
               // 更新
               var oldEntry = cd.character_book.entries[foundIdx];
-              if (op.content && op.content.trim().length > 0) {
-                cd.character_book.entries[foundIdx] = Object.assign({}, oldEntry, {
-                  comment: cleanComment,
-                  content: op.content
-                });
-              } else {
-                cd.character_book.entries[foundIdx] = Object.assign({}, oldEntry, { comment: cleanComment });
+              var mergedEntry = Object.assign({}, oldEntry, basePatch);
+              if (extPatch) mergedEntry.extensions = Object.assign({}, (oldEntry && oldEntry.extensions) || {}, extPatch);
+              // ===== ✅新增：keys 为空时，按<标签>分类+实体名自动派生（蓝灯不派生）=====
+              var _tmplHere = getEntryTemplate(mergedEntry.comment || '');
+              if ((!mergedEntry.keys || mergedEntry.keys.length === 0) && !((_tmplHere && _tmplHere.constant) || mergedEntry.constant)) {
+                try { mergedEntry.keys = _deriveEntryKeys(mergedEntry.comment, _tmplHere, mergedEntry.content); } catch(derr){}
               }
+              if (!mergedEntry.secondary_keys) mergedEntry.secondary_keys = [];
+              cd.character_book.entries[foundIdx] = mergedEntry;
               modified = true;
               changeLog.updated++;
             } else {
@@ -10328,12 +10532,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (op.action === 'update') {
                 console.warn('[opblock] update 找不到条目:', op.key);
               } else {
-                cd.character_book.entries.push({
+                var newEntry = Object.assign({
                   comment: cleanComment,
                   content: op.content || '',
                   constant: false,
-                  position: 0
-                });
+                  position: 0,
+                  keys: [],
+                  secondary_keys: [],
+                  extensions: {}
+                }, basePatch);
+                if (extPatch) newEntry.extensions = Object.assign({}, newEntry.extensions || {}, extPatch);
+                var _tmplNew = getEntryTemplate(newEntry.comment || '');
+                if (_tmplNew) {
+                  if (newEntry.selective === undefined) newEntry.selective = _tmplNew.selective;
+                  if (newEntry.constant === undefined) newEntry.constant = _tmplNew.constant;
+                }
+                // ===== ✅新增：新条目 keys 为空自动派生 =====
+                if ((!newEntry.keys || newEntry.keys.length === 0) && !(newEntry.constant || (_tmplNew && _tmplNew.constant))) {
+                  try { newEntry.keys = _deriveEntryKeys(newEntry.comment, _tmplNew, newEntry.content); } catch(derr2){}
+                }
+                if (!newEntry.secondary_keys) newEntry.secondary_keys = [];
+                cd.character_book.entries.push(newEntry);
                 modified = true;
                 changeLog.added++;
               }
