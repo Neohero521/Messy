@@ -3669,16 +3669,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         var tmpl = getEntryTemplate(ne.comment || '');
         ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
+        // ===== 🧹先清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
+        if (typeof ne.content === 'string') {
+          ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
+        }
+        // ===== 再规范化（确保规范化结果是最终值，不被后续清洗破坏）=====
         if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
         // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
         if (String(ne.comment || '').indexOf('变量输出格式') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content);
-        }
-        // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
-        if (typeof ne.content === 'string') {
-          ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
         }
         if (tmpl) {
           if (ne.selective === undefined) ne.selective = tmpl.selective;
@@ -6864,9 +6865,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           :  'at_depth'))));
         var roleVal = (typeof pos.role === 'string') ? pos.role
           : (pos.role === 1 ? 'user' : (pos.role === 2 ? 'assistant' : 'system'));
+        // ===== 🧹 最后一道防线：变量列表/变量输出格式条目强制规范化 content =====
+        var _sanitizeComment = String(e.comment || e.name || '');
+        var _sanitizeContent = String(e.content == null ? '' : e.content);
+        if (_sanitizeComment.indexOf('变量列表') >= 0) {
+          _sanitizeContent = normalizeVarListContent(_sanitizeContent);
+        }
+        if (_sanitizeComment.indexOf('变量输出格式') >= 0) {
+          _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent);
+        }
         return {
           name: String(e.name || e.comment || ('条目' + (i + 1))),
-          content: String(e.content == null ? '' : e.content),
+          content: _sanitizeContent,
           enabled: e.enabled !== false,
           uid: typeof e.uid === 'string' ? e.uid : (e.uid != null ? String(e.uid) : undefined),
           displayIndex: (typeof e.displayIndex === 'number' || typeof e.display_index === 'number')
