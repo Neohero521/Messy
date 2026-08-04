@@ -5820,20 +5820,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var macro = '{{format_message_variable::stat_data}}';
     var stdBlock = '---\n<status_current_variables>\n' + macro + '\n</status_current_variables>';
     if (!content || !content.trim()) return stdBlock;
-    if (content.indexOf(macro) >= 0) return content; // 已含宏，无需修改
     // 修正 AI 误写的占位符（如 {{null}}、{{get_message_variable::stat_data}} 等）
     var cleaned = content.replace(/\{\{null\}\}/gi, macro)
                          .replace(/\{\{get_message_variable::stat_data\}\}/gi, macro)
                          .replace(/\{\{format_message_variable::[^}]*\}\}/gi, macro);
-    if (cleaned.indexOf(macro) >= 0) return cleaned;
+    // 含宏：重建为标准格式（丢弃所有混入的变量实际值/配置字段）
+    if (cleaned.indexOf(macro) >= 0) {
+      return stdBlock;
+    }
     // 仍未含宏：若有包裹标签（兼容单复数）则在标签内注入，否则追加标准块
     if (/<status_current_variables?>[\s\S]*?<\/status_current_variables?>/i.test(cleaned)) {
       cleaned = cleaned.replace(/(<status_current_variables?>)([\s\S]*?)(<\/status_current_variables?>)/i,
         '$1\n' + macro + '\n$3');
-    } else {
-      cleaned = cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
+      return '---\n' + cleaned;
     }
-    return cleaned;
+    return cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
   }
 
   // ===== MVU 条目内容自动生成 =====
@@ -10568,6 +10569,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
             var _cleanedContent = (op.content && op.content.trim().length > 0)
               ? _stripEntryConfigFromContent(cleanComment, op.content) : op.content;
+            // 变量列表条目：强制规范化为标准格式（只保留宏+包裹标签，丢弃变量实际值/配置字段）
+            if (_cleanedContent && cleanComment.indexOf('变量列表') >= 0) {
+              _cleanedContent = normalizeVarListContent(_cleanedContent);
+            }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
             var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
                                'vectorized','prevent_recursion','exclude_recursion','delay_until_recursion','use_regex',
