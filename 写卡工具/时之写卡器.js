@@ -3872,8 +3872,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     if (partial.depth_prompt !== undefined) {
       cd.extensions = cd.extensions || {};
-      cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
-      cd.depth_prompt = cd.depth_prompt || { prompt: '', depth: 0, role: 'system' };
+      // 防御：旧卡 extensions.depth_prompt / depth_prompt 可能是字符串（非空字符串 truthy，|| 不会替换）
+      // 导致后续 cd.extensions.depth_prompt.depth = ... 抛 "Cannot create property 'depth' on string"
+      if (typeof cd.extensions.depth_prompt !== 'object' || cd.extensions.depth_prompt === null) {
+        cd.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+      }
+      if (typeof cd.depth_prompt !== 'object' || cd.depth_prompt === null) {
+        cd.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+      }
       var dp = partial.depth_prompt;
       var dpModified = false;
       if (typeof dp === 'string') {
@@ -4020,7 +4026,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
             // 顶层已处理过 depth_prompt（delete partial.depth_prompt 已执行），这里仅当 partial.extensions 有独立配置时处理
-            cd.extensions.depth_prompt = cd.extensions.depth_prompt || { prompt: '', depth: 0, role: 'system' };
+            // 防御：旧卡 extensions.depth_prompt 可能是字符串（非空字符串 truthy，|| 不会替换）
+            if (typeof cd.extensions.depth_prompt !== 'object' || cd.extensions.depth_prompt === null) {
+              cd.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+            }
             var dp2 = partial.extensions.depth_prompt;
             var beforeDp = JSON.stringify(cd.extensions.depth_prompt);
             if (typeof dp2 === 'string') {
@@ -6449,7 +6458,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (data.creator !== undefined) { charData.creator = data.creator; charData.data.creator = data.creator; }
       if (data.character_version !== undefined) { charData.character_version = data.character_version; charData.data.character_version = data.character_version; }
       if (data.alternate_greetings !== undefined) { charData.alternate_greetings = data.alternate_greetings; charData.data.alternate_greetings = data.alternate_greetings; }
-      if (data.depth_prompt !== undefined) { charData.data.depth_prompt = data.depth_prompt; }
+      if (data.depth_prompt !== undefined) {
+        // 防御：depth_prompt 必须是对象，字符串会导致酒馆内部 "Cannot create property 'depth' on string"
+        var _dp = data.depth_prompt;
+        if (typeof _dp === 'string') {
+          _dp = { prompt: _dp, depth: 4, role: 'system' };
+        } else if (!_dp || typeof _dp !== 'object') {
+          _dp = undefined;
+        }
+        if (_dp) charData.data.depth_prompt = _dp;
+      }
       // 关联世界书：写入 character.data.world（v3 规范位置），让酒馆自动加载该世界书
       if (data.world !== undefined && data.world) {
         charData.data.world = data.world;
