@@ -4339,11 +4339,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     if (mvuOnlyEntries.length > 0) {
       var mvuEntryText = '当前已有MVU变量条目（' + mvuOnlyEntries.length + '条）：\n';
+      mvuEntryText += '⚠️ 下方每条条目的「实际content」被 <<<content 开始>>> ... <<<content 结束>>> 包裹。\n';
+      mvuEntryText += '⚠️ upsert 时只输出 <<<content 开始>>> 和 <<<content 结束>>> 之间的部分作为 content，\n';
+      mvuEntryText += '   绝对不要把 comment/enabled/keys 这些字段名当 YAML 变量写进 content！\n\n';
       mvuOnlyEntries.forEach(function(e, i) {
         mvuEntryText += '── 条目 ' + (i+1) + ' ──\n';
-        mvuEntryText += 'comment: ' + (e.comment||'(空)') + '\n';
-        mvuEntryText += 'keys: ' + (e.keys||[]).join(', ') + '\n';
-        mvuEntryText += 'content:\n' + (e.content||'(空)') + '\n\n';
+        mvuEntryText += '【comment】' + (e.comment||'(空)') + '\n';
+        mvuEntryText += '【enabled】' + (e.enabled === false ? 'false' : 'true') + '\n';
+        mvuEntryText += '【keys】' + (e.keys||[]).join(', ') + '\n';
+        mvuEntryText += '【content】（以下 <<<>>> 之间的才是真实 content，upsert 时只输出这部分）：\n';
+        mvuEntryText += '<<<content 开始>>>\n' + (e.content||'(空)') + '\n<<<content 结束>>>\n\n';
       });
       ctxParts.push(mvuEntryText);
       // 追加精确comment清单（供:::操作块精确匹配用）
