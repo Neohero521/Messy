@@ -1122,6 +1122,78 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return uniq;
   }
 
+  // ===== 🧹 清洗 MVU 条目 content 中混入的条目配置字段 =====
+  // AI 生成 [InitVar] 等 MVU 条目时，有时把整个条目当 YAML 对象输出，
+  // 导致 content 正文里出现 enabled: false / content: | / comment: xxx 等配置字段。
+  // 本函数剥离这些配置字段，只保留 YAML 变量正文。
+  // 仅对 MVU 变量条目（[InitVar]/变量列表/变量更新规则/变量输出格式等）生效，其他条目原样返回。
+  function _stripEntryConfigFromContent(comment, content) {
+    if (!content || typeof content !== 'string') return content;
+    var c = (comment || '').toLowerCase();
+    var isMvu = c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+                c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
+                c.indexOf('mvu_update') >= 0 || c.indexOf('状态变量输出') >= 0;
+    if (!isMvu) return content;
+
+    var lines = content.split(/\r?\n/);
+    // 条目配置字段名（不会被 MVU YAML 正文用作根字段）
+    var configFieldRe = /^(enabled|content|comment|constant|keys|secondary_keys|selective|selectiveLogic|position|depth|order|insertion_order|use_regex|probability|sticky|cooldown|delay|vectorized|prevent_recursion|exclude_recursion|displayIndex|display_index|uid|name|group|group_weight|useProbability|scan_depth|match_whole_words|delay_until_recursion|role)\s*:/i;
+
+    // 快速检查：开头 10 行内是否有配置字段
+    var hasConfig = false;
+    for (var i = 0; i < Math.min(lines.length, 10); i++) {
+      if (configFieldRe.test(lines[i].trim())) { hasConfig = true; break; }
+    }
+    if (!hasConfig) return content;
+
+    // 检查是否有 content: | 行（YAML 块字符串语法，AI 把条目当对象输出的典型特征）
+    var contentPipeIdx = -1;
+    for (var i = 0; i < Math.min(lines.length, 10); i++) {
+      if (/^content\s*:\s*\|/i.test(lines[i].trim())) { contentPipeIdx = i; break; }
+    }
+
+    if (contentPipeIdx >= 0) {
+      // 情况1：enabled: false \n content: | \n   缩进的 YAML 正文
+      // 提取 content: | 后面的缩进块，去掉一级缩进作为真正 content
+      var indent = -1;
+      for (var j = contentPipeIdx + 1; j < lines.length; j++) {
+        if (lines[j].trim() === '') continue;
+        var m = lines[j].match(/^(\s+)/);
+        if (m) { indent = m[1].length; }
+        break;
+      }
+      var cleaned = [];
+      for (var j = contentPipeIdx + 1; j < lines.length; j++) {
+        if (indent > 0 && lines[j].startsWith(' '.repeat(indent))) {
+          cleaned.push(lines[j].slice(indent));
+        } else if (indent > 0 && lines[j].startsWith('\t')) {
+          cleaned.push(lines[j].replace(/^\t/, ''));
+        } else if (lines[j].trim() === '') {
+          cleaned.push('');
+        } else {
+          cleaned.push(lines[j]);
+        }
+      }
+      var result = cleaned.join('\n').trim();
+      // 如果清洗后为空（异常情况），保留原始内容避免数据丢失
+      return result || content;
+    }
+
+    // 情况2：开头有 enabled: false 等配置字段，但没有 content: |
+    // 删掉开头的配置字段行和空行，保留第一个非配置字段行及之后的所有内容
+    var cleaned2 = [];
+    var skipConfig = true;
+    for (var i = 0; i < lines.length; i++) {
+      if (skipConfig) {
+        if (lines[i].trim() === '' || configFieldRe.test(lines[i].trim())) continue;
+        skipConfig = false;
+      }
+      cleaned2.push(lines[i]);
+    }
+    var result2 = cleaned2.join('\n').trim();
+    return result2 || content;
+  }
+
   // 判断条目是否属于MVU变量系统
   // 兼容大小写前缀：[InitVar]/[initvar]、[mvu_update] 等
   // 扩展：包含4条核心条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
@@ -3600,6 +3672,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
+        // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
+        if (typeof ne.content === 'string') {
+          ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
+        }
         if (tmpl) {
           if (ne.selective === undefined) ne.selective = tmpl.selective;
           if (ne.constant === undefined) ne.constant = tmpl.constant;
@@ -4752,6 +4828,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '═══════════════════════════════════════════════════════════════════\n' +
         '· 如果用户要求设计/修改4条MVU变量条目：使用:::操作块协议输出修改指令，不要输出```json代码块\n' +
         '  格式：::: upsert [InitVar]初始变量\\n---\\n变量名: 值\\n---\\n:::\n' +
+        '  ⚠️【InitVar正文纯净铁律】::: upsert 块的 content 部分**只写 YAML 变量内容**（如 stat_data: ...）！\n' +
+        '  ❌ 绝对不要把 enabled/content/comment 这些条目配置字段写进 content！它们由写卡器自动维护！\n' +
+        '  ✅ 正确：::: upsert [InitVar]初始变量\\nstat_data:\\n  世界:\\n    境界: 炼气\\n:::\n' +
+        '  ❌ 错误：::: upsert [InitVar]初始变量\\nenabled: false\\ncontent: |\\n  stat_data:\\n    境界: 炼气\\n:::\n' +
         '· 如果用户要求修改变量结构脚本：::: upsert script:变量结构\\nzod代码\\n:::\n' +
         '  5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
         '· 如果在状态栏Step 1：输出纯文本表格（变量盘点表），不写代码块\n' +
@@ -10485,7 +10565,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             // ===== ✅新增：构造基础增量对象（含 AI 块体元信息头里的 keys/secondary_keys/selectiveLogic/constant/...）=====
             var basePatch = { comment: cleanComment };
-            if (op.content && op.content.trim().length > 0) basePatch.content = op.content;
+            // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
+            var _cleanedContent = (op.content && op.content.trim().length > 0)
+              ? _stripEntryConfigFromContent(cleanComment, op.content) : op.content;
+            if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
             var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
                                'vectorized','prevent_recursion','exclude_recursion','delay_until_recursion','use_regex',
                                'probability','group','order','insertion_order','position','useProbability','scan_depth',
