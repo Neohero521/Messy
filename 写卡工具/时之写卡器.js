@@ -816,11 +816,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-prop select,.ws-prop input[type=text],.ws-prop input[type=number]{padding:2px 6px;border:1px solid var(--line);border-radius:4px;font-size:.92em;background:var(--surface);color:var(--ink);font-family:inherit}
 .ws-prop-keys{flex:1;min-width:120px}
 .ws-prop-keys-input{width:100% !important}
-/* 删除条目 */
-.ws-entry-del-wrap{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0;background:#fef2f288}
-.ws-del-entry-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #fecaca;border-radius:6px;background:#fee2e2;color:#991b1b;font-size:.76em;cursor:pointer;transition:all .15s;font-family:inherit;font-weight:600}
-.ws-del-entry-btn:hover{background:#fecaca;border-color:#fca5a5;color:#7f1d1d}
-.ws-del-hint{font-size:.68em;color:#9ca3af;font-style:italic}
 /* 视图切换 */
 .ws-view-switcher{display:flex;gap:2px;padding:6px 14px;border-bottom:1px solid var(--line-soft);flex-shrink:0;background:var(--surface-soft)}
 .ws-view-btn{padding:4px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink-soft);font-size:.76em;cursor:pointer;transition:all .15s;font-family:inherit}
@@ -1228,17 +1223,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var c = (comment || '').toLowerCase();
     return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
            c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0;
-  }
-
-  // 获取 MVU 核心条目类型标识（用于删除标记/导出兜底跳过）
-  function _getMVUCoreType(comment) {
-    var c = (comment || '').toLowerCase();
-    if (c.indexOf('变量输出格式强调') >= 0) return 'outputfmt_emphasis';
-    if (c.indexOf('[initvar]') >= 0) return 'initvar';
-    if (c.indexOf('变量列表') >= 0) return 'varlist';
-    if (c.indexOf('变量更新规则') >= 0) return 'updaterule';
-    if (c.indexOf('变量输出格式') >= 0) return 'outputfmt';
-    return '';
   }
 
   // ST规范：转换 regex_scripts 格式（导入/导出共用）
@@ -3683,13 +3667,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
         if (!hasComment && !hasMeaningfulContent) return;
 
-        // ===== 用户重新 upsert 该类型条目时，清除删除标记（恢复导出兜底能力）=====
-        var _upsertMvuType = _getMVUCoreType(ne.comment || '');
-        if (_upsertMvuType && cd._deletedMVUTypes) {
-          var _di = cd._deletedMVUTypes.indexOf(_upsertMvuType);
-          if (_di >= 0) cd._deletedMVUTypes.splice(_di, 1);
-        }
-
         var tmpl = getEntryTemplate(ne.comment || '');
         ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
         // ===== 🧹先清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
@@ -3846,13 +3823,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         allEntryDeletions.forEach(function(n) { if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n); });
         uniqueIdx.forEach(function(uIdx) {
           if (uIdx < cd.character_book.entries.length) {
-            // ===== 记录用户主动删除的 MVU 核心条目类型，防止导出兜底"复活" =====
-            var _delComment = cd.character_book.entries[uIdx].comment || '';
-            var _delMvuType = _getMVUCoreType(_delComment);
-            if (_delMvuType) {
-              if (!cd._deletedMVUTypes) cd._deletedMVUTypes = [];
-              if (cd._deletedMVUTypes.indexOf(_delMvuType) < 0) cd._deletedMVUTypes.push(_delMvuType);
-            }
             cd.character_book.entries.splice(uIdx, 1);
             modified = true; changeLog.deleted++;
           }
@@ -7218,30 +7188,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 预填充结束 =====
     // ===== 改进Z5：MVU核心条目兜底——只要任意一项MVU条目存在，就自动补齐其余4类缺失条目 =====
     // 确保导出的角色卡永远包含完整可用的MVU系统
-    // ⚠️但跳过用户主动删除的条目类型（cd._deletedMVUTypes 记录）
-    var _deletedTypes = cd._deletedMVUTypes || [];
     var anyMVUExists = filledEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
     var mvuEntryExists = function(pred) { return filledEntries.some(pred); };
     if (anyMVUExists || statusBarMode || Object.keys(statusBarModules || {}).some(function(k) { return statusBarModules[k]; })) {
       var _toAppend = [];
       var _idx = filledEntries.length;
-      // InitVar（跳过用户已删除的）
-      if (_deletedTypes.indexOf('initvar') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
+      // InitVar
+      if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // 变量列表（含 format_message_variable::stat_data 宏）
-      if (_deletedTypes.indexOf('varlist') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
+      if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '变量列表', content: generateVarListContent(), constant: true, selective: false, insertion_order: 150, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量更新规则
-      if (_deletedTypes.indexOf('updaterule') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
+      if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量更新规则', content: generateVarUpdateRule(charNames), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量输出格式
-      if (_deletedTypes.indexOf('outputfmt') < 0 && !mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
+      if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
@@ -8370,9 +8338,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '<label class="ws-prop">分组 <input type="text" class="ws-prop-group" value="' + escAttr(meta.group || '') + '" placeholder="组名" style="width:100px"></label>' +
             '<label class="ws-prop">组权重 <input type="number" class="ws-prop-groupWeight" value="' + (meta.groupWeight != null ? meta.groupWeight : 10) + '" min="0" max="1000" style="width:50px"></label>' +
             '<label class="ws-prop ws-prop-keys">关键词 <input type="text" class="ws-prop-keys-input" value="' + escAttr(meta.keys) + '" placeholder="逗号分隔"></label>' +
-          '</div>' +
-          // ===== 真正删除条目按钮（区分于"禁用"，防止用户把禁用当删除）=====
-          (node && node.type === 'entry' ? '<div class="ws-entry-del-wrap"><button class="ws-del-entry-btn" title="从角色卡中彻底删除该条目（不可恢复，禁用请用上方"启用"复选框）">🗑️ 彻底删除此条目</button><span class="ws-del-hint">提示：如果只是不想激活，请取消勾选上面的"启用"</span></div>' : '');
+          '</div>';
         }
         var bodyHtml = '';
         // 构建单栏内容
@@ -8482,40 +8448,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (groupInp) groupInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { group: this.value }); });
         if (groupWInp) groupWInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { groupWeight: parseInt(this.value) || 0 }); });
         if (keysInp) keysInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { keys: this.value }); });
-        // ===== 条目删除按钮事件 =====
-        var delBtn = container.querySelector('.ws-del-entry-btn');
-        if (delBtn) {
-          delBtn.addEventListener('click', function() {
-            if (!wsSelectedNode || wsSelectedNode.type !== 'entry') return;
-            var idx = wsSelectedNode.index;
-            var _entries = ((cardData.character_book || {}).entries || []);
-            if (idx == null || idx < 0 || idx >= _entries.length) return;
-            var _delCmt = _entries[idx].comment || ('条目' + (idx + 1));
-            if (!confirm('确定要彻底删除条目「' + _delCmt + '」吗？\n\n（删除后无法恢复，只是暂时不用请用"启用"复选框）')) return;
-            // 记录MVU核心条目删除标记，防止导出兜底复活
-            var _dmt = _getMVUCoreType(_delCmt);
-            if (_dmt) {
-              if (!cardData._deletedMVUTypes) cardData._deletedMVUTypes = [];
-              if (cardData._deletedMVUTypes.indexOf(_dmt) < 0) cardData._deletedMVUTypes.push(_dmt);
-            }
-            _entries.splice(idx, 1);
-            saveToStorage();
-            updateProgress();
-            renderPreview();
-            showToast('已删除条目：' + _delCmt, 'success');
-            wsSelectedNode = null;
-            wsEditedContent = {};
-            wsOriginalContent = {};
-            // 刷新树+编辑器
-            var treeEl = container.querySelector('#wsTree');
-            if (treeEl) treeEl.innerHTML = buildWorkspaceTree();
-            var editorEl = container.querySelector('#wsEditor');
-            if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
-            var artifactEl = container.querySelector('#wsArtifact');
-            if (artifactEl) renderWsArtifact(container);
-            bindWsEditorEvents(container);
-          });
-        }
       }
       // ===== 预览区：角色卡整体预览 =====
       function renderWsArtifact(container) {
@@ -12645,7 +12577,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           groupEntries.sort(function(a, b) { return (a.insertion_order || 100) - (b.insertion_order || 100); });
           groupEntries.forEach(function(e, idx) {
             var comment = e.comment || ('条目' + (idx + 1));
-            var origIdx = entries.indexOf(e);
             var m = comment.match(/^<([^>]+)>/);
             var prefixKey = m ? m[1] : '';
             var wl = WEIGHT_LEVELS[prefixKey] || { level: '中', color: '#15803d', desc: '自定义' };
@@ -12666,7 +12597,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 '<span class="wv-entry-name" title="' + escHtml(comment) + '">' + escHtml(comment) + '</span>' +
                 '<span class="wv-entry-level" style="background:' + wl.color + '20;color:' + wl.color + ';border:1px solid ' + wl.color + '50">' + wl.level + '</span>' +
                 '<span class="wv-entry-token">' + tk + 'T</span>' +
-                '<button class="wv-del-btn" data-wvdel="' + origIdx + '" title="彻底删除此条目">🗑️</button>' +
               '</div>' +
               '<div class="wv-entry-meta">' +
                 '<span class="wv-tag ' + (isConst ? 'const' : 'trig') + '">' + (isConst ? '常驻' : '触发') + '</span>' +
@@ -12694,30 +12624,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
         doc.getElementById('wvCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-        // ===== 权重可视化删除条目 =====
-        var wvDelBtns = modalEl.querySelectorAll('.wv-del-btn');
-        for (var _wi = 0; _wi < wvDelBtns.length; _wi++) {
-          wvDelBtns[_wi].addEventListener('click', function(e) {
-            e.stopPropagation();
-            var origIdx = parseInt(this.getAttribute('data-wvdel'));
-            // 直接对 cardData 底层数据操作（排序后局部数组的索引不可靠）
-            var allEs = (cardData.character_book || {}).entries || [];
-            if (isNaN(origIdx) || origIdx < 0 || origIdx >= allEs.length) return;
-            var delCmt = allEs[origIdx].comment || ('条目' + (origIdx + 1));
-            if (!confirm('确定要彻底删除条目「' + delCmt + '」吗？\n\n（删除后无法恢复，若只是暂时不用可在工作台设为"禁用"）')) return;
-            var _dmt = _getMVUCoreType(delCmt);
-            if (_dmt) {
-              if (!cardData._deletedMVUTypes) cardData._deletedMVUTypes = [];
-              if (cardData._deletedMVUTypes.indexOf(_dmt) < 0) cardData._deletedMVUTypes.push(_dmt);
-            }
-            allEs.splice(origIdx, 1);
-            saveToStorage();
-            renderPreview();
-            showToast('已删除条目：' + delCmt, 'success');
-            modalEl.remove();
-            showWeightVisual();
-          });
-        }
       }
 
       // ===== 分组管理（规范4.4：分组自动适配） =====
