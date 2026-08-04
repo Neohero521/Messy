@@ -3672,6 +3672,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
+        // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
+        if (String(ne.comment || '').indexOf('变量输出格式') >= 0 && typeof ne.content === 'string') {
+          ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content);
+        }
         // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
         if (typeof ne.content === 'string') {
           ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
@@ -5835,6 +5839,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return '---\n' + cleaned;
     }
     return cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
+  }
+
+  // ===== 🧹 规范化变量输出格式/变量输出格式强调条目 content =====
+  // 这两个条目的 content 是固定 YAML 模板，AI 不应修改。
+  // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
+  function normalizeVarOutputFormatContent(comment, content) {
+    var c = (comment || '').toLowerCase();
+    var isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
+    if (!isFormat) return content;
+    // 强制使用固定模板（原封不动，不修改字段、不加注释、不替换占位符）
+    if (c.indexOf('变量输出格式强调') >= 0) {
+      return generateVarOutputEmphasis();
+    }
+    return generateVarOutputFormat();
   }
 
   // ===== MVU 条目内容自动生成 =====
@@ -10572,6 +10590,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 变量列表条目：强制规范化为标准格式（只保留宏+包裹标签，丢弃变量实际值/配置字段）
             if (_cleanedContent && cleanComment.indexOf('变量列表') >= 0) {
               _cleanedContent = normalizeVarListContent(_cleanedContent);
+            }
+            // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
+            if (_cleanedContent && (cleanComment.indexOf('变量输出格式') >= 0)) {
+              _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent);
             }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
             var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
