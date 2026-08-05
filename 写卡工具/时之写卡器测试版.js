@@ -6395,40 +6395,41 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 生成变量更新规则内容（xr 函数）
   // ⚠️改进15对齐：zod已对好感度做 .clamp(0,100) 且自动派生 $阶段，此处不再写 range/category
   // ⚠️规范对齐：string 省略 type；_ 前缀只读字段不列规则；同类型合并 ${a|b|c}；动态键用 type index signature
+  // ⚠️绝对零度原则：全中文 YAML；check 必须直接指出操作类型（delta/replace/insert/remove）
   // 生成变量更新规则（⚠️精炼版：多角色属性合并为 ${角色名}.属性 规则，每条规则描述简洁）
   function generateVarUpdateRule(charNames) {
-    // ⚠️精简联动版：zod 已定义 range/clamp，此处不重复；check 规则简洁化
+    // ⚠️精简联动版：zod 已定义 range/clamp，此处不重复；check 规则简洁化并联动操作类型
     const lines = [
       '---',
       '变量更新规则:',
       '  世界.当前时间:',
-      '    format: D${天数}-${时间段}',
       '    check:',
-      '      - 仅在场景切换或显著休息后推进时间',
+      '      - 仅在场景切换、长距离移动或角色休息后，使用 replace 更新时间字符串',
       '  世界.当前地点:',
       '    check:',
-      '      - 场景发生明确移动时更新为具体位置'
+      '      - 场景发生明确移动时使用 replace 更新为具体位置'
     ];
     if (charNames && charNames.length > 0) {
       lines.push('  ${角色}.好感度:');
       lines.push('    type: number');
       lines.push('    check:');
-      lines.push('      - 依据{{user}}互动感知调整 ±(1~3)');
-      lines.push('      - 严禁在无直接互动时大幅变动');
+      lines.push('      - 当角色对{{user}}的行为产生正面或负面情绪反馈时更新');
+      lines.push('      - 优先使用 delta 操作，单次变动建议 ±(1~3)');
       lines.push('  ${角色}.心情:');
       lines.push('    check:');
-      lines.push('      - 2-4字简述当前情绪波动');
+      lines.push('      - 2-4字简述当前情绪波动，使用 replace 更新');
       lines.push('  ${角色}.状态:');
       lines.push('    check:');
-      lines.push('      - 仅剧情本质推进时切换（正常/异常/濒死等）');
+      lines.push('      - 仅剧情本质推进时使用 replace 切换（正常/异常/濒死等）');
       lines.push('  ${角色}.关系:');
       lines.push('    check:');
-      lines.push('      - 仅关系本质性改变时更新，一次互动不足以越级');
+      lines.push('      - 仅关系本质性改变时使用 replace 更新，一次互动不足以越级');
       if (charNames.indexOf('主角') >= 0) {
         lines.push('  主角.物品栏:');
         lines.push('    type: "{ [物品名: string]: { 描述: string; 数量: number } }"');
         lines.push('    check:');
-        lines.push('      - 获得新物品使用 insert，消耗使用 remove 或 delta 数量');
+        lines.push('      - 获得物品使用 insert 添加到路径 /主角/物品栏/物品名');
+        lines.push('      - 消耗物品使用 remove 移除对应键，或 delta 调整数量');
       }
     }
     return lines.join('\n');
@@ -6436,37 +6437,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 生成变量输出格式内容
   // ⚠️完全固定，原封不动输出（不要修改字段、不要加注释、不要替换占位符）
+  // ⚠️绝对零度原则：全中文；JSON Patch 路径根为 stat_data 内部，从第一级分类开始（严禁 /stat_data 前缀）
   function generateVarOutputFormat() {
     return ['---',
 '变量输出格式:',
 '  rule:',
-'    - you must output the update analysis and the actual update commands at once in the end of the next reply',
-'    - use \'delta\' for number changes, \'replace\' for strings',
-'    - ❌ STRICTLY FORBIDDEN: Do not update fields starting with \'_\' (readonly)',
-'    - analyze based on the latest reply only',
-'    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:',
-'      - replace: replace the value of existing paths',
-'      - delta: update the value of existing number paths by a delta value',
-'      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)',
-'      - remove',
-'      - move',
+'    - 必须在回复末尾同时输出更新分析和实际更新指令',
+'    - 更新指令遵循 JSON Patch (RFC 6902) 标准',
+'    - 数值变化使用 delta，字符串替换使用 replace',
+'    - ❌ 严禁更新以 _ 开头的只读字段',
+'    - 仅基于最新一条回复进行分析',
+'    - JSON Patch 路径根为 stat_data 内部，从第一级分类开始（如 /主角/好感度），严禁写 /stat_data/xxx 前缀',
 '  format: |-',
 '    <UpdateVariable>',
-'    <Analysis>$(IN ENGLISH, no more than 80 words)',
-'    - ${calculate time passed: ...}',
-'    - ${decide whether dramatic updates are allowed: yes/no}',
-'    - ${analyze every variable based on its corresponding `check`: ...}',
+'    <Analysis>$(中文分析，不超过80字)',
+'    - 剧情流逝时间：...',
+'    - 变量变动依据：...',
 '    </Analysis>',
 '    <JSONPatch>',
 '    [',
-'      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },',
-'      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },',
-'      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },',
-'      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },',
-'      { "op": "remove", "path": "${/path/to/object/key}" },',
-'      { "op": "remove", "path": "${/path/to/array/0}" },',
-'      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },',
-'      ...',
+'      { "op": "delta", "path": "/主角/好感度", "value": 5 },',
+'      { "op": "replace", "path": "/世界/当前地点", "value": "天台" },',
+'      { "op": "insert", "path": "/主角/物品栏/新物品", "value": { "描述": "...", "数量": 1 } },',
+'      { "op": "remove", "path": "/主角/物品栏/旧物品" },',
+'      { "op": "move", "from": "/主角/物品栏/钥匙", "to": "/角色A/物品栏/钥匙" }',
 '    ]',
 '    </JSONPatch>',
 '    </UpdateVariable>'].join('\n');
@@ -7642,7 +7636,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var _idx = filledEntries.length;
       // InitVar
       if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 100, enabled: false, position: 0, use_regex: true, extensions: {} });
         _idx++;
       }
       // 变量列表（含 format_message_variable::stat_data 宏）
@@ -11659,17 +11653,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // 默认后备模块片段（对齐tavern_helper_template标准实现的最小可用版本）
-      // ⚠️CSS布局铁律：禁止vh、禁止position:absolute（局部小图标除外）、width:100%有外部支撑、适配宽度、卡片状不带背景色、禁止横向滚动
+      // ⚠️CSS布局铁律：禁止vh（用aspect-ratio）、禁止position:absolute（脱离文档流无外部支撑）、强制Grid响应式、卡片状不带背景色、禁止横向滚动
       // 当AI未成功生成某模块时自动补全，确保最终状态栏100%可用
       var DEFAULT_STEP2_CSS =
-        '/* 布局铁律：width:100%适配容器宽度；aspect-ratio:auto让高度随内容自适应；overflow-x:hidden禁止横向滚动；background:transparent卡片状不带背景色 */\n' +
-        '.stat-box{width:100%;aspect-ratio:auto;display:block;overflow-x:hidden;background:transparent;margin:8px 0;padding:10px 12px;border-radius:6px;font-size:13px;font-family:sans-serif;display:flex;flex-wrap:wrap;gap:6px 12px;border:1px solid rgba(127,127,127,0.18);box-sizing:border-box;}\n' +
-        '.stat-group{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}\n' +
-        '.stat-label{font-weight:600;opacity:0.85;}\n' +
+        '/* 严禁使用 vh，使用 aspect-ratio 确保高度随宽度自适应；严禁 position:absolute（无外部支撑） */\n' +
+        '.mvu-status-card{width:100%;aspect-ratio:auto;display:flex;flex-direction:column;background:transparent;border:1px solid var(--line-divider,rgba(127,127,127,0.18));border-radius:6px;box-sizing:border-box;overflow-x:hidden;font-size:13px;font-family:sans-serif;margin:8px 0;}\n' +
+        '.status-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(127,127,127,0.12);cursor:pointer;}\n' +
+        '.char-name{font-weight:600;}\n' +
+        '.world-time{opacity:0.75;font-size:12px;}\n' +
+        '/* 必须使用 Grid 响应式布局，严禁平铺 */\n' +
+        '.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;padding:10px;}\n' +
+        '.stat-item{display:flex;align-items:center;gap:6px;}\n' +
+        '.stat-label{font-weight:600;opacity:0.85;white-space:nowrap;}\n' +
         '.stat-value{opacity:0.95;}\n' +
-        '.stat-pill{padding:1px 6px;border-radius:10px;background:rgba(60,120,220,0.12);}\n' +
-        '.stat-bar{display:inline-block;vertical-align:middle;width:60px;height:6px;border-radius:3px;background:rgba(127,127,127,0.2);overflow:hidden;}\n' +
-        '.stat-bar>span{display:block;height:100%;background:linear-gradient(90deg,#4f8cff,#7aa8ff);}';
+        '/* 进度条标准样式 */\n' +
+        '.progress-bar{width:100%;height:6px;background:rgba(0,0,0,0.1);border-radius:3px;overflow:hidden;}\n' +
+        '.progress-bar-fill{height:100%;background:linear-gradient(90deg,#4f8cff,#7aa8ff);transition:width 0.3s ease;}\n' +
+        '.loading-state{position:relative;text-align:center;padding:20px;opacity:0.6;}\n' +
+        '.flash-update{animation:flash 0.3s ease;}\n' +
+        '@keyframes flash{0%{background:rgba(79,140,255,0.15);}100%{background:transparent;}}';
 
       var DEFAULT_STEP3_HTML =
         '<div class="mvu-status-card">' +
