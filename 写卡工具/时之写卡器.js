@@ -1607,7 +1607,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         4. 变量的更新条件是什么？\n' +
     '       第二步：按变量结构脚本和用户要求，参考下例编写规则\n' +
     '     · 示例：\n' +
-    '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\n' +
+    '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\\n  ${变量}.主角评价:\\n    value: 主角对某个变量内容的即时感受\\n    check:\\n      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\\n      - 语言应保持第一人称/贴近主角口吻\\n      - 主角的评价并不会被主角本人看到，也不会在剧情中出现\n' +
     '9.1.4 [mvu_update]变量输出格式（对应第5条，固定内容原样输出）：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 内容完全固定，**原封不动地输出以下 YAML，不要修改任何字段、不要加注释、不要替换占位符**：\n' +
     '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
@@ -1615,7 +1615,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '9.1.4a [mvu_update]变量输出格式强调（对应第6条，固定内容原样输出）：世界书条目（constant=true, depth=0, enabled=false默认禁用）\n' +
     '     · 用途：当AI不输出<UpdateVariable>段时，启用此条目强制提醒AI按格式输出\n' +
     '     · 内容完全固定，**原封不动地输出以下 YAML**：\n' +
-    '       ---\\n变量输出格式强调:\\n  rule:\\n    - CRITICAL: You MUST output <UpdateVariable> at the end of EVERY reply without exception\\n    - If you did not output it, the variable system will break\\n    - Review the format in 变量输出格式 entry and follow it exactly\\n' +
+    '       ---\\n变量输出格式强调:\\n  rule: The following must be inserted to the end of reply, and cannot be omitted\\n  format: |-\\n    <UpdateVariable>\\n    ...\\n    </UpdateVariable>\\n' +
     '9.1.4b <状态栏>占位符提醒（对应第7条）：世界书条目（constant=true, depth=0）\n' +
     '     · 用途：提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>，状态栏正则(第8条)会替换它为状态栏HTML\n' +
     '     · 内容固定：---\\n<状态栏占位符提醒>\\n  - 每条回复的末尾必须输出 <StatusPlaceHolderImpl/>，这是状态栏渲染的锚点\\n  - 不要在回复中间输出此标签，只在最末尾输出一次\n' +
@@ -4400,31 +4400,47 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '第三步：编写初始变量\n' +
     '  按照zod 4编写javascript文件\n\n' +
     '【额外zod要求】\n' +
-    '  - libraries: z（from zod 4.x）和 _（from lodash）默认可用，直接使用，不要import\n' +
-    '  - idempotent operation: Schema.parse的输出必须是自身的合法输入，慎用z.transform\n' +
-    '  - for number schema: 优先用 z.coerce.number() 而非 z.number()；不要用 z.coerce.boolean()，直接用 z.boolean()\n' +
-    '  - prefer object schema over array schema: 用 z.record(z.string().describe(\'物品名\'), z.object({...})) 而非 z.array(z.object({...}))\n' +
-    '  - for object schema:\n' +
-    '    * 固定必填键+同类型: z.record(z.enum([\'key1\', \'key2\', ...]), valueType)\n' +
-    '    * 固定可选键+同类型: z.partialRecord(z.enum([\'key1\', \'key2\', ...]), valueType)\n' +
-    '    * 动态可选键+同类型: z.record(z.string(), valueType)\n' +
-    '    * 固定必填键+不同类型: z.object({ key1: type1, key2: type2, ... })\n' +
-    '    * 动态键+部分必填+同类型: z.intersection(z.object({ requiredKey1: type1, ... }), z.record(z.string(), valueType))\n' +
-    '    * clearable object: 用 z.object({ field: type.prefault(...), ... }).prefault({}) 而非 z.object({...}).optional()\n' +
-    '  - for special format: 优先用 z.templateLiteral 而非 regex\n' +
-    '  - for restrictions: 用 z.transform 转换非法输入而非直接拒绝（如 z.number().transform(v => _.clamp(v, 0, 100)) 而非 z.number().min(0).max(100)）\n' +
-    '  - on default value:\n' +
-    '    * 优先用 z.prefault 而非 z.default\n' +
-    '    * 复杂 z.object 或 Schema 设 .prefault(\'默认值\') 或 .or(z.literal(\'待初始化\')).prefault(\'待初始化\')\n' +
-    '    * 复合类型prefault后，其所有字段也应prefault\n' +
-    '    * 不要在其他情况下设 z.prefault\n' +
-    '  - when to describe: 仅当字段名无法说明用法时用 z.describe（如 z.record 的 key 类型）\n' +
-    '  - determine the order of keys: 需要按插入时间操作键时用 _(data).entries()；z.transform内已排序时用 $time: z.coerce.number().prefault(() => Date.now())\n' +
-    '  - don\'t repeat yourself: 尽量合并相同变量schema，但不要定义额外变量\n' +
-    '  - z.transform: fn 只接受 parsed output 作为输入，不能用 context\n' +
-    '  - z.prefault: value 必须是 schema 自身的合法输入\n' +
-    '  - z.extend: 只能扩展 z.object/z.looseObject/z.strictObject（z.object(...).prefault({}) 不能 extend）\n' +
-    '  - z.passthrough/z.strict: 不存在，禁用\n\n' +
+    '\n' +
+    '  rule:\n' +
+    '    - libraries: "`z` from zod 4.x (stick to it instead of 3.x!) and `_` from lodash are available by default, so you can use them directly and should prefer to use them; don\'t import them in the generated code"\n' +
+    '    - idempotent operation: the schema is intended to parse the updates of the world status incrementally, thus, the output of `Schema.parse(input)` must be a valid input of `Schema.parse` itself; that is, you should use z.transform carefully, keeping `Schema.parse(Schema.parse(input))` equal to `Schema.parse(input)`\n' +
+    '    - for number schema: prefer `z.coerce.number()` over `z.number()` whenever you expect a number since it will try to convert the input to a number if it\'s not a number; but don\'t use other `z.coerce.xxx()` such as `z.coerce.boolean()`, just use `z.boolean()` directly\n' +
+    '    - prefer object schema over array schema: "the array index is hard to understand and maintain, so you should use `物品栏: z.record(z.string().describe(\'物品名\'), z.object({ 描述: z.string(), ... }))` instead of `物品栏: z.array(z.object({ 名称: z.string(), 描述: z.string(), ... }))`"\n' +
+    '    - for object schema:\n' +
+    '        - fixed required keys + the same type: use `z.record(z.enum([\'key1\', \'key2\', ...]), ${value type})`\n' +
+    '          fixed optional keys + the same type: use `z.partialRecord(z.enum([\'key1\', \'key2\', ...]), ${value type})`\n' +
+    '          dynamic optional keys + the same type: use `z.record(z.string(), ${value type})`\n' +
+    '          fixed required keys + different types: \'use `z.object({ key1: ${type1}, key2: ${type2}, ... })`\'\n' +
+    '          dynamic keys but some keys are required + the same type: \'use `z.intersection(z.object({ requiredKey1: ${type1}, requiredKey2: ${type2}, ... }), z.record(z.string(), ${value type}))`\'\n' +
+    '        - on clearable object: \'if the object is clearable by JSON patch `{ "op": "remove", "path": "/path/to/object" }`, set `z.object({ ${field}: ${type}.prefault(...), ... }).prefault({})` instead of `z.object({ ... }).optional()` for better compatibility with the incremental update\'\n' +
+    '    - for special format (rare to happen): prefer `z.templateLiteral` over regex or manual parsing\n' +
+    '    - for restrictions: when accepting a update that breaks the schema, users are tend to expect the update takes some effect instead of being discarded completely; therefore, you should try your best to use `z.transform` to convert the broken input to a valid input. For example, if Explorer requests a value to be between 0 and 100, prefer `z.number().transform(value => _.clamp(value, 0, 100))` over `z.number().min(0).max(100)`; if an object could only contain 10 keys, when a new key comes, discard the oldest key instead. **but only impose these restrictions when Explorer requests**\n' +
+    '    - on default value:\n' +
+    '        - prefer `z.prefault` over `z.default`\n' +
+    '        - if a `z.object` or the whole Schema is complicated enough, set `.prefault(\'${suitable default value}\')` or `.or(z.literal(\'待初始化\')).prefault(\'待初始化\')` for every field of it\n' +
+    '        - if a compund type is prefault-ed, all its fields should be prefault-ed as well\n' +
+    '        - don\'t set `z.prefault` for other situatioins unless Explorer requests it\n' +
+    '    - when to describe: use `z.describe` only when there\'s no field name to explain the usage of the schema such as the key type of `z.record`; in contrast, you should never use `z.describe` if the field name has already explained the usage well\n' +
+    '    - determine the order of keys: \'if Explorer requests you to do something with the insertion time of keys, prefer to use `_(data).entries()` which almost always lists keys in insertion order, e.g. you can remove old keys with a simple `_(data).entries().takeRight(10)`; when keys are already additionally sorted inside `z.transform`, you should use `$time: z.coerce.number().prefault(() => Date.now())` to automatically assign a timestamp\'\n' +
+    '    - don\'t repeat yourself: merge the same variable schemas whenever possible, but don\'t define extra variables to do so - you can only define schema inside `export const Schema = z.object({ ... })`\n' +
+    '    - some function definition corrections:\n' +
+    '        z.transform:\n' +
+    '          type: \'(fn: (value: Output) => NewOutput) => z.ZodType\'\n' +
+    '          limit: \'`fn` can only take the parsed output as input, never ever use `context`. i.e. `z.string().transform(value => value)` is valid, while `z.string().transform((value, context) => value)` is not\'\n' +
+    '          example: \'z.object({ 好感度: z.coerce.number() }).transform(data => ({ 好感度: _.clamp(data.好感度, 0, 100) }))\'\n' +
+    '        z.prefault:\n' +
+    '          type: \'(value: Input | (() => Input)) => z.ZodType\'\n' +
+    '          limit: \'`value` must be a valid input of the schema itself. i.e. `z.object({ 好感度: z.coerce.number().prefault(0) }).prefault({})` is valid, while `z.object({ 好感度: z.coerce.number() }).prefault({})` is not (the input must contain the `好感度` field in this case)\'\n' +
+    '        z.extend:\n' +
+    '          limit: only `z.object`、`z.looseObject`、`z.strictObject` can be extended, even if `z.object(...).prefault({})` could not be extended! i.e. `z.object({...}).extend({...})` is valid, while `z.object({...}).prefault({}).extend({...})` is not\n' +
+    '        z.passthrough、z.strict: they are not exist, never ever use them!\n' +
+    '        z.transform:\n' +
+    '          type: \'(fn: (value: Output) => NewOutput) => z.ZodType\'\n' +
+    '          limit: \'`fn` can only take the parsed output as input, never ever use `context`. i.e. `z.string().transform(value => value)` is valid, while `z.string().transform((value, context) => value)` is not\'\n' +
+    '          example: \'z.object({ 好感度: z.coerce.number() }).transform(data => ({ 好感度: _.clamp(data.好感度, 0, 100) }))\'\n' +
+    '        z.prefault:\n' +
+    '          type: \'(value: Input | (() => Input)) => z.ZodType\'\n' +
+    '          limit: \'`value` must be a valid input of the schema itself. i.e. `z.object({ 好感度: z.coerce.number().prefault(0) }).prefault({})` is valid, while `z.object({ 好感度: z.coerce.number() }).prefault({})` is not (the input must contain the `好感度` field in this case)\'\n\n' +
     '【变量结构脚本模板】\n' +
     '  import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '\n' +
@@ -4514,6 +4530,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  1. 条目命名：[initvar]变量初始化勿开\n' +
     '  2. 合理初始值：根据故事开局设置合理的初始值\n' +
     '  3. 后续配置：提醒用户这只是初始变量，还需要配置世界书条目和变量规则\n\n' +
+    '【沟通风格】\n' +
+    '  - 用自然语言和用户交流\n' +
+    '  - 逐步确认需求，不要一次性问太多\n' +
+    '  - 给出建议但尊重用户选择\n' +
+    '  - 完成后询问是否需要调整\n\n' +
+    '  开始协作吧！\n\n' +
+    '  ---\n\n' +
+    '  完成后的引导\n\n' +
+    '  当初始变量创作完成并输出后：\n\n\n' +
     '  下一步：创建变量更新规则。对我说"写变量更新规则"。\n\n' +
     '===== 第3条：变量更新规则 =====\n\n' +
     '【任务】帮用户写MVU变量的更新规则文件，告诉AI什么情况下应该更新变量、更新成什么值\n\n' +
@@ -4553,15 +4578,55 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '      能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\n' +
     '        type: number\n' +
     '        range: 0~100\n' +
+    '        category:\n' +
+    '          20~40: 普通人\n' +
+    '          40~70: 冒险者常驻\n' +
     '        check:\n' +
     '          - 训练、战斗、重伤、系统奖励等显著事件才调整\n' +
-    '          - 单次变化不超过 ±10，除非剧情有明确强化/削弱\n\n' +
+    '          - 单次变化不超过 ±10，除非剧情有明确强化/削弱\n' +
+    '      装备栏.${部位}:\n' +
+    '        type: |-\n' +
+    '          {\n' +
+    '            装备: string; // 装备名称 + 状态; 若未装备，使用"空置"或"无"\n' +
+    '            主角评价: string;\n' +
+    '          }\n' +
+    '        check:\n' +
+    '          - 穿戴、损毁、替换装备时更新装备描述\n' +
+    '    任务列表:\n' +
+    '      type: |-\n' +
+    '        {\n' +
+    '          [任务名: string]: {\n' +
+    '            类型: \'主线\' | \'支线\' | \'每日\' | \'临危受命\' ;\n' +
+    '            说明: string; # 面向主角的任务背景或细则\n' +
+    '            目标: string; # 明确可执行的目标描述，可包含步骤\n' +
+    '            奖励: string;\n' +
+    '            惩罚: string; # 失败后触发的负面效果\n' +
+    '          }\n' +
+    '        }\n' +
+    '      check:\n' +
+    '        - 避免一次性添加超过3个主线任务，保持焦点\n' +
+    '        - 日常任务完成后可重置但需记录冷却\n' +
+    '  ${变量}.主角评价:\n' +
+    '    value: 主角对某个变量内容的即时感受\n' +
+    '    check:\n' +
+    '      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\n' +
+    '      - 语言应保持第一人称/贴近主角口吻\n' +
+    '      - 主角的评价并不会被主角本人看到，也不会在剧情中出现\n\n' +
+    '  开始协作吧！\n\n' +
+    '  ---\n\n' +
+    '  完成后的引导\n\n' +
+    '  当变量更新规则创作完成并输出后：\n\n' +
     '  下一步：创建变量列表。对我说"写变量列表"。\n\n' +
     '===== 第4条：变量列表（固定格式，原样输出）=====\n\n' +
     '  ---\n' +
     '  <status_current_variables>\n' +
     '  {{format_message_variable::stat_data}}\n' +
     '  </status_current_variables>\n\n' +
+    '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
+    '  开始协作吧！\n\n' +
+    '  ---\n\n' +
+    '  完成后的引导\n\n' +
+    '  当变量列表创作完成并输出后：\n\n\n' +
     '  下一步：创建变量输出格式。对我说"写变量输出格式"。\n\n' +
     '===== 第5条：变量输出格式（固定格式，原样输出）=====\n\n' +
     '  ---\n' +
@@ -4595,6 +4660,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '      ]\n' +
     '      </JSONPatch>\n' +
     '      </UpdateVariable>\n\n' +
+    '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
+    '  开始协作吧！\n\n' +
+    '  ---\n\n' +
+    '  完成后的引导\n\n' +
+    '  当变量输出格式创作完成并输出后：\n\n' +
     '  下一步：创建变量输出格式强调。对我说"写变量输出格式强调"。\n\n' +
     '===== 第6条：变量输出格式强调（固定格式，原样输出）=====\n\n' +
     '  注意：这个条目只在测试时发现AI不输出 <UpdateVariable> 块时才需要启用。\n\n' +
@@ -4604,7 +4674,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '    format: |-\n' +
     '      <UpdateVariable>\n' +
     '      ...\n' +
-    '      </UpdateVariable>';
+    '      </UpdateVariable>\n\n' +
+    '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
+    '  开始协作吧！\n\n' +
+    '  ---\n\n' +
+    '  完成后的引导\n\n' +
+    '  注意：这个条目只在测试时发现AI不输出 <UpdateVariable> 块时才需要启用。';
 
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
