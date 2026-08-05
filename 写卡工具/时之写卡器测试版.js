@@ -994,7 +994,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 '  <!-- 每个需要显示的变量必须有唯一的 id，在 populateCharacterData 中用 $(\'#id\').text(value) 填充 -->\n' +
 '</body>\n' +
 '</html>';
-  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n  body { margin: 0; padding: 0; }\n  :root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n  }\n  * { margin: 0; padding: 0; box-sizing: border-box; }\n  body { font-family: system-ui, -apple-system, sans-serif; color: var(--text-main); font-size: 12px; line-height: 1.45; }\n  .mvu-status-card { border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg); backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(0,0,0,0.12); margin-bottom: 8px; overflow: hidden; }\n  .card-body { padding: 10px 12px; }\n  .category-title { font-size: 12px; font-weight: 600; color: var(--accent-blue); margin: 10px 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--line-divider); }\n  .category-title:first-child { margin-top: 0; }\n  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 16px; }\n  .stat-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 4px 6px; border-radius: 4px; gap: 8px; }\n  .stat-item:hover { background: var(--hover-bg); }\n  .stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n  .stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n  .value-number { color: var(--accent-blue); white-space: nowrap; }\n  .value-true { color: var(--accent-green); white-space: nowrap; }\n  .value-false { color: var(--accent-red); white-space: nowrap; }\n  .value-text { color: var(--text-main); }\n  .loading-state { text-align: center; padding: 16px 0; color: var(--text-sub); animation: breathe 2s ease-in-out infinite; }\n  @keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n  .flash-update { animation: fadeIn 0.3s ease-out; }\n  @keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n  .nested-group { padding-left: 10px; border-left: 2px dashed rgba(148,163,184,0.2); margin-left: 4px; margin-bottom: 4px; }\n  </style>\n  <script type="module">\n    /* 用户模板标准：populateCharacterData() 为主函数，内部用 getAllVariables() + _.get 读取 */\n    /* 兜底实现：由于不知具体变量id，内部_walk遍历stat_data生成DOM（正式环境应替换为逐变量 $(\'#id\').text(value)） */\n    function populateCharacterData() {\n      const all_variables = getAllVariables();\n      const sourceData = _.get(all_variables, \'stat_data\', {});\n      var htmlStr = \'\';\n      function _walk(obj, level) {\n        level = level || 0;\n        var itemsHtml = \'\';\n        Object.keys(obj || {}).forEach(function(key) {\n          var value = obj[key];\n          if (key.indexOf(\'_\') === 0) return;\n          if (key.indexOf(\'$\') === 0) return;\n          var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value);\n          if (isPlainObj) {\n            if (itemsHtml) { htmlStr += \'<div class="stat-grid">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }\n            htmlStr += \'<div class="category-title">\' + key + \'</div>\';\n            _walk(value, level + 1);\n            return;\n          }\n          itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + key + \'</span><span class="stat-value">\';\n          if (typeof value === \'number\') itemsHtml += \'<span class="value-number">\' + value + \'</span>\';\n          else if (typeof value === \'boolean\') itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\';\n          else if (Array.isArray(value)) itemsHtml += \'<span class="value-text">[\' + value.join(\', \') + \']</span>\';\n          else itemsHtml += \'<span class="value-text">\' + String(value == null ? \'\' : value) + \'</span>\';\n          itemsHtml += \'</span></div>\';\n        });\n        if (itemsHtml) htmlStr += \'<div class="stat-grid">\' + itemsHtml + \'</div>\';\n      }\n      _walk(sourceData, 0);\n      var root = document.getElementById(\'render-root\');\n      if (root) { root.innerHTML = htmlStr; try { root.classList.add(\'flash-update\'); } catch(e) {} setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300); }\n    }\n\n    async function init() {\n      await waitGlobalInitialized(\'Mvu\');\n      populateCharacterData();\n      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => {\n        populateCharacterData();\n      });\n    }\n\n    $(errorCatched(init));\n  </script>\n</head>\n<body>\n  <div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>\n</body>\n</html>';
+  var MVU_STATUS_BAR_HTML = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <style>\n  body { margin: 0; padding: 0; }\n  :root {\n    --card-bg: rgba(30, 35, 45, 0.82);\n    --card-border: rgba(100, 116, 139, 0.28);\n    --text-main: #e2e8f0;\n    --text-sub: #94a3b8;\n    --accent-blue: #93c5fd;\n    --accent-green: #86efac;\n    --accent-red: #fca5a5;\n    --line-divider: rgba(148, 163, 184, 0.15);\n    --hover-bg: rgba(148, 163, 184, 0.08);\n  }\n  * { margin: 0; padding: 0; box-sizing: border-box; }\n  body { font-family: system-ui, -apple-system, sans-serif; color: var(--text-main); font-size: 12px; line-height: 1.45; }\n  .mvu-status-card { border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg); backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(0,0,0,0.12); margin-bottom: 8px; overflow: hidden; }\n  .card-body { padding: 10px 12px; }\n  .category-title { font-size: 12px; font-weight: 600; color: var(--accent-blue); margin: 10px 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--line-divider); }\n  .category-title:first-child { margin-top: 0; }\n  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 16px; }\n  .stat-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 4px 6px; border-radius: 4px; gap: 8px; }\n  .stat-item:hover { background: var(--hover-bg); }\n  .stat-label { color: var(--text-sub); flex: 1; word-break: break-word; }\n  .stat-value { font-weight: 500; text-align: right; flex-shrink: 0; max-width: 58%; word-break: break-word; }\n  .value-number { color: var(--accent-blue); white-space: nowrap; }\n  .value-true { color: var(--accent-green); white-space: nowrap; }\n  .value-false { color: var(--accent-red); white-space: nowrap; }\n  .value-text { color: var(--text-main); }\n  .loading-state { text-align: center; padding: 16px 0; color: var(--text-sub); animation: breathe 2s ease-in-out infinite; }\n  @keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }\n  .flash-update { animation: fadeIn 0.3s ease-out; }\n  @keyframes fadeIn { from { opacity: 0.6; } to { opacity: 1; } }\n  .nested-group { padding-left: 10px; border-left: 2px dashed rgba(148,163,184,0.2); margin-left: 4px; margin-bottom: 4px; }\n  </style>\n  <script type="module">\n    /* 核心：直接使用 getAllVariables() + _.get 从 stat_data 读取路径 */\n    /* 严禁递归渲染，必须逐变量对应唯一 ID 手动填充 */\n    function populateCharacterData() {\n      try {\n        const all_variables = getAllVariables();\n        const data = _.get(all_variables, \'stat_data\', {});\n\n        // 示例：基础属性填充\n        // 对应 Step 3 骨架中定义的 <span id=\"hp-val\"></span>\n        const hp = _.get(data, \'主角.属性.体力\', 100);\n        $(\'#hp-val\').text(hp);\n        $(\'#hp-bar\').css(\'width\', _.clamp(hp, 0, 100) + \'%\');\n\n        // 示例：数组/列表填充\n        // 对应 <ul id=\"item-list\"></ul>\n        const items = _.get(data, \'主角.背包\', []);\n        const itemsHtml = items.map(it => `<li>${it}</li>`).join(\'\');\n        $(\'#item-list\').html(itemsHtml);\n\n        // 示例：派生阶段显示\n        // 对应 <span id=\"affinity-phase\"></span>\n        const affinity = _.get(data, \'角色.好感度\', 0);\n        const phase = _.get(data, \'角色.$好感度阶段\', \'陌生\'); // 优先读取 zod 派生的 $ 字段\n        $(\'#affinity-phase\').text(phase);\n\n        /* 刷新成功后触发动画 */\n        const root = document.getElementById(\'render-root\');\n        if (root) {\n          root.classList.add(\'flash-update\');\n          setTimeout(() => root.classList.remove(\'flash-update\'), 300);\n        }\n      } catch (e) {\n        console.warn(\'[statusbar] populateCharacterData 失败:\', e.message);\n      }\n    }\n\n    async function init() {\n      await waitGlobalInitialized(\'Mvu\');\n      populateCharacterData();\n      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => {\n        populateCharacterData();\n      });\n    }\n\n    $(errorCatched(init));\n  </script>\n</head>\n<body>\n  <div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>\n</body>\n</html>';
 
   const ENTRY_TEMPLATES = {
     '基础公理': { constant: true, selective: false, position: 0, depth: 0, order: 250, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -1733,7 +1733,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '           近期事务: z.record(z.string().describe(\'事务名\'), z.string().describe(\'事务描述\')),\n' +
     '         }),\n' +
     '         白娅: z.object({\n' +
-    '           依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
+    '           依存度: z.coerce.number().prefault(0).transform(v => _.clamp(v, 0, 100)),\n' +
     '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\',\'袜子\',\'鞋子\',\'饰品\']), z.string().describe(\'服装描述\')),\n' +
     '           称号: z.record(z.string().describe(\'称号名\'), z.object({效果: z.string(), 自我评价: z.string()})),\n' +
     '         }).transform(data => ({ ...data, 称号: _(data.称号).entries().takeRight(Math.ceil(data.依存度/10)).fromPairs().value() })),\n' +
@@ -4497,7 +4497,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '\n' +
     '    白娅: z\n' +
     '      .object({\n' +
-    '        依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
+    '        依存度: z.coerce.number().prefault(0).transform(v => _.clamp(v, 0, 100)),\n' +
     '        着装: z.record(z.enum([\'上装\', \'下装\', \'内衣\', \'袜子\', \'鞋子\', \'饰品\']), z.string().describe(\'服装描述\')),\n' +
     '        称号: z.record(\n' +
     '          z.string().describe(\'称号名\'),\n' +
@@ -4666,30 +4666,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  ---\n' +
     '  变量输出格式:\n' +
     '    rule:\n' +
+    '    rule:\n' +
     '      - you must output the update analysis and the actual update commands at once in the end of the next reply\n' +
-    '      - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\n' +
-    '        - replace: replace the value of existing paths\n' +
-    '        - delta: update the value of existing number paths by a delta value\n' +
-    '        - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\n' +
-    '        - remove\n' +
-    '        - move\n' +
-    '      - don\'t update field names starts with `_` as they are readonly, such as `_变量`\n' +
+    '      - the update commands works like the **JSON Patch (RFC 6902)** standard\n' +
+    '      - don\'t update field names starts with `_` as they are readonly\n' +
     '    format: |-\n' +
     '      <UpdateVariable>\n' +
     '      <Analysis>$(IN ENGLISH, no more than 80 words)\n' +
     '      - ${calculate time passed: ...}\n' +
-    '      - ${decide whether dramatic updates are allowed: yes/no}\n' +
-    '      - ${analyze every variable based on its corresponding `check`: ...}\n' +
+    '      - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\n' +
+    '      - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\n' +
     '      </Analysis>\n' +
     '      <JSONPatch>\n' +
     '      [\n' +
-    '        { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\n' +
-    '        { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\n' +
-    '        { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\n' +
-    '        { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\n' +
-    '        { "op": "remove", "path": "${/path/to/object/key}" },\n' +
-    '        { "op": "remove", "path": "${/path/to/array/0}" },\n' +
-    '        { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\n' +
+    '        { "op": "replace", "path": "/stat_data/path/to/variable", "value": "new_value" },\n' +
+    '        { "op": "delta", "path": "/stat_data/path/to/number", "value": 5 },\n' +
     '        ...\n' +
     '      ]\n' +
     '      </JSONPatch>\n' +
@@ -6164,8 +6155,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 数组：z.array(子类型) + .prefault([])；所有数组元素必为同一子类型（zod要求）
         var itemType = 'z.string()';
         if (val.length > 0) {
-          if (typeof val[0] === 'number') itemType = 'z.coerce.number()';
-          else if (typeof val[0] === 'boolean') itemType = 'z.boolean()';
+          if (typeof val[0] === 'number') itemType = 'z.coerce.number().prefault(0)';
+          else if (typeof val[0] === 'boolean') itemType = 'z.boolean().prefault(false)';
         }
         return 'z.array(' + itemType + ').prefault([])';
       }
@@ -6632,71 +6623,49 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '<body>',
       '  <div class="mvu-status-card"><div class="card-body" id="render-root"><div class="loading-state">正在加载状态数据...</div></div></div>',
       '  <script type="module">',
-      '    /* 用户模板标准：populateCharacterData() 函数 - 直接 getAllVariables() 读变量，逐变量手动填充 */',
-      '    /* 注意：兜底实现由于不知具体变量id，采用遍历渲染模式；正式环境下应为每个变量写唯一 id + $(\'#id\').text(value) 填充 */',
-      '    function populateCharacterData() {',
-      '      try {',
-      '        /* 核心：直接使用 getAllVariables() + _.get 从 stat_data 读取路径 */',
-      '        const all_variables = getAllVariables();',
-      '        const sourceData = _.get(all_variables, \'stat_data\', {});',
-      '        var htmlStr = \'\';',
-      '        function _esc(s) { return String(s == null ? \'\' : s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\').replace(/\\\'/g, \'&#39;\'); }',
-      '        /* 兜底遍历渲染（正式环境下应替换为逐变量 $(\'#id\').text(value) 手动填充） */',
-      '        function _walk(obj, level) {',
-      '          level = level || 0;',
-      '          var indentClass = \'indent-\' + Math.min(level, 4);',
-      '          var itemsHtml = \'\';',
-      '          var keys = Object.keys(obj || {});',
-      '          for (var k = 0; k < keys.length; k++) {',
-      '            var key = keys[k]; var value = obj[key];',
-      '            if (key.indexOf(\'_\') === 0) continue;',
-      '            if (key.indexOf(\'$\') === 0 && !(/(阶段|状态|等级|名称|称号|时间|日期)$/.test(key))) continue;',
-      '            var isPlainObj = value !== null && typeof value === \'object\' && !Array.isArray(value) && Object.prototype.toString.call(value) === \'[object Object]\';',
-      '            if (isPlainObj) {',
-      '              if (itemsHtml) { htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\'; itemsHtml = \'\'; }',
-      '              if (level > 0) { htmlStr += \'<div class="nested-group \' + indentClass + \'"><div class="category-title">\' + _esc(key) + \'</div>\'; }',
-      '              else { htmlStr += \'<div class="category-title">\' + _esc(key) + \'</div>\'; }',
-      '              _walk(value, level + 1);',
-      '              if (level > 0) htmlStr += \'</div>\';',
-      '              continue;',
-      '            }',
-      '            itemsHtml += \'<div class="stat-item"><span class="stat-label">\' + _esc(key) + \'</span><span class="stat-value">\';',
-      '            if (typeof value === \'number\') {',
-      '              itemsHtml += \'<span class="value-number">\' + _esc(value) + \'</span>\';',
-      '              if (value >= 0 && value <= 100) itemsHtml += \'<div class="progress-bar"><div class="progress-bar-fill" style="width:\' + value + \'%"></div></div>\';',
-      '            } else if (typeof value === \'boolean\') { itemsHtml += value ? \'<span class="value-true">✓</span>\' : \'<span class="value-false">✕</span>\'; }',
-      '            else if (Array.isArray(value)) { itemsHtml += \'<span class="value-text">[\' + value.map(function(el) { return _esc(el); }).join(\', \') + \']</span>\'; }',
-      '            else { itemsHtml += \'<span class="value-text">\' + _esc(value) + \'</span>\'; }',
-      '            itemsHtml += \'</span></div>\';',
-      '          }',
-      '          if (itemsHtml) htmlStr += \'<div class="stat-grid \' + indentClass + \'">\' + itemsHtml + \'</div>\';',
-      '        }',
-      '        _walk(sourceData, 0);',
-      '        /* 正式环境推荐写法（示例，需按实际变量id替换）：',
-      '          const affinity = _.get(all_variables, \'stat_data.角色.好感度\', 0);',
-      '          $(\'#affinity-val\').text(affinity);',
-      '          const items = _.get(all_variables, \'stat_data.背包\', []);',
-      '          const itemsHtml = items.map(item => `<li>${item}</li>`).join(\'\');',
-      '          $(\'#items-list\').html(itemsHtml);',
-      '        */',
-      '        var root = document.getElementById(\'render-root\') || document.querySelector(\'.card-body\') || document.body;',
-      '        if (root) { root.innerHTML = htmlStr; try { root.classList.add(\'flash-update\'); } catch(e) {} setTimeout(function() { try { root.classList.remove(\'flash-update\'); } catch(e) {} }, 300); }',
-      '      } catch(e) {',
-      '        console.warn(\'[statusbar] populateCharacterData failed:\', e && e.message);',
-      '      }',
-      '    }',
-      '',
-      '    async function init() {',
-      '      await waitGlobalInitialized(\'Mvu\');',
-      '      /* 等待 stat_data 就绪（最多15秒） */',
-      '      var _waitCount = 0;',
-      '      function _safeGetVars() { try { return getAllVariables(); } catch(e) { return {}; } }',
-      '      while (!_.has(_safeGetVars(), \'stat_data\') && _waitCount < 15) { await new Promise(function(r) { setTimeout(r, 1000); }); _waitCount++; }',
-      '      populateCharacterData();',
-      '      /* 用户模板标准：eventOn(Mvu.events.VARIABLE_UPDATE_ENDED) 事件驱动刷新，禁止setInterval轮询 */',
-      '      try { if (typeof eventOn === \'function\' && typeof Mvu !== \'undefined\' && Mvu && Mvu.events) { eventOn(Mvu.events.VARIABLE_INITIALIZED, populateCharacterData); eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, populateCharacterData); } } catch(e) {}',
-      '    }',
-      '',
+      '    /* 核心：直接使用 getAllVariables() + _.get 从 stat_data 读取路径 */\n' +
+      '    /* 严禁递归渲染，必须逐变量对应唯一 ID 手动填充 */\n' +
+      '    function populateCharacterData() {\n' +
+      '      try {\n' +
+      '        const all_variables = getAllVariables();\n' +
+      '        const data = _.get(all_variables, \'stat_data\', {});\n' +
+      '\n' +
+      '        // 示例：基础属性填充\n' +
+      '        // 对应 Step 3 骨架中定义的 <span id="hp-val"></span>\n' +
+      '        const hp = _.get(data, \'主角.属性.体力\', 100);\n' +
+      '        $(\'#hp-val\').text(hp);\n' +
+      '        $(\'#hp-bar\').css(\'width\', _.clamp(hp, 0, 100) + \'%\');\n' +
+      '\n' +
+      '        // 示例：数组/列表填充\n' +
+      '        // 对应 <ul id="item-list"></ul>\n' +
+      '        const items = _.get(data, \'主角.背包\', []);\n' +
+      '        const itemsHtml = items.map(it => `<li>${it}</li>`).join(\'\');\n' +
+      '        $(\'#item-list\').html(itemsHtml);\n' +
+      '\n' +
+      '        // 示例：派生阶段显示\n' +
+      '        // 对应 <span id="affinity-phase"></span>\n' +
+      '        const affinity = _.get(data, \'角色.好感度\', 0);\n' +
+      '        const phase = _.get(data, \'角色.$好感度阶段\', \'陌生\'); // 优先读取 zod 派生的 $ 字段\n' +
+      '        $(\'#affinity-phase\').text(phase);\n' +
+      '\n' +
+      '        /* 刷新成功后触发动画 */\n' +
+      '        const root = document.getElementById(\'render-root\');\n' +
+      '        if (root) {\n' +
+      '          root.classList.add(\'flash-update\');\n' +
+      '          setTimeout(() => root.classList.remove(\'flash-update\'), 300);\n' +
+      '        }\n' +
+      '      } catch (e) {\n' +
+      '        console.warn(\'[statusbar] populateCharacterData 失败:\', e.message);\n' +
+      '      }\n' +
+      '    }\n' +
+      '\n' +
+      '    async function init() {\n' +
+      '      await waitGlobalInitialized(\'Mvu\');\n' +
+      '      populateCharacterData();\n' +
+      '      /* 用户模板标准：eventOn(Mvu.events.VARIABLE_UPDATE_ENDED) 事件驱动刷新，禁止setInterval轮询 */\n' +
+      '      try { if (typeof Mvu !== \'undefined\' && Mvu.events) eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, populateCharacterData); } catch(e) {}\n' +
+      '    }\n' +
+      '\n' +
       '    $(errorCatched(init));',
       '  <\/script>',
       '</body>',
@@ -11713,50 +11682,44 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       var DEFAULT_STEP4_CSS = '';
 
-      var DEFAULT_STEP5_JS =
-        '/* 放弃递归，改用路径点对点填充（用户模板标准） */\n' +
+            var DEFAULT_STEP5_JS =
+        '/* 核心：直接使用 getAllVariables() + _.get 从 stat_data 读取路径 */\n' +
+        '/* 严禁递归渲染，必须逐变量对应唯一 ID 手动填充 */\n' +
         'function populateCharacterData() {\n' +
         '  try {\n' +
         '    const all_variables = getAllVariables();\n' +
         '    const data = _.get(all_variables, "stat_data", {});\n' +
-        '    /* 兜底遍历渲染（AI正式生成时应替换为每个变量唯一id + $(\'#id\').text(value) 逐变量填充） */\n' +
-        '    function _walk(obj, level) {\n' +
-        '      var html = ""; level = level || 0;\n' +
-        '      if (obj && typeof obj === "object") {\n' +
-        '        for (var k in obj) {\n' +
-        '          if (k.indexOf("_") === 0 || k.indexOf("$") === 0) continue;\n' +
-        '          var val = obj[k];\n' +
-        '          if (typeof val === "number") {\n' +
-        '            var pct = Math.max(0, Math.min(100, val));\n' +
-        '            html += \'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +val+\'</span><span class="stat-bar"><span style="width:\'+pct+\'%"></span></span></span> \';\n' +
-        '          } else if (typeof val === "string") {\n' +
-        '            html += \'<span class="stat-group stat-pill"><span class="stat-label">\' +k+\'</span><span class="stat-value">\' +String(val)+\'</span></span> \';\n' +
-        '          } else if (typeof val === "object") {\n' +
-        '            html += \'<span class="stat-group"><span class="stat-label">【\' +k+\'】</span></span> \';\n' +
-        '          }\n' +
-        '        }\n' +
-        '      }\n' +
-        '      return html;\n' +
-        '    }\n' +
-        '    var root = document.getElementById("render-root") || document.querySelector(".card-body");\n' +
+        '\n' +
+        '    // 示例：基础属性填充\n' +
+        '    // 对应 Step 3 骨架中定义的 <span id="hp-val"></span>\n' +
+        '    const hp = _.get(data, "主角.属性.体力", 100);\n' +
+        '    $("#hp-val").text(hp);\n' +
+        '    $("#hp-bar").css("width", _.clamp(hp, 0, 100) + "%");\n' +
+        '\n' +
+        '    // 示例：数组/列表填充\n' +
+        '    // 对应 <ul id="item-list"></ul>\n' +
+        '    const items = _.get(data, "主角.背包", []);\n' +
+        '    const itemsHtml = items.map(it => `<li>${it}</li>`).join("");\n' +
+        '    $("#item-list").html(itemsHtml);\n' +
+        '\n' +
+        '    // 示例：派生阶段显示\n' +
+        '    // 对应 <span id="affinity-phase"></span>\n' +
+        '    const affinity = _.get(data, "角色.好感度", 0);\n' +
+        '    const phase = _.get(data, "角色.$好感度阶段", "陌生"); // 优先读取 zod 派生的 $ 字段\n' +
+        '    $("#affinity-phase").text(phase);\n' +
+        '\n' +
+        '    /* 刷新成功后触发动画 */\n' +
+        '    const root = document.getElementById("render-root");\n' +
         '    if (root) {\n' +
-        '      var htmlOut = _walk(data, 0) || "（无变量数据）";\n' +
-        '      root.innerHTML = htmlOut;\n' +
+        '      root.classList.add("flash-update");\n' +
+        '      setTimeout(() => root.classList.remove("flash-update"), 300);\n' +
         '    }\n' +
-        '    /* 示例（AI正式生成时应替换为逐变量填充，配合 Step3 骨架的唯一 id）：\n' +
-        '      const hp = _.get(data, "主角.体力", 100);\n' +
-        '      $(\'#hp-text\').text(hp);\n' +
-        '      $(\'#hp-bar\').css("width", hp + "%");\n' +
-        '      const mood = _.get(data, "角色.心情", "平静");\n' +
-        '      $(\'#mood-val\').text(mood);\n' +
-        '      const items = _.get(data, "主角.背包", []);\n' +
-        '      const itemsHtml = items.map(function(it) { return \'<li>\' + it + \'</li>\'; }).join("");\n' +
-        '      $(\'#items-list\').html(itemsHtml);\n' +
-        '    */\n' +
-        '  } catch(e) { console.warn("populateCharacterData failed:", e); }\n' +
-        '}';
+        '  } catch (e) {\n' +
+        '    console.warn("[statusbar] populateCharacterData 失败:", e.message);\n' +
+        '  }\n' +
+        '}\n';
 
-      var DEFAULT_STEP6_JS =
+var DEFAULT_STEP6_JS =
         '(function init(){\n' +
         '  try { if (typeof waitGlobalInitialized === "function") waitGlobalInitialized("Mvu"); } catch(e) {}\n' +
         '  var max=15,count=0; var _sbTimer=null;\n' +
