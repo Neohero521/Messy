@@ -9316,8 +9316,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               try {
                 var _rxList = (cardData.extensions && cardData.extensions.regex_scripts) || [];
                 for (var _ri = 0; _ri < _rxList.length; _ri++) {
-                  var _fr = _rxList[_ri] && (_rxList[_ri].findRegex || _rxList[_ri].find_regex || '');
-                  if (_fr.indexOf('StatusPlaceHolder') >= 0) { _hasSbRegex = true; break; }
+                  var _rx = _rxList[_ri] || {};
+                  var _fr = _rx.findRegex || _rx.find_regex || '';
+                  if (_fr.indexOf('StatusPlaceHolder') < 0) continue;
+                  // ⚠️修复：[不发送]隐藏状态栏标记(replaceString为空)是常驻固定资产，
+                  //   不能作为"已进入状态栏生成模式"的依据，否则MVU条目1-7生成期间
+                  //   statusBarMode被误开启，导致步骤状态机串台把条目消息当成状态栏模块。
+                  //   只有真正含HTML状态栏(replaceString非空且markdownOnly)的正则才算。
+                  var _rs = _rx.replaceString || _rx.replace_string || '';
+                  if (!_rs || _rs.replace(/\s/g, '').length < 20) continue;
+                  _hasSbRegex = true; break;
                 }
               } catch(_e) {}
               if (statusBarCurrentStep > 0 || _hasSbSlot || _hasSbRegex) {
@@ -10649,7 +10657,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 匹配 ::: action key ... 格式（key 到换行/行尾为止，content 到下一个 ::: 为止）
         // 用单个 \n 分隔 key 和 content，避免 [\r\n]+ 贪婪吃掉多个换行导致 content 起点错误
         // 前瞻允许中间有空行（\n\s*:::），解决 delete 后紧跟空行再接下一个操作的问题
-        var re = /:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n\s*:::|$)/gi;
+        // ⚠️修复：用 (?:^|\n) 锚定行首，避免AI散文里的内联引用（如"使用`::: upsert script:xxx`协议"）
+        //   被误匹配为操作块，从而生成垃圾脚本/条目并吞掉真正的:::块。
+        var re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::|$)/gi;
         var m;
         while ((m = re.exec(rawText)) !== null) {
           var action = m[1].toLowerCase();
@@ -10728,10 +10738,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return ops;
       }
 
-      // 检测AI回复是否包含:::操作块
+      // 检测AI回复是否包含:::操作块（行首锚定，避免散文内联引用误判）
       function hasOpBlocks(rawText) {
         if (!rawText) return false;
-        return /:::\s*(upsert|update|delete|set|rename)\s+/i.test(rawText);
+        return /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+/i.test(rawText);
       }
 
       // 执行操作数组，返回 { modified, changeLog }
@@ -11118,6 +11128,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (lang === 'json' || lang === 'yaml') continue;
           // 跳过内容是JSON的代码块（无语言标记但内容是{...}）
           if (!lang && /^\s*\{[\s\S]*\}\s*$/.test(content)) continue;
+          // ⚠️修复：跳过空/极短代码块（AI散文里常有 ```css``` 之类的空围栏占位，
+          //   非贪婪正则会优先匹配到它并返回空串，导致真正的代码块被丢弃）
+          if (content.length < 8) continue;
           allBlocks.push(content);
         }
         if (allBlocks.length > 0) return allBlocks[0];
@@ -12013,7 +12026,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             // --- 分支C：状态栏生成模式主逻辑 ---
             if (statusBarMode) {
-              if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 6) {
+              // ⚠️修复：MVU条目1-7生成期间（AI用::: upsert/update/delete操作块写世界书/脚本），
+              //   绝不能让状态栏步骤状态机介入——否则会把整条条目散文当成Step代码塞进槽位。
+              //   判定：回复含:::操作块，且没有任何```代码块 → 这是条目生成，不是状态栏Step。
+              var _hasOpBlocks = hasOpBlocks(aiResponse);
+              var _hasAnyCodeBlock = /```[a-z]*\s*\n?[\s\S]*?```/i.test(aiResponse || '');
+              if (_hasOpBlocks && !_hasAnyCodeBlock) {
+                // 条目生成回复：状态栏状态机不处理，保持当前步骤等待真正的状态栏代码
+                statusBarMode = false;
+                statusBarCurrentStep = 0;
+                chatSessions.mvu.statusBarMode = false;
+                chatSessions.mvu.currentStep = 0;
+              } else if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 6) {
                 // ★ Step 2-6：提取代码 → 校验 → 填入槽位 → assemble+save
                 var stepNum = statusBarCurrentStep;
                 var code = extractFirstCodeBlock(aiResponse);
@@ -12042,7 +12066,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 } else {
                   // ❌ 无代码块：扫全文尝试detectStepByCode（AI可能忘写```但直接写了代码）
                   var _autoStep = 0, _autoCode = '', _tmpCleaned = (aiResponse || '').trim();
-                  if (_tmpCleaned.length >= 40) {
+                  // ⚠️修复：含:::操作块的回复是MVU条目生成散文，绝不能整条塞进状态栏槽位
+                  //   （会污染replaceString）。只有纯状态栏代码散文才允许无```兜底。
+                  var _autoIsEntryEssay = hasOpBlocks(_tmpCleaned);
+                  if (_tmpCleaned.length >= 40 && !_autoIsEntryEssay) {
                     for (var _ts = 2; _ts <= 6; _ts++) {
                       if (validateStepCode(_ts, _tmpCleaned)) { _autoStep = _ts; _autoCode = _tmpCleaned; break; }
                     }
