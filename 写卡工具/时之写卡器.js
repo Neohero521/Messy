@@ -3258,17 +3258,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 1. 角色卡Tab：拦截所有 MVU/变量/状态栏 相关的写入（comment/content/字段都拦截）
     // 2. MVU Tab：只允许修改白名单字段，禁止改动角色卡主体
     // ======================================================================
-    // 注意：这里需要从全局作用域拿到 activeTab/chatSessions
-    var _activeTab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
+    // 注意：这里需要从全局作用域拿到 activeTab，优先顺序与 buildPrompt 保持一致，避免Tab错位
+    var _activeTab = 'card';
     if (typeof window !== 'undefined') {
-      // 优先从window/外层作用域找更精确的变量
-      if (window.__tab_activeTab) _activeTab = window.__tab_activeTab;
+      // 1. 优先 window.__getActiveTab()（最新闭包，每次switchTab都会重新绑定）
+      if (typeof window.__getActiveTab === 'function') {
+        try {
+          var _t = window.__getActiveTab();
+          if (_t === 'card' || _t === 'mvu') _activeTab = _t;
+        } catch(_eTabA) {}
+      }
+      // 2. 降级 window.__tab_activeTab（同步标记值）
+      if (_activeTab !== 'mvu' && window.__tab_activeTab) {
+        _activeTab = (window.__tab_activeTab === 'mvu') ? 'mvu' : 'card';
+      }
     }
-    var _tabCtx = null;
+    // 3. 最后作用域 activeTab/currentTab 兜底
     try {
-      if (typeof _getActiveTab === 'function') { _activeTab = _getActiveTab(); }
-      else if (typeof getActiveTab === 'function') { _activeTab = getActiveTab(); }
-    } catch(e) {}
+      if (typeof activeTab !== 'undefined' && (activeTab === 'card' || activeTab === 'mvu')) _activeTab = activeTab;
+      else if (typeof currentTab !== 'undefined' && (currentTab === 'card' || currentTab === 'mvu')) _activeTab = currentTab;
+    } catch(_eSc) {}
+    var _tabCtx = null;
 
     // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 + 扩展附加条目识别 ======
     //   MVU_STRONG_RE = 功能性/结构性强特征（出现即代表真实MVU条目，永远拦截）
@@ -4362,11 +4372,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
     // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
-    // 优先用 window.__tab_activeTab（mergePartial 也通过它获取一致），再退化到 currentTab/activeTab
+    // 优先顺序：window.__getActiveTab()（最新闭包）→ window.__tab_activeTab → activeTab/currentTab（作用域降级）
     var __tab = 'card';
-    if (typeof window !== 'undefined' && window.__tab_activeTab) __tab = window.__tab_activeTab;
-    else if (typeof activeTab !== 'undefined') __tab = activeTab;
-    else if (typeof currentTab !== 'undefined') __tab = currentTab;
+    if (typeof window !== 'undefined') {
+      if (typeof window.__getActiveTab === 'function') {
+        try { __tab = window.__getActiveTab() || 'card'; } catch(_eTab1) {}
+      } else if (window.__tab_activeTab) {
+        __tab = window.__tab_activeTab;
+      }
+    }
+    if (__tab !== 'card' && __tab !== 'mvu') __tab = 'card';
+    // 顶层作用域 activeTab/currentTab 兜底（兼容直接调用场景）
+    try {
+      if (typeof activeTab !== 'undefined' && (activeTab === 'card' || activeTab === 'mvu')) __tab = activeTab;
+      else if (typeof currentTab !== 'undefined' && (currentTab === 'card' || currentTab === 'mvu')) __tab = currentTab;
+    } catch(_eSc) {}
     if (__tab === 'mvu') {
       // ===== MVU变量状态栏 Tab：只发角色卡内容 + MVU专属指令，完全不发角色卡生成逻辑 =====
       return buildMvuTabPrompt(cardData, messages);
@@ -4512,11 +4532,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
 
-    var tabMessages = (typeof getCurrentMessages === 'function')
-      ? getCurrentMessages()
-      : (typeof window !== 'undefined' && window.__getCurrentMessages)
-        ? window.__getCurrentMessages()
-        : (messages || []);
+    // ★ 优先使用传入的 messages 参数（callAIChat 传的是 curTabMessages=当前Tab的消息，权威），
+    //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
+    var tabMessages = (messages && Array.isArray(messages) && messages.length > 0)
+      ? messages
+      : (typeof getCurrentMessages === 'function')
+        ? getCurrentMessages()
+        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function')
+          ? window.__getCurrentMessages()
+          : (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
@@ -4977,11 +5001,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '📜 对话历史（MVU Tab专属，与角色卡Tab完全隔离）\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
-    var tabMessages = (typeof getCurrentMessages === 'function')
-      ? getCurrentMessages()
-      : (typeof window !== 'undefined' && window.__getCurrentMessages)
-        ? window.__getCurrentMessages()
-        : (messages || []);
+    // ★ 优先使用传入的 messages 参数（callAIChat 传的是 curTabMessages=当前Tab的消息，权威），
+    //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
+    var tabMessages = (messages && Array.isArray(messages) && messages.length > 0)
+      ? messages
+      : (typeof getCurrentMessages === 'function')
+        ? getCurrentMessages()
+        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function')
+          ? window.__getCurrentMessages()
+          : (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
       var isLast = (idx === tabMessages.length - 1);
       var roleLabel = (m.role === 'user' ? '用户' : '助手');
@@ -7804,17 +7832,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (activeTab === 'card') {
           chatSessions.card.messages = arr;
           cardMessages = arr;
+          messages = arr;
         } else {
           chatSessions.mvu.messages = arr;
           mvuMessages = arr;
         }
       }
-      // ★ 暴露到 window：让顶层作用域的 buildPrompt / callAIChat 等函数也能访问
+      // ★ 暴露到 window：让顶层作用域的 buildPrompt / callAIChat / calcProgress 等函数也能访问
       if (typeof window !== 'undefined') {
+        window.__tab_activeTab = activeTab;
+        window.__getActiveTab = function() { return activeTab; };
+        window.__getCurrentTab = function() { return currentTab; };
         window.__getCurrentMessages = getCurrentMessages;
         window.__setCurrentMessages = setCurrentMessages;
         window.__getChatSessions = function() { return chatSessions; };
-        window.__setChatSessionsCardMessages = function(arr) { chatSessions.card.messages = arr; cardMessages = arr; };
+        window.__setChatSessionsCardMessages = function(arr) { chatSessions.card.messages = arr; cardMessages = arr; messages = arr; };
         window.__setChatSessionsMvuMessages = function(arr) { chatSessions.mvu.messages = arr; mvuMessages = arr; };
       }
       // 所有地方使用 messages 变量时，改为访问当前Tab的数组
@@ -7829,7 +7861,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== Tab 切换函数：保存当前Tab状态 + 切换并恢复另一Tab状态 =====
       function switchTab(targetTab) {
         if (targetTab === activeTab || isGenerating) return;
-        // ===== 1. 先保存正要离开的Tab状态到 chatSessions（确保不会丢失当前Tab的最新状态栏进度） =====
+        // ===== 1. 先保存正要离开的Tab状态到 chatSessions（对称保存两边，确保不会丢失最新进度） =====
         if (activeTab === 'mvu') {
           // 从模块级变量同步回 chatSessions.mvu（这是唯一真源）
           chatSessions.mvu.modules = statusBarModules;
@@ -7839,13 +7871,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mvuTabStatusBarModules = chatSessions.mvu.modules;
           mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
           mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
+          mvuMessages = chatSessions.mvu.messages;
+        } else {
+          // 离开角色卡Tab：同步别名
+          cardMessages = chatSessions.card.messages;
+          messages = chatSessions.card.messages;
+          chatSessions.card.mode = 'normal';
         }
         // ===== 2. 正式切到新Tab =====
         activeTab = targetTab;
         currentTab = activeTab;  // 向后兼容
-        // 同步到 window：让 mergePartial 也能取到最新Tab
+        // 同步到 window：让 mergePartial / buildPrompt / calcProgress 也能取到最新Tab
         if (typeof window !== 'undefined') {
           window.__tab_activeTab = activeTab;
+          if (typeof window.__getActiveTab === 'function') {
+            // 重新绑定闭包（防止旧闭包返回过时值）
+          }
+          window.__getActiveTab = function() { return activeTab; };
+          window.__getCurrentTab = function() { return currentTab; };
         }
         // 更新Tab按钮激活态
         var tabBtns = doc.querySelectorAll('.tab-btn');
@@ -7868,6 +7911,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mvuPanel.classList.remove('card-only', 'mvu-only');
           mvuPanel.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
         }
+        // ===== 3. 同步所有消息别名变量（cardMessages/mvuMessages/messages），保证所有引用都指向最新数组 =====
+        cardMessages = chatSessions.card.messages;
+        mvuMessages = chatSessions.mvu.messages;
+        if (targetTab === 'card') {
+          messages = chatSessions.card.messages;
+        }
         // 切换聊天记录：清空当前聊天面板并重放目标Tab的消息
         var chatC = doc.getElementById('chatMessages');
         if (chatC) {
@@ -7876,12 +7925,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           for (var mi = 0; mi < msgs.length; mi++) {
             appendMsg(msgs[mi].role, msgs[mi].content);
           }
+          // ★ 重绘后自动滚动到底部，让用户看到最新消息
+          try { chatC.scrollTop = chatC.scrollHeight; } catch(_scErr) {}
+          // 下一帧再滚一次（确保渲染完成后滚动）
+          try { setTimeout(function() { chatC.scrollTop = chatC.scrollHeight; }, 50); } catch(_scErr2) {}
         }
-        // ===== 3. 恢复新Tab的状态栏状态（chatSessions → 模块级变量） =====
+        // ===== 4. 恢复新Tab的状态栏状态（chatSessions → 模块级变量） =====
         if (targetTab === 'mvu') {
           statusBarModules = chatSessions.mvu.modules;
           statusBarCurrentStep = chatSessions.mvu.currentStep;
           statusBarMode = chatSessions.mvu.statusBarMode;
+          // 同步别名
+          mvuTabStatusBarModules = chatSessions.mvu.modules;
+          mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+          mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
           // ===== 进入MVU Tab时自动注入固定资产（bundle.js + 正则1-5）=====
           // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
           // 这些资产固定不变，提前注入让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
@@ -7897,23 +7954,43 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           statusBarMode = false;
           chatSessions.card.mode = 'normal';  // 角色卡Tab永远是normal
         }
-        // 刷新快捷动作和UI
-        updateQuickActions();
-        updateModFocus();
-        renderPreview();
-        renderModDash();
-        renderMvuInfoPanel();
-        // 更新输入框占位符
+        // ===== 5. 刷新所有UI =====
+        updateProgress();       // ★ 重算进度百分比（Tab不同过滤规则不同）
+        updateQuickActions();   // 快捷动作按钮
+        updateModFocus();       // ctx-bar 上下文操作条
+        renderPreview();        // 右侧预览面板
+        renderModDash();        // 模块面板
+        renderMvuInfoPanel();   // MVU信息面板
+        // ===== 6. 更新输入框：切换Tab时清空残留内容 + 更新placeholder + 更新字符计数/发送按钮脉冲 =====
         var inputEl = doc.getElementById('chatInput');
         if (inputEl) {
+          // ★ 切换Tab必须清空输入框内容：避免用户在A Tab写了一半切到B Tab还在，导致上下文不匹配
+          inputEl.value = '';
           inputEl.placeholder = targetTab === 'card'
             ? '描述你想要的世界/角色设定，我来生成角色卡...'
             : '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
+          // 触发输入框的input事件让字符计数和脉冲按钮更新
+          try {
+            var _fakeEvt = doc.createEvent ? doc.createEvent('Event') : null;
+            if (_fakeEvt) {
+              _fakeEvt.initEvent('input', false, true);
+              inputEl.dispatchEvent(_fakeEvt);
+            }
+          } catch(_evtErr) {}
+          updateCharCount();
+          updateSendBtnPulse();
         }
+        // ===== 7. 更新顶栏标题：Tab不同标题不同，给用户明确的上下文感知 =====
         var titleH1 = doc.querySelector('.topbar h1');
         if (titleH1) {
-          titleH1.innerHTML = svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器';
+          if (targetTab === 'card') {
+            titleH1.innerHTML = svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器';
+          } else {
+            titleH1.innerHTML = svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">变量与状态栏</span>';
+          }
         }
+        // ===== 8. 保存切换后的状态到 storage =====
+        saveToStorage();
         showToast('已切换到：' + (targetTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab'), 'info');
       }
 
