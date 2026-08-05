@@ -6111,7 +6111,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 4. R7：追加派生字段 transform（$好感度阶段/$关系阶段/$心情阶段 等
     //    基于同名数值字段自动派生，populateCharacterData 可显示、AI不更新
     //    transform 中直接在 data 对象上做幂等操作，禁止浅拷贝 new object（影响 zod 链一致性）
-    var HEADER = "/* 必须使用 mvu_zod.js 路径 */ import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
+    const HEADER = "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({";
 
     function isAffinityLike(name) {
       return /好感|依存|信任|忠诚|友好|亲密/.test(name);
@@ -6140,7 +6140,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       if (typeof val === 'number') {
         // ⚠️严格顺序：coerce 转换 + prefault 默认值 + transform 约束
-        var base = 'z.coerce.number().prefault(' + val + ')';
+        const base = 'z.coerce.number().prefault(' + val + ')';
         if (isAffinityLike(key)) {
           // lodash _ 默认可用，_.clamp 做范围约束（优于 min/max，超范围部分生效不整体丢弃）
           return base + '.transform(v => _.clamp(v, 0, 100))';
@@ -6153,7 +6153,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       if (Array.isArray(val)) {
         // 数组：z.array(子类型) + .prefault([])；所有数组元素必为同一子类型（zod要求）
-        var itemType = 'z.string()';
+        let itemType = 'z.string()';
         if (val.length > 0) {
           if (typeof val[0] === 'number') itemType = 'z.coerce.number().prefault(0)';
           else if (typeof val[0] === 'boolean') itemType = 'z.boolean().prefault(false)';
@@ -6175,7 +6175,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 生成对象的 inline 默认值
     function genObjectDefaultInline(obj) {
-      var parts = Object.keys(obj).map(function(key) {
+      const parts = Object.keys(obj).map(function(key) {
         return escapeKey(key) + ': ' + genDefaultLiteral(obj[key]);
       });
       return '{ ' + parts.join(', ') + ' }';
@@ -6183,12 +6183,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 递归生成对象字段的 zod 代码行
     function genObjectLines(obj, indent) {
-      var padStr = new Array(indent + 1).join(' ');
-      var lines = [];
-      var keys = Object.keys(obj);
+      const padStr = new Array(indent + 1).join(' ');
+      let lines = [];
+      const keys = Object.keys(obj);
       keys.forEach(function(key, i) {
-        var val = obj[key];
-        var comma = i < keys.length - 1 ? ',' : '';
+        const val = obj[key];
+        const comma = i < keys.length - 1 ? ',' : '';
         if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
           lines.push(padStr + escapeKey(key) + ': z.object({');
           lines = lines.concat(genObjectLines(val, indent + 2));
@@ -6202,13 +6202,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 收集需要派生 $阶段 的角色名（顶层键 ≠ 世界/系统/$调试/主角 或顶层键含$好感度/$关系）
     function collectPhaseTargets(parsed) {
-      var targets = { aff: [], rel: [], mood: [] };
+      const targets = { aff: [], rel: [], mood: [] };
       if (!parsed || typeof parsed !== 'object') return targets;
-      var topKeys = Object.keys(parsed);
+      const topKeys = Object.keys(parsed);
       for (var i = 0; i < topKeys.length; i++) {
-        var k = topKeys[i];
+        const k = topKeys[i];
         if (k === '世界' || k === '系统' || k.charAt(0) === '_' || k.charAt(0) === '$') continue;
-        var inner = parsed[k];
+        const inner = parsed[k];
         if (!inner || typeof inner !== 'object') continue;
         // 好感度阶段
         if ('好感度' in inner || '依存度' in inner || '$好感度阶段' in inner) targets.aff.push(k);
@@ -6227,14 +6227,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 生成派生字段 transform 代码片段
     function buildPhaseTransform(targets, parsedKeys) {
       if (!targets) return '';
-      var lines = [];
+      let lines = [];
       // 好感度阶段
       if (targets.aff && targets.aff.length > 0) {
         targets.aff.forEach(function(nm) {
           lines.push("      if (data['" + nm + "']) {");
-          lines.push("        var _aff = Number(data['" + nm + "'].好感度 ?? data['" + nm + "'].依存度 ?? 0);");
-          lines.push("        var _phase = _aff < 20 ? '陌生' : _aff < 50 ? '熟识' : _aff < 80 ? '好感' : '深爱';");
-          lines.push("        data['" + nm + "'] = { ...data['" + nm + "'], $好感度阶段: _phase };");
+          lines.push("        const _val = Number(data['" + nm + "'].好感度 ?? data['" + nm + "'].依存度 ?? 0);");
+          lines.push("        data['" + nm + "']['$好感度阶段'] = _val < 20 ? '陌生' : _val < 50 ? '熟识' : _val < 80 ? '好感' : '深爱';");
           lines.push("      }");
         });
       }
@@ -6242,35 +6241,35 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (targets.rel && targets.rel.length > 0) {
         targets.rel.forEach(function(nm) {
           lines.push("      if (data['" + nm + "'] && data['" + nm + "'].关系 !== undefined) {");
-          lines.push("        var _r = String(data['" + nm + "'].关系 || '');");
-          lines.push("        var _rp = _r.indexOf('陌生') >= 0 ? '陌生' : _r.indexOf('熟识') >= 0 ? '熟识' : _r.indexOf('朋友') >= 0 ? '朋友' : _r.indexOf('暧昧') >= 0 ? '暧昧' : _r.indexOf('恋人') >= 0 ? '恋人' : _r || '陌生';");
-          lines.push("        data['" + nm + "'] = { ...data['" + nm + "'], $关系阶段: _rp };");
+          lines.push("        const _r = String(data['" + nm + "'].关系 || '');");
+          lines.push("        const _rp = _r.indexOf('陌生') >= 0 ? '陌生' : _r.indexOf('熟识') >= 0 ? '熟识' : _r.indexOf('朋友') >= 0 ? '朋友' : _r.indexOf('暧昧') >= 0 ? '暧昧' : _r.indexOf('恋人') >= 0 ? '恋人' : _r || '陌生';");
+          lines.push("        data['" + nm + "']['$关系阶段'] = _rp;");
           lines.push("      }");
         });
       }
       // 世界状态派生（剧情日速览）
       lines.push("      if (data['世界']) {");
-      lines.push("        var _day = Number(data['世界']._当前剧情日 ?? data['世界']['_当前剧情日'] ?? 1);");
-      lines.push("        data['世界'] = { ...data['世界'], '$剧情阶段': _day <= 1 ? '开局' : _day <= 3 ? '前期' : _day <= 7 ? '中期' : '后期' };");
+      lines.push("        const _day = Number(data['世界']._当前剧情日 ?? data['世界']['_当前剧情日'] ?? 1);");
+      lines.push("        data['世界']['$剧情阶段'] = _day <= 1 ? '开局' : _day <= 3 ? '前期' : _day <= 7 ? '中期' : '后期';");
       lines.push("      }");
       return lines.join('\n');
     }
 
-    var parsed = parseInitVar(initVarContent);
+    let parsed = parseInitVar(initVarContent);
     if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
       parsed = { '世界': { '当前时间': '开局', '当前地点': '待定' } };
     }
 
-    var bodyLines = genObjectLines(parsed, 2);
-    var targets = collectPhaseTargets(parsed);
-    var phaseTransform = buildPhaseTransform(targets, Object.keys(parsed));
-    var hasPhase = phaseTransform && phaseTransform.trim().length > 0;
+    const bodyLines = genObjectLines(parsed, 2);
+    const targets = collectPhaseTargets(parsed);
+    const phaseTransform = buildPhaseTransform(targets, Object.keys(parsed));
+    const hasPhase = phaseTransform && phaseTransform.trim().length > 0;
 
-    var bodyStr = bodyLines.join('\n');
+    const bodyStr = bodyLines.join('\n');
     // FOOTER：如果有派生字段，直接在 z.object 之后挂 .transform(data => { ...; return data; })
     // ⚠️用户规范：transform 中直接在 data 上做幂等修改，禁止 data = { ...data } 浅拷贝（影响 zod 链一致性）
     // ⚠️用户规范：派生字段逻辑直接挂 z.object 之后；结尾固定 $(() => { registerMvuSchema(Schema); })
-    var FOOTER;
+    let FOOTER;
     if (hasPhase) {
       FOOTER = "/* 派生字段逻辑应直接挂在 z.object 之后 */\n}).transform(data => {\n  // === 自动派生 $阶段 字段（populateCharacterData 显示、AI不更新）===\n" + phaseTransform + "\n  return data;\n});\n\n/* 结尾固定注册函数 */\n$(() => { registerMvuSchema(Schema); })";
     } else {
@@ -6286,19 +6285,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   {{format_message_variable::stat_data}}
   //   </status_current_variables>
   function normalizeVarListContent(content) {
-    var macro = '{{format_message_variable::stat_data}}';
-    var stdBlock = '---\n<status_current_variables>\n' + macro + '\n</status_current_variables>';
+    // ⚠️强校验版：必须严格使用复数 variables 标签；标签内只保留宏，过滤 null/杂质
+    const macro = '{{format_message_variable::stat_data}}';
+    const stdBlock = '---\n<status_current_variables>\n' + macro + '\n</status_current_variables>';
     if (!content || !content.trim()) return stdBlock;
-    // 修正 AI 误写的占位符（如 {{null}}、{{get_message_variable::stat_data}} 等）
-    var cleaned = content.replace(/\{\{null\}\}/gi, macro)
+    // 修正 AI 误写的占位符（如 {{null}}、{{get_message_variable::stat_data}}、纯文本 null 等）
+    let cleaned = content.replace(/\{\{null\}\}/gi, macro)
                          .replace(/\{\{get_message_variable::stat_data\}\}/gi, macro)
                          .replace(/\{\{format_message_variable::[^}]*\}\}/gi, macro);
+    // 修正标签内的纯 null 文本
+    cleaned = cleaned.replace(/(<status_current_variables>)\s*null\s*(<\/status_current_variables>)/gi, '$1\n' + macro + '\n$2');
     // 含宏：重建为标准格式（丢弃所有混入的变量实际值/配置字段）
     if (cleaned.indexOf(macro) >= 0) {
       return stdBlock;
     }
-    // ⚠️用户规范：严格复数标签。若误写单数标签（AI漏写s），**强制替换为复数**，否则酒馆助手的宏无法识别
-    // 检测单数标签 <status_current_variable> (不带s) 并强制修复为复数
+    // ⚠️严格复数标签：若误写单数标签（AI漏写s），强制替换为复数
     if (/<status_current_variable\s*>[\s\S]*?<\/status_current_variable\s*>/i.test(cleaned)) {
       cleaned = cleaned.replace(/<status_current_variable\s*>/gi, '<status_current_variables>')
                        .replace(/<\/status_current_variable\s*>/gi, '</status_current_variables>');
@@ -6336,21 +6337,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //  - $开头派生显示字段 → 改由 zod 的 .transform(data => { ... return data }) 自动派生
   // 格式：世界(时间/地点) + 每个角色的好感度/状态 等核心字段（属性数值用 50 作为标准默认值，zod prefault 管理）
   function generateInitVarYaml(charNames) {
-    var lines = [
+    // ⚠️纯净初始态：不包含 stat_data 根键；不包含 _/$ 开头字段（由 zod prefault/transform 生成）
+    const lines = [
       '世界:',
-      '  当前时间: 开局',
-      '  当前地点: 待定'
+      '  当前时间: D1 - 清晨',
+      '  当前地点: 走廊'
     ];
     (charNames || []).forEach(function(name) {
       lines.push(name + ':');
       lines.push('  好感度: 0');
-      lines.push('  状态: 进行中');
+      lines.push('  状态: 正常');
+      if (name === '主角') lines.push('  物品栏: {}');
     });
-    // 如果没有主角，补一个主角最小核心字段（好感度+状态，其他所有属性由 zod .prefault() 自动补默认值）
+    // 如果没有主角，补一个主角最小核心字段
     if (charNames && charNames.indexOf('主角') < 0) {
       lines.push('主角:');
       lines.push('  好感度: 0');
-      lines.push('  状态: 进行中');
+      lines.push('  状态: 正常');
+      lines.push('  物品栏: {}');
     }
     return lines.join('\n');
   }
@@ -6393,49 +6397,38 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ⚠️规范对齐：string 省略 type；_ 前缀只读字段不列规则；同类型合并 ${a|b|c}；动态键用 type index signature
   // 生成变量更新规则（⚠️精炼版：多角色属性合并为 ${角色名}.属性 规则，每条规则描述简洁）
   function generateVarUpdateRule(charNames) {
-    var lines = [
+    // ⚠️精简联动版：zod 已定义 range/clamp，此处不重复；check 规则简洁化
+    const lines = [
       '---',
       '变量更新规则:',
-      '  世界:',
-      '    当前时间:',
-      '      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}',
-      '      check:',
-      '        - 每次事件推进、休息或旅行后更新，保持时间流逝合理',
-      '        - 若场景跳转跨度较大，应说明跳跃原因',
-      '    当前地点:',
-      '      check:',
-      '        - 场景发生明确移动或地点变化时更新，描述具体位置'
+      '  世界.当前时间:',
+      '    format: D${天数}-${时间段}',
+      '    check:',
+      '      - 仅在场景切换或显著休息后推进时间',
+      '  世界.当前地点:',
+      '    check:',
+      '      - 场景发生明确移动时更新为具体位置'
     ];
-    // ⚠️多角色共性属性用 ${角色名} 合并规则，不重复书写
     if (charNames && charNames.length > 0) {
-      lines.push('  ${角色名}.好感度:');
+      lines.push('  ${角色}.好感度:');
       lines.push('    type: number');
       lines.push('    check:');
-      lines.push('      - 仅在有明确情感互动且角色感知到时更新');
-      lines.push('      - 变动幅度建议 ±(1~3)，zod已自动做clamp(0,100)，AI无需重复约束范围');
-      lines.push('      - 优先用 delta 操作（如 {"op":"delta","path":"/${角色名}/好感度","value":+1}）');
-      lines.push('  ${角色名}.心情:');
+      lines.push('      - 依据{{user}}互动感知调整 ±(1~3)');
+      lines.push('      - 严禁在无直接互动时大幅变动');
+      lines.push('  ${角色}.心情:');
       lines.push('    check:');
-      lines.push('      - 仅在环境变化或互动产生明确情绪波动时更新，2-4字简明描述（平静/喜悦/焦虑/害羞等）');
-      lines.push('  ${角色名}.状态:');
+      lines.push('      - 2-4字简述当前情绪波动');
+      lines.push('  ${角色}.状态:');
       lines.push('    check:');
-      lines.push('      - 从"进行中/已暂停/已完成/已失败"中选，仅剧情本质推进时才切换');
-      lines.push('  ${角色名}.关系:');
+      lines.push('      - 仅剧情本质推进时切换（正常/异常/濒死等）');
+      lines.push('  ${角色}.关系:');
       lines.push('    check:');
-      lines.push('      - 仅关系本质性改变时才更新（陌生→熟识→朋友→暧昧→恋人），一次互动不足以越级');
-      // 主角专属规则（物品栏、能力面板等）
+      lines.push('      - 仅关系本质性改变时更新，一次互动不足以越级');
       if (charNames.indexOf('主角') >= 0) {
         lines.push('  主角.物品栏:');
-        lines.push('    type: |-');
-        lines.push('      {');
-        lines.push('        [物品名: string]: {');
-        lines.push('          描述: string;');
-        lines.push('          数量: number;');
-        lines.push('        }');
-        lines.push('      }');
+        lines.push('    type: "{ [物品名: string]: { 描述: string; 数量: number } }"');
         lines.push('    check:');
-        lines.push('      - 获得：{"op":"insert","path":"/主角/物品栏/物品名","value":{"描述":"...","数量":1}}');
-        lines.push('      - 消耗：{"op":"remove","path":"/主角/物品栏/物品名"}；数量变化：{"op":"delta","path":"/主角/物品栏/物品名/数量","value":-1}');
+        lines.push('      - 获得新物品使用 insert，消耗使用 remove 或 delta 数量');
       }
     }
     return lines.join('\n');
@@ -11678,7 +11671,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '.stat-bar{display:inline-block;vertical-align:middle;width:60px;height:6px;border-radius:3px;background:rgba(127,127,127,0.2);overflow:hidden;}\n' +
         '.stat-bar>span{display:block;height:100%;background:linear-gradient(90deg,#4f8cff,#7aa8ff);}';
 
-      var DEFAULT_STEP3_HTML = '<div id="render-root" class="stat-box"></div>';
+      var DEFAULT_STEP3_HTML =
+        '<div class="mvu-status-card">' +
+        '  <div class="status-header">' +
+        '    <div class="char-name" id="char-name">加载中...</div>' +
+        '    <div class="world-time" id="world-time">--</div>' +
+        '  </div>' +
+        '  <div class="card-body" id="render-root">' +
+        '    <div class="stat-grid">' +
+        '      <div class="stat-item">' +
+        '        <span class="stat-label">好感度</span>' +
+        '        <div class="progress-bar"><div id="affinity-bar" class="progress-bar-fill"></div></div>' +
+        '        <span class="stat-value" id="affinity-val">0</span>' +
+        '      </div>' +
+        '    </div>' +
+        '  </div>' +
+        '  <div class="loading-state" id="loading-mask"><span>SYSTEM INITIALIZING...</span></div>' +
+        '</div>';
 
       var DEFAULT_STEP4_CSS = '';
 
@@ -11720,19 +11729,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '}\n';
 
 var DEFAULT_STEP6_JS =
-        '(function init(){\n' +
-        '  try { if (typeof waitGlobalInitialized === "function") waitGlobalInitialized("Mvu"); } catch(e) {}\n' +
-        '  var max=15,count=0; var _sbTimer=null;\n' +
-        '  function _safeGetVars(){try{return getAllVariables()||{};}catch(e){return{};}}\n' +
-        '  function _hasStatData(){var v=_safeGetVars();return v&&typeof v==="object"&&v.stat_data!==undefined;}\n' +
-        '  function tryRender(){try{typeof populateCharacterData==="function"&&populateCharacterData();}catch(e1){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e2){}}count++;if(!_hasStatData()){if(count<max){setTimeout(tryRender,1000);}return;}_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);typeof populateCharacterData==="function"?populateCharacterData():(typeof refreshStatus==="function"&&refreshStatus());}\n' +
-        '  tryRender();\n' +
-        '  try{if(typeof eventOn==="function"&&typeof Mvu!=="undefined"&&Mvu&&Mvu.events){eventOn(Mvu.events.VARIABLE_INITIALIZED,typeof populateCharacterData==="function"?populateCharacterData:refreshStatus);eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,typeof populateCharacterData==="function"?populateCharacterData:refreshStatus);}}catch(e){}\n' +
-        '  /* 兼容旧版：保留2秒兜底轮询，避免事件不触发 */\n' +
-        '  _sbTimer=setInterval(function(){try{typeof populateCharacterData==="function"?populateCharacterData():(typeof refreshStatus==="function"&&refreshStatus());}catch(e){}},2000);\n' +
-        '  document&&document.addEventListener&&document.addEventListener("visibilitychange",function(){if(document.hidden){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);}else if(!_sbTimer){_sbTimer=setInterval(function(){try{typeof populateCharacterData==="function"?populateCharacterData():(typeof refreshStatus==="function"&&refreshStatus());}catch(e){}},2000);}});\n' +
-        '  window&&window.addEventListener&&window.addEventListener("pagehide",function(){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);});\n' +
-        '})();';
+        'async function init() {\n' +
+        '  /* 1. 等待 MVU 核心就绪 */\n' +
+        '  await waitGlobalInitialized("Mvu");\n' +
+        '  /* 2. 执行首次渲染 */\n' +
+        '  populateCharacterData();\n' +
+        '  /* 3. 监听变量更新结束事件，实现即时自动刷新（优于定时器） */\n' +
+        '  eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => { populateCharacterData(); });\n' +
+        '  /* 4. 绑定 UI 交互 */\n' +
+        '  $(".status-header").on("click", function() { $("#render-root").slideToggle(200); });\n' +
+        '}\n' +
+        '/* 必须使用 errorCatched 包装以防止脚本崩溃导致酒馆卡死 */\n' +
+        '$(errorCatched(init));';
 
       // 找到第一个空缺的Step号（用于推进和清空后定位）；全满返回7
       function findNextEmptyStep() {
