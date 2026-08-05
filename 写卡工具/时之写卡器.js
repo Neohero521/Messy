@@ -1196,7 +1196,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 判断条目是否属于MVU变量系统
   // 兼容大小写前缀：[InitVar]/[initvar]、[mvu_update] 等
-  // 扩展：包含4条核心条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
+  // 扩展：包含8条工作流条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
   function isMVUEntry(comment) {
     var c = (comment || '').toLowerCase();
     return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
@@ -3257,11 +3257,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 + 扩展附加条目识别 ======
     //   MVU_STRONG_RE = 功能性/结构性强特征（出现即代表真实MVU条目，永远拦截）
     //   MVU_WEAK_RE    = 讨论性弱特征（仅严格模式拦截；灰色模式开启时放行，允许AI讨论/规划变量结构）
-    //   MVU_EXTRA_RE   = MVU体系附加条目关键词（4条核心条目之外的功能性附加条目：阶段判定/EJS控制器/人设切换/派生字段等，仅用于MVU Tab放宽识别，不参与角色卡Tab拦截）
+    //   MVU_EXTRA_RE   = MVU体系附加条目关键词（8条工作流条目之外的功能性附加条目：阶段判定/EJS控制器/人设切换/派生字段等，仅用于MVU Tab放宽识别，不参与角色卡Tab拦截）
     // 灰色模式（window.__mvuDiscussMode=true）：角色卡Tab允许讨论变量结构，但仍禁止生成真实MVU条目
     var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized|registerMvuSchema)/i;
     var MVU_WEAK_RE = /(变量更新规则|变量输出格式|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
-    // 附加条目关键词：用于MVU Tab识别"变量体系附加条目"——这些条目不是4条核心，但仍属于变量系统的配套功能
+    // 附加条目关键词：用于MVU Tab识别"变量体系附加条目"——这些条目不是8条工作流核心条目，但仍属于变量系统的配套功能
     var MVU_EXTRA_RE = /(阶段判定|阶段切换|人设切换|人设规则|EJS|ejs|动态注入|injectPrompts|派生字段|衍生字段|只读字段|联动规则|联动变更|阈值触发|控制器|阶段变量|状态机|分阶段|多阶段|关系阶段|剧情进度|系统模式|境界等级|阶段标记|判定逻辑|分段提示|变量分段)/i;
     var _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
     /* MVU_KEYWORDS_RE：完整集（强弱+附加条目关键词合并），供 MVU Tab 判定"是否MVU条目"使用，不受灰色模式影响 */
@@ -3343,8 +3343,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     } else if (_activeTab === 'mvu') {
       // ===================== MVU Tab：只允许修改白名单字段，禁止改动角色卡主体 =====================
-      // 白名单：只有4类允许
-      //   1. character_book.entries 中的4条核心MVU条目（由 MVU_KEYWORDS_RE 判定）
+      // 白名单：只有以下允许
+      //   1. character_book.entries 中的MVU工作流条目（第2-7条，由 MVU_KEYWORDS_RE 判定）
       //   2. extensions.regex_scripts （状态栏正则）
       //   3. extensions.tavern_helper.scripts （zod脚本）
       //   4. extensions.tavern_helper.variables （变量定义，如果有的话）
@@ -4730,12 +4730,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎯 你的专属职责（只有这些，别的都不管）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      'A. MVU变量系统4大条目的设计与维护：\n' +
-      '   1. [InitVar]初始变量条目：enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层\n' +
-      '   2. 变量列表条目：含{{format_message_variable::stat_data}}宏，在对话中注入当前变量\n' +
-      '   3. 变量更新规则条目：定义每个变量在什么对话条件下如何更新\n' +
-      '   4. 变量输出格式条目：使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式\n' +
-      'B. 动态HTML状态栏设计与实现：通过分模块流程（Step 1规划 + Step 2-6共5个槽位 + Step 7确认）生成状态栏正则脚本，写卡器后台管理5个槽位拼接保存\n' +
+      'A. MVU变量系统8条工作流的设计与维护（详见9.1.6，每条停下等"继续"）：\n' +
+      '   第1条：变量结构脚本（zod schema + registerMvuSchema）\n' +
+      '   第2条：[InitVar]初始变量（enabled=false，YAML格式，严格依据schema）\n' +
+      '   第3条：变量列表（含{{format_message_variable::stat_data}}宏）\n' +
+      '   第4条：[mvu_update]变量更新规则（依据schema生成check/type/range）\n' +
+      '   第5条：[mvu_update]变量输出格式（<UpdateVariable>+<JSONPatch>5种操作）\n' +
+      '   第6条：[mvu_update]变量输出格式强调（固定YAML，默认enabled=false）\n' +
+      '   第7条：<状态栏>占位符提醒（constant=true）\n' +
+      '   第8条：正则6 [美化]MVU状态栏（前7条完成后才生成，走Step 1-7流程）\n' +
+      'B. 动态HTML状态栏设计与实现（第8条）：需求收集 → Step 1变量盘点表 → Step 2-6共5个代码模块 → Step 7确认，写卡器后台管理5个槽位拼接保存\n' +
       'C. MVU系统的修改、调试、预览（可通过<clear_statusbar>N标记清空指定Step槽位重新生成）\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '⚠️ MVU Tab 核心铁律（最高优先级）\n' +
@@ -4746,32 +4750,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '   · 不要生成角色卡JSON代码块——MVU条目修改用:::操作块协议\n' +
       '   · 如果用户明确要设计世界观/角色卡/剧情，回复:「请切换到「角色卡生成」Tab进行角色卡/世界书的创作」\n' +
       '2. ❌不要输出完整的角色卡JSON（chara_card_v3格式）——MVU Tab不负责生成角色卡\n' +
-      '3. ✅所有输出只聚焦在：MVU变量4条目、状态栏Step模块代码块（css/html/javascript）、清空标记<clear_statusbar>N\n' +
+      '3. ✅所有输出只聚焦在：MVU 8条工作流条目（第1-7条用:::操作块）、状态栏Step模块代码块（css/html/javascript）、清空标记<clear_statusbar>N\n' +
       '4. ✅MVU变量系统和状态栏之间要相互配合——变量的路径决定了状态栏的渲染路径，设计时要保证一致\n' +
       '5. ✅修改MVU条目时，使用:::操作块协议输出修改指令（与角色卡Tab相同），不要输出```json代码块\n' +
       '6. ✅状态栏Step 2-6模块代码块：每次只输出一个```代码块，写卡器自动收集到对应槽位\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '【MVU 4大条目规范】（写入世界书entries数组）\n' +
-      '条目1: comment="[InitVar]初始变量", constant=true, position=4, depth=4, order=200, enabled=false\n' +
-      '       content=YAML格式（缩进表示层级），MVU系统读取enabled=false的此条目进行初始化\n' +
-      '条目2: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
+      '【MVU 8条工作流条目规范】（第1条在tavern_helper.scripts，第2-7条写入世界书entries数组）\n' +
+      '第1条: 变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）\n' +
+      '第2条: comment="[InitVar]初始变量", constant=true, position=4, depth=4, order=200, enabled=false\n' +
+      '       content=YAML格式（缩进表示层级），严格依据第1条schema；MVU系统读取enabled=false的此条目进行初始化\n' +
+      '第3条: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
       '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照\n' +
-      '条目3: comment="变量更新规则", constant=true, position=4, depth=0, order=200\n' +
-      '       content=逐条规则：在什么条件下（对话关键词、上下文内容），更新哪个变量路径到什么值\n' +
-      '条目4: comment="变量输出格式", constant=true, position=4, depth=0, order=200\n' +
-      '       content=[mvu_update]前缀 + <UpdateVariable>包裹的JSON Patch数组（replace/delta/insert/remove/move命令）\n' +
-      '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n\n' +
+      '第4条: comment="[mvu_update]变量更新规则", constant=true, position=4, depth=0, order=200\n' +
+      '       content=逐条规则：依据第1条schema为每个变量路径生成 type/range/check；补充$_开头字段=AI只读约束\n' +
+      '第5条: comment="[mvu_update]变量输出格式", constant=true, position=4, depth=0, order=200\n' +
+      '       content=[mvu_update]前缀 + <UpdateVariable>包裹<Analysis>+<JSONPatch>数组（replace/delta/insert/remove/move）\n' +
+      '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n' +
+      '第6条: comment="[mvu_update]变量输出格式强调", constant=true, position=4, depth=0, order=200, enabled=false（默认禁用，AI不输出<UpdateVariable>时启用强制提醒）\n' +
+      '第7条: comment="<状态栏>占位符提醒", constant=true, position=4, depth=0, order=200\n' +
+      '       content=提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
+      '第8条: 正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成\n\n' +
       '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
-      'Step 0：需求收集（⚠️首次生成必做！用户说"继续"或"直接生成"才可跳过）\n' +
-      '   在开始任何Step代码前，必须先询问用户以下问题：\n' +
+      '⚠️ 进入状态栏模式后，先做需求收集（不属于Step编号，是模式入口的必做步骤）：\n' +
+      '   在开始任何Step代码前，必须先询问用户以下问题（用户已在消息中描述了需求则直接按描述生成，不重复询问）：\n' +
       '   1️⃣ 想要什么UI风格？（如：简约白卡/暗黑赛博朋克/古风水墨/科幻全息/可爱圆润/极简扁平）\n' +
       '   2️⃣ 想显示哪些变量？按什么分组？（如：只显示核心3个变量 / 按角色分组 / 按世界-角色-状态分层）\n' +
       '   3️⃣ 配色偏好？（主色调、背景色、强调色，或直接说"你看着办"）\n' +
       '   4️⃣ 是否要进度条？是否要嵌套分组？\n' +
-      '   ⚠️用户回答前禁止输出任何Step代码块！用户说"直接生成"或"简单就行"或"你看着办"才可跳过询问，按默认风格生成\n' +
-      '   ⚠️如果用户已经在消息中描述了需求（如"我要赛博朋克风的状态栏"），直接按用户描述生成，不要重复询问\n\n' +
+      '   ⚠️用户回答前禁止输出任何Step代码块！用户说"直接生成"或"简单就行"或"你看着办"才可跳过询问，按默认风格生成\n\n' +
       'Step 1：变量盘点表（7列纯文本表格 | 路径 | 类型 | 派生规则 | 空值兜底 | 是否跳过 | 显示格式 | 分组 | 显示名 |）→ 先理清思路，不写代码\n' +
       '   ⚠️$前缀字段分两种：派生显示专用（如$依存度阶段→跳过=否）、纯元数据（如$time→跳过=是）；_前缀一律只读跳过=是\n' +
       '   ⚠️显示格式number类：数字/进度条/进度条+派生阶段；string/boolean/array保持默认\n' +
@@ -9537,25 +9545,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // 进入状态栏制作模式前，确保固定资产已注入（bundle.js/正则1-5等）
           ensureFixedMvuAssetsInCardData();
-          // 进入状态栏制作模式，从Step 1开始或从第一个空缺开始
+          // 进入状态栏制作模式，从第一个空缺Step开始（全满则Step=7）
           statusBarMode = true;
-          var firstEmpty = 0;
-          for (var sbi = 0; sbi < SB_STEP_ORDER.length; sbi++) {
-            if (!statusBarModules['step' + SB_STEP_ORDER[sbi]]) { firstEmpty = SB_STEP_ORDER[sbi]; break; }
-          }
-          statusBarCurrentStep = firstEmpty === 0 ? 1 : firstEmpty;
-          addAssistantMsg(firstEmpty === 0
+          var firstEmpty = findNextEmptyStep();
+          statusBarCurrentStep = (firstEmpty === 7) ? 7 : firstEmpty;
+          addAssistantMsg(firstEmpty === 7
             ? '✅ 前7条齐全！状态栏5模块已完成，预览查看效果，或说"修改配色"等微调。'
             : '✅ 前7条齐全！开始制作【第8条：正则6 状态栏HTML】。\n下一步：Step ' + firstEmpty + ' ' + sbStepName(firstEmpty) + '，说"继续"。');
           return;
         }
         if (action === 'continue_sb') {
+          // 继续状态栏生成：定位到第一个空缺Step并发送"继续"
           statusBarMode = true;
-          var nextStep = 0;
-          for (var si = 0; si < SB_STEP_ORDER.length; si++) {
-            if (!statusBarModules['step' + SB_STEP_ORDER[si]]) { nextStep = SB_STEP_ORDER[si]; break; }
-          }
-          if (nextStep === 0) {
+          var nextStep = findNextEmptyStep();
+          if (nextStep === 7) {
             addAssistantMsg('状态栏已完成，预览查看效果，或说"修改配色"等微调。');
           } else {
             statusBarCurrentStep = nextStep;
@@ -11308,6 +11311,47 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         'document.addEventListener("visibilitychange",function(){if(document.hidden){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);}else if(!_sbTimer){_sbTimer=setInterval(function(){try{typeof refreshStatus==="function"&&refreshStatus();}catch(e){}},2000);}});\n' +
         'window.addEventListener("pagehide",function(){_sbTimer&&(clearInterval(_sbTimer),_sbTimer=null);});})();';
 
+      // 找到第一个空缺的Step号（用于推进和清空后定位）；全满返回7
+      function findNextEmptyStep() {
+        for (var i = 0; i < SB_STEP_ORDER.length; i++) {
+          if (!statusBarModules['step' + SB_STEP_ORDER[i]]) return SB_STEP_ORDER[i];
+        }
+        return 7;
+      }
+
+      // 显示收集进度（给用户的反馈消息）
+      function showSBProgress() {
+        var collected = [], missing = [];
+        for (var i = 0; i < SB_STEP_ORDER.length; i++) {
+          var sn = SB_STEP_ORDER[i];
+          if (statusBarModules['step' + sn]) collected.push(sbStepName(sn));
+          else missing.push(sbStepName(sn));
+        }
+        var progressBar = '';
+        for (var j = 0; j < SB_STEP_ORDER.length; j++) {
+          progressBar += statusBarModules['step' + SB_STEP_ORDER[j]] ? '✅' : '⬜';
+        }
+        var allComplete = collected.length === 5;
+        if (!allComplete) {
+          var nextEmpty = findNextEmptyStep();
+          addAssistantMsg('(' + collected.length + '/5) 下一步：Step ' + nextEmpty + ' ' + sbStepName(nextEmpty) + '，说"继续"。');
+        } else {
+          var assembledHtml = assembleStatusBarFromModules();
+          if (assembledHtml) {
+            var consistencyWarnings = validateStatusBarConsistency();
+            var pathWarnings = validateMvuPathAlignment();
+            var allWarnings = consistencyWarnings.concat(pathWarnings);
+            saveStatusBarToCard(assembledHtml);
+            var sbMsg = '🎉 状态栏5模块全部齐全，已拼接保存到角色卡！\n' +
+              '  ✅ 点击右侧「预览」可查看效果，或点击「💾 写入酒馆」直接保存到酒馆角色卡。';
+            if (allWarnings.length > 0) {
+              sbMsg += '\n校验提示：\n' + allWarnings.join('\n');
+            }
+            addAssistantMsg(sbMsg);
+          }
+        }
+      }
+
       function assembleStatusBarFromModules() {
         // ⚠️改进Z3：模块缺失时用DEFAULT_STEP*后备片段自动补全，而不是返回空
         // 确保用户无论AI成功生成了几个模块，最终都能得到"可用"的状态栏
@@ -11821,144 +11865,77 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== Tab 隔离：状态栏模块处理仅在 MVU Tab 中执行，角色卡Tab完全跳过 ==========
           if (currentTab === 'mvu') {
           try {
-            // SB_STEP_NAMES/SB_STEP_ORDER 已提升为模块级常量，sbStepName(n) 按号取名称
+            // findNextEmptyStep / showSBProgress 已提升为模块级函数（与 assembleStatusBarFromModules 等放在一起）
 
-            // 找到第一个空缺的Step号（用于推进和清空后定位）
-            function findNextEmptyStep() {
-              for (var i = 0; i < SB_STEP_ORDER.length; i++) {
-                if (!statusBarModules['step' + SB_STEP_ORDER[i]]) return SB_STEP_ORDER[i];
-              }
-              return 7; // 全满
-            }
+            // ===== 状态栏响应处理主逻辑（3分支：进入模式 / Step生成 / 完成态兜底）=====
 
-            // 显示收集进度
-            function showSBProgress() {
-              var collected = [], missing = [];
-              for (var i = 0; i < SB_STEP_ORDER.length; i++) {
-                var sn = SB_STEP_ORDER[i];
-                if (statusBarModules['step' + sn]) collected.push(sbStepName(sn));
-                else missing.push(sbStepName(sn));
-              }
-              var progressBar = '';
-              for (var j = 0; j < SB_STEP_ORDER.length; j++) {
-                progressBar += statusBarModules['step' + SB_STEP_ORDER[j]] ? '✅' : '⬜';
-              }
-              var allComplete = collected.length === 5;
-              if (!allComplete) {
-                var nextEmpty = findNextEmptyStep();
-                addAssistantMsg('(' + collected.length + '/5) 下一步：Step ' + nextEmpty + ' ' + sbStepName(nextEmpty) + '，说"继续"。');
-              } else {
-                var assembledHtml = assembleStatusBarFromModules();
-                if (assembledHtml) {
-                  var consistencyWarnings = validateStatusBarConsistency();
-                  var pathWarnings = validateMvuPathAlignment();
-                  var allWarnings = consistencyWarnings.concat(pathWarnings);
-                  saveStatusBarToCard(assembledHtml);
-                  statusBarCurrentStep = 7;
-                  var sbMsg = '状态栏已完成，预览查看效果。';
-                  if (allWarnings.length > 0) {
-                    sbMsg += '\n校验提示：\n' + allWarnings.join('\n');
-                  }
-                  addAssistantMsg(sbMsg);
-                }
-              }
-              progress = calcProgress();
-              renderPreview();
-            }
-
-            // 检测用户是否要进入状态栏生成模式（仅MVU Tab生效）
+            // --- 分支A：检测进入状态栏模式 ---
             var userText = (curTabMessages.length > 0 && curTabMessages[curTabMessages.length - 1].role === 'user')
               ? curTabMessages[curTabMessages.length - 1].content : '';
             var sbKeywords = ['状态栏', 'statusbar', 'status_bar', '状态显示', 'MVU状态', 'mvu状态'];
             var isSBRequest = sbKeywords.some(function(k) { return userText.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
 
-            // 进入状态栏模式：用户提到状态栏且当前不在模式中
             if (isSBRequest && !statusBarMode) {
-              // ⚠️用户要求：变量条目必须由 AI 按 8条顺序工作流一条一条生成，写卡器不再自动补齐
-              // 前置检查：缺前7条任意一条时，提示用户先完成8条工作流，不自动进入状态栏模式
+              // 前置检查：前7条必须齐全才允许进入状态栏模式（第8条=状态栏本身）
               var _chkAuto = checkMvu8Entries();
               if (!_chkAuto.all7Done) {
-                // 缺前7条中的任意条目：不进入状态栏模式，引导用户先按8条顺序一条一条生成
-                // （不 return，让后续逻辑正常保存 AI 回复到聊天记录）
-                if (!statusBarMode) {
-                  _aiChatNotesQueue.push(buildMissingMvuHint(_chkAuto.missing));
-                }
+                _aiChatNotesQueue.push(buildMissingMvuHint(_chkAuto.missing));
                 progress = calcProgress();
                 renderPreview();
               } else {
-                // 核心条目齐全：确保固定资产已注入（try/catch，任何异常不阻断进入状态栏模式）
+                // 前7条齐全 → 进入状态栏模式
                 try { ensureFixedMvuAssetsInCardData(); } catch(_sbErr) { console.warn('[statusbar] ensureFixedMvuAssetsInCardData:', _sbErr && _sbErr.message); }
                 statusBarMode = true;
-                // 如果已有部分模块，从第一个空缺开始；否则从Step 1开始
                 var firstEmpty = 1;
                 try { firstEmpty = findNextEmptyStep(); } catch(_e) { firstEmpty = 1; }
                 statusBarCurrentStep = (firstEmpty === 7) ? 7 : 1;
-                // ⚠️Z9+：直接尝试assemble+保存（Z3已默认补全缺失模块），用户立刻就能得到可用状态栏
-                try {
-                  var _sbInitial = assembleStatusBarFromModules();
-                  if (_sbInitial) saveStatusBarToCard(_sbInitial);
-                } catch(_e2) { console.warn('[statusbar] initial assemble save:', _e2.message); }
+                // 进入即尝试assemble+保存（Z3默认补全缺失模块，用户立刻得到可用状态栏）
+                try { var _sbInitial = assembleStatusBarFromModules(); if (_sbInitial) saveStatusBarToCard(_sbInitial); } catch(_e2) { console.warn('[statusbar] initial assemble save:', _e2.message); }
                 progress = calcProgress();
                 renderPreview();
               }
             }
 
-            // 检测清空标记
+            // --- 分支B：处理 <clear_statusbar> 清空标记 ---
             var clearedSteps = processClearStatusModules(aiResponse);
             if (clearedSteps && clearedSteps.length) {
               var clearedNames = clearedSteps.map(function(n) { return 'Step ' + n + ':' + sbStepName(n); });
-              addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n' +
-                '  这些模块需要重新生成。');
-              // 清空后：定位到第一个空缺Step
+              addAssistantMsg('🗑️ 已清空模块：' + clearedNames.join('、') + '\n  这些模块需要重新生成。');
               statusBarCurrentStep = findNextEmptyStep();
-              // 如果AI在同一回复中还输出了代码，继续走提取逻辑
             }
 
-            // 状态栏生成模式主逻辑
+            // --- 分支C：状态栏生成模式主逻辑 ---
             if (statusBarMode) {
               if (statusBarCurrentStep >= 2 && statusBarCurrentStep <= 6) {
-                // 提取代码并填入当前Step槽位
+                // ★ Step 2-6：提取代码 → 校验 → 填入槽位 → assemble+save
                 var stepNum = statusBarCurrentStep;
                 var code = extractFirstCodeBlock(aiResponse);
 
                 if (code && validateStepCode(stepNum, code)) {
+                  // ✅ 校验通过：填入当前Step槽位
                   statusBarModules['step' + stepNum] = code;
                   showToast('✅ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 已填入槽位', 'success');
-                  // 推进到下一个空缺Step（跳过已填充的）
                   statusBarCurrentStep = findNextEmptyStep();
-                  // ⚠️改进Z4-1：每次填入后尝试直接assemble+保存（因Z3已默认补全缺失模块）
-                  // 确保用户哪怕只生成了1个模块，也能得到"可用"的状态栏
-                  try {
-                    var _earlyHtml = assembleStatusBarFromModules();
-                    if (_earlyHtml) saveStatusBarToCard(_earlyHtml);
-                  } catch(_e1) { console.warn('[statusbar] early assemble save:', _e1.message); }
+                  try { var _earlyHtml = assembleStatusBarFromModules(); if (_earlyHtml) saveStatusBarToCard(_earlyHtml); } catch(_e1) { console.warn('[statusbar] early assemble save:', _e1.message); }
                 } else if (code) {
-                  // ⚠️改进Z4-2：校验失败时给出具体失败原因；并尝试detectStepByCode看是否是跳步生成
+                  // ⚠️ 校验失败：尝试跳步识别（代码可能是其他Step的合法代码）
                   var _failReason = getValidateStepCodeReason(stepNum, code);
                   var _altStep = detectStepByCode(code, '');
-                  var _misStep = '';
                   if (_altStep >= 2 && _altStep <= 6 && _altStep !== stepNum) {
-                    // 若代码是其他Step的合法代码，填入对应Step（允许AI跳步）
+                    // 跳步识别成功：填入对应Step
                     statusBarModules['step' + _altStep] = code;
-                    _misStep = '\n  💡 已自动识别为 Step ' + _altStep + ':' + sbStepName(_altStep) + ' 并填入（允许AI跳步生成）。';
                     showToast('✅ Step' + _altStep + '已填入（跳步识别）', 'success');
                     statusBarCurrentStep = findNextEmptyStep();
                     try { var _eHtml2 = assembleStatusBarFromModules(); if (_eHtml2) saveStatusBarToCard(_eHtml2); } catch(_e2) {}
+                    addAssistantMsg('ℹ️ 代码与当前 Step ' + stepNum + ' 不匹配。\n  💡 已自动识别为 Step ' + _altStep + ':' + sbStepName(_altStep) + ' 并填入（允许AI跳步生成）。');
                   } else {
-                    _misStep = '';
-                  }
-                  if (!_misStep) {
-                    addAssistantMsg('⚠️ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 的代码验证未通过。\n' +
-                      '  ❌ 失败原因：' + _failReason + '\n' +
-                      '  💡 请重新生成 Step ' + stepNum + ' 的代码，确保满足上述要求。写卡器未填入该代码。');
-                  } else {
-                    addAssistantMsg('ℹ️ 代码与当前 Step ' + stepNum + ' 不匹配。' + _misStep);
+                    // 跳步识别也失败：提示校验失败原因
+                    addAssistantMsg('⚠️ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 的代码验证未通过。\n  ❌ 失败原因：' + _failReason + '\n  💡 请重新生成 Step ' + stepNum + ' 的代码，确保满足上述要求。写卡器未填入该代码。');
                   }
                 } else {
-                  // ⚠️改进Z4-3：无代码块时，扫全文尝试detectStepByCode（AI可能忘写```但直接写了代码）
+                  // ❌ 无代码块：扫全文尝试detectStepByCode（AI可能忘写```但直接写了代码）
                   var _autoStep = 0, _autoCode = '', _tmpCleaned = (aiResponse || '').trim();
                   if (_tmpCleaned.length >= 40) {
-                    // 取全文非对话部分做代码判定
                     for (var _ts = 2; _ts <= 6; _ts++) {
                       if (validateStepCode(_ts, _tmpCleaned)) { _autoStep = _ts; _autoCode = _tmpCleaned; break; }
                     }
@@ -11970,7 +11947,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     statusBarCurrentStep = findNextEmptyStep();
                     try { var _eHtml3 = assembleStatusBarFromModules(); if (_eHtml3) saveStatusBarToCard(_eHtml3); } catch(_e3) {}
                   } else {
-                    // 标准兜底提示
+                    // 标准兜底：提示用户必须输出代码块
                     var stepLangHint = {2:'```css', 3:'```html', 4:'```css', 5:'```javascript', 6:'```javascript'}[stepNum];
                     var stepCodeHint = {2:':root { --card-bg: #xxx; ... }', 3:'<div class="mvu-status-card"><div class="card-body" id="render-root">...</div></div>', 4:'.mvu-status-card { ... } .stat-item { ... }', 5:'function refreshStatus() { var allVars=getAllVariables(); var sourceData=_.get(allVars,"stat_data",{}); renderTree(sourceData,0); }', 6:'async function init() { await waitGlobalInitialized("Mvu"); refreshStatus(); eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refreshStatus); }'}[stepNum];
                     addAssistantMsg('❌ Step ' + stepNum + ':' + sbStepName(stepNum) + ' 未检测到代码块！\n' +
@@ -11979,42 +11956,35 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       '  请重新生成 Step ' + stepNum + '，必须输出 ' + stepLangHint + ' 代码块，示例格式：\n' +
                       '  ' + stepLangHint + '\n' + stepCodeHint + '\n```\n' +
                       '  ⚠️禁止：只用文字说"已设计配色/已编写函数"但不输出代码。禁止输出空<statusblock>标签。');
-                    // 不推进step，让AI重新生成当前Step
                   }
                 }
                 showSBProgress();
-                // ⚠️改进Z4-4：若Step推进到7（全部齐全），主动assemble+保存并告知用户
+                // 全部齐全后主动assemble+save
                 if (statusBarCurrentStep === 7 || statusBarCurrentStep === 8) {
                   try {
                     var _finalHtml = assembleStatusBarFromModules();
                     if (_finalHtml && saveStatusBarToCard(_finalHtml)) {
-                      addAssistantMsg('🎉 状态栏5模块全部齐全，已拼接保存到角色卡！\n' +
-                        '  ✅ 点击右侧「预览」可查看效果，或点击「💾 写入酒馆」直接保存到酒馆角色卡。');
+                      addAssistantMsg('🎉 状态栏5模块全部齐全，已拼接保存到角色卡！\n  ✅ 点击右侧「预览」可查看效果，或点击「💾 写入酒馆」直接保存到酒馆角色卡。');
                     }
                   } catch(_e4) { console.warn('[statusbar] final assemble save:', _e4.message); }
                 }
               } else if (statusBarCurrentStep === 1) {
-                // Step 1是变量表（纯文本），不参与拼接，直接推进到第一个空缺
+                // ★ Step 1：变量盘点表（纯文本，不参与拼接），直接推进到第一个空缺
                 statusBarCurrentStep = findNextEmptyStep();
                 if (statusBarCurrentStep <= 6) {
-                  addAssistantMsg('📋 变量表已确认。接下来请生成 Step ' + statusBarCurrentStep + ': ' + sbStepName(statusBarCurrentStep) + '（对我说"继续"即可）。\n' +
-                    '  ⚠️ 只输出当前Step的代码块，不要输出其他代码块。');
+                  addAssistantMsg('📋 变量表已确认。接下来请生成 Step ' + statusBarCurrentStep + ': ' + sbStepName(statusBarCurrentStep) + '（对我说"继续"即可）。\n  ⚠️ 只输出当前Step的代码块，不要输出其他代码块。');
                 } else {
                   showSBProgress();
                 }
-              } else if (statusBarCurrentStep === 7 || statusBarCurrentStep === 8 || statusBarCurrentStep === 0) {
-                // 已完成或未开始：尝试兜底完整HTML提取（允许用户直接输出完整HTML覆盖）
+              } else {
+                // ★ Step 7/8/0：完成态或未开始 → 尝试完整HTML提取 + 兜底自动回填
                 var statusBarSaved = tryExtractStatusBarHtml(aiResponse);
                 if (statusBarSaved) {
                   showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
                   progress = calcProgress();
                   renderPreview();
                 } else {
-                  // ═══════════════════════════════════════════════════════════
-                  // ⚠️ 核心BUG修复：状态栏修改但AI漏写clear_statusbar标签时的兜底
-                  // 自动扫描所有代码块 → 内容判定Step号 → 回填statusBarModules
-                  // 若5个模块齐全，则调用assembleStatusBarFromModules+saveStatusBarToCard
-                  // ═══════════════════════════════════════════════════════════
+                  // 兜底：AI漏写<clear_statusbar>时，自动扫描代码块 → detectStepByCode → 回填statusBarModules
                   try {
                     var blocks = [];
                     var allBlockRe = /```([a-z]*)\s*\n?([\s\S]*?)```/gi;
@@ -12031,17 +12001,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       var updatedStepNames = [];
                       for (var bi = 0; bi < blocks.length; bi++) {
                         var blk = blocks[bi];
-                        // 若是完整HTML文档（含<html或<head><body>双双存在）跳过让tryExtractStatusBarHtml已处理的路径
-                        if (/<html[\s>]|<\/html>/i.test(blk.code)
-                          || (/<head[\s>]/i.test(blk.code) && /<body[\s>]/i.test(blk.code))) continue;
-                        // 自动判定归属Step
+                        // 完整HTML文档跳过（已由tryExtractStatusBarHtml处理）
+                        if (/<html[\s>]|<\/html>/i.test(blk.code) || (/<head[\s>]/i.test(blk.code) && /<body[\s>]/i.test(blk.code))) continue;
                         var autoStep = detectStepByCode(blk.code, blk.lang || '');
                         if (autoStep >= 2 && autoStep <= 6) {
                           statusBarModules['step' + autoStep] = blk.code;
                           updatedStepNames.push('Step ' + autoStep + ':' + sbStepName(autoStep));
                         }
                       }
-                      // 如果自动回填成功（至少更新1个模块），则尝试保存
                       if (updatedStepNames.length > 0) {
                         // 检查5个模块是否全部齐全
                         var allFiveOK = true;
@@ -12051,17 +12018,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                         if (allFiveOK) {
                           var assembledHtml = assembleStatusBarFromModules();
                           if (assembledHtml) {
-                            /* 改进3+4：兜底拼接时也做一致性和路径对齐校验 */
                             var autoWarnings = validateStatusBarConsistency().concat(validateMvuPathAlignment());
                             saveStatusBarToCard(assembledHtml);
                             statusBarCurrentStep = 7;
-                            var autoMsg = '🔧 已识别到状态栏修改（AI漏写clear_statusbar已自动兜底）\n' +
-                              '  ✅ 更新模块：' + updatedStepNames.join('、') + '\n' +
-                              '  ✅ 5个模块齐全 → 已重新拼接保存完整HTML到角色卡\n' +
-                              '  💡 建议：规范修改方式 = 先输出 <clear_statusbar>2,3</clear_statusbar> 清空需要修改的Step，再输出代码块。';
+                            var autoMsg = '🔧 已识别到状态栏修改（AI漏写clear_statusbar已自动兜底）\n  ✅ 更新模块：' + updatedStepNames.join('、') + '\n  ✅ 5个模块齐全 → 已重新拼接保存完整HTML到角色卡\n  💡 建议：规范修改方式 = 先输出 <clear_statusbar>2,3</clear_statusbar> 清空需要修改的Step，再输出代码块。';
                             if (autoWarnings.length > 0) {
-                              autoMsg += '\n\n⚠️ 一致性校验发现以下问题（状态栏已保存，建议修复后重新生成对应模块）：\n' +
-                                autoWarnings.map(function(w) { return '  • ' + w; }).join('\n');
+                              autoMsg += '\n\n⚠️ 一致性校验发现以下问题（状态栏已保存，建议修复后重新生成对应模块）：\n' + autoWarnings.map(function(w) { return '  • ' + w; }).join('\n');
                             }
                             addAssistantMsg(autoMsg);
                             progress = calcProgress();
@@ -12070,10 +12032,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                         } else {
                           // 有模块更新但还不齐全 → 提示用户继续补
                           statusBarCurrentStep = findNextEmptyStep();
-                          var missing2 = [];
-                          for (var fii2 = 0; fii2 < SB_STEP_ORDER.length; fii2++) {
-                            if (!statusBarModules['step' + SB_STEP_ORDER[fii2]]) missing2.push(sbStepName(SB_STEP_ORDER[fii2]));
-                          }
                           addAssistantMsg('已更新' + updatedStepNames.join('、') + '，下一步：Step ' + statusBarCurrentStep + ' ' + sbStepName(statusBarCurrentStep) + '，说"继续"。');
                           showToast('✅ Step已更新：' + updatedStepNames.join('、'), 'success');
                         }
@@ -12081,7 +12039,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     }
                   } catch(autoErr) { console.warn('[statusbar] auto-mod save fallback failed:', autoErr && autoErr.message); }
                 }
-                // 如果用户明确说"退出状态栏模式"等，退出模式
+                // 退出状态栏模式
                 if (/退出状态栏|结束状态栏|退出状态|取消状态栏/.test(userText)) {
                   statusBarMode = false;
                   statusBarCurrentStep = 0;
