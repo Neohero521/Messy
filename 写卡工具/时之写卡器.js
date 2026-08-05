@@ -4293,10 +4293,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 返回：{ done: [bool×7], doneCount: int, all7Done: bool, missing: [string], missingCount: int }
   // 说明：消除 updateQuickActions / start_sb / isSBRequest 三处重复检查代码
   // ====================================================================
-  function checkMvu8Entries() {
-    var entries = (cardData.character_book || {}).entries || [];
-    var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-    var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+  function checkMvu8Entries(_cardData) {
+    // ⚠️ 本函数在 IIFE 顶层定义，cardData 在 openEditor() 内部定义，作用域不通
+    //    必须通过参数传入 cardData，否则报 "cardData is not defined"
+    var cd = _cardData;
+    if (!cd) {
+      if (typeof window !== 'undefined' && window.__cardData) cd = window.__cardData;
+      else { try { if (typeof cardData !== 'undefined') cd = cardData; } catch(_e) {} }
+    }
+    if (!cd) return { done: [false,false,false,false,false,false,false], doneCount: 0, all7Done: false, missing: ['第1条 变量结构脚本(zod)','第2条 [InitVar]初始变量','第3条 变量列表','第4条 [mvu_update]更新规则','第5条 [mvu_update]输出格式','第6条 [mvu_update]输出格式强调','第7条 <状态栏>占位提醒'], missingCount: 7, has8: false };
+    var entries = (cd.character_book || {}).entries || [];
+    var thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
+    var rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
     // 前7条检测（按8条工作流顺序）
     var has1 = thScripts.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
     var has2 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
@@ -7787,10 +7795,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ========== Tab 隔离系统：角色卡 Tab 与 MVU状态栏 Tab 完全独立 ==========
       // 参考用户建议的 chatSessions 结构化封装，两边会话状态完全隔离
       var activeTab = 'card';  // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
-      // 暴露到 window：让 mergePartial（全局作用域函数）也能正确取到当前Tab
+      // 暴露到 window：让 mergePartial / checkMvu8Entries 等顶层作用域函数也能正确取到当前Tab和cardData
       if (typeof window !== 'undefined') {
+        window.__cardData = cardData;
         window.__tab_activeTab = activeTab;
-        window.__getActiveTab = function() { return window.__tab_activeTab; };
+        window.__getActiveTab = function() { return activeTab; };
         /* 改进16：灰色模式开关——角色卡Tab允许讨论/规划变量结构，但仍禁止生成真实MVU条目
            用法：setMvuDiscussMode(true) 开启讨论模式；setMvuDiscussMode(false) 恢复严格拦截 */
         window.__mvuDiscussMode = false;
@@ -9208,6 +9217,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var state = JSON.parse(raw);
           if (state.cardData) {
             cardData = state.cardData;
+            if (typeof window !== 'undefined') window.__cardData = cardData;
             // 防御性恢复结构：避免旧版/损坏数据导致后续访问崩溃
             if (!cardData.character_book) cardData.character_book = { entries: [] };
             if (!cardData.character_book.entries) cardData.character_book.entries = [];
@@ -9460,7 +9470,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // MVU Tab：两阶段状态显示
           //   Phase A = 前7条MVU条目（第①-⑦条，逐条生成）
           //   Phase B = 状态栏5模块（第⑧条 = Step2-6，状态栏HTML制作）
-          var _ctxChk = checkMvu8Entries();
+          var _ctxChk = checkMvu8Entries(cardData);
           var _d = _ctxChk.done;
           var _sbProg = 0;
           for (var _sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[_sk]) _sbProg++; }
@@ -9525,7 +9535,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ===== Phase B：状态栏5模块（第⑧条 = Step2-6）=====
           var sbProgress = 0;
           for (var sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[sk]) sbProgress++; }
-          var _chk = checkMvu8Entries();
+          var _chk = checkMvu8Entries(cardData);
           var _done7Count = _chk.doneCount;
           var _all7Done = _chk.all7Done;
           // 主按钮逻辑：Phase A未完成→引导补齐；Phase A完成且Phase B未完成→状态栏制作；全部完成→预览
@@ -9634,7 +9644,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // MVU专属快捷动作（仅MVU Tab有效）
         if (action === 'start_sb') {
           // ===== 前置检查：进入状态栏模式前，必须先完成前7条（第8条=状态栏本身）=====
-          var _chkSB = checkMvu8Entries();
+          var _chkSB = checkMvu8Entries(cardData);
           if (!_chkSB.all7Done) {
             addAssistantMsg(buildMissingMvuHint(_chkSB.missing));
             showToast('前7条未齐全：缺' + _chkSB.missingCount + '条', 'warning');
@@ -11974,7 +11984,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             if (isSBRequest && !statusBarMode) {
               // 前置检查：前7条必须齐全才允许进入状态栏模式（第8条=状态栏本身）
-              var _chkAuto = checkMvu8Entries();
+              var _chkAuto = checkMvu8Entries(cardData);
               if (!_chkAuto.all7Done) {
                 _aiChatNotesQueue.push(buildMissingMvuHint(_chkAuto.missing));
                 progress = calcProgress();
