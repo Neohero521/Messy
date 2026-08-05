@@ -1450,8 +1450,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 【废弃原多阶段变量耦合模板】原"好感度阶段→人设切换"的专属耦合提示词（原37/38号）已整体废弃；如需多阶段/分档位/状态机类变量，改用下方的【通用多阶段状态变量生成指导】，可适配好感度/剧情进度/系统模式/境界等级等任意场景。\n' +
     '- 第1条 变量结构脚本（局部脚本，常驻但仅初始化注册）：≤1500字。字段组织按世界/角色/主角/系统一级分类，二级属性，三级子属性。\n' +
     '- 第2条 [InitVar]初始变量（enabled=false，只初始化读一次，不占常驻）：≤1500字。超多变量请拆：初始化只设核心字段默认值，非核心字段用zod .prefault()在schema中定义默认值+AI首次触达时再写\n' +
-    '- 第3条 变量列表（constant=true常驻）：≤200字，内容是format_message_variable宏占位符本身不长\n' +
-    '- 第4条 [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；补充派生变量命名规范（$开头=AI只读、由脚本/transform自动派生）、只读字段约束（_开头禁止AI更新）；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
+    '- 第3条 [mvu_update]变量更新规则（constant=true常驻）：≤400字。规则要精炼，每条变量的check控制在1-2行说明；补充派生变量命名规范（$开头=AI只读、由脚本/transform自动派生）、只读字段约束（_开头禁止AI更新）；超复杂规则（战斗系统等）拆到"场景机制"世界书条目里按触发加载，不要常驻\n' +
+    '- 第4条 变量列表（constant=true常驻）：≤200字，内容是format_message_variable宏占位符本身不长\n' +
     '- 第5条 [mvu_update]变量输出格式（constant=true常驻）：≤600字。JSON Patch模板本身约300字，rule字段精炼在10行以内\n' +
     '- 第6条 [mvu_update]变量输出格式强调（constant=true，默认enabled=false）：≤300字，固定提醒模板\n' +
     '- 第7条 <状态栏>占位符提醒（constant=true常驻）：≤100字，简单提醒语句\n' +
@@ -1687,17 +1687,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       Phase A（前7条）：第①-⑦条MVU条目，逐条生成，每条停下等"继续"\n' +
     '       Phase B（第8条）：前7条全部完成后，才进入状态栏HTML制作（Step2-6共5模块）\n' +
     '     · 【8条固定顺序（严格按此顺序，不能跳步）】\n' +
-    '       第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）—— 见 9.1.5\n' +
+    '       第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema）—— 见 9.1.5\n' +
     '       第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 依据第1条 schema 生成 YAML，见 9.1.1\n' +
-    '       第3条：变量列表（世界书条目，constant=true depth=0）—— 固定内容，见 9.1.2\n' +
-    '       第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条 schema 生成 check/type/range，见 9.1.3\n' +
+    '       第3条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条 schema 生成 check/type/range，见 9.1.3\n' +
+    '       第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容，见 9.1.2\n' +
     '       第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定 YAML，原封不动输出，见 9.1.4\n' +
     '       第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认 enabled=false）—— 固定 YAML，原封不动输出\n' +
     '       第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒 AI 每条回复底部输出 <StatusPlaceHolderImpl/>\n' +
     '       第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true）—— ⚠️前7条全部完成后才生成！走 Step 2-6 状态栏5模块生成流程\n' +
     '     · 【铁律1：逐条生成】每次只输出1条，输出后立即停下，结尾只问"已生成第N条，说\'继续\'生成下一条"——禁止一次性输出多条\n' +
-    '     · 【铁律2：schema 驱动】第2/4条必须严格依据第1条的 schema 字段名/层级/类型生成，schema 一改这两条必跟改\n' +
-    '     · 【铁律3：固定内容原样输出】第3/5/6条是固定 YAML/固定内容，原封不动输出，不要修改任何字段\n' +
+    '     · 【铁律2：schema 驱动】第2/3条必须严格依据第1条的 schema 字段名/层级/类型生成，schema 一改这两条必跟改\n' +
+    '     · 【铁律3：固定内容原样输出】第4/5/6条是固定 YAML/固定内容，原封不动输出，不要修改任何字段\n' +
     '     · 【铁律4：前7条后才第8条】第8条是状态栏HTML，必须前7条全部齐全后才允许生成（写卡器会拦截并提示缺失条目）\n' +
     '     · 【铁律5：每步写入即预览】每生成一条，写卡器后台立即写入 cardData 并触发 renderPreview，用户在预览界面实时看到结果\n' +
     '     · 【铁律6：写入酒馆完整性】用户点"写入酒馆"时，写卡器按顺序写入：bundle.js→变量结构脚本→世界书条目(第2-7条)→正则1-5→正则6(状态栏HTML)→开场白占位符，缺一不可\n' +
@@ -1714,13 +1714,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       步骤B：变量结构改了，所有依赖 schema 的关联条目必须**一条一条**跟着改完（不能只改一条就停）：\n' +
     '              · 第1条 变量结构脚本（zod schema）—— 加字段；\n' +
     '              · 第2条 [InitVar]初始变量 —— 加默认值；\n' +
-    '              · 第3条 变量列表 —— 列出新字段；\n' +
-    '              · 第4条 [mvu_update]变量更新规则 —— 加 check/type/range；\n' +
-    '              · 第5/6/7条 —— 原样不动（固定 YAML / 固定内容）；\n' +
+    '              · 第3条 [mvu_update]变量更新规则 —— 加 check/type/range；\n' +
+    '              · 第4/5/6/7条 —— 原样不动（固定 YAML / 固定内容）；\n' +
     '              · 第8条 正则6 [美化]MVU状态栏 —— 走 Step 2-6 重新生成状态栏 HTML（让新字段在 UI 上显示）；\n' +
     '       步骤C：每改完一条，写卡器后台立即写入 cardData 并 renderPreview，用户实时看到结果；\n' +
     '       步骤D：8 条全部改完后，告诉用户"全部关联条目已更新，可在预览查看，确认无误后点写入酒馆"；\n' +
-    '       ⚠️【防漏铁律】哪怕用户只说"加一个字段"，也必须把第1/2/3/4/8条全部改完（第5/6/7条原样保留），少一条都会导致状态栏显示不全或变量更新失败\n' +
+    '       ⚠️【防漏铁律】哪怕用户只说"加一个字段"，也必须把第1/2/3/8条全部改完（第4/5/6/7条原样保留），少一条都会导致状态栏显示不全或变量更新失败\n' +
     '\n' +
     '## 9.2 三条联动机制\n' +
     '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
@@ -2592,7 +2591,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
     '注3：叙事类条目开启delay_until_recursion，作为背景补充被其他条目递归带出\n' +
     '注5：[InitVar]条目必须enabled=false（禁用），MVU只读取禁用的initvar条目进行初始化\n' +
-    '注6：MVU脚本（bundle.js）和正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需AI生成；其余8条MVU内容**全部由AI在MVU Tab按9.1.6工作流一条一条生成**：第1条变量结构脚本(zod schema)、第2条[InitVar]初始变量、第3条变量列表、第4条[mvu_update]变量更新规则、第5条[mvu_update]变量输出格式、第6条[mvu_update]变量输出格式强调、第7条<状态栏>占位符提醒条目、第8条正则6（美化状态栏HTML）\n\n' +
+    '注6：MVU脚本（bundle.js）和正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）由写卡器自动注入，无需AI生成；其余8条MVU内容**全部由AI在MVU Tab按9.1.6工作流一条一条生成**：第1条变量结构脚本(zod 4 schema)、第2条[InitVar]初始变量、第3条[mvu_update]变量更新规则、第4条变量列表、第5条[mvu_update]变量输出格式、第6条[mvu_update]变量输出格式强调、第7条<状态栏>占位符提醒条目、第8条正则6（美化状态栏HTML）\n\n' +
     '=== 世界书高级设计模式与最佳实践 ===\n\n' +
     '**模式1：递归信息链（Recursive Chaining）**\n' +
     '- 原理：实体条目触发后，通过内容中的关键词递归触发背景条目\n' +
@@ -2702,7 +2701,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI在MVU Tab按9.1.6工作流生成\n' +
     '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
     '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【AI在MVU Tab按9.1.6工作流一条一条生成】\n' +
-    '  7. 世界书条目（第2-7条，AI在MVU Tab按9.1.6工作流逐条生成）：[InitVar]初始变量 + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式 + [mvu_update]变量输出格式强调 + <状态栏>占位符提醒\n\n' +
+    '  7. 世界书条目（第2-7条，AI在MVU Tab按9.1.6工作流逐条生成）：[InitVar]初始变量 + [mvu_update]变量更新规则 + 变量列表 + [mvu_update]变量输出格式 + [mvu_update]变量输出格式强调 + <状态栏>占位符提醒\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -2906,14 +2905,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**MVU变量系统检查（8条工作流，进阶可选，详见9.1.6）：**\n' +
     '- [ ] 第1条 变量结构脚本：tavern_helper.scripts中存在zod Schema + registerMvuSchema注册\n' +
     '- [ ] 第2条 [InitVar]初始变量：条目存在，YAML格式合法，enabled=false，字段与第1条schema一致\n' +
-    '- [ ] 第3条 变量列表：含{{format_message_variable::stat_data}}宏\n' +
-    '- [ ] 第4条 [mvu_update]变量更新规则：依据schema生成check/type/range，含$_只读约束\n' +
+    '- [ ] 第3条 [mvu_update]变量更新规则：依据schema生成check/type/range，含$_只读约束\n' +
+    '- [ ] 第4条 变量列表：含{{format_message_variable::stat_data}}宏\n' +
     '- [ ] 第5条 [mvu_update]变量输出格式：固定YAML，含<UpdateVariable>+<Analysis>+<JSONPatch>5种操作\n' +
     '- [ ] 第6条 [mvu_update]变量输出格式强调：固定YAML，默认enabled=false\n' +
     '- [ ] 第7条 <状态栏>占位符提醒：提醒AI每条回复底部输出<StatusPlaceHolderImpl/>\n' +
     '- [ ] 第8条 正则6状态栏HTML：regex_scripts中findRegex=StatusPlaceHolderImpl，markdownOnly=true\n' +
     '注：写卡器导出时**仅自动注入** bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/变量美化×2/状态栏隐藏)、开场白末尾<StatusPlaceHolderImpl/>占位符；\n' +
-    '   其余8条MVU内容**必须全部由AI在MVU Tab按9.1.6工作流一条一条生成**：①变量结构脚本(zod schema) ②[InitVar]初始变量 ③变量列表 ④[mvu_update]更新规则 ⑤[mvu_update]输出格式 ⑥[mvu_update]输出格式强调 ⑦<状态栏>占位符提醒条目 ⑧正则6(美化状态栏HTML)\n\n' +
+    '   其余8条MVU内容**必须全部由AI在MVU Tab按9.1.6工作流一条一条生成**：①变量结构脚本(zod 4 schema) ②[InitVar]初始变量 ③[mvu_update]更新规则 ④变量列表 ⑤[mvu_update]输出格式 ⑥[mvu_update]输出格式强调 ⑦<状态栏>占位符提醒条目 ⑧正则6(美化状态栏HTML)\n\n' +
     '=== MVU 酒馆助手脚本 API ===\n\n' +
     '**脚本侧变量约定**：\n' +
     '- 变量名以 `_` 开头：AI 不可更新（仅脚本能改），如 `_internal_state`\n' +
@@ -4301,15 +4300,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (typeof window !== 'undefined' && window.__cardData) cd = window.__cardData;
       else { try { if (typeof cardData !== 'undefined') cd = cardData; } catch(_e) {} }
     }
-    if (!cd) return { done: [false,false,false,false,false,false,false], doneCount: 0, all7Done: false, missing: ['第1条 变量结构脚本(zod)','第2条 [InitVar]初始变量','第3条 变量列表','第4条 [mvu_update]更新规则','第5条 [mvu_update]输出格式','第6条 [mvu_update]输出格式强调','第7条 <状态栏>占位提醒'], missingCount: 7, has8: false };
+    if (!cd) return { done: [false,false,false,false,false,false,false], doneCount: 0, all7Done: false, missing: ['第1条 变量结构脚本(zod)','第2条 [InitVar]初始变量','第3条 [mvu_update]更新规则','第4条 变量列表','第5条 [mvu_update]输出格式','第6条 [mvu_update]输出格式强调','第7条 <状态栏>占位提醒'], missingCount: 7, has8: false };
     var entries = (cd.character_book || {}).entries || [];
     var thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
     var rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
-    // 前7条检测（按8条工作流顺序）
+    // 前7条检测（按8条工作流顺序：第3条=更新规则，第4条=变量列表）
     var has1 = thScripts.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
     var has2 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-    var has3 = entries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-    var has4 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
+    var has3 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
+    var has4 = entries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
     var has5 = entries.some(function(e) { var c = (e.comment || ''); return c.indexOf('变量输出格式') >= 0 && c.indexOf('强调') < 0; });
     var has6 = entries.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
     var has7 = entries.some(function(e) { var c = (e.comment || ''); return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0); });
@@ -4318,7 +4317,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var done = [has1, has2, has3, has4, has5, has6, has7];
     var doneCount = done.filter(Boolean).length;
     var all7Done = doneCount === 7;
-    var names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 变量列表', '第4条 [mvu_update]更新规则', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
+    var names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
     var missing = [];
     for (var i = 0; i < 7; i++) { if (!done[i]) missing.push(names7[i]); }
     return { done: done, doneCount: doneCount, all7Done: all7Done, missing: missing, missingCount: missing.length, has8: has8 };
@@ -4330,10 +4329,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return '⚠️ 前7条未齐全（第8条=状态栏HTML，必须前7条完成后才生成）。\n' +
       '当前缺失 ' + missing.length + ' 条：\n' + hint + '\n\n' +
       '请在 MVU Tab 按以下8条固定顺序**一条一条**生成，每生成一条说"继续"再写下一条：\n' +
-      '  第1条：变量结构脚本（zod schema）\n' +
+      '  第1条：变量结构脚本（zod 4 schema）\n' +
       '  第2条：[InitVar]初始变量\n' +
-      '  第3条：变量列表\n' +
-      '  第4条：[mvu_update]变量更新规则\n' +
+      '  第3条：[mvu_update]变量更新规则\n' +
+      '  第4条：变量列表\n' +
       '  第5条：[mvu_update]变量输出格式\n' +
       '  第6条：[mvu_update]变量输出格式强调\n' +
       '  第7条：<状态栏>占位符提醒条目\n' +
@@ -4349,33 +4348,263 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '【逐条生成铁则（最高优先级）】\n' +
     '⚠️ 一次只输出1条内容（脚本/条目/正则），输出后立即停下，不要写后面的。结尾只问用户："已生成第N条，说\'继续\'生成下一条"——不要一次性输出多条！\n' +
     '用户说"继续"后，再按顺序生成下一条。前7条全部完成后，才生成第8条（状态栏HTML）。\n\n';
-  // 8条固定顺序（含每条详细规范）
+  // 8条固定顺序（含每条详细规范）—— 第3/4条顺序已调整为：更新规则在前，变量列表在后
   var MVU_8STEPS_DETAIL =
     '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
-    '  第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema注册）\n' +
+    '  第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema注册）\n' +
     '       · 文件头固定：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '       · 文件尾固定：$(() => { registerMvuSchema(Schema); })\n' +
-    '       · 字段命名：_开头=AI只读不更新，$开头=派生显示专用(AI只读)，无前缀=普通可读写\n' +
-    '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 必须严格依据第1条schema的字段名/层级/类型生成YAML；schema有z.prefault()的字段InitVar可省略；enabled必须=false（禁用状态，仅MVU脚本读取一次初始化）\n' +
-    '  第3条：变量列表（世界书条目，constant=true depth=0）—— 内容固定包含：<status_current_variables>{{format_message_variable::stat_data}}</status_current_variables>\n' +
-    '  第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/check；补充两条约束：①$开头字段=AI只读禁止更新 ②_开头字段=AI只读禁止修改\n' +
-    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，定义<UpdateVariable>包裹<Analysis>分析段+<JSONPatch>段（5种操作：replace/delta/insert/remove/move，严格JSON Patch RFC 6902）\n' +
-    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML，原封不动输出，用于AI不输出<UpdateVariable>时启用强制提醒\n' +
+    '       · 严格遵循zod 4规范（详见MVU变量结构脚本创作指导）\n' +
+    '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— YAML格式，严格依据第1条schema生成；schema有z.prefault()的字段可省略；enabled必须=false\n' +
+    '  第3条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/format/check\n' +
+    '  第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容：<status_current_variables>{{format_message_variable::stat_data}}</status_current_variables>\n' +
+    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，<UpdateVariable>+<Analysis>+<JSONPatch>（5种操作：replace/delta/insert/remove/move）\n' +
+    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML原样输出，AI不输出<UpdateVariable>时启用\n' +
     '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
-    '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成这一条！findRegex=/<StatusPlaceHolderImpl\\/>/g；replaceString=用```包裹的完整HTML状态栏（走状态栏Step 2-6共5模块生成流程）\n\n';
-  // 通用生成规范（适用于所有8条）
+    '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成！走状态栏Step 2-6共5模块生成流程\n\n';
+  // 通用生成规范（适用于所有8条）—— 第3/4条顺序已调整
   var MVU_8STEPS_COMMON_RULES =
     '【通用生成规范（适用于所有8条）】\n' +
-    '1. 第2/4条必须严格依据第1条schema生成，schema一改这两条必跟改\n' +
-    '2. 第3/5/6条是固定内容模板，原封不动输出（除了第5条的示例路径可参考schema字段名）\n' +
+    '1. 第2/3条必须严格依据第1条schema生成，schema一改这两条必跟改\n' +
+    '2. 第4/5/6条是固定内容模板，原封不动输出（第5条的示例路径可参考schema字段名）\n' +
     '3. 禁止AI自行追加8条以外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求\n' +
     '4. 每生成一条立即写入cardData并触发预览更新，用户可实时看到\n\n';
-  // 修改场景防漏铁律
+  // 修改场景防漏铁律 —— 第3/4条顺序已调整
   var MVU_MODIFY_RULE =
-    '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/4/8条全部跟改一遍（第5/6/7条原样保留）。';
-  // 8条简短列表（供 mvuPrompts.next/summary 等引用，避免重复维护长文本）
+    '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/8条全部跟改一遍（第4/5/6/7条原样保留）。';
+  // 8条简短列表（供 mvuPrompts.next/summary 等引用）—— 第3/4条顺序已调整
   var MVU_8STEPS_SHORT =
-    '①zod脚本 ②InitVar ③变量列表 ④更新规则 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
+    '①zod脚本 ②InitVar ③更新规则 ④变量列表 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
+  // MVU变量系统创作指导（第1-6条详细规范）—— 供 mvuPrompts 按用户"写变量xxx"指令逐条输出对应规范
+  var MVU_VAR_SPEC =
+    '═══════════════════════════════════════════════════════════════════\n' +
+    '📋 MVU变量系统创作指导（第1-6条详细规范）\n' +
+    '═══════════════════════════════════════════════════════════════════\n\n' +
+    '===== 第1条：变量结构脚本（zod 4 Schema）=====\n\n' +
+    '【任务】帮助用户创作一个完全符合zod 4库的MVU变量结构脚本\n\n' +
+    '【工作流程】\n' +
+    '第一步：了解需求\n' +
+    '  询问用户：\n' +
+    '  1. 这是什么类型的角色卡/世界观？（如：角色扮演、模拟经营、军事模拟等）\n' +
+    '  2. 需要追踪哪些主要内容？\n' +
+    '     - 有哪些角色？（主角、配角、NPC等）\n' +
+    '     - 需要什么系统变量？（时间、日期、金钱等）\n' +
+    '     - 每个角色需要追踪什么？（好感度、位置、状态等）\n' +
+    '  3. 哪些部分需要限定值情况？\n' +
+    '     - 数值和文本是否有特定取值范围或格式？\n' +
+    '     - 可以添加新角色吗？\n' +
+    '     - 哪些对象可以增删键？（如物品栏、成就、技能等）\n' +
+    '     - 是否要限制对象的键数量？\n\n' +
+    '第二步：确认结构\n' +
+    '  根据用户需求，先用自然语言列出结构大纲，让用户确认是否符合需求\n\n' +
+    '第三步：编写初始变量\n' +
+    '  按照zod 4编写javascript文件\n\n' +
+    '【额外zod要求】\n' +
+    '  - libraries: z（from zod 4.x）和 _（from lodash）默认可用，直接使用，不要import\n' +
+    '  - idempotent operation: Schema.parse的输出必须是自身的合法输入，慎用z.transform\n' +
+    '  - for number schema: 优先用 z.coerce.number() 而非 z.number()；不要用 z.coerce.boolean()，直接用 z.boolean()\n' +
+    '  - prefer object schema over array schema: 用 z.record(z.string().describe(\'物品名\'), z.object({...})) 而非 z.array(z.object({...}))\n' +
+    '  - for object schema:\n' +
+    '    * 固定必填键+同类型: z.record(z.enum([\'key1\', \'key2\', ...]), valueType)\n' +
+    '    * 固定可选键+同类型: z.partialRecord(z.enum([\'key1\', \'key2\', ...]), valueType)\n' +
+    '    * 动态可选键+同类型: z.record(z.string(), valueType)\n' +
+    '    * 固定必填键+不同类型: z.object({ key1: type1, key2: type2, ... })\n' +
+    '    * 动态键+部分必填+同类型: z.intersection(z.object({ requiredKey1: type1, ... }), z.record(z.string(), valueType))\n' +
+    '    * clearable object: 用 z.object({ field: type.prefault(...), ... }).prefault({}) 而非 z.object({...}).optional()\n' +
+    '  - for special format: 优先用 z.templateLiteral 而非 regex\n' +
+    '  - for restrictions: 用 z.transform 转换非法输入而非直接拒绝（如 z.number().transform(v => _.clamp(v, 0, 100)) 而非 z.number().min(0).max(100)）\n' +
+    '  - on default value:\n' +
+    '    * 优先用 z.prefault 而非 z.default\n' +
+    '    * 复杂 z.object 或 Schema 设 .prefault(\'默认值\') 或 .or(z.literal(\'待初始化\')).prefault(\'待初始化\')\n' +
+    '    * 复合类型prefault后，其所有字段也应prefault\n' +
+    '    * 不要在其他情况下设 z.prefault\n' +
+    '  - when to describe: 仅当字段名无法说明用法时用 z.describe（如 z.record 的 key 类型）\n' +
+    '  - determine the order of keys: 需要按插入时间操作键时用 _(data).entries()；z.transform内已排序时用 $time: z.coerce.number().prefault(() => Date.now())\n' +
+    '  - don\'t repeat yourself: 尽量合并相同变量schema，但不要定义额外变量\n' +
+    '  - z.transform: fn 只接受 parsed output 作为输入，不能用 context\n' +
+    '  - z.prefault: value 必须是 schema 自身的合法输入\n' +
+    '  - z.extend: 只能扩展 z.object/z.looseObject/z.strictObject（z.object(...).prefault({}) 不能 extend）\n' +
+    '  - z.passthrough/z.strict: 不存在，禁用\n\n' +
+    '【变量结构脚本模板】\n' +
+    '  import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
+    '\n' +
+    '  export const Schema = z.object({\n' +
+    '    ...\n' +
+    '  });\n' +
+    '\n' +
+    '  $(() => {\n' +
+    '    registerMvuSchema(Schema);\n' +
+    '  })\n' +
+    '  必须原封不动地照抄头尾。\n\n' +
+    '【输出要求】\n' +
+    '  - 结构清晰：合理使用嵌套，不要过度扁平或过度嵌套\n' +
+    '  - 遵循额外要求：严格遵循额外给出的zod要求\n\n' +
+    '【完整示例】\n' +
+    '  import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/variable_zod.js\';\n' +
+    '\n' +
+    '  export const Schema = z.object({\n' +
+    '    世界: z.object({\n' +
+    '      当前时间: z.string(),\n' +
+    '      当前地点: z.string(),\n' +
+    '      近期事务: z.record(z.string().describe(\'事务名\'), z.string().describe(\'事务描述\')),\n' +
+    '    }),\n' +
+    '\n' +
+    '    白娅: z\n' +
+    '      .object({\n' +
+    '        依存度: z.coerce.number().transform(v => _.clamp(v, 0, 100)),\n' +
+    '        着装: z.record(z.enum([\'上装\', \'下装\', \'内衣\', \'袜子\', \'鞋子\', \'饰品\']), z.string().describe(\'服装描述\')),\n' +
+    '        称号: z.record(\n' +
+    '          z.string().describe(\'称号名\'),\n' +
+    '          z.object({\n' +
+    '            效果: z.string(),\n' +
+    '            自我评价: z.string(),\n' +
+    '          }),\n' +
+    '        ),\n' +
+    '      })\n' +
+    '      .transform(data => {\n' +
+    '        data.称号 = _(data.称号)\n' +
+    '          .entries()\n' +
+    '          .takeRight(Math.ceil(data.依存度 / 10))\n' +
+    '          .fromPairs()\n' +
+    '          .value();\n' +
+    '        return data;\n' +
+    '      }),\n' +
+    '\n' +
+    '    主角: z.object({\n' +
+    '      物品栏: z\n' +
+    '        .record(\n' +
+    '          z.string().describe(\'物品名\'),\n' +
+    '          z.object({\n' +
+    '            描述: z.string(),\n' +
+    '            数量: z.coerce.number(),\n' +
+    '          }),\n' +
+    '        )\n' +
+    '        .transform(data => _.pickBy(data, ({ 数量 }) => 数量 > 0)),\n' +
+    '    }),\n' +
+    '  });\n' +
+    '\n' +
+    '  $(() => {\n' +
+    '    registerMvuSchema(Schema);\n' +
+    '  })\n\n' +
+    '【注意事项】\n' +
+    '  - 中文兼容：变量名可以用中文\n\n' +
+    '  下一步：创建初始变量。对我说"写初始变量"。\n\n' +
+    '===== 第2条：初始变量（YAML格式）=====\n\n' +
+    '【任务】帮助用户创作一个结构正确的MVU初始变量文件，设定剧情开始时各变量的初始值\n\n' +
+    '【前置条件】用户应该已经完成MVU变量结构脚本\n\n' +
+    '【工作流程】\n' +
+    '第一步：了解需求\n' +
+    '  询问用户：\n' +
+    '  1. 剧情开始时有什么关键情节？\n' +
+    '  2. 根据变量结构脚本中列出的变量继续询问\n' +
+    '     - xxx变量在该剧情下是否有特殊设定？\n\n' +
+    '第二步：确认结构\n' +
+    '  根据变量结构脚本使用YAML编写初始变量\n\n' +
+    '【示例】\n' +
+    '  络络:\n' +
+    '    亲密度: 0\n' +
+    '    阅读日记数量: 0\n' +
+    '    拥有联系方式: false\n' +
+    '    物品栏: {}\n' +
+    '  世界:\n' +
+    '    当前日期: 2025-07-26\n' +
+    '    当前星期: 星期五\n' +
+    '    当前时间: 17:36\n\n' +
+    '【注意事项】\n' +
+    '  1. 条目命名：[initvar]变量初始化勿开\n' +
+    '  2. 合理初始值：根据故事开局设置合理的初始值\n' +
+    '  3. 后续配置：提醒用户这只是初始变量，还需要配置世界书条目和变量规则\n\n' +
+    '  下一步：创建变量更新规则。对我说"写变量更新规则"。\n\n' +
+    '===== 第3条：变量更新规则 =====\n\n' +
+    '【任务】帮用户写MVU变量的更新规则文件，告诉AI什么情况下应该更新变量、更新成什么值\n\n' +
+    '【前置条件】用户应该已经完成MVU变量结构脚本\n\n' +
+    '【变量规则文件结构】\n' +
+    '  ---\n' +
+    '  变量更新规则:\n' +
+    '    ${变量名}:\n' +
+    '      type: ${变量类型，string则省略}\n' +
+    '      ${其他字段如format、range等}\n' +
+    '      check:\n' +
+    '        - ${更新规则}\n' +
+    '        - ...\n\n' +
+    '【要求】\n' +
+    '  - 合并同类型变量规则：\n' +
+    '    * 固定键：z.object({...})和z.record(z.enum(...), ...)的键总是存在，可合并为 主角.能力面板.${力量|敏捷|体质}\n' +
+    '    * 动态键：z.record(z.string(), ...)和z.partialRecord(z.enum(...), ...)可能为空，将key放入type的索引签名\n' +
+    '  - 嵌套同对象字段：主角.能力面板和主角.装备栏都是主角的字段，嵌套在主角下\n' +
+    '  - string类型变量省略type字段\n' +
+    '  - 不更新只读字段：_开头字段只读，不列更新规则\n' +
+    '  - 避免为自解释变量列规则（除非用户指定特殊规则）\n\n' +
+    '【字段说明】\n' +
+    '  - type: 变量支持的类型（number/boolean/typescript类型定义/zod schema定义）\n' +
+    '  - range: 数值变量必须处于的范围（如0~100）\n' +
+    '  - format: 变量必须满足的特定格式（如YYYY年MM月DD日 星期X HH:MM）\n' +
+    '  - check: AI在更新变量时应该考虑的因素（自然语言描述）\n\n' +
+    '【示例】\n' +
+    '  ---\n' +
+    '  变量更新规则:\n' +
+    '    世界:\n' +
+    '      当前时间:\n' +
+    '        format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\n' +
+    '        check:\n' +
+    '          - 每次事件推进、休息或旅行后更新，保持时间流逝合理\n' +
+    '          - 若场景跳转跨度较大，应说明跳跃原因\n' +
+    '    主角:\n' +
+    '      能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\n' +
+    '        type: number\n' +
+    '        range: 0~100\n' +
+    '        check:\n' +
+    '          - 训练、战斗、重伤、系统奖励等显著事件才调整\n' +
+    '          - 单次变化不超过 ±10，除非剧情有明确强化/削弱\n\n' +
+    '  下一步：创建变量列表。对我说"写变量列表"。\n\n' +
+    '===== 第4条：变量列表（固定格式，原样输出）=====\n\n' +
+    '  ---\n' +
+    '  <status_current_variables>\n' +
+    '  {{format_message_variable::stat_data}}\n' +
+    '  </status_current_variables>\n\n' +
+    '  下一步：创建变量输出格式。对我说"写变量输出格式"。\n\n' +
+    '===== 第5条：变量输出格式（固定格式，原样输出）=====\n\n' +
+    '  ---\n' +
+    '  变量输出格式:\n' +
+    '    rule:\n' +
+    '      - you must output the update analysis and the actual update commands at once in the end of the next reply\n' +
+    '      - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\n' +
+    '        - replace: replace the value of existing paths\n' +
+    '        - delta: update the value of existing number paths by a delta value\n' +
+    '        - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\n' +
+    '        - remove\n' +
+    '        - move\n' +
+    '      - don\'t update field names starts with `_` as they are readonly, such as `_变量`\n' +
+    '    format: |-\n' +
+    '      <UpdateVariable>\n' +
+    '      <Analysis>$(IN ENGLISH, no more than 80 words)\n' +
+    '      - ${calculate time passed: ...}\n' +
+    '      - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\n' +
+    '      - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\n' +
+    '      </Analysis>\n' +
+    '      <JSONPatch>\n' +
+    '      [\n' +
+    '        { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\n' +
+    '        { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\n' +
+    '        { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\n' +
+    '        { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\n' +
+    '        { "op": "remove", "path": "${/path/to/object/key}" },\n' +
+    '        { "op": "remove", "path": "${/path/to/array/0}" },\n' +
+    '        { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\n' +
+    '        ...\n' +
+    '      ]\n' +
+    '      </JSONPatch>\n' +
+    '      </UpdateVariable>\n\n' +
+    '  下一步：创建变量输出格式强调。对我说"写变量输出格式强调"。\n\n' +
+    '===== 第6条：变量输出格式强调（固定格式，原样输出）=====\n\n' +
+    '  注意：这个条目只在测试时发现AI不输出 <UpdateVariable> 块时才需要启用。\n\n' +
+    '  ---\n' +
+    '  变量输出格式强调:\n' +
+    '    rule: The following must be inserted to the end of reply, and cannot be omitted\n' +
+    '    format: |-\n' +
+    '      <UpdateVariable>\n' +
+    '      ...\n' +
+    '      </UpdateVariable>';
 
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
@@ -4782,11 +5011,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎯 你的专属职责（只有这些，别的都不管）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      'A. MVU变量系统8条工作流的设计与维护（详见9.1.6，每条停下等"继续"）：\n' +
-      '   第1条：变量结构脚本（zod schema + registerMvuSchema）\n' +
+      'A. MVU变量系统8条工作流的设计与维护（详见MVU_VAR_SPEC第1-6条 + 状态栏Step流程，每条停下等"继续"）：\n' +
+      '   第1条：变量结构脚本（zod 4 schema + registerMvuSchema）\n' +
       '   第2条：[InitVar]初始变量（enabled=false，YAML格式，严格依据schema）\n' +
-      '   第3条：变量列表（含{{format_message_variable::stat_data}}宏）\n' +
-      '   第4条：[mvu_update]变量更新规则（依据schema生成check/type/range）\n' +
+      '   第3条：[mvu_update]变量更新规则（依据schema生成check/type/range）\n' +
+      '   第4条：变量列表（含{{format_message_variable::stat_data}}宏）\n' +
       '   第5条：[mvu_update]变量输出格式（<UpdateVariable>+<JSONPatch>5种操作）\n' +
       '   第6条：[mvu_update]变量输出格式强调（固定YAML，默认enabled=false）\n' +
       '   第7条：<状态栏>占位符提醒（constant=true）\n' +
@@ -4809,20 +5038,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '【MVU 8条工作流条目速查表】（详细生成规范见SYS_PROMPT 9.1.1-9.1.5，此处仅列字段配置速查）\n' +
-      '第1条: 变量结构脚本 → tavern_helper.scripts，zod Schema + registerMvuSchema（详见9.1.5）\n' +
+      '【MVU 8条工作流条目速查表】（第1-6条详细生成规范见MVU_VAR_SPEC常量，此处仅列字段配置速查）\n' +
+      '第1条: 变量结构脚本 → tavern_helper.scripts，zod 4 Schema + registerMvuSchema（详见MVU_VAR_SPEC第1条）\n' +
       '第2条: comment="[InitVar]初始变量", constant=true, position=4, depth=4, order=200, enabled=false\n' +
-      '       content=YAML格式（缩进表示层级），严格依据第1条schema（详见9.1.1）\n' +
-      '第3条: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
-      '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照（详见9.1.2）\n' +
-      '第4条: comment="[mvu_update]变量更新规则", constant=true, position=4, depth=0, order=200\n' +
-      '       content=依据第1条schema为每个变量路径生成 type/range/check（详见9.1.3）\n' +
+      '       content=YAML格式（缩进表示层级），严格依据第1条schema（详见MVU_VAR_SPEC第2条）\n' +
+      '第3条: comment="[mvu_update]变量更新规则", constant=true, position=4, depth=0, order=200\n' +
+      '       content=依据第1条schema为每个变量路径生成 type/range/check（详见MVU_VAR_SPEC第3条）\n' +
+      '第4条: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
+      '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照（详见MVU_VAR_SPEC第4条）\n' +
       '第5条: comment="[mvu_update]变量输出格式", constant=true, position=4, depth=0, order=200\n' +
-      '       content=固定YAML原样输出，<UpdateVariable>+<Analysis>+<JSONPatch>（详见9.1.4）\n' +
+      '       content=固定YAML原样输出，<UpdateVariable>+<Analysis>+<JSONPatch>（详见MVU_VAR_SPEC第5条）\n' +
       '第6条: comment="[mvu_update]变量输出格式强调", constant=true, position=4, depth=0, order=200, enabled=false\n' +
-      '       content=固定YAML原样输出，AI不输出<UpdateVariable>时启用强制提醒（详见9.1.4a）\n' +
+      '       content=固定YAML原样输出，AI不输出<UpdateVariable>时启用强制提醒（详见MVU_VAR_SPEC第6条）\n' +
       '第7条: comment="<状态栏>占位符提醒", constant=true, position=4, depth=0, order=200\n' +
-      '       content=提醒AI每条回复底部输出 <StatusPlaceHolderImpl/>（详见9.1.4b）\n' +
+      '       content=提醒AI每条回复底部输出 <StatusPlaceHolderImpl/>\n' +
       '第8条: 正则6 [美化]MVU状态栏 → regex_scripts, markdownOnly=true, promptOnly=false（前7条完成后才生成）\n\n' +
       '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
       '⚠️ 进入状态栏模式后，先做需求收集（不属于Step编号，是模式入口的必做步骤）：\n' +
@@ -5667,7 +5896,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       pass: !hasAnyMVU || true,
       category: 'MVU变量系统',
       name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时自动注入：bundle.js本体 + 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）。\n其余8条MVU内容（第1条zod脚本/第2条InitVar/第3条变量列表/第4条更新规则/第5条输出格式/第6条格式强调/第7条占位提醒/第8条正则6）需AI按9.1.6工作流生成。' : '未使用MVU变量系统',
+      desc: hasAnyMVU ? '导出时自动注入：bundle.js本体 + 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）。\n其余8条MVU内容（第1条zod脚本/第2条InitVar/第3条更新规则/第4条变量列表/第5条输出格式/第6条格式强调/第7条占位提醒/第8条正则6）需AI按9.1.6工作流生成。' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
@@ -9489,8 +9718,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // Phase A：前7条 chip（第①-⑦条）
           h += _chip(_d[0], '①zod脚本');
           h += _chip(_d[1], '②InitVar');
-          h += _chip(_d[2], '③变量列表');
-          h += _chip(_d[3], '④更新规则');
+          h += _chip(_d[2], '③更新规则');
+          h += _chip(_d[3], '④变量列表');
           h += _chip(_d[4], '⑤输出格式');
           h += _chip(_d[5], '⑥格式强调');
           h += _chip(_d[6], '⑦占位提醒');
@@ -9716,14 +9945,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '请帮我设计MVU变量系统，严格遵守以下规范：\n' +
             MVU_SEQUENTIAL_RULE +
             MVU_8STEPS_DETAIL +
+            MVU_VAR_SPEC + '\n\n' +
             MVU_8STEPS_COMMON_RULES +
             MVU_MODIFY_RULE + '\n\n' +
-            '请先收集用户的变量需求（角色/世界观/场景/需要追踪什么状态），然后按上述8条顺序**逐条**开始生成。现在先生成【第1条：变量结构脚本(zod schema)】。',
+            '请先收集用户的变量需求（角色/世界观/场景/需要追踪什么状态），然后按上述8条顺序**逐条**开始生成。现在先生成【第1条：变量结构脚本(zod 4 schema)】。',
           var_update_rule:
             '请帮我完善当前MVU系统的缺失条目，严格遵守【逐条生成铁则】：\n' +
             '⚠️ 一次只补1条，输出后立即停下问"已生成第N条，说\'继续\'生成下一条"。前7条完成后才生成第8条。\n\n' +
             '先检查当前已有的条目，然后按以下8条固定顺序从缺失的第一条开始补：\n' +
             MVU_8STEPS_DETAIL +
+            MVU_VAR_SPEC + '\n\n' +
             MVU_MODIFY_RULE
         };
         // 选择当前Tab对应的Prompt字典
@@ -13620,7 +13851,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // 状态概览
         if (hasMVU) {
-          sH += '<details class="pv-entry"><summary><span>变量系统</span><span class="sec-right"><span class="pv-tag ok">已启用</span></span></summary><div class="pv-entry-body"><div class="pv-entry-content">已检测到 MVU 变量系统条目。<br>导出时<b>写卡器自动注入</b>：bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/美化×2/状态栏隐藏)。<br><b>需AI按8条顺序生成</b>：第1条zod脚本→第2条InitVar→第3条变量列表→第4条更新规则→第5条输出格式→第6条格式强调→第7条占位提醒→第8条正则6(状态栏HTML)。</div></div></details>';
+          sH += '<details class="pv-entry"><summary><span>变量系统</span><span class="sec-right"><span class="pv-tag ok">已启用</span></span></summary><div class="pv-entry-body"><div class="pv-entry-content">已检测到 MVU 变量系统条目。<br>导出时<b>写卡器自动注入</b>：bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/美化×2/状态栏隐藏)。<br><b>需AI按8条顺序生成</b>：第1条zod脚本→第2条InitVar→第3条更新规则→第4条变量列表→第5条输出格式→第6条格式强调→第7条占位提醒→第8条正则6(状态栏HTML)。</div></div></details>';
         } else {
           sH += '<details class="pv-entry"><summary><span>变量系统</span><span class="sec-right"><span class="pv-tag off">未启用</span></span></summary><div class="pv-entry-body"><div class="pv-entry-content">未检测到 MVU 变量系统。状态栏依赖 MVU 变量，请在MVU Tab按8条顺序从「第1条：变量结构脚本(zod schema)」开始生成。</div></div></details>';
         }
