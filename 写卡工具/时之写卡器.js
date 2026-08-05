@@ -1435,16 +1435,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- ⚠️ system_prompt 不再手动写，写卡器从 personality/description 自动提取身份定位（不限字数）\n' +
     '- 常驻Token量仅供参考，AI失忆时再考虑精简内容\n' +
     '- 世界书条目不限字数/不限数量（自由增减，按创作进度自然增长）\n' +
-    '**MVU条目Token预算铁律（8条完整工作流版本）**：\n' +
-    '- 【标准体系=8条按顺序生成，缺一不可】按以下固定顺序逐条生成，每生成1条停下等用户说"继续"，前7条完成后才生成第8条：\n' +
-    '  第1条：变量结构脚本（tavern_helper.scripts，zod 4 schema + registerMvuSchema）—— 定义变量结构\n' +
-    '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 仅初始化读1次\n' +
-    '  第3条：变量列表（世界书条目，constant=true depth=0）—— format_message_variable宏注入当前变量\n' +
-    '  第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 告诉AI何时/如何更新变量\n' +
-    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 定义<UpdateVariable>+<JSONPatch>格式\n' +
-    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 强制提醒AI输出格式\n' +
-    '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部写<StatusPlaceHolderImpl/>\n' +
-    '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成这一条\n' +
+    '**MVU条目Token预算铁律（8条工作流，详见9.1.6）**：\n' +
+    '- 【标准体系=8条按顺序逐条生成，缺一不可】8条固定顺序见9.1.6，核心规则：每生成1条停下等"继续"，前7条完成后才生成第8条（状态栏HTML）\n' +
     '- ⚠️ 【铁律：逐条生成+等待继续】生成第1条后立即停下，结尾只问"已生成第1条，说\'继续\'生成第2条"；用户说"继续"再按顺序写下一条。禁止一次性输出2条及以上！\n' +
     '- ⚠️ 【铁律：前7条后才第8条】第8条是状态栏HTML，必须前7条全部齐全后才允许生成。前7条缺任意一条时，禁止提第8条或进入状态栏Step流程。\n' +
     '- 【附加条目=按需生成】仅当用户明确要求时，才允许生成8条之外的附加条目：如阶段判定变量、人设切换规则、EJS控制器、派生($)字段联动逻辑、阈值触发动态注入等。用户未明确要求的情况下禁止AI自行追加任何额外条目。\n' +
@@ -1674,42 +1666,44 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         }),\n' +
     '       });\n' +
     '       $(() => { registerMvuSchema(Schema); })\n' +
-    '     · 注意事项：①变量名可用中文；②此脚本只是变量结构，还需配[InitVar]初始变量、变量更新规则、变量输出格式 3 条世界书条目；③写MVU Tab时，脚本输出后给用户一句："这只是变量结构，是否继续生成[InitVar]初始变量和变量更新规则？"\n' +
+    '     · 注意事项：①变量名可用中文；②此脚本只是第1条变量结构，还需按9.1.6工作流逐条生成第2-8条（每条停下等"继续"）；③写MVU Tab时，脚本输出后给用户一句："已生成第1条，说\'继续\'生成第2条[InitVar]初始变量"\n' +
     '\n' +
-    '## 9.1.6 MVU变量条目生成工作流（⚠️一条一条写，禁止一次性塞全部）\n' +
-    '     · 用户在 MVU Tab 要求"生成变量系统"时，按以下顺序**逐条**生成，每生成一条停下等用户说"继续"再生成下一条：\n' +
-    '       第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）—— 见 9.1.5 工作流\n' +
+    '## 9.1.6 MVU变量条目生成工作流（⚠️逐条生成，禁止一次性塞全部）\n' +
+    '     · 【两阶段总览】\n' +
+    '       Phase A（前7条）：第①-⑦条MVU条目，逐条生成，每条停下等"继续"\n' +
+    '       Phase B（第8条）：前7条全部完成后，才进入状态栏HTML制作（Step2-6共5模块）\n' +
+    '     · 【8条固定顺序（严格按此顺序，不能跳步）】\n' +
+    '       第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）—— 见 9.1.5\n' +
     '       第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 依据第1条 schema 生成 YAML，见 9.1.1\n' +
     '       第3条：变量列表（世界书条目，constant=true depth=0）—— 固定内容，见 9.1.2\n' +
     '       第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条 schema 生成 check/type/range，见 9.1.3\n' +
     '       第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定 YAML，原封不动输出，见 9.1.4\n' +
     '       第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认 enabled=false）—— 固定 YAML，原封不动输出\n' +
     '       第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒 AI 每条回复底部输出 <StatusPlaceHolderImpl/>\n' +
-    '       第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true）—— 走 Step 0-7 状态栏生成流程\n' +
-    '     · 【铁律1：一条一条】每次只输出一条条目/脚本，输出后停下问用户"要继续下一条吗？"\n' +
+    '       第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true）—— ⚠️前7条全部完成后才生成！走 Step 2-6 状态栏5模块生成流程\n' +
+    '     · 【铁律1：逐条生成】每次只输出1条，输出后立即停下，结尾只问"已生成第N条，说\'继续\'生成下一条"——禁止一次性输出多条\n' +
     '     · 【铁律2：schema 驱动】第2/4条必须严格依据第1条的 schema 字段名/层级/类型生成，schema 一改这两条必跟改\n' +
     '     · 【铁律3：固定内容原样输出】第3/5/6条是固定 YAML/固定内容，原封不动输出，不要修改任何字段\n' +
-    '     · 【铁律4：第7条之后才进状态栏】<状态栏>占位符提醒条目生成完，才进 Step 0-7 状态栏 HTML 生成流程\n' +
+    '     · 【铁律4：前7条后才第8条】第8条是状态栏HTML，必须前7条全部齐全后才允许生成（写卡器会拦截并提示缺失条目）\n' +
     '     · 【铁律5：每步写入即预览】每生成一条，写卡器后台立即写入 cardData 并触发 renderPreview，用户在预览界面实时看到结果\n' +
-    '     · 【铁律6：写入酒馆完整性】用户点"写入酒馆"时，写卡器按顺序写入：bundle.js→变量结构脚本→世界书条目(InitVar+变量列表+变量更新规则+变量输出格式+占位符提醒)→正则1-5→正则6(状态栏HTML)→开场白占位符，缺一不可\n' +
-    '     · 【写卡器自动注入范围】以下由写卡器自动注入，AI **不要生成**：\n' +
+    '     · 【铁律6：写入酒馆完整性】用户点"写入酒馆"时，写卡器按顺序写入：bundle.js→变量结构脚本→世界书条目(第2-7条)→正则1-5→正则6(状态栏HTML)→开场白占位符，缺一不可\n' +
+    '     · 【写卡器自动注入范围（AI不要生成）】\n' +
     '       - MVU 本体脚本 bundle.js（tavern_helper.scripts）\n' +
     '       - 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）\n' +
-    '       其他所有变量条目、变量结构脚本、正则6、<状态栏>占位符提醒条目均由 AI 按本工作流一条一条生成\n' +
+    '       - 开场白末尾 <StatusPlaceHolderImpl/> 占位符\n' +
+    '       其余8条（第1-8条）全部由 AI 按9.1.6工作流逐条生成\n' +
     '     · 【动态修改场景（⚠️关联条目必须逐条全改完，不能只改一条）】：\n' +
     '       当用户要求修改变量（例如"状态栏显示当前聊天女生全身信息，包括上装/下装/丝袜/鞋子"），AI 必须按以下流程**逐条**改完所有关联条目：\n' +
-    '       步骤A：先检查变量结构脚本（第1条）和[InitVar]初始变量（第2条）里是否已有这些字段；\n' +
-    '              · 没有 → 帮用户在变量结构脚本中**新增**对应字段（如 上装/下装/丝袜/鞋子），同时在[InitVar]初始变量里补默认值；\n' +
+    '       步骤A：先检查第1条(变量结构脚本)和第2条([InitVar]初始变量)里是否已有这些字段；\n' +
+    '              · 没有 → 帮用户在第1条中**新增**对应字段（如 上装/下装/丝袜/鞋子），同时在第2条里补默认值；\n' +
     '              · 有了 → 跳过新增，直接进入步骤B；\n' +
     '       步骤B：变量结构改了，所有依赖 schema 的关联条目必须**一条一条**跟着改完（不能只改一条就停）：\n' +
     '              · 第1条 变量结构脚本（zod schema）—— 加字段；\n' +
     '              · 第2条 [InitVar]初始变量 —— 加默认值；\n' +
     '              · 第3条 变量列表 —— 列出新字段；\n' +
     '              · 第4条 [mvu_update]变量更新规则 —— 加 check/type/range；\n' +
-    '              · 第5条 [mvu_update]变量输出格式 —— 原样不动（固定 YAML）；\n' +
-    '              · 第6条 [mvu_update]变量输出格式强调 —— 原样不动（固定 YAML）；\n' +
-    '              · 第7条 <状态栏>占位符提醒 —— 原样不动；\n' +
-    '              · 第8条 正则6 [美化]MVU状态栏 —— 走 Step 0-7 重新生成状态栏 HTML（让新字段在 UI 上显示）；\n' +
+    '              · 第5/6/7条 —— 原样不动（固定 YAML / 固定内容）；\n' +
+    '              · 第8条 正则6 [美化]MVU状态栏 —— 走 Step 2-6 重新生成状态栏 HTML（让新字段在 UI 上显示）；\n' +
     '       步骤C：每改完一条，写卡器后台立即写入 cardData 并 renderPreview，用户实时看到结果；\n' +
     '       步骤D：8 条全部改完后，告诉用户"全部关联条目已更新，可在预览查看，确认无误后点写入酒馆"；\n' +
     '       ⚠️【防漏铁律】哪怕用户只说"加一个字段"，也必须把第1/2/3/4/8条全部改完（第5/6/7条原样保留），少一条都会导致状态栏显示不全或变量更新失败\n' +
@@ -3365,8 +3359,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       });
       // 过滤 entries/character_book.entries：
-      // 旧逻辑：只允许写入4条MVU核心条目 → 新逻辑：允许所有MVU体系条目（4条核心+附加条目），只拦截明确是角色卡Tab专属的内容
-      // 允许通过的：4条核心MVU条目 / 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
+      // 允许所有MVU体系条目通过（8条工作流条目+附加条目），只拦截明确是角色卡Tab专属的内容
+      // 允许通过的：MVU变量条目（InitVar/变量列表/更新规则/输出格式/格式强调/占位提醒等）/ 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
       // 拦截的：明确属于角色卡Tab常驻体系/世界观体系的专有模板条目（基础公理/核心铁则/场景机制/实体交互/叙事背景等）
       var CARD_ONLY_TEMPLATES_RE = /^<(基础公理|核心铁则|世界元数据|交互软规则|近场强约束|当前局势|场景机制|核心玩法|世界规则|实体交互|重要角色|势力与组织|物品|地点场景|叙事背景|故事发展|文化与习俗|历史事件|动态适配|引导机制|互动选项|统一输出格式|角色边界|禁止项|自定义条目|观察锚点)>/i;
       var filterMvuOnlyEntries = function(arr, srcName) {
@@ -4267,6 +4261,84 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 按Step号(2-6)获取显示名称
   function sbStepName(stepNum) { return SB_STEP_DISPLAY_NAMES['step' + stepNum]; }
 
+  // ====================================================================
+  // 公共函数：检查MVU 8条目工作流的前7条完成情况（第8条=状态栏本身，单独判断）
+  // 返回：{ done: [bool×7], doneCount: int, all7Done: bool, missing: [string], missingCount: int }
+  // 说明：消除 updateQuickActions / start_sb / isSBRequest 三处重复检查代码
+  // ====================================================================
+  function checkMvu8Entries() {
+    var entries = (cardData.character_book || {}).entries || [];
+    var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+    var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+    // 前7条检测（按8条工作流顺序）
+    var has1 = thScripts.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
+    var has2 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
+    var has3 = entries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
+    var has4 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
+    var has5 = entries.some(function(e) { var c = (e.comment || ''); return c.indexOf('变量输出格式') >= 0 && c.indexOf('强调') < 0; });
+    var has6 = entries.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
+    var has7 = entries.some(function(e) { var c = (e.comment || ''); return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0); });
+    // 第8条检测（状态栏HTML正则）
+    var has8 = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly === true && r.promptOnly !== true; });
+    var done = [has1, has2, has3, has4, has5, has6, has7];
+    var doneCount = done.filter(Boolean).length;
+    var all7Done = doneCount === 7;
+    var names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 变量列表', '第4条 [mvu_update]更新规则', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
+    var missing = [];
+    for (var i = 0; i < 7; i++) { if (!done[i]) missing.push(names7[i]); }
+    return { done: done, doneCount: doneCount, all7Done: all7Done, missing: missing, missingCount: missing.length, has8: has8 };
+  }
+
+  // 公共函数：生成"缺失条目提示文本"（供 isSBRequest / start_sb 共用）
+  function buildMissingMvuHint(missing) {
+    var hint = missing.map(function(item, i) { return '  ' + (i + 1) + '. ' + item; }).join('\n');
+    return '⚠️ 前7条未齐全（第8条=状态栏HTML，必须前7条完成后才生成）。\n' +
+      '当前缺失 ' + missing.length + ' 条：\n' + hint + '\n\n' +
+      '请在 MVU Tab 按以下8条固定顺序**一条一条**生成，每生成一条说"继续"再写下一条：\n' +
+      '  第1条：变量结构脚本（zod schema）\n' +
+      '  第2条：[InitVar]初始变量\n' +
+      '  第3条：变量列表\n' +
+      '  第4条：[mvu_update]变量更新规则\n' +
+      '  第5条：[mvu_update]变量输出格式\n' +
+      '  第6条：[mvu_update]变量输出格式强调\n' +
+      '  第7条：<状态栏>占位符提醒条目\n' +
+      '  第8条：正则6 [美化]MVU状态栏（即状态栏 HTML）—— 前7条完成后才生成\n\n' +
+      '⚠️ 铁律：每生成一条立即停下，等用户说"继续"再写下一条。禁止一次性输出多条！';
+  }
+
+  // ====================================================================
+  // 公共常量：MVU 8条工作流规范文本（供 mvuPrompts.init_var / var_update_rule / buildMissingMvuHint 引用，避免多处重复维护）
+  // ====================================================================
+  // 逐条生成铁则（最高优先级）
+  var MVU_SEQUENTIAL_RULE =
+    '【逐条生成铁则（最高优先级）】\n' +
+    '⚠️ 一次只输出1条内容（脚本/条目/正则），输出后立即停下，不要写后面的。结尾只问用户："已生成第N条，说\'继续\'生成下一条"——不要一次性输出多条！\n' +
+    '用户说"继续"后，再按顺序生成下一条。前7条全部完成后，才生成第8条（状态栏HTML）。\n\n';
+  // 8条固定顺序（含每条详细规范）
+  var MVU_8STEPS_DETAIL =
+    '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
+    '  第1条：变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema注册）\n' +
+    '       · 文件头固定：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
+    '       · 文件尾固定：$(() => { registerMvuSchema(Schema); })\n' +
+    '       · 字段命名：_开头=AI只读不更新，$开头=派生显示专用(AI只读)，无前缀=普通可读写\n' +
+    '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 必须严格依据第1条schema的字段名/层级/类型生成YAML；schema有z.prefault()的字段InitVar可省略；enabled必须=false（禁用状态，仅MVU脚本读取一次初始化）\n' +
+    '  第3条：变量列表（世界书条目，constant=true depth=0）—— 内容固定包含：<status_current_variables>{{format_message_variable::stat_data}}</status_current_variables>\n' +
+    '  第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/check；补充两条约束：①$开头字段=AI只读禁止更新 ②_开头字段=AI只读禁止修改\n' +
+    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，定义<UpdateVariable>包裹<Analysis>分析段+<JSONPatch>段（5种操作：replace/delta/insert/remove/move，严格JSON Patch RFC 6902）\n' +
+    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML，原封不动输出，用于AI不输出<UpdateVariable>时启用强制提醒\n' +
+    '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
+    '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成这一条！findRegex=/<StatusPlaceHolderImpl\\/>/g；replaceString=用```包裹的完整HTML状态栏（走状态栏Step 2-6共5模块生成流程）\n\n';
+  // 通用生成规范（适用于所有8条）
+  var MVU_8STEPS_COMMON_RULES =
+    '【通用生成规范（适用于所有8条）】\n' +
+    '1. 第2/4条必须严格依据第1条schema生成，schema一改这两条必跟改\n' +
+    '2. 第3/5/6条是固定内容模板，原封不动输出（除了第5条的示例路径可参考schema字段名）\n' +
+    '3. 禁止AI自行追加8条以外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求\n' +
+    '4. 每生成一条立即写入cardData并触发预览更新，用户可实时看到\n\n';
+  // 修改场景防漏铁律
+  var MVU_MODIFY_RULE =
+    '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/4/8条全部跟改一遍（第5/6/7条原样保留）。';
+
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
     // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
@@ -4394,8 +4466,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '   · 如果用户明确提到MVU/变量/状态栏，回复:「请切换到「MVU变量状态栏」Tab进行MVU变量系统和状态栏的设计」\n' +
       '3. ❌禁止在任何生成的JSON字段（description/system_prompt/entries等）中包含MVU相关内容！\n' +
       '4. ❌禁止在regex_scripts中生成任何与MVU相关的正则脚本！\n' +
-      '5. ✅除上述4类MVU条目外，正常生成所有角色卡/世界书条目（基础公理、核心铁则、近场强约束、场景机制、实体交互、叙事背景、动态适配等）\n' +
-      '6. ✅如果角色卡中已经存在4条MVU条目，请保留原样、不要修改、不要删除、不要重新生成——它们由MVU Tab负责管理。\n' +
+      '5. ✅除上述MVU相关条目外，正常生成所有角色卡/世界书条目（基础公理、核心铁则、近场强约束、场景机制、实体交互、叙事背景、动态适配等）\n' +
+      '6. ✅如果角色卡中已经存在MVU相关条目，请保留原样、不要修改、不要删除、不要重新生成——它们由MVU Tab负责管理。\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
     // 构建系统提示词（角色卡Tab：过滤SYS_PROMPT中的MVU段落 + 追加MVU隔离禁令）
@@ -4514,7 +4586,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
     if (cd.description) ctxParts.push('世界观描述摘要：' + (cd.description||'').substring(0, 500));
     if (cd.first_mes) ctxParts.push('开场白摘要：' + (cd.first_mes||'').substring(0, 200));
-    // 从现有角色卡条目中，提取4条MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
+    // 从现有角色卡条目中，提取MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
     var entries = (cd.character_book || {}).entries || [];
     // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
     // MVU Tab 设计变量时需要知道世界里有哪些实体/属性/机制，才能设计出有意义的变量
@@ -4813,7 +4885,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '3. 【递归渲染模式统一】Step3 HTML 只有 id="render-root" 一个固定根容器 ↔ Step5 用 document.getElementById("render-root") 获取该容器。不为每个变量单独写id，递归 renderTree 会自动生成 .stat-item DOM。\n' +
       '4. 【覆盖而非新增】修改 MVU 条目或状态栏脚本时，必须用相同的 comment / id 覆盖现有条目，禁止新增重复条目。\n' +
       '   · 美化状态栏正则脚本固定只有一个（id=mvu-status-bar, findRegex=/<StatusPlaceHolderImpl\\\\/>/g），写卡器自动覆盖，你不要在JSON里重复输出\n' +
-      '   · 4条MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式\n' +
+      '   · MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式 / 变量输出格式强调 / <状态栏>占位符提醒\n' +
       '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🚫 纯文字状态栏禁令（Step 2-6 必须输出代码块）\n' +
@@ -4824,7 +4896,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· 如果你发现自己只写了文字没写代码块，立即补上代码块再结束本轮回复\n' +
       '\n' +
       '【MVU条目输出格式提醒（MVU Tab）】\n' +
-      '· 修改或新建4条MVU条目时，使用:::操作块协议（与角色卡Tab相同），不要输出```json代码块\n' +
+      '· 修改或新建MVU变量条目时，使用:::操作块协议（与角色卡Tab相同），不要输出```json代码块\n' +
       '· :::操作块格式：::: upsert 条目名\\n内容\\n:::\n' +
       '· 5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
       '· 修改变量结构脚本：::: upsert script:变量结构\\nzod代码\\n:::\n' +
@@ -4856,7 +4928,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '═══════════════════════════════════════════════════════════════════\n' +
         '⚠️【输出格式提醒（MVU Tab）】\n' +
         '═══════════════════════════════════════════════════════════════════\n' +
-        '· 如果用户要求设计/修改4条MVU变量条目：使用:::操作块协议输出修改指令，不要输出```json代码块\n' +
+        '· 如果用户要求设计/修改MVU变量条目（第1-7条）：使用:::操作块协议输出修改指令，不要输出```json代码块\n' +
         '  格式：::: upsert [InitVar]初始变量\\n---\\n变量名: 值\\n---\\n:::\n' +
         '  ⚠️【InitVar正文纯净铁律】::: upsert 块的 content 部分**只写 YAML 变量内容**（如 stat_data: ...）！\n' +
         '  ❌ 绝对不要把 enabled/content/comment 这些条目配置字段写进 content！它们由写卡器自动维护！\n' +
@@ -9280,54 +9352,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h += '<button class="ctx-mod ' + cls + '" data-mod="' + l.key + '">' + svgIcon(l.icon, 13) + ' ' + l.name + '</button>';
           });
         } else {
-          // MVUTab：8条目状态 chip（按用户要求的8条顺序）+ 状态栏进度
-          var entries = (cardData.character_book || {}).entries || [];
-          var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
-          // 第1条：变量结构脚本（tavern_helper.scripts 中的 zod schema）
-          var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-          var hasZodSchema = thScripts.some(function(s) {
-            return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0);
-          });
-          // 第2条：InitVar
-          var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-          // 第3条：变量列表
-          var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-          // 第4条：变量更新规则
-          var hasUpdateRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
-          // 第5条：变量输出格式
-          var hasOutputFmt = mvuEntries.some(function(e) {
-            var c = (e.comment || '');
-            return c.indexOf('变量输出格式') >= 0 && c.indexOf('强调') < 0;
-          });
-          // 第6条：变量输出格式强调
-          var hasOutputFmtEmph = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
-          // 第7条：<状态栏>占位符提醒
-          var hasStatusNotice = mvuEntries.some(function(e) {
-            var c = (e.comment || '');
-            return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
-          });
-          // 第8条：正则6 [美化]MVU状态栏（markdownOnly=true, promptOnly=false）
-          var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-          var hasStatusBarRx6 = rxScripts.some(function(r) {
-            return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly === true && r.promptOnly !== true;
-          });
-          var hasStatusBar = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0; });
+          // MVU Tab：两阶段状态显示
+          //   Phase A = 前7条MVU条目（第①-⑦条，逐条生成）
+          //   Phase B = 状态栏5模块（第⑧条 = Step2-6，状态栏HTML制作）
+          var _ctxChk = checkMvu8Entries();
+          var _d = _ctxChk.done;
+          var _sbProg = 0;
+          for (var _sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[_sk]) _sbProg++; }
           var step = chatSessions.mvu.currentStep || 0;
           function _chip(has, label) {
             return '<span class="ctx-chip ' + (has ? 'ok' : 'todo') + '" title="' + label + '">' + svgIcon(has ? 'checkCircle' : 'circle', 11) + ' ' + label + '</span>';
           }
-          // 按8条顺序显示 chip
-          h += _chip(hasZodSchema, '①zod脚本');
-          h += _chip(hasInitVar, '②InitVar');
-          h += _chip(hasVarList, '③变量列表');
-          h += _chip(hasUpdateRule, '④更新规则');
-          h += _chip(hasOutputFmt, '⑤输出格式');
-          h += _chip(hasOutputFmtEmph, '⑥格式强调');
-          h += _chip(hasStatusNotice, '⑦占位提醒');
-          h += _chip(hasStatusBarRx6, '⑧正则6');
-          if (step > 0 || hasStatusBar) {
-            var stepNames = ['', 'Step1', 'Step2', 'Step3', 'Step4', 'Step5', 'Step6', 'Step7'];
-            h += '<span class="ctx-chip info">' + svgIcon('chart', 11) + ' 状态栏: ' + (step > 0 ? (stepNames[step] || ('Step' + step)) : '未开始') + (hasStatusBar ? ' ✓' : '') + '</span>';
+          // Phase A：前7条 chip（第①-⑦条）
+          h += _chip(_d[0], '①zod脚本');
+          h += _chip(_d[1], '②InitVar');
+          h += _chip(_d[2], '③变量列表');
+          h += _chip(_d[3], '④更新规则');
+          h += _chip(_d[4], '⑤输出格式');
+          h += _chip(_d[5], '⑥格式强调');
+          h += _chip(_d[6], '⑦占位提醒');
+          // Phase B：第⑧条（状态栏5模块进度）
+          h += _chip(_ctxChk.has8, '⑧状态栏(' + _sbProg + '/5模块)');
+          if (step > 0 || _ctxChk.has8) {
+            var stepNames = ['', 'Step1', '配色', 'HTML骨架', 'CSS样式', 'refreshStatus', '事件入口', '完成'];
+            h += '<span class="ctx-chip info">' + svgIcon('chart', 11) + ' 当前: ' + (step > 0 ? (stepNames[step] || ('Step' + step)) : '未开始') + (_ctxChk.has8 ? ' ✓' : '') + '</span>';
           }
           // MVU 模块导航（2个）：引导用户去第1条或第8条场景
           h += '<button class="ctx-mod" data-mod="init_var">' + svgIcon('code', 13) + ' 从第1条开始</button>';
@@ -9368,24 +9416,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           actions.push({ action: 'generate', icon: 'sparkle', label: '生成角色卡', hl: p >= 95 });
         } else {
           // MVU Tab：阶段主操作（按8条顺序完整工作流判定）
+          // ===== Phase A：前7条MVU条目（第①-⑦条）=====
+          // ===== Phase B：状态栏5模块（第⑧条 = Step2-6）=====
           var sbProgress = 0;
           for (var sk in SB_STEP_DISPLAY_NAMES) { if (statusBarModules[sk]) sbProgress++; }
-          // ===== 先计算前7条的完成度（用于判断当前主按钮）=====
-          var _entries7 = (cardData.character_book || {}).entries || [];
-          var _thScripts7 = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-          var _p1 = _thScripts7.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
-          var _p2 = _entries7.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-          var _p3 = _entries7.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-          var _p4 = _entries7.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
-          var _p5 = _entries7.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; });
-          var _p6 = _entries7.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
-          var _p7 = _entries7.some(function(e) {
-            var c = (e.comment || '');
-            return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
-          });
-          var _done7Count = [_p1,_p2,_p3,_p4,_p5,_p6,_p7].filter(Boolean).length;
-          var _all7Done = _done7Count === 7;
-          // 主按钮逻辑：前7条不齐→引导补齐/从头开始；前7条齐→状态栏制作/预览
+          var _chk = checkMvu8Entries();
+          var _done7Count = _chk.doneCount;
+          var _all7Done = _chk.all7Done;
+          // 主按钮逻辑：Phase A未完成→引导补齐；Phase A完成且Phase B未完成→状态栏制作；全部完成→预览
           if (!_all7Done && !statusBarMode) {
             if (_done7Count === 0) {
               actions.push({ action: 'init_var',        icon: 'code',    label: '开始：从第1条zod脚本',       hl: true });
@@ -9491,31 +9529,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // MVU专属快捷动作（仅MVU Tab有效）
         if (action === 'start_sb') {
           // ===== 前置检查：进入状态栏模式前，必须先完成前7条（第8条=状态栏本身）=====
-          var sbEntries = (cardData.character_book || {}).entries || [];
-          var sbThScripts2 = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-          var _has1 = sbThScripts2.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
-          var _has2 = sbEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-          var _has3 = sbEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-          var _has4 = sbEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
-          var _has5 = sbEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; });
-          var _has6 = sbEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
-          var _has7 = sbEntries.some(function(e) {
-            var c = (e.comment || '');
-            return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
-          });
-          var _missing7 = [];
-          if (!_has1) _missing7.push('第1条 变量结构脚本(zod)');
-          if (!_has2) _missing7.push('第2条 InitVar');
-          if (!_has3) _missing7.push('第3条 变量列表');
-          if (!_has4) _missing7.push('第4条 更新规则');
-          if (!_has5) _missing7.push('第5条 输出格式');
-          if (!_has6) _missing7.push('第6条 格式强调');
-          if (!_has7) _missing7.push('第7条 占位提醒');
-          if (_missing7.length > 0) {
-            addAssistantMsg('⚠️ 前7条未齐全，不能进入状态栏制作（第8条=状态栏本身，必须前7条完成后才生成）。\n' +
-              '当前缺失：' + _missing7.join('、') + '\n' +
-              '请先按8条顺序补齐缺失条目（每生成一条说"继续"），再点击此按钮。');
-            showToast('前7条未齐全：缺' + _missing7.length + '条', 'warning');
+          var _chkSB = checkMvu8Entries();
+          if (!_chkSB.all7Done) {
+            addAssistantMsg(buildMissingMvuHint(_chkSB.missing));
+            showToast('前7条未齐全：缺' + _chkSB.missingCount + '条', 'warning');
             return;
           }
           // 进入状态栏制作模式前，确保固定资产已注入（bundle.js/正则1-5等）
@@ -9578,41 +9595,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           next: '我当前的MVU进度该怎么推进？请分析：1) 8条MVU条目完成情况（第1条变量结构脚本zod schema/第2条InitVar/第3条变量列表/第4条更新规则/第5条输出格式/第6条输出格式强调/第7条状态栏占位符提醒/第8条正则6状态栏HTML） 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
           summary: '帮我梳理MVU系统的当前状态：按8条顺序检查完成情况——第1条变量结构脚本(zod schema)、第2条[InitVar]初始变量、第3条变量列表、第4条[mvu_update]变量更新规则、第5条[mvu_update]变量输出格式、第6条[mvu_update]变量输出格式强调、第7条<状态栏>占位符提醒条目、第8条正则6[美化]MVU状态栏；然后检查状态栏Step2-6共5个模块完成情况；缺失什么；推荐的下一步。',
           init_var:
-            '请帮我设计MVU变量系统，严格遵守以下【逐条生成铁则】和【8条顺序规范】：\n' +
-            '【逐条生成铁则（最高优先级）】\n' +
-            '⚠️ 一次只输出1条内容（脚本/条目/正则），输出后立即停下，不要写后面的。结尾只问用户："已生成第N条，说\'继续\'生成下一条"——不要一次性输出多条！\n' +
-            '用户说"继续"后，再按顺序生成下一条。前7条全部完成后，才生成第8条（状态栏HTML）。\n\n' +
-            '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
-            '  第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema注册）\n' +
-            '       · 文件头固定：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
-            '       · 文件尾固定：$(() => { registerMvuSchema(Schema); })\n' +
-            '       · 字段命名：_开头=AI只读不更新，$开头=派生显示专用(AI只读)，无前缀=普通可读写\n' +
-            '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 必须严格依据第1条schema的字段名/层级/类型生成YAML；schema有z.prefault()的字段InitVar可省略；enabled必须=false（禁用状态，仅MVU脚本读取一次初始化）\n' +
-            '  第3条：变量列表（世界书条目，constant=true depth=0）—— 内容固定包含：<status_current_variables>{{format_message_variable::stat_data}}</status_current_variables>\n' +
-            '  第4条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/check；补充两条约束：①$开头字段=AI只读禁止更新 ②_开头字段=AI只读禁止修改\n' +
-            '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，定义<UpdateVariable>包裹<Analysis>分析段+<JSONPatch>段（5种操作：replace/delta/insert/remove/move，严格JSON Patch RFC 6902）\n' +
-            '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML，原封不动输出，用于AI不输出<UpdateVariable>时启用强制提醒\n' +
-            '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
-            '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成这一条！findRegex=/<StatusPlaceHolderImpl\\/>/g；replaceString=用```包裹的完整HTML状态栏（走状态栏Step0-7生成流程）\n\n' +
-            '【通用生成规范（适用于所有8条）】\n' +
-            '1. 第2/4条必须严格依据第1条schema生成，schema一改这两条必跟改\n' +
-            '2. 第3/5/6条是固定内容模板，原封不动输出（除了第5条的示例路径可参考schema字段名）\n' +
-            '3. 禁止AI自行追加8条以外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求\n' +
-            '4. 每生成一条立即写入cardData并触发预览更新，用户可实时看到\n\n' +
+            '请帮我设计MVU变量系统，严格遵守以下规范：\n' +
+            MVU_SEQUENTIAL_RULE +
+            MVU_8STEPS_DETAIL +
+            MVU_8STEPS_COMMON_RULES +
+            MVU_MODIFY_RULE + '\n\n' +
             '请先收集用户的变量需求（角色/世界观/场景/需要追踪什么状态），然后按上述8条顺序**逐条**开始生成。现在先生成【第1条：变量结构脚本(zod schema)】。',
           var_update_rule:
             '请帮我完善当前MVU系统的缺失条目，严格遵守【逐条生成铁则】：\n' +
             '⚠️ 一次只补1条，输出后立即停下问"已生成第N条，说\'继续\'生成下一条"。前7条完成后才生成第8条。\n\n' +
             '先检查当前已有的条目，然后按以下8条固定顺序从缺失的第一条开始补：\n' +
-            '  第1条：变量结构脚本（zod schema + registerMvuSchema）\n' +
-            '  第2条：[InitVar]初始变量（enabled=false，严格依据schema生成YAML）\n' +
-            '  第3条：变量列表（含{{format_message_variable::stat_data}}宏）\n' +
-            '  第4条：[mvu_update]变量更新规则（按schema生成check/type/range；补充$_只读约束）\n' +
-            '  第5条：[mvu_update]变量输出格式（固定YAML：<Analysis>+<JSONPatch>5种操作）\n' +
-            '  第6条：[mvu_update]变量输出格式强调（固定YAML，默认enabled=false）\n' +
-            '  第7条：<状态栏>占位符提醒（constant=true）\n' +
-            '  第8条：正则6 [美化]MVU状态栏（前7条完成后才生成）\n\n' +
-            '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/4/8条全部跟改一遍（第5/6/7条原样保留）。'
+            MVU_8STEPS_DETAIL +
+            MVU_MODIFY_RULE
         };
         // 选择当前Tab对应的Prompt字典
         var prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
@@ -11882,47 +11876,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (isSBRequest && !statusBarMode) {
               // ⚠️用户要求：变量条目必须由 AI 按 8条顺序工作流一条一条生成，写卡器不再自动补齐
               // 前置检查：缺前7条任意一条时，提示用户先完成8条工作流，不自动进入状态栏模式
-              var sbEntriesCheck = Array.isArray((cardData.character_book || {}).entries) ? cardData.character_book.entries : [];
-              // 第1条：变量结构脚本（zod schema 在 tavern_helper.scripts 中）
-              var sbThScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-              var hasZodForAutoSB = sbThScripts.some(function(s) {
-                return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0);
-              });
-              // 第2-7条：世界书条目
-              var hasInitVarForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
-              var hasVarListForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
-              var hasUpdateRuleForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
-              var hasOutputFmtForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; });
-              var hasOutputFmtEmphForAutoSB = sbEntriesCheck.some(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; });
-              var hasStatusNoticeForAutoSB = sbEntriesCheck.some(function(e) {
-                var c = (e.comment || '');
-                return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
-              });
-              var missingMvuEntries = [];
-              if (!hasZodForAutoSB)         missingMvuEntries.push('第1条：变量结构脚本(zod schema)');
-              if (!hasInitVarForAutoSB)     missingMvuEntries.push('第2条：[InitVar]初始变量');
-              if (!hasVarListForAutoSB)     missingMvuEntries.push('第3条：变量列表');
-              if (!hasUpdateRuleForAutoSB)  missingMvuEntries.push('第4条：[mvu_update]变量更新规则');
-              if (!hasOutputFmtForAutoSB)   missingMvuEntries.push('第5条：[mvu_update]变量输出格式');
-              if (!hasOutputFmtEmphForAutoSB) missingMvuEntries.push('第6条：[mvu_update]变量输出格式强调');
-              if (!hasStatusNoticeForAutoSB) missingMvuEntries.push('第7条：<状态栏>占位符提醒条目');
-              if (missingMvuEntries.length > 0) {
+              var _chkAuto = checkMvu8Entries();
+              if (!_chkAuto.all7Done) {
                 // 缺前7条中的任意条目：不进入状态栏模式，引导用户先按8条顺序一条一条生成
                 // （不 return，让后续逻辑正常保存 AI 回复到聊天记录）
                 if (!statusBarMode) {
-                  var missingHint = missingMvuEntries.map(function(item, i) { return '  ' + (i+1) + '. ' + item; }).join('\n');
-                  _aiChatNotesQueue.push('⚠️ 进入状态栏模式前，必须先完成前 7 条（第8条=状态栏本身，待前7条完成后才生成）。\n' +
-                    '当前缺失 ' + missingMvuEntries.length + ' 条：\n' + missingHint + '\n\n' +
-                    '请在 MVU Tab 按以下 8 条固定顺序**一条一条**生成，每生成一条说"继续"再生成下一条：\n' +
-                    '  第1条：变量结构脚本（zod schema）\n' +
-                    '  第2条：[InitVar]初始变量\n' +
-                    '  第3条：变量列表\n' +
-                    '  第4条：[mvu_update]变量更新规则\n' +
-                    '  第5条：[mvu_update]变量输出格式\n' +
-                    '  第6条：[mvu_update]变量输出格式强调\n' +
-                    '  第7条：<状态栏>占位符提醒条目\n' +
-                    '  第8条：正则6 [美化]MVU状态栏（即状态栏 HTML）—— 前7条完成后，才生成这一条\n\n' +
-                    '⚠️ 铁律：每生成一条立即停下，等用户说"继续"再写下一条。禁止一次性输出多条！');
+                  _aiChatNotesQueue.push(buildMissingMvuHint(_chkAuto.missing));
                 }
                 progress = calcProgress();
                 renderPreview();
@@ -12279,10 +12238,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 角色卡Tab：genPrompt也必须过滤MVU内容，并明确禁止生成MVU条目
           var filteredSysForGenerate = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
           var antiMvuBanGenerate = '\n\n⚠️【生成时MVU隔离禁令 · 绝对不允许违反】\n' +
-            '1. 绝对禁止生成4条MVU变量条目：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式\n' +
+            '1. 绝对禁止生成MVU变量条目：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式、变量输出格式强调、<状态栏>占位符提醒\n' +
             '2. 绝对禁止生成<状态栏>或任何状态栏相关的世界书条目\n' +
             '3. 绝对禁止在regex_scripts中生成MVU/StatusPlaceHolderImpl/UpdateVariable相关正则脚本\n' +
-            '4. 4条MVU变量条目和状态栏由独立的MVU Tab负责，当前生成任务与MVU系统完全无关\n';
+            '4. MVU变量条目（8条工作流）和状态栏由独立的MVU Tab负责，当前生成任务与MVU系统完全无关\n';
           var genPrompt = filteredSysForGenerate + antiMvuBanGenerate +
             '\n\n=== 生成指令 ===\n' +
             '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
