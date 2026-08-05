@@ -996,11 +996,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '角色边界': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻' },
     '禁止项': { level: '极低', color: '#b3aa98', desc: 'position=0 常驻，禁止规则' },
     '自定义条目': { level: '中', color: '#15803d', desc: '用户自定义' },
-    '[InitVar]初始变量': { level: '极低', color: '#b3aa98', desc: 'position=4(at_depth d=4) 常驻(enabled=false)，MVU变量初始化YAML' },
-    '变量列表': { level: '极低', color: '#b3aa98', desc: 'position=4(at_depth d=0) 常驻，注入当前变量值给LLM' },
-    '变量更新规则': { level: '低', color: '#667085', desc: 'position=4(at_depth d=0) 常驻，MVU变量更新分析规则' },
-    '变量输出格式': { level: '低', color: '#667085', desc: 'position=4(at_depth d=0) 常驻，定义<UpdateVariable>输出格式' },
-    '变量输出格式强调': { level: '低', color: '#667085', desc: 'position=4(at_depth d=0) 默认关闭，AI不输出<UpdateVariable>时启用' },
+    '[InitVar]初始变量': { level: '极低', color: '#b3aa98', desc: '第2条 | position=4(at_depth d=4) 常驻(enabled=false)，MVU变量初始化YAML' },
+    '变量列表': { level: '极低', color: '#b3aa98', desc: '第3条 | position=4(at_depth d=0) 常驻，注入当前变量值给LLM' },
+    '[mvu_update]变量更新规则': { level: '低', color: '#667085', desc: '第4条 | position=4(at_depth d=0) 常驻，依据schema生成check/type/range' },
+    '[mvu_update]变量输出格式': { level: '低', color: '#667085', desc: '第5条 | position=4(at_depth d=0) 常驻，固定YAML定义<UpdateVariable>输出格式' },
+    '[mvu_update]变量输出格式强调': { level: '低', color: '#667085', desc: '第6条 | position=4(at_depth d=0) 默认enabled=false，AI不输出<UpdateVariable>时启用' },
+    '<状态栏>占位符提醒': { level: '极低', color: '#b3aa98', desc: '第7条 | position=4(at_depth d=0) 常驻，提醒AI输出<StatusPlaceHolderImpl/>' },
     '状态变量输出': { level: '中', color: '#15803d', desc: 'position=2 触发，输出当前变量状态给LLM' }
   };
 
@@ -1028,6 +1029,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     if (comment.indexOf('变量列表') >= 0) return ENTRY_TEMPLATES['变量列表'];
     if (comment.indexOf('状态变量输出') >= 0) return ENTRY_TEMPLATES['状态变量输出'];
+    // 第7条：<状态栏>占位符提醒条目（含"状态栏"+"占位符"或"提醒"）
+    if (comment.indexOf('状态栏') >= 0 && (comment.indexOf('占位') >= 0 || comment.indexOf('提醒') >= 0)) {
+      // 复用"状态栏"模板（selective触发式），但实际第7条应为constant=true常驻
+      // 这里返回变量列表模板作为基础（constant=true, position=4, depth=0）
+      return ENTRY_TEMPLATES['变量列表'];
+    }
     if (comment.indexOf('变量分段') >= 0 || comment.indexOf('分段提示') >= 0) return ENTRY_TEMPLATES['变量更新规则'];
     // 4. 通用匹配：遍历模板键找最长匹配
     var keys = Object.keys(ENTRY_TEMPLATES);
@@ -1449,7 +1456,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 第6条 [mvu_update]变量输出格式强调（constant=true，默认enabled=false）：≤300字，固定提醒模板\n' +
     '- 第7条 <状态栏>占位符提醒（constant=true常驻）：≤100字，简单提醒语句\n' +
     '- 第8条 正则6 [美化]MVU状态栏（regex_scripts）：≤3000字，完整HTML状态栏+渲染函数\n' +
-    '- 核心4条常驻Token（第3/4/5条 constant=true）合计≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段。附加条目单独算Token预算，每条≤600字，仅在用户明确要求时生成。\n\n' +
+    '- 核心常驻Token（第3/4/5条 constant=true）合计≤1200字；超出时优先精简"变量更新规则"，再精简"变量输出格式"的rule字段。附加条目单独算Token预算，每条≤600字，仅在用户明确要求时生成。\n\n' +
     '**【通用多阶段状态变量生成指导】**：\n' +
     '- 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等任意需要分阶段/分档位/分状态的变量体系。\n' +
     '- 设计流程（仅用户明确要求分阶段时执行）：①阶段划分：确认阶段数量、每个阶段的触发阈值/条件、阶段命名；②字段设计：核心判定变量、阶段标记变量、只读派生变量（$开头，AI只读不更新）；③切换规则：阶段跳转的触发条件、联动变更的字段、边界兜底；④注入逻辑（可选）：不同阶段是否注入不同的世界书内容/提示规则。\n' +
@@ -1539,15 +1546,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）【改进19：结构化分段（弱模型召回）】\n' +
-    '- 【总览】五大核心组件 + 三条联动机制 + 九条铁则（写卡器仅自动注入 bundle.js/正则1-5；其余8条MVU内容全部由AI在MVU Tab按9.1.6工作流一条一条生成：①变量结构脚本 ②[InitVar] ③变量列表 ④[mvu_update]更新规则 ⑤[mvu_update]输出格式 ⑥[mvu_update]输出格式强调 ⑦<状态栏>占位符提醒 ⑧正则6状态栏HTML）\n' +
+    '- 【总览】8条工作流（第1条zod脚本 + 第2-7条世界书条目 + 第8条状态栏正则）+ 三条联动机制 + 九条铁则（写卡器仅自动注入 bundle.js/正则1-5；其余8条MVU内容全部由AI在MVU Tab按9.1.6工作流一条一条生成）\n' +
     '- 【Tab隔离】状态栏生成/正则6/8条MVU条目已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成。如需生成，请提示用户切换Tab。\n' +
     '- 【灰色模式】本Tab可在普通世界书条目中讨论/规划变量结构（如"变量设计说明""schema草案"），但带[InitVar]/[mvu_update]/StatusPlaceHolderImpl/<UpdateVariable>/format_message_variable/stat_data等功能性标记的真实MVU条目仍会被拦截——这些必须到MVU Tab生成。\n' +
     '- 【状态栏实现二选一】简单项目=【写卡器标准原生方案】（MVU Tab的Step 1-7流程，教的就是这个）；复杂大型界面=【StageDog官方Vue3+Pinia组件化方案】（需webpack打包，参考示例但不在本流程）。绝对禁止混用！\n' +
     '- 核心脚本：在角色卡局部脚本(tavern_helper.scripts)中添加 import bundle.js（写卡器自动注入）\n' +
     '- 工作原理：每次LLM生成完消息后，MVU扫描回复末尾的<UpdateVariable>段中的JSON Patch命令，更新stat_data变量\n' +
     '\n' +
-    '## 9.1 五大核心组件（4条世界书条目 + 1脚本）\n' +
-    '9.1.1 [InitVar]初始变量：世界书条目（enabled必须=false禁用），YAML格式定义所有变量初始值\n' +
+    '## 9.1 MVU 8条工作流条目详细规范（第1条脚本 + 第2-7条世界书条目 + 第8条正则）\n' +
+    '9.1.1 [InitVar]初始变量（对应第2条）：世界书条目（enabled必须=false禁用），YAML格式定义所有变量初始值\n' +
     '     · 【强约束1：依据变量结构脚本生成】必须严格按变量结构.js（zod Schema）的字段名、嵌套层级、类型生成 YAML。schema 有的字段必须有默认值；schema 用 z.record/z.partialRecord 的动态键，InitVar 用空对象 {} 占位（如 物品栏: {}）；schema 用 z.prefault 的字段可在 InitVar 中省略（脚本会自动填）\n' +
     '     · 【强约束2：schema 一改，InitVar 必须跟改】修改变量结构脚本时（增/删/改字段、改类型），同步重写 [InitVar] 初始变量条目，保证字段名/层级与 schema 完全一致。禁止出现"schema 已删的字段还在 InitVar 里""schema 已加的字段 InitVar 没有"的错配情况\n' +
     '     · 【强约束3：enabled=false】初始变量条目的 enabled 必须为 false（MVU 只读禁用条目做初始化，开启会导致每次发送都注入旧初始值覆盖最新变量）。写卡器自动维护，AI 生成时不要写 enabled 字段\n' +
@@ -1563,11 +1570,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         当前日期: 2025-07-26\n' +
     '         当前星期: 星期五\n' +
     '         当前时间: 17:36\n' +
-    '9.1.2 变量列表：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
+    '9.1.2 变量列表（对应第3条）：世界书条目（constant=true, depth=0），通过宏注入当前变量值给LLM\n' +
     '     · 固定内容：---\\n<status_current_variables>\\n{{format_message_variable::stat_data}}\\n</status_current_variables>\n' +
     '     · {{format_message_variable::stat_data}} 是酒馆助手宏，发送时被替换为最新楼层的全部变量值\n' +
     '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
-    '9.1.3 [mvu_update]变量更新规则：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '9.1.3 [mvu_update]变量更新规则（对应第4条）：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
     '     · YAML格式，沿用变量结构层级，每变量含以下字段（按需选用）：\n' +
     '       - type: 变量类型。string 省略此字段；number/boolean 直接写；复杂类型用 |- 多行 TypeScript/zod 块\n' +
     '         · 基础：type: number / type: boolean / type: \'未领取\'|\'进行中\'|\'已完成\'\n' +
@@ -1601,11 +1608,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       第二步：按变量结构脚本和用户要求，参考下例编写规则\n' +
     '     · 示例：\n' +
     '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\n' +
-    '9.1.4 [mvu_update]变量输出格式：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
+    '9.1.4 [mvu_update]变量输出格式（对应第5条，固定内容原样输出）：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 内容完全固定，**原封不动地输出以下 YAML，不要修改任何字段、不要加注释、不要替换占位符**：\n' +
     '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it is in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
-    '9.1.5 变量结构脚本：tavern_helper.scripts脚本（AI在MVU Tab按工作流一条一条生成），用zod 4库定义变量结构并registerMvuSchema注册\n' +
+    '9.1.4a [mvu_update]变量输出格式强调（对应第6条，固定内容原样输出）：世界书条目（constant=true, depth=0, enabled=false默认禁用）\n' +
+    '     · 用途：当AI不输出<UpdateVariable>段时，启用此条目强制提醒AI按格式输出\n' +
+    '     · 内容完全固定，**原封不动地输出以下 YAML**：\n' +
+    '       ---\\n变量输出格式强调:\\n  rule:\\n    - CRITICAL: You MUST output <UpdateVariable> at the end of EVERY reply without exception\\n    - If you did not output it, the variable system will break\\n    - Review the format in 变量输出格式 entry and follow it exactly\\n' +
+    '9.1.4b <状态栏>占位符提醒（对应第7条）：世界书条目（constant=true, depth=0）\n' +
+    '     · 用途：提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>，状态栏正则(第8条)会替换它为状态栏HTML\n' +
+    '     · 内容固定：---\\n<状态栏占位符提醒>\\n  - 每条回复的末尾必须输出 <StatusPlaceHolderImpl/>，这是状态栏渲染的锚点\\n  - 不要在回复中间输出此标签，只在最末尾输出一次\n' +
+    '9.1.5 变量结构脚本（对应第1条）：tavern_helper.scripts脚本（AI在MVU Tab按9.1.6工作流一条一条生成），用zod 4库定义变量结构并registerMvuSchema注册\n' +
     '     · 创作流程（严格按3步执行，不要跳步）：\n' +
     '       第一步：了解需求，向用户询问\n' +
     '         1) 这是什么类型的角色卡/世界观？（角色扮演/模拟经营/军事模拟等）\n' +
@@ -2533,10 +2547,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- <角色边界>：角色行为限制和不可触犯的底线\n' +
     '- <禁止项>：禁止出现的词汇或行为\n' +
     '- <自定义条目>：用户自定义内容\n' +
-    '- [InitVar]初始变量：MVU变量系统初始值YAML（缩进表示层级，enabled=false禁用）\n' +
-    '- 变量列表：MVU当前变量注入（含{{format_message_variable::stat_data}}宏）\n' +
-    '- 变量更新规则：MVU变量更新分析规则（check条件、取值范围等）\n' +
-    '- 变量输出格式：MVU<UpdateVariable>段输出格式定义（含JSON Patch命令）\n' +
+    '- [InitVar]初始变量（第2条）：MVU变量系统初始值YAML（缩进表示层级，enabled=false禁用）\n' +
+    '- 变量列表（第3条）：MVU当前变量注入（含{{format_message_variable::stat_data}}宏）\n' +
+    '- [mvu_update]变量更新规则（第4条）：依据schema生成check/type/range\n' +
+    '- [mvu_update]变量输出格式（第5条）：固定YAML，<UpdateVariable>+<JSONPatch>5种操作\n' +
+    '- [mvu_update]变量输出格式强调（第6条）：固定YAML，默认enabled=false\n' +
+    '- <状态栏>占位符提醒（第7条）：提醒AI输出<StatusPlaceHolderImpl/>\n' +
     '- <状态变量输出>：输出当前变量状态给LLM的触发条目\n\n' +
     '=== 世界书条目字段配置规范 ===\n' +
     '| 前缀 | constant | selective | position | depth | order | cooldown | scan_depth | prevent_recursion | probability | useProbability | group | delay_until_recursion |\n' +
@@ -2565,10 +2581,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '| <角色边界> | true | false | 0 | 2 | 80 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <禁止项> | true | false | 0 | 3 | 70 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <自定义条目> | false | true | 1 | 4 | 55 | 0 | 5 | false | 100 | true | (空) | false |\n' +
-    '| [InitVar]初始变量 | true | false | 4 | 4 | 200 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
-    '| 变量列表 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
-    '| 变量更新规则 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
-    '| 变量输出格式 | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [InitVar]初始变量（第2条） | true | false | 4 | 4 | 200 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
+    '| 变量列表（第3条） | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [mvu_update]变量更新规则（第4条） | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [mvu_update]变量输出格式（第5条） | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
+    '| [mvu_update]变量输出格式强调（第6条） | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false | enabled=false |\n' +
+    '| <状态栏>占位符提醒（第7条） | true | false | 4 | 0 | 200 | 0 | 0 | true | 100 | false | (空) | false |\n' +
     '| <状态变量输出> | false | true | 2 | 2 | 45 | 0 | 3 | false | 100 | true | (空) | false |\n' +
     '注1：order=insertion_order，数字越大越靠后（影响越大）\n' +
     '注2：delay_until_recursion=true 表示仅在递归中触发，不直接触发\n' +
@@ -2684,7 +2702,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI在MVU Tab按9.1.6工作流生成\n' +
     '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
     '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【AI在MVU Tab按9.1.6工作流一条一条生成】\n' +
-    '  7. 世界书条目：[InitVar]初始变量(YAML) + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式【AI在MVU Tab按9.1.6工作流一条一条生成】\n\n' +
+    '  7. 世界书条目（第2-7条，AI在MVU Tab按9.1.6工作流逐条生成）：[InitVar]初始变量 + 变量列表 + [mvu_update]变量更新规则 + [mvu_update]变量输出格式 + [mvu_update]变量输出格式强调 + <状态栏>占位符提醒\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -2728,10 +2746,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 生成<动态适配>、<引导机制>、<互动选项>条目\n\n' +
     '**步骤7：配变量系统**（MVU变量系统，进阶可选）\n' +
     '- 确定是否需要MVU变量系统（如需复杂状态管理、好感度系统等）\n' +
-    '- 设计变量结构（按角色/物品/状态分层嵌套）\n' +
-    '- 编写[InitVar]初始变量YAML\n' +
-    '- 编写变量更新规则条目\n' +
-    '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）和<状态栏>占位符提醒条目由写卡器自动注入，无需生成\n' +
+    '- 设计变量结构（按角色/物品/状态分层嵌套，按8条工作流逐条生成，详见9.1.6）\n' +
+    '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）和开场白占位符由写卡器自动注入，无需生成\n' +
     '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范+StageDog标准生成，美观度对齐参考卡片，严禁敷衍：\n' +
     '  · 【配置固定StageDog标准】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0\n' +
     "  · 【包裹格式StageDog标准】replaceString用纯```代码块包裹（禁止```html标记）；HTML无<!doctype html>、无<html>根；<head>(style+script type=module)+<body>结构\n" +
@@ -2887,15 +2903,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] 创作者备注≤100字\n' +
     '- [ ] 常驻条目group冲突检测\n' +
     '- [ ] Outlet限制检查（如有）\n\n' +
-    '**MVU变量系统检查（7项，进阶可选）：**\n' +
-    '- [ ] 初始变量：[InitVar]条目存在，YAML格式合法（缩进表示层级）\n' +
-    '- [ ] InitVar禁用：[InitVar]条目enabled=false（MVU只读禁用条目做初始化）\n' +
-    '- [ ] 变量格式：每个变量有明确初始值，变量名以_/$前缀标注可见性\n' +
-    '- [ ] 变量列表：含{{format_message_variable::stat_data}}宏\n' +
-    '- [ ] 变量更新规则：<变量更新规则>条目存在，格式说明清晰\n' +
-    '- [ ] 变量输出格式：定义<UpdateVariable>段的输出格式\n' +
-    '- [ ] 变量分层：变量结构按角色/物品/状态等合理分层嵌套\n' +
-    '- [ ] 美化状态栏正则：regex_scripts中含StatusPlaceHolderImpl的markdownOnly正则（正则6，AI生成）\n' +
+    '**MVU变量系统检查（8条工作流，进阶可选，详见9.1.6）：**\n' +
+    '- [ ] 第1条 变量结构脚本：tavern_helper.scripts中存在zod Schema + registerMvuSchema注册\n' +
+    '- [ ] 第2条 [InitVar]初始变量：条目存在，YAML格式合法，enabled=false，字段与第1条schema一致\n' +
+    '- [ ] 第3条 变量列表：含{{format_message_variable::stat_data}}宏\n' +
+    '- [ ] 第4条 [mvu_update]变量更新规则：依据schema生成check/type/range，含$_只读约束\n' +
+    '- [ ] 第5条 [mvu_update]变量输出格式：固定YAML，含<UpdateVariable>+<Analysis>+<JSONPatch>5种操作\n' +
+    '- [ ] 第6条 [mvu_update]变量输出格式强调：固定YAML，默认enabled=false\n' +
+    '- [ ] 第7条 <状态栏>占位符提醒：提醒AI每条回复底部输出<StatusPlaceHolderImpl/>\n' +
+    '- [ ] 第8条 正则6状态栏HTML：regex_scripts中findRegex=StatusPlaceHolderImpl，markdownOnly=true\n' +
     '注：写卡器导出时**仅自动注入** bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/变量美化×2/状态栏隐藏)、开场白末尾<StatusPlaceHolderImpl/>占位符；\n' +
     '   其余8条MVU内容**必须全部由AI在MVU Tab按9.1.6工作流一条一条生成**：①变量结构脚本(zod schema) ②[InitVar]初始变量 ③变量列表 ④[mvu_update]更新规则 ⑤[mvu_update]输出格式 ⑥[mvu_update]输出格式强调 ⑦<状态栏>占位符提醒条目 ⑧正则6(美化状态栏HTML)\n\n' +
     '=== MVU 酒馆助手脚本 API ===\n\n' +
@@ -3260,7 +3276,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     //   MVU_EXTRA_RE   = MVU体系附加条目关键词（8条工作流条目之外的功能性附加条目：阶段判定/EJS控制器/人设切换/派生字段等，仅用于MVU Tab放宽识别，不参与角色卡Tab拦截）
     // 灰色模式（window.__mvuDiscussMode=true）：角色卡Tab允许讨论变量结构，但仍禁止生成真实MVU条目
     var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized|registerMvuSchema)/i;
-    var MVU_WEAK_RE = /(变量更新规则|变量输出格式|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
+    var MVU_WEAK_RE = /(变量更新规则|变量输出格式|变量输出格式强调|占位符提醒|状态栏占位|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
     // 附加条目关键词：用于MVU Tab识别"变量体系附加条目"——这些条目不是8条工作流核心条目，但仍属于变量系统的配套功能
     var MVU_EXTRA_RE = /(阶段判定|阶段切换|人设切换|人设规则|EJS|ejs|动态注入|injectPrompts|派生字段|衍生字段|只读字段|联动规则|联动变更|阈值触发|控制器|阶段变量|状态机|分阶段|多阶段|关系阶段|剧情进度|系统模式|境界等级|阶段标记|判定逻辑|分段提示|变量分段)/i;
     var _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
@@ -3446,12 +3462,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var cmt = String(e.comment || '');
           var cnt = String(e.content || '');
           var mvuType = null;
-          // 分类 MVU 条目类型
+          // 分类 MVU 条目类型（注意：先检查"格式强调"再检查"输出格式"，否则前者会被后者误匹配）
           if (cmt.indexOf('[InitVar]') >= 0 || (cmt.indexOf('初始变量') >= 0 && cnt.indexOf('stat_data') >= 0)) mvuType = 'initvar';
           else if (cmt.indexOf('变量列表') >= 0 || cnt.indexOf('format_message_variable') >= 0) mvuType = 'varlist';
           else if (cmt.indexOf('变量更新规则') >= 0 || cmt.indexOf('[mvu_update]变量更新规则') >= 0) mvuType = 'updaterule';
+          else if (cmt.indexOf('变量输出格式强调') >= 0) mvuType = 'outputfmt_emph';
           else if (cmt.indexOf('变量输出格式') >= 0 || (cmt.indexOf('mvu_update') >= 0 && cnt.indexOf('UpdateVariable') >= 0)) mvuType = 'outputfmt';
-          else if (cmt.indexOf('<状态栏>') >= 0 || cmt.indexOf('StatusPlaceHolder') >= 0) mvuType = 'statusbar_placeholder';
+          else if (cmt.indexOf('<状态栏>') >= 0 || cmt.indexOf('StatusPlaceHolder') >= 0 || (cmt.indexOf('状态栏') >= 0 && (cmt.indexOf('占位') >= 0 || cmt.indexOf('提醒') >= 0))) mvuType = 'statusbar_placeholder';
           if (mvuType) {
             if (mvuTypeMap[mvuType] !== undefined) {
               // 已有同类型条目 → 标记旧的为待删除（保留新的，因为新的在数组后面 = 更新生成）
@@ -4338,6 +4355,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 修改场景防漏铁律
   var MVU_MODIFY_RULE =
     '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/4/8条全部跟改一遍（第5/6/7条原样保留）。';
+  // 8条简短列表（供 mvuPrompts.next/summary 等引用，避免重复维护长文本）
+  var MVU_8STEPS_SHORT =
+    '①zod脚本 ②InitVar ③变量列表 ④更新规则 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
 
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
@@ -4757,21 +4777,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '📚 MVU变量系统技术规范速查\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '【MVU 8条工作流条目规范】（第1条在tavern_helper.scripts，第2-7条写入世界书entries数组）\n' +
-      '第1条: 变量结构脚本（tavern_helper.scripts，zod Schema + registerMvuSchema）\n' +
+      '【MVU 8条工作流条目速查表】（详细生成规范见SYS_PROMPT 9.1.1-9.1.5，此处仅列字段配置速查）\n' +
+      '第1条: 变量结构脚本 → tavern_helper.scripts，zod Schema + registerMvuSchema（详见9.1.5）\n' +
       '第2条: comment="[InitVar]初始变量", constant=true, position=4, depth=4, order=200, enabled=false\n' +
-      '       content=YAML格式（缩进表示层级），严格依据第1条schema；MVU系统读取enabled=false的此条目进行初始化\n' +
+      '       content=YAML格式（缩进表示层级），严格依据第1条schema（详见9.1.1）\n' +
       '第3条: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
-      '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照\n' +
+      '       content="{{format_message_variable::stat_data}}" 宏展开后显示变量快照（详见9.1.2）\n' +
       '第4条: comment="[mvu_update]变量更新规则", constant=true, position=4, depth=0, order=200\n' +
-      '       content=逐条规则：依据第1条schema为每个变量路径生成 type/range/check；补充$_开头字段=AI只读约束\n' +
+      '       content=依据第1条schema为每个变量路径生成 type/range/check（详见9.1.3）\n' +
       '第5条: comment="[mvu_update]变量输出格式", constant=true, position=4, depth=0, order=200\n' +
-      '       content=[mvu_update]前缀 + <UpdateVariable>包裹<Analysis>+<JSONPatch>数组（replace/delta/insert/remove/move）\n' +
-      '       注：replace = 直接赋值；delta = 数值加减（支持负数）；insert = 数组push；remove = 删除字段/数组元素；move = 移动\n' +
-      '第6条: comment="[mvu_update]变量输出格式强调", constant=true, position=4, depth=0, order=200, enabled=false（默认禁用，AI不输出<UpdateVariable>时启用强制提醒）\n' +
+      '       content=固定YAML原样输出，<UpdateVariable>+<Analysis>+<JSONPatch>（详见9.1.4）\n' +
+      '第6条: comment="[mvu_update]变量输出格式强调", constant=true, position=4, depth=0, order=200, enabled=false\n' +
+      '       content=固定YAML原样输出，AI不输出<UpdateVariable>时启用强制提醒（详见9.1.4a）\n' +
       '第7条: comment="<状态栏>占位符提醒", constant=true, position=4, depth=0, order=200\n' +
-      '       content=提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
-      '第8条: 正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成\n\n' +
+      '       content=提醒AI每条回复底部输出 <StatusPlaceHolderImpl/>（详见9.1.4b）\n' +
+      '第8条: 正则6 [美化]MVU状态栏 → regex_scripts, markdownOnly=true, promptOnly=false（前7条完成后才生成）\n\n' +
       '【状态栏5步分模块流程】（写卡器后台管理Step 2-6共5个槽位 · 标准实现模式）\n' +
       '⚠️ 进入状态栏模式后，先做需求收集（不属于Step编号，是模式入口的必做步骤）：\n' +
       '   在开始任何Step代码前，必须先询问用户以下问题（用户已在消息中描述了需求则直接按描述生成，不重复询问）：\n' +
@@ -9595,8 +9615,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           dynamic_adapt: '请帮我设计【动态适配】体系：<引导机制>新手引导、互动选项、depth_prompt渐进引导、<动态适配>分支开局（多开局请用<动态适配>条目+MVU initvar覆盖实现，禁止写入alternate_greetings字段）。用:::upsert操作块输出，使用<引导机制>/<动态适配>标签前缀。（状态栏和变量系统请去MVU Tab制作）'
         };
         var mvuPrompts = {
-          next: '我当前的MVU进度该怎么推进？请分析：1) 8条MVU条目完成情况（第1条变量结构脚本zod schema/第2条InitVar/第3条变量列表/第4条更新规则/第5条输出格式/第6条输出格式强调/第7条状态栏占位符提醒/第8条正则6状态栏HTML） 2) 状态栏5个模块完成情况 3) 推荐的下一步怎么做。用简洁列表呈现。',
-          summary: '帮我梳理MVU系统的当前状态：按8条顺序检查完成情况——第1条变量结构脚本(zod schema)、第2条[InitVar]初始变量、第3条变量列表、第4条[mvu_update]变量更新规则、第5条[mvu_update]变量输出格式、第6条[mvu_update]变量输出格式强调、第7条<状态栏>占位符提醒条目、第8条正则6[美化]MVU状态栏；然后检查状态栏Step2-6共5个模块完成情况；缺失什么；推荐的下一步。',
+          next: '我当前的MVU进度该怎么推进？请分析：\n1) 前7条MVU条目完成情况（' + MVU_8STEPS_SHORT + '）\n2) 第8条状态栏5模块完成情况（Step 2-6）\n3) 推荐的下一步怎么做。用简洁列表呈现。',
+          summary: '帮我梳理MVU系统当前状态：\n1) 按8条顺序检查前7条完成情况（' + MVU_8STEPS_SHORT + '）\n2) 检查第8条状态栏Step 2-6共5模块完成情况\n3) 缺失什么、推荐的下一步。',
           init_var:
             '请帮我设计MVU变量系统，严格遵守以下规范：\n' +
             MVU_SEQUENTIAL_RULE +
