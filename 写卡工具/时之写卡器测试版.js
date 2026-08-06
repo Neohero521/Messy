@@ -3745,7 +3745,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
         if (String(ne.comment || '').indexOf('变量输出格式') >= 0 && typeof ne.content === 'string') {
-          ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content);
+          ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content, _getParsedInitForEntries(newEntries));
         }
         if (tmpl) {
           if (ne.selective === undefined) ne.selective = tmpl.selective;
@@ -6343,6 +6343,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return cleaned.replace(/\s+$/, '') + '\n' + stdBlock;
   }
 
+  // 从条目数组中解析 InitVar 内容，用于派生与本卡 schema 字段匹配的 JSON Patch 示例路径
+  // 解决 normalizeVarOutputFormatContent 缺 parsedInit 参数导致 fallback 路径覆盖修复的问题
+  function _getParsedInitForEntries(entries) {
+    if (!entries || !entries.length) return null;
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      var c = String(e.comment || e.name || '').toLowerCase();
+      if (c.indexOf('[initvar]') >= 0 && e.content && String(e.content).trim()) {
+        var parsed = parseInitVar(e.content);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
+      }
+    }
+    return null;
+  }
+
   // ===== 🧹 规范化变量输出格式/变量输出格式强调条目 content =====
   // 这两个条目的 content 是固定 YAML 模板，AI 不应修改。
   // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
@@ -6681,7 +6696,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var topKeys = Object.keys(parsed);
               for (var tk = 0; tk < topKeys.length; tk++) {
                 var nm = topKeys[tk];
-                if (nm === '世界' || nm.charAt(0) === '_' || nm.charAt(0) === '$') continue;
+                if (nm === '世界' || nm === '系统' || nm.charAt(0) === '_' || nm.charAt(0) === '$') continue;
+                // ⚠️跳过纯英文/ASCII 顶层键（如 basic/status/secret/social/clock）：
+                // 这是 schema 字段分类名，不是角色名。角色名通常含中文。
+                if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) continue;
                 if (names.indexOf(nm) < 0) names.push(nm);
               }
             }
@@ -7452,7 +7470,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return k.filter(function(x) { return typeof x === 'string' && x; });
     };
     return list
-      .map(function(e, i) {
+      .map(function(e, i, arr) {
         // 防御：entries 里混了纯字符串/数字（典型：depth_prompt.prompt 被误 push）→ 包装成匿名条目避免后面对字符串写 .depth
         if (e == null) return null;
         if (typeof e === 'string') {
@@ -7512,7 +7530,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _sanitizeContent = normalizeVarListContent(_sanitizeContent);
         }
         if (_sanitizeComment.indexOf('变量输出格式') >= 0) {
-          _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent);
+          _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent, _getParsedInitForEntries(arr));
         }
         return {
           name: String(e.name || e.comment || ('条目' + (i + 1))),
@@ -11319,7 +11337,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
             if (_cleanedContent && (cleanComment.indexOf('变量输出格式') >= 0)) {
-              _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent);
+              _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent, _getParsedInitForEntries((cd.character_book && cd.character_book.entries) || []));
             }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
             var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
