@@ -221,15 +221,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .chat-msg.assistant .avatar{background:var(--accent-soft);color:var(--accent-deep)}
 .chat-msg.user .avatar{background:var(--surface-sink);color:var(--ink-soft)}
 /* 头像点击弹出菜单（展开在头像旁边） */
-.avatar-menu{position:absolute;z-index:500;min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-card);padding:5px;display:flex;flex-direction:column;gap:2px;font-size:.84em}
-.avatar-menu.am-left{right:calc(100% + 8px);top:0}
-.avatar-menu.am-right{left:calc(100% + 8px);top:0}
-.avatar-menu-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:background .12s;white-space:nowrap;font-weight:500}
-.avatar-menu-item:hover{background:var(--surface-soft)}
+.avatar-menu{position:absolute;z-index:500;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow-card);padding:4px;display:flex;flex-direction:row;align-items:center;gap:2px;font-size:.84em;animation:avatarMenuPop .14s ease-out}
+@keyframes avatarMenuPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+/* AI头像在左→菜单向右展开（贴在头像右侧）；用户头像在右→菜单向左展开（贴在头像左侧） */
+.avatar-menu.am-right{left:calc(100% + 6px);top:50%;transform:translateY(-50%);transform-origin:left center}
+.avatar-menu.am-left{right:calc(100% + 6px);top:50%;transform:translateY(-50%);transform-origin:right center}
+/* 弹出动画需保留 translateY，单独处理 */
+.avatar-menu.am-right{animation:avatarMenuPopRight .14s ease-out}
+.avatar-menu.am-left{animation:avatarMenuPopLeft .14s ease-out}
+@keyframes avatarMenuPopRight{from{opacity:0;transform:translateY(-50%) translateX(-6px) scale(.6)}to{opacity:1;transform:translateY(-50%) translateX(0) scale(1)}}
+@keyframes avatarMenuPopLeft{from{opacity:0;transform:translateY(-50%) translateX(6px) scale(.6)}to{opacity:1;transform:translateY(-50%) translateX(0) scale(1)}}
+.avatar-menu-item{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;cursor:pointer;color:var(--ink-soft);transition:background .12s,color .12s;position:relative}
+.avatar-menu-item:hover{background:var(--surface-soft);color:var(--accent-deep)}
 .avatar-menu-item.danger{color:var(--danger,#dc2626)}
-.avatar-menu-item.danger:hover{background:rgba(220,38,38,.08)}
+.avatar-menu-item.danger:hover{background:rgba(220,38,38,.08);color:var(--danger,#dc2626)}
 .avatar-menu-item svg{flex-shrink:0}
-.avatar-menu-sep{height:1px;background:var(--line-soft);margin:3px 0}
+.avatar-menu-item .am-tip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--ink,#0f172a);color:#fff;padding:3px 8px;border-radius:4px;font-size:.72em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:501;font-weight:500}
+.avatar-menu-item:hover .am-tip{opacity:1}
+.avatar-menu-sep{width:1px;height:22px;background:var(--line-soft);margin:0 2px;flex-shrink:0}
 .chat-msg .bubble{max-width:82%;padding:10px 14px;border-radius:var(--radius);font-size:.85em;line-height:1.65;word-break:break-word}
 .chat-msg.assistant .bubble{background:var(--surface);border:1px solid var(--line-soft);color:var(--ink);font-size:1em;padding:12px 16px;max-width:100%;width:100%;border-radius:var(--radius);box-shadow:var(--shadow-soft)}
 .chat-msg.user .bubble{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:var(--radius-sm);box-shadow:var(--shadow-soft)}
@@ -10186,11 +10195,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var html = '';
         items.forEach(function(it) {
           if (it.sep) { html += '<div class="avatar-menu-sep"></div>'; return; }
-          html += '<div class="avatar-menu-item' + (it.danger ? ' danger' : '') + '" title="' + (it.title || '') + '">' + svgIcon(it.icon, 14) + '<span>' + it.label + '</span></div>';
+          // 横向图标条：只显示图标，hover 时顶部弹出 tooltip（label/title）
+          var tipText = it.title || it.label || '';
+          html += '<div class="avatar-menu-item' + (it.danger ? ' danger' : '') + '" title="' + escAttr(tipText) + '">' + svgIcon(it.icon, 18) + '<span class="am-tip">' + escHtml(tipText) + '</span></div>';
         });
         menu.innerHTML = html;
-        // 定位：挂到 avatar 元素本身（avatar 已设 position:relative），相对 avatar 展开在旁边
-        // ⚠️不能挂到 chat-msg：assistant 的 bubble 是 width:100%，chat-msg 撑满会导致菜单 left:calc(100%+8px) 跑到屏幕外
+        // 定位：挂到 avatar 元素本身（avatar 已设 position:relative），菜单横向展开在 avatar 旁边
+        // AI头像在左→菜单 left:calc(100%+6px) 展开到右侧；用户头像在右→菜单 right:calc(100%+6px) 展开到左侧
         if (!anchorEl) { doc.body.appendChild(menu); menu.style.position = 'fixed'; }
         else {
           anchorEl.appendChild(menu);
