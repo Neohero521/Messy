@@ -6346,7 +6346,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 🧹 规范化变量输出格式/变量输出格式强调条目 content =====
   // 这两个条目的 content 是固定 YAML 模板，AI 不应修改。
   // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
-  function normalizeVarOutputFormatContent(comment, content) {
+  // parsedInit 可选：传入后变量输出格式的示例路径会与本卡 schema 字段匹配
+  function normalizeVarOutputFormatContent(comment, content, parsedInit) {
     var c = (comment || '').toLowerCase();
     var isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
     if (!isFormat) return content;
@@ -6354,7 +6355,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (c.indexOf('变量输出格式强调') >= 0) {
       return generateVarOutputEmphasis();
     }
-    return generateVarOutputFormat();
+    return generateVarOutputFormat(parsedInit);
   }
 
   // ===== MVU 条目内容自动生成 =====
@@ -6551,32 +6552,101 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 生成变量输出格式内容
   // ⚠️完全固定，原封不动输出（不要修改字段、不要加注释、不要替换占位符）
   // ⚠️绝对零度原则：全中文；JSON Patch 路径根为 stat_data 内部，从第一级分类开始（严禁 /stat_data 前缀）
-  function generateVarOutputFormat() {
+  function generateVarOutputFormat(parsedInit) {
+    var examples = derivePatchExamples(parsedInit);
+    var pathHint = examples.pathHint || '一级分类/字段名';
     return ['---',
 '变量输出格式:',
 '  rule:',
 '    - 必须在回复末尾同时输出更新分析和实际更新指令',
-'    - 更新指令遵循 JSON Patch (RFC 6902) 标准',
+'    - 更新指令遵循 JSON Patch (RFC 6902) 标准及 MVU 扩展操作（delta/replace/insert/remove/move）',
 '    - 数值变化使用 delta，字符串替换使用 replace',
-'    - ❌ 严禁更新以 _ 开头的只读字段',
+'    - ❌ 严禁更新以 _ 或 $ 开头的只读字段',
 '    - 仅基于最新一条回复进行分析',
-'    - JSON Patch 路径根为 stat_data 内部，从第一级分类开始（如 /主角/好感度），严禁写 /stat_data/xxx 前缀',
+'    - JSON Patch 路径根为 stat_data 内部，从一级分类开始（如 ' + pathHint + '），严禁写 /stat_data/xxx 前缀',
 '  format: |-',
 '    <UpdateVariable>',
-'    <Analysis>$(中文分析，不超过80字)',
+'    <Analysis>（此处输出中文分析，不超过80字）',
 '    - 剧情流逝时间：...',
 '    - 变量变动依据：...',
 '    </Analysis>',
 '    <JSONPatch>',
 '    [',
+      examples.lines.join('\n'),
+'    ]',
+'    </JSONPatch>',
+'    </UpdateVariable>'].join('\n');
+  }
+
+  // 从解析后的 InitVar 派生与本卡 schema 字段匹配的 JSON Patch 示例
+  // 选取：一个数值字段(delta)、一个字符串字段(replace)、一个对象/数组字段(insert/remove，若有)
+  function derivePatchExamples(parsedInit) {
+    var fallback = {
+      pathHint: '/世界/当前时间',
+      lines: [
 '      { "op": "delta", "path": "/主角/好感度", "value": 5 },',
 '      { "op": "replace", "path": "/世界/当前地点", "value": "天台" },',
 '      { "op": "insert", "path": "/主角/物品栏/新物品", "value": { "描述": "...", "数量": 1 } },',
 '      { "op": "remove", "path": "/主角/物品栏/旧物品" },',
-'      { "op": "move", "from": "/主角/物品栏/钥匙", "to": "/角色A/物品栏/钥匙" }',
-'    ]',
-'    </JSONPatch>',
-'    </UpdateVariable>'].join('\n');
+'      { "op": "move", "from": "/主角/物品栏/钥匙", "to": "/角色A/物品栏/钥匙" }'
+      ]
+    };
+    if (!parsedInit || typeof parsedInit !== 'object') return fallback;
+
+    var numPath = null, strPath = null, objPath = null, objKey = null;
+    var topKeys = Object.keys(parsedInit);
+    for (var i = 0; i < topKeys.length && (!numPath || !strPath || !objPath); i++) {
+      var cat = topKeys[i];
+      if (cat.charAt(0) === '_' || cat.charAt(0) === '$') continue;
+      var inner = parsedInit[cat];
+      if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
+        if (!numPath && typeof inner === 'number') numPath = '/' + cat;
+        else if (!strPath && typeof inner === 'string') strPath = '/' + cat;
+        continue;
+      }
+      var subKeys = Object.keys(inner);
+      for (var j = 0; j < subKeys.length && (!numPath || !strPath || !objPath); j++) {
+        var sk = subKeys[j];
+        if (sk.charAt(0) === '_' || sk.charAt(0) === '$') continue;
+        var sv = inner[sk];
+        var path = '/' + cat + '/' + sk;
+        if (!numPath && typeof sv === 'number') numPath = path;
+        else if (!strPath && typeof sv === 'string') strPath = path;
+        else if (!objPath && sv && typeof sv === 'object') { objPath = path; objKey = sk; }
+      }
+    }
+    if (!numPath && !strPath) return fallback;
+
+    var lines = [];
+    if (numPath) lines.push('      { "op": "delta", "path": "' + numPath + '", "value": 5 },');
+    if (strPath) lines.push('      { "op": "replace", "path": "' + strPath + '", "value": "示例值" },');
+    if (objPath) {
+      lines.push('      { "op": "insert", "path": "' + objPath + '/新条目", "value": { "描述": "...", "数量": 1 } },');
+      lines.push('      { "op": "remove", "path": "' + objPath + '/旧条目" },');
+      lines.push('      { "op": "move", "from": "' + objPath + '/条目A", "to": "/另一分类/' + (objKey || '条目') + '" }');
+    } else {
+      var moveSrc = numPath || strPath;
+      var moveDst = strPath || numPath;
+      lines.push('      { "op": "move", "from": "' + moveSrc + '", "to": "' + moveDst + '_新" }');
+    }
+    if (lines.length > 0) lines[lines.length - 1] = lines[lines.length - 1].replace(/,\s*$/, '');
+    return { pathHint: (numPath || strPath || '/分类/字段'), lines: lines };
+  }
+
+  // ⚠️修正 AI 生成的变量输出格式的示例路径，使其与本卡 schema 字段匹配
+  // 解决 AI 照抄模板路径（/主角/好感度 等）导致 JSON Patch 静默失败的问题
+  // 注意：此函数保留 AI 原有内容，仅替换 JSONPatch 数组内的示例路径；与 normalizeVarOutputFormatContent（强制重建模板）不同
+  function fixVarOutputFormatPaths(content, parsedInit) {
+    if (!content || !content.trim()) return generateVarOutputFormat(parsedInit);
+    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    var examples = derivePatchExamples(parsedInit);
+    // 定位 <JSONPatch> 到 </JSONPatch> 区间，整体替换数组内容为本卡字段示例
+    text = text.replace(/(<JSONPatch>\s*\[)([\s\S]*?)(\s*\]\s*<\/JSONPatch>)/, function(m, head, body, tail) {
+      return head + '\n' + examples.lines.join('\n') + '\n    ' + tail.trim();
+    });
+    // 统一 rule 中英文混杂为中文
+    text = text.replace(/rule:\s*The following must be inserted[^\n]*/i, 'rule: 必须在回复末尾输出更新分析与更新指令，不可遗漏');
+    return text;
   }
 
   // 生成变量输出格式强调内容
@@ -7716,6 +7786,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var rawExtensions = cd.extensions || v3Data.extensions || {};
     // 从角色卡数据提取角色名列表，用于 MVU 条目内容自动生成
     var charNames = extractCharNames(cd, rawEntries);
+    // ⚠️预扫描 InitVar 内容：用于派生与本卡 schema 字段匹配的 JSON Patch 示例路径
+    // 解决 AI 照抄模板路径（/主角/好感度）导致 JSON Patch 静默失败、变量永远不更新的致命问题
+    var _preParsedInit = null;
+    for (var _pi = 0; _pi < rawEntries.length; _pi++) {
+      var _pc = (rawEntries[_pi].comment || '').toLowerCase();
+      if (_pc.indexOf('[initvar]') >= 0 && rawEntries[_pi].content && rawEntries[_pi].content.trim()) {
+        _preParsedInit = parseInitVar(rawEntries[_pi].content);
+        break;
+      }
+    }
+    if (!_preParsedInit) _preParsedInit = parseInitVar(generateInitVarYaml(charNames));
     // ===== 预填充：自动填充 MVU 条目空内容（独立步骤，确保检测和schema生成使用填充后的数据）=====
     var filledEntries = rawEntries.map(function(e, i) {
       var comment = e.comment || ('条目' + (i + 1));
@@ -7732,16 +7813,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         else if (isVarList) outContent = generateVarListContent();
         else if (isVarSegmented) outContent = generateVarSegmentedPrompt(charNames);
         else if (isVarRule) outContent = generateVarUpdateRule(charNames);
-        else if (isVarFormat) outContent = generateVarOutputFormat();
+        else if (isVarFormat) outContent = generateVarOutputFormat(_preParsedInit);
         else if (isVarFormatEmphasis) outContent = generateVarOutputEmphasis();
       } else if (isVarList) {
         outContent = normalizeVarListContent(outContent);
       } else if (isInitVar && outContent) {
         // ⚠️防御性规范化：剥离 AI 误写的 stat_data 根键、过滤 _/$ 只读字段
         outContent = normalizeInitVarContent(outContent);
+        // InitVar 规范化后同步更新预解析结果，确保后续格式条目使用最新字段
+        _preParsedInit = parseInitVar(outContent);
       } else if (isVarRule && outContent) {
         // ⚠️防御性规范化：补全根节点、剥离 stat_data. 前缀、check 转列表
         outContent = normalizeVarUpdateRuleContent(outContent);
+      } else if (isVarFormat && outContent) {
+        // ⚠️防御性规范化：修正 JSON Patch 示例路径与本卡 schema 字段匹配，防止 AI 照抄模板路径
+        outContent = fixVarOutputFormatPaths(outContent, _preParsedInit);
       }
       return {
         id: e.id || (i + 1),
@@ -7783,7 +7869,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // [mvu_update]变量输出格式
       if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(_preParsedInit), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       if (_toAppend.length) {
