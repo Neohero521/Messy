@@ -9512,7 +9512,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           savedMessages.forEach(function(m) {
             var arr = getCurrentMessages();
             arr.push(m);
-            appendMsg(m.role, m.content);
+            appendMsg(m.role, m.content, arr.length - 1);
           });
           // 恢复 mod-dash 的 card/mvu-only 样式
           var modDash = doc.getElementById('modDash');
@@ -9907,7 +9907,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
         var curMsgs = getCurrentMessages();
         curMsgs.push({ role: 'assistant', content: content });
-        appendMsg('assistant', content);
+        appendMsg('assistant', content, curMsgs.length - 1);
         // MVU Tab：每次消息后同步最新模块状态回 mvuTabStatusBarModules，防止丢失
         if (currentTab === 'mvu') {
           mvuTabStatusBarModules = statusBarModules;
@@ -9922,7 +9922,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
         var curMsgs = getCurrentMessages();
         curMsgs.push({ role: 'user', content: content });
-        appendMsg('user', content);
+        appendMsg('user', content, curMsgs.length - 1);
         saveToStorage();
       }
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
@@ -10287,7 +10287,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         progress = calcProgress();
         rerenderChatMessages();
         // 重新调用AI（基于已有的最后一条用户消息）
-        callAIChat();
+        // ⚠️callAIChat是async，调用处非async上下文，用.catch兜底避免unhandled rejection
+        callAIChat().catch(function(err) { showToast('重新生成失败：' + (err && err.message ? err.message : ''), 'error'); });
       }
 
       // ===== 重新生成：用户消息下面的AI回答 =====
@@ -10313,7 +10314,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         progress = calcProgress();
         rerenderChatMessages();
         // 重新调用AI（基于该用户消息）
-        callAIChat();
+        // ⚠️callAIChat是async，用.catch兜底
+        callAIChat().catch(function(err) { showToast('重新生成失败：' + (err && err.message ? err.message : ''), 'error'); });
       }
 
       // ===== 修改：用户消息（载入输入框，移除该消息及其后所有，用户编辑后重发）=====
@@ -12074,15 +12076,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           _aiChatNotesQueue = [];
 
-          // 1. 显示完整内容到对话框（合并后的一条消息）
-          try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
-
-          // 2. 存储到历史（Tab隔离：存到当前Tab的专属数组）
-          if (rawContent && rawContent.trim().length > 0) {
-            curTabMessages.push({ role: 'assistant', content: rawContent });
-          } else {
-            curTabMessages.push({ role: 'assistant', content: '（已应用修改）' });
-          }
+          // 1. 先存储到历史（Tab隔离：存到当前Tab的专属数组）
+          //    ⚠️必须先 push 再 appendMsg：appendMsg 用 getCurrentMessages().length-1 算消息索引，
+          //    若先 append 再 push，DOM 上的 data-msg-index 会比实际数组索引小1，导致头像菜单撤回/重新生成定位错位
+          var _aiMsgContent = (rawContent && rawContent.trim().length > 0) ? rawContent : '（已应用修改）';
+          curTabMessages.push({ role: 'assistant', content: _aiMsgContent });
+          // 2. 显示完整内容到对话框（合并后的一条消息），显式传入索引确保与数组对齐
+          try { appendMsg('assistant', _aiMsgContent, curTabMessages.length - 1); } catch(e) { console.warn('appendMsg error:', e); }
           saveToStorage();
           updateProgress();
           updateQuickActions();
