@@ -9557,10 +9557,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var __tab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
         var p = progress || 0;
         // ===== 阶段提示 =====
-        var stageName = __tab === 'card'
-          ? (p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可生成角色卡')
-          : 'MVU变量系统';
-        stage.innerHTML = svgIcon('info', 13) + ' <strong>' + stageName + '</strong>';
+        var stageName, stageIcon;
+        if (__tab === 'card') {
+          stageIcon = 'info';
+          stageName = p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可生成角色卡';
+        } else {
+          // MVU Tab：基于8条工作流动态阶段标签
+          var _ctxChk0 = checkMvu8Entries(cardData);
+          stageIcon = 'sliders';
+          if (!_ctxChk0.all7Done) {
+            stageName = 'MVU · ' + _ctxChk0.doneCount + '/7';
+          } else if (!_ctxChk0.has8) {
+            stageName = 'MVU · 待生成状态栏';
+          } else {
+            stageName = 'MVU · 完成';
+          }
+        }
+        stage.innerHTML = svgIcon(stageIcon, 13) + ' <strong>' + stageName + '</strong>';
         // ===== 操作区内容 =====
         var h = '';
         if (__tab === 'card') {
@@ -9584,27 +9597,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h += '<button class="ctx-mod ' + cls + '" data-mod="' + l.key + '">' + svgIcon(l.icon, 13) + ' ' + l.name + '</button>';
           });
         } else {
-          // MVU Tab：两阶段状态显示
-          //   Phase A = 前7条MVU条目（第①-⑦条，逐条生成）
-          //   Phase B = 状态栏HTML（第⑧条 = 正则6，统一模板）
+          // MVU Tab：8步紧凑状态 chip + 阶段自适应主操作按钮
           var _ctxChk = checkMvu8Entries(cardData);
           var _d = _ctxChk.done;
-          function _chip(has, label) {
-            return '<span class="ctx-chip ' + (has ? 'ok' : 'todo') + '" title="' + label + '">' + svgIcon(has ? 'checkCircle' : 'circle', 11) + ' ' + label + '</span>';
+          var _doneCnt = _ctxChk.doneCount;
+          // 8步紧凑状态 chip（仅序号 + 完成态，节省横向空间）
+          var _steps = [
+            { has: _d[0], label: '①', title: '第1条 zod变量结构脚本' },
+            { has: _d[1], label: '②', title: '第2条 [InitVar]初始变量' },
+            { has: _d[2], label: '③', title: '第3条 [mvu_update]更新规则' },
+            { has: _d[3], label: '④', title: '第4条 变量列表' },
+            { has: _d[4], label: '⑤', title: '第5条 [mvu_update]输出格式' },
+            { has: _d[5], label: '⑥', title: '第6条 输出格式强调' },
+            { has: _d[6], label: '⑦', title: '第7条 <状态栏>占位提醒' },
+            { has: _ctxChk.has8, label: '⑧', title: '第8条 状态栏HTML(正则6)' }
+          ];
+          _steps.forEach(function(s) {
+            h += '<span class="ctx-chip ' + (s.has ? 'ok' : 'todo') + '" title="' + s.title + '">' + svgIcon(s.has ? 'checkCircle' : 'circle', 11) + ' ' + s.label + '</span>';
+          });
+          // 阶段自适应主操作按钮（右对齐，高亮当前阶段主操作）
+          if (!_ctxChk.all7Done) {
+            var _act = _doneCnt === 0 ? 'init_var' : 'var_update_rule';
+            var _lbl = _doneCnt === 0 ? '生成变量系统' : '补齐缺失(' + _doneCnt + '/7)';
+            h += '<button class="ctx-mod" data-mod="' + _act + '" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('code', 13) + ' ' + _lbl + '</button>';
+          } else if (!_ctxChk.has8) {
+            h += '<button class="ctx-mod" data-mod="start_sb" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('sliders', 13) + ' 生成状态栏</button>';
+          } else {
+            h += '<button class="ctx-mod" data-mod="mvuPreview" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('eye', 13) + ' 预览状态栏</button>';
           }
-          // Phase A：前7条 chip（第①-⑦条）
-          h += _chip(_d[0], '①zod脚本');
-          h += _chip(_d[1], '②InitVar');
-          h += _chip(_d[2], '③更新规则');
-          h += _chip(_d[3], '④变量列表');
-          h += _chip(_d[4], '⑤输出格式');
-          h += _chip(_d[5], '⑥格式强调');
-          h += _chip(_d[6], '⑦占位提醒');
-          // Phase B：第⑧条（状态栏HTML）
-          h += _chip(_ctxChk.has8, '⑧状态栏HTML');
-          // MVU 模块导航（2个）：引导用户去第1条或第8条场景
-          h += '<button class="ctx-mod" data-mod="init_var">' + svgIcon('code', 13) + ' 从第1条开始</button>';
-          h += '<button class="ctx-mod" data-mod="var_update_rule">' + svgIcon('docVar', 13) + ' 补齐缺失条目</button>';
         }
         actions.innerHTML = h;
         // 绑定模块按钮点击
@@ -9612,7 +9632,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (var i = 0; i < modBtns.length; i++) {
           modBtns[i].addEventListener('click', function() {
             var mod = this.getAttribute('data-mod');
-            if (mod) handleModFocus(mod);
+            if (!mod) return;
+            // MVU 快捷动作直接派发
+            if (mod === 'start_sb' || mod === 'mvuPreview' || mod === 'init_var' || mod === 'var_update_rule') {
+              handleQuickAction(mod);
+            } else {
+              handleModFocus(mod);
+            }
           });
         }
       }
@@ -9640,24 +9666,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 生成角色卡（p>=95 时高亮）
           actions.push({ action: 'generate', icon: 'sparkle', label: '生成角色卡', hl: p >= 95 });
         } else {
-          // MVU Tab：阶段主操作（按8条顺序完整工作流判定）
-          // ===== Phase A：前7条MVU条目（第①-⑦条）=====
-          // ===== Phase B：状态栏HTML（第⑧条 = 正则6，统一模板）=====
+          // MVU Tab：基于8条工作流的三阶段按钮组
           var _chk = checkMvu8Entries(cardData);
           var _done7Count = _chk.doneCount;
           var _all7Done = _chk.all7Done;
-          // 主按钮逻辑：Phase A未完成→引导补齐；Phase A完成且状态栏未生成→制作状态栏；状态栏已生成→预览
           if (!_all7Done) {
+            // Phase A：前7条MVU条目未完成
             if (_done7Count === 0) {
-              actions.push({ action: 'init_var',        icon: 'code',    label: '开始：从第1条zod脚本',       hl: true });
+              actions.push({ action: 'init_var',        icon: 'code',    label: '生成MVU变量系统',       hl: true });
             } else {
               actions.push({ action: 'var_update_rule', icon: 'docVar',  label: '补齐缺失条目(' + _done7Count + '/7)', hl: true });
             }
-            actions.push({ action: 'init_var',        icon: 'chart',   label: '查看8条顺序' });
+            actions.push({ action: 'next',             icon: 'bolt', label: '下一步建议' });
           } else if (!_chk.has8) {
-            actions.push({ action: 'start_sb',        icon: 'sliders', label: '第8条：制作状态栏HTML(' + _done7Count + '/7前7条✓)', hl: true });
+            // Phase B：前7条已完成，状态栏未生成
+            actions.push({ action: 'start_sb',        icon: 'sliders', label: '生成状态栏HTML', hl: true });
+            actions.push({ action: 'mvuPreview',      icon: 'eye',     label: '预览(默认模板)' });
           } else {
-            actions.push({ action: 'mvuPreview',      icon: 'eye',     label: '预览状态栏效果', hl: true });
+            // Phase C：状态栏已生成
+            actions.push({ action: 'mvuPreview',      icon: 'eye',     label: '预览状态栏', hl: true });
+            actions.push({ action: 'start_sb',        icon: 'refreshCycle', label: '重新生成' });
+            actions.push({ action: 'reset_sb',        icon: 'trash',   label: '清除状态栏' });
           }
         }
         var h = '';
@@ -9730,7 +9759,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // ========== Tab 隔离：动作权限校验，跨Tab动作自动跳转 ==========
         // 在角色卡Tab中点击了MVU专属动作 → 自动切到MVU Tab再执行
-        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb'];
+        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview'];
         if (currentTab === 'card' && mvuOnlyActions.indexOf(action) >= 0) {
           showToast('「' + action + '」是MVU专属功能，正在切换到MVU变量状态栏Tab...', 'info');
           switchTab('mvu');
@@ -9760,7 +9789,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           ensureFixedMvuAssetsInCardData();
           // 让AI生成完整状态栏HTML（统一模板，写卡器自动提取保存）
           if (input) {
-            input.value = '请帮我生成MVU状态栏，输出一个完整的HTML文档（含CSS和JS），依据已配置的MVU变量设计显示样式。';
+            input.value = '请根据已配置的MVU变量系统，生成状态栏HTML。输出一个完整的HTML文档（含CSS和JS），使用 populateCharacterData + getAllVariables + eventOn(Mvu.events.VARIABLE_UPDATE_ENDED) + errorCatched 标准模式。';
             handleSend();
           }
           return;
@@ -9768,6 +9797,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (action === 'continue_sb') {
           // 继续状态栏生成
           if (input) { input.value = '继续生成状态栏'; handleSend(); }
+          return;
+        }
+        if (action === 'reset_sb') {
+          // 清除已生成的状态栏正则（正则6）
+          if (!confirm('确定清除已生成的美化状态栏正则（正则6）吗？\n\n✅ 仅删除状态栏HTML正则，不影响前7条MVU变量条目\n✅ 可随时重新生成')) return;
+          cardData.extensions = cardData.extensions || {};
+          var _rx = cardData.extensions.regex_scripts || [];
+          for (var _m = _rx.length - 1; _m >= 0; _m--) {
+            if ((_rx[_m].findRegex || '').indexOf('StatusPlaceHolder') >= 0 && _rx[_m].markdownOnly && !_rx[_m].promptOnly) {
+              _rx.splice(_m, 1);
+            }
+          }
+          cardData.extensions.regex_scripts = _rx;
+          saveToStorage();
+          renderPreview();
+          updateQuickActions();
+          updateCtxBar();
+          showToast('✅ 已清除状态栏正则，可重新生成', 'success');
           return;
         }
 
@@ -12066,8 +12113,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         /* 若 InitVar 为空或解析失败，使用示例数据让预览仍有内容可渲染 */
         if (!statData || Object.keys(statData).length === 0) {
           statData = {
-            '世界': { '当前时间': 'D1 第一天 清晨', '当前地点': '初始之地', '_当前回合': 1, '_当前剧情日': 1 },
-            '主角': { '好感度': 35, '状态': '进行中', '物品栏': { '薄荷糖': { '描述': '提神用薄荷糖', '数量': 2 } } }
+            '世界': { '当前日期': '2025-07-26', '当前时间': '17:36' },
+            '主角': { '好感度': 35, '状态': '正常', '物品栏': {} }
           };
           usingSampleData = true;
         }
@@ -12837,12 +12884,57 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var h = '';
 
         if (__tab === 'mvu') {
-          // ========== MVU Tab 预览：只显示 MVU 变量系统 + 状态栏相关内容 ==========
+          // ========== MVU Tab 预览：状态栏总览(顶置) + 8步进度 + 变量结构脚本 + 变量条目 + 状态栏HTML源码 + 关联角色卡 ==========
           var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
           var mvuEntries = allEntries.filter(function(e) { return isMVUEntry(e.comment || ''); });
           var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
 
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (mvuEntries.length > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('sliders', 14) + ' MVU变量条目</span><span class="sec-right">' + mvuEntries.length + '条</span><span class="pv-toggle"></span></h3>';
+          // ① 状态栏总览（顶置突出，含8步进度条 + 操作按钮）
+          h += buildStatusBarPreviewSection();
+
+          // ② MVU 8步进度详情（逐条展开说明）
+          var _pvChk = checkMvu8Entries(cardData);
+          var _pvD = _pvChk.done;
+          var _pvSteps = [
+            { has: _pvD[0], icon: 'code',   name: '第1条 变量结构脚本',          desc: 'zod 4 Schema + registerMvuSchema 注册（tavern_helper.scripts）' },
+            { has: _pvD[1], icon: 'docVar', name: '第2条 [InitVar]初始变量',     desc: 'YAML格式初始变量，依据第1条schema生成，enabled=false' },
+            { has: _pvD[2], icon: 'list',   name: '第3条 [mvu_update]更新规则',  desc: '依据schema生成每变量路径的 type/range/format/check' },
+            { has: _pvD[3], icon: 'list',   name: '第4条 变量列表',              desc: '固定内容：<status_current_variables>null</status_current_variables>' },
+            { has: _pvD[4], icon: 'list',   name: '第5条 [mvu_update]输出格式',  desc: '固定YAML：<UpdateVariable>+<Analysis>+<JSONPatch>（5种操作）' },
+            { has: _pvD[5], icon: 'list',   name: '第6条 输出格式强调',          desc: '固定YAML原样输出强调，AI不输出<UpdateVariable>时启用' },
+            { has: _pvD[6], icon: 'sliders',name: '第7条 <状态栏>占位提醒',      desc: '提醒AI每条回复底部输出 <StatusPlaceHolderImpl/>' },
+            { has: _pvChk.has8, icon: 'table', name: '第8条 状态栏HTML',          desc: '正则6 [美化]MVU状态栏（markdownOnly=true，前7条完成后才生成）' }
+          ];
+          var _pvDoneCnt = _pvChk.doneCount + (_pvChk.has8 ? 1 : 0);
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (_pvDoneCnt > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('list', 14) + ' MVU 8步进度详情</span><span class="sec-right">' + _pvDoneCnt + '/8</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
+          _pvSteps.forEach(function(s) {
+            var _tag = s.has ? '<span class="pv-tag ok">✓ 完成</span>' : '<span class="pv-tag off">待生成</span>';
+            h += '<details class="pv-entry"><summary><span>' + svgIcon(s.icon, 12) + ' ' + s.name + '</span><span class="sec-right">' + _tag + '</span></summary><div class="pv-entry-body"><div class="pv-entry-content">' + s.desc + '</div></div></details>';
+          });
+          h += '</div></div>';
+
+          // ③ 变量结构脚本 + MVU脚本（tavern_helper.scripts）
+          var mvuScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+          if (mvuScripts.length > 0) {
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('code', 14) + ' 变量结构脚本</span><span class="sec-right">' + mvuScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
+            mvuScripts.forEach(function(s, idx) {
+              var sName = s.name || ('脚本' + (idx+1));
+              var sTok = countTokens(s.content || '');
+              var isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
+              var isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0);
+              var isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
+              var sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
+              var sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+              h += '<details class="pv-entry"><summary><span>' + (idx+1) + '. ' + escHtml(sName) + '</span><span class="sec-right">~' + sTok + 'T ' + sTag + sDisabled + '</span></summary>' +
+                '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(s.content || '') + '</div></div></details>';
+            });
+            h += '</div></div>';
+          } else {
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('code', 14) + ' 变量结构脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成脚本</div></div>';
+          }
+
+          // ④ MVU变量条目（世界书条目，过滤MVU相关）
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (mvuEntries.length > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('book', 14) + ' MVU变量条目</span><span class="sec-right">' + mvuEntries.length + '条</span><span class="pv-toggle"></span></h3>';
           if (mvuEntries.length > 0) {
             h += '<div class="pv-entry-list">';
             mvuEntries.forEach(function(e, i) {
@@ -12857,29 +12949,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           h += '</div>';
 
-          // 变量结构脚本 + MVU脚本（tavern_helper.scripts）
-          var mvuScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-          if (mvuScripts.length > 0) {
-            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('code', 14) + ' 脚本（变量结构/MVU/WTC）</span><span class="sec-right">' + mvuScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
-            mvuScripts.forEach(function(s, idx) {
-              var sName = s.name || ('脚本' + (idx+1));
-              var sTok = countTokens(s.content || '');
-              var isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
-              var isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0);
-              var isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
-              var sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
-              var sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-              h += '<details class="pv-entry"><summary><span>' + (idx+1) + '. ' + escHtml(sName) + '</span><span class="sec-right">~' + sTok + 'T ' + sTag + sDisabled + '</span></summary>' +
-                '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(s.content || '') + '</div></div></details>';
-            });
-            h += '</div></div>';
-          } else {
-            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('code', 14) + ' 脚本（变量结构/MVU/WTC）</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成脚本</div></div>';
-          }
-
-          // 状态栏正则脚本
+          // ⑤ 状态栏HTML源码（正则脚本，含状态栏美化正则）
           if (rxScripts.length > 0) {
-            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('table', 14) + ' 状态栏正则脚本</span><span class="sec-right">' + rxScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('table', 14) + ' 状态栏HTML源码（正则）</span><span class="sec-right">' + rxScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
             rxScripts.forEach(function(r, idx) {
               var isStatusBar = (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0;
               var flags = [];
@@ -12899,25 +12971,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
             h += '</div></div>';
           } else {
-            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('table', 14) + ' 状态栏正则脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成正则脚本</div></div>';
+            h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('table', 14) + ' 状态栏HTML源码（正则）</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成正则脚本</div></div>';
           }
 
-          // 状态栏生成进度（标准实现模式：5槽位 step2-6）
-          var step = chatSessions.mvu.currentStep || 0;
-          var stepNames = ['', 'Step1:规划', 'Step2:配色', 'Step3:HTML骨架', 'Step4:CSS样式', 'Step5:populateCharacterData', 'Step6:入口', 'Step7:完成'];
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (step >= 7 ? 'full' : step > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('gauge', 14) + ' 状态栏生成进度</span><span class="sec-right">' + (step > 0 ? stepNames[step] || ('Step' + step) : '未开始') + '</span><span class="pv-toggle"></span></h3>';
-          h += '<div class="pv-content">';
-          var modules = chatSessions.mvu.modules || {};
-          var modNames = { step2: '配色方案', step3: 'HTML骨架', step4: 'CSS样式', step5: 'populateCharacterData', step6: '事件绑定+入口' };
-          Object.keys(modNames).forEach(function(k) {
-            var done = modules[k] !== null && modules[k] !== undefined;
-            var ic = done ? svgIcon('checkCircle', 12) : svgIcon('circle', 12);
-            var col = done ? 'var(--sage)' : 'var(--muted)';
-            h += '<div style="margin:2px 0;display:flex;align-items:center;gap:5px;color:' + col + '">' + ic + ' <span style="color:var(--ink-soft)">' + modNames[k] + '</span></div>';
-          });
-          h += '</div></div>';
-
-          // 关联角色卡信息（只读）
+          // ⑥ 关联角色卡信息（只读，紧凑）
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (cardData.name ? 'full' : 'empty') + '"></span>' + svgIcon('mask', 14) + ' 关联角色卡</span><span class="pv-toggle"></span></h3><div class="pv-content">' + escHtml(cardData.name || '(未命名)') + (cardData.description ? ' · 描述' + cardData.description.length + '字' : '') + '</div></div>';
 
           body.innerHTML = h;
@@ -13049,49 +13106,61 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var entries = (cardData.character_book || {}).entries || [];
         var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
         var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
-        // 美化状态栏正则（正则6）：findRegex含StatusPlaceHolder + markdownOnly + !promptOnly
         var statusBarRegex = null;
         for (var i = 0; i < rxScripts.length; i++) {
           var r = rxScripts[i];
           if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) { statusBarRegex = r; break; }
         }
         var hasStatusBar = !!statusBarRegex;
+        var mvuChk = checkMvu8Entries(cardData);
+        var _d = mvuChk.done;
 
         var dotCls = hasStatusBar ? 'full' : 'empty';
-        var right = hasStatusBar ? '已生成' : (hasMVU ? '待生成' : '未启用MVU');
+        var right = hasStatusBar ? '已生成' : (mvuChk.all7Done ? '待生成' : (hasMVU ? mvuChk.doneCount + '/7' : '未启用'));
         var sH = '<div class="pv-sub">';
 
-        // 状态概览
-        if (hasMVU) {
-          sH += '<details class="pv-entry"><summary><span>变量系统</span><span class="sec-right"><span class="pv-tag ok">已启用</span></span></summary><div class="pv-entry-body"><div class="pv-entry-content">已检测到 MVU 变量系统条目。<br>导出时<b>写卡器自动注入</b>：bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/美化×2/状态栏隐藏)。<br><b>需AI按8条顺序生成</b>：第1条zod脚本→第2条InitVar→第3条更新规则→第4条变量列表→第5条输出格式→第6条格式强调→第7条占位提醒→第8条正则6(状态栏HTML)。</div></div></details>';
-        } else {
-          sH += '<details class="pv-entry"><summary><span>变量系统</span><span class="sec-right"><span class="pv-tag off">未启用</span></span></summary><div class="pv-entry-body"><div class="pv-entry-content">未检测到 MVU 变量系统。状态栏依赖 MVU 变量，请在MVU Tab按8条顺序从「第1条：变量结构脚本(zod schema)」开始生成。</div></div></details>';
+        // ===== 8步进度可视化条（紧凑方块，绿=完成/灰=待办）=====
+        var _stepNames = ['①zod', '②InitVar', '③更新规则', '④变量列表', '⑤输出格式', '⑥格式强调', '⑦占位提醒', '⑧状态栏'];
+        var _stepStates = [_d[0], _d[1], _d[2], _d[3], _d[4], _d[5], _d[6], mvuChk.has8];
+        sH += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin:4px 0 8px 0">';
+        for (var si = 0; si < 8; si++) {
+          var _done = _stepStates[si];
+          var _bg = _done ? 'var(--sage)' : 'var(--surface-sink)';
+          var _clr = _done ? '#fff' : 'var(--muted)';
+          var _bd = _done ? 'var(--sage)' : 'var(--line)';
+          sH += '<span title="' + _stepNames[si] + '" style="flex:1;min-width:36px;text-align:center;padding:4px 2px;font-size:.72em;font-weight:600;border-radius:6px;background:' + _bg + ';color:' + _clr + ';border:1px solid ' + _bd + '">' + (si < 7 ? (si+1) : '栏') + '</span>';
         }
+        sH += '</div>';
 
-        // 美化状态栏正则状态
+        // ===== 变量系统 + 状态栏HTML 双状态行 =====
+        sH += '<details class="pv-entry"' + (hasMVU ? '' : ' open') + '><summary><span>变量系统</span><span class="sec-right">' + (hasMVU ? '<span class="pv-tag ok">已启用</span> ' + mvuChk.doneCount + '/7' : '<span class="pv-tag off">未启用</span>') + '</span></summary><div class="pv-entry-body"><div class="pv-entry-content">' + (hasMVU ? 'MVU变量系统已检测到。<br>导出时自动注入：bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/状态栏隐藏等)。<br>状态栏HTML需前7条完成后生成。' : '未检测到MVU变量系统。请先在MVU Tab生成变量系统。') + '</div></div></details>';
+
         if (hasStatusBar) {
           var repLen = (statusBarRegex.replaceString || '').length;
-          sH += '<details class="pv-entry" open><summary><span>美化状态栏正则（正则6）</span><span class="sec-right">替换内容 ' + repLen + ' 字符</span></summary>';
-          sH += '<div class="pv-entry-body"><div style="margin:2px 0"><span class="pv-tag ok">已生成</span><span class="pv-tag">仅显示</span><span class="pv-tag ok">编辑触发</span></div>';
+          sH += '<details class="pv-entry" open><summary><span>状态栏HTML（正则6）</span><span class="sec-right">' + repLen + ' 字符</span></summary>';
+          sH += '<div class="pv-entry-body"><div style="margin:2px 0"><span class="pv-tag ok">已生成</span><span class="pv-tag">仅显示</span></div>';
           sH += '<div class="pv-entry-content">findRegex: ' + escHtml(statusBarRegex.findRegex || '') + '</div></div></details>';
+        } else if (mvuChk.all7Done) {
+          sH += '<details class="pv-entry" open><summary><span>状态栏HTML（正则6）</span><span class="sec-right"><span class="pv-tag off">未生成</span></span></summary>';
+          sH += '<div class="pv-entry-body"><div class="pv-entry-content">前7条已完成，点击「生成状态栏」让AI生成HTML。</div></div></details>';
         } else {
-          sH += '<details class="pv-entry" open><summary><span>美化状态栏正则（正则6）</span><span class="sec-right"><span class="pv-tag off">未生成</span></span></summary>';
-          sH += '<div class="pv-entry-body"><div class="pv-entry-content">未检测到美化状态栏正则。可让 AI「生成状态栏」或「美化状态栏」，写卡器会自动提取完整HTML并保存。</div></div></details>';
+          sH += '<details class="pv-entry" open><summary><span>状态栏HTML（正则6）</span><span class="sec-right"><span class="pv-tag off">未生成</span></span></summary>';
+          sH += '<div class="pv-entry-body"><div class="pv-entry-content">需先完成前7条MVU条目（当前' + mvuChk.doneCount + '/7）。</div></div></details>';
         }
 
-        // 操作按钮
+        // ===== 操作按钮（阶段自适应）=====
         sH += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">';
-        if (hasMVU) {
-          sH += '<button class="pv-mini-btn" data-pv-action="preview-statusbar">' + svgIcon('search', 13) + ' 预览状态栏</button>';
-        }
-        sH += '<button class="pv-mini-btn" data-pv-action="gen-statusbar">' + svgIcon('sparkle', 13) + ' 让AI生成状态栏</button>';
         if (hasStatusBar) {
-          sH += '<button class="pv-mini-btn" data-pv-action="reset-statusbar">' + svgIcon('trash', 13) + ' 清除已生成状态栏</button>';
+          sH += '<button class="pv-mini-btn" data-pv-action="preview-statusbar">' + svgIcon('eye', 13) + ' 预览状态栏</button>';
+          sH += '<button class="pv-mini-btn" data-pv-action="reset-statusbar">' + svgIcon('trash', 13) + ' 清除状态栏</button>';
+        }
+        if (mvuChk.all7Done) {
+          sH += '<button class="pv-mini-btn" data-pv-action="gen-statusbar">' + svgIcon('sparkle', 13) + ' ' + (hasStatusBar ? '重新生成' : '生成状态栏') + '</button>';
         }
         sH += '</div>';
 
         sH += '</div>';
-        return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dotCls + '"></span>' + svgIcon('sliders', 14) + ' 状态栏</span><span class="sec-right">' + right + '</span><span class="pv-toggle"></span></h3>' + sH + '</div>';
+        return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dotCls + '"></span>' + svgIcon('sliders', 14) + ' 状态栏总览</span><span class="sec-right">' + right + '</span><span class="pv-toggle"></span></h3>' + sH + '</div>';
       }
 
       // 预览面板交互绑定：段落折叠 + 状态栏按钮
@@ -13136,7 +13205,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             } else if (act === 'gen-statusbar') {
               var input = doc.getElementById('chatInput');
               if (input) {
-                input.value = '请帮我生成/美化MVU状态栏，输出一个完整的HTML文档（含CSS和JS），写卡器会自动提取并保存。';
+                input.value = '请根据已配置的MVU变量系统，生成状态栏HTML。输出一个完整的HTML文档（含CSS和JS），使用 populateCharacterData + getAllVariables + eventOn(Mvu.events.VARIABLE_UPDATE_ENDED) + errorCatched 标准模式。';
                 updateCharCount();
                 updateSendBtnPulse();
                 try { input.focus(); } catch(_) {}
