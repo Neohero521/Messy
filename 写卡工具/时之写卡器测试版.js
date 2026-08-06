@@ -10233,10 +10233,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('无法撤回：该消息不是AI回复', 'warning'); return;
         }
         if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
-        if (!confirm('确定撤回此条AI回复吗？\n\n✅ 移除该AI回复消息\n✅ 回滚该AI回复对角色卡/变量系统的修改\n✅ 保留你的提问消息，可重新生成')) return;
+        // 检查后面是否还有用户消息——如果有，说明后续用户消息的上下文依赖本条AI的回复
+        // 此时禁止单条撤回（会导致用户消息变成无根之木），引导用户从对应"用户消息"撤回
+        var hasUserAfter = false;
+        var aiCountAfter = 0;
+        var userCountAfter = 0;
+        for (var _i = aiIdx + 1; _i < msgs.length; _i++) {
+          if (msgs[_i].role === 'user') { hasUserAfter = true; userCountAfter++; }
+          else aiCountAfter++;
+        }
+        if (hasUserAfter) {
+          showToast('本条AI之后还有 ' + userCountAfter + ' 条用户消息，无法单独撤回此条AI（会导致后续对话上下文断裂）。\n\n请点击【对应那条用户消息的头像→撤回】，从用户消息整条链路撤回，这样上下文保持一致。', 'warning');
+          return;
+        }
+        // 后续只有AI回复：提示影响范围
+        var confirmMsg = '确定撤回此条AI回复吗？\n\n✅ 移除该AI回复消息';
+        if (aiCountAfter > 0) confirmMsg += ' 及其后 ' + aiCountAfter + ' 条AI回复';
+        confirmMsg += '\n✅ 回滚对角色卡/变量系统的修改';
+        confirmMsg += '\n✅ 保留上一条用户消息，可重新生成';
+        if (!confirm(confirmMsg)) return;
         // 回滚cardData到该AI消息应用修改前的快照
         var ok = restoreCardDataSnapshot(aiIdx);
-        // 截断消息：保留到aiIdx（不含），即移除该AI消息
+        // 截断消息：保留到aiIdx（不含），即移除该AI消息及其后所有（仅AI）
         msgs.length = aiIdx;
         clearSnapshotsAfter(aiIdx - 1);
         saveToStorage();
@@ -10245,14 +10263,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         showToast(ok ? '✅ 已撤回AI回复并回滚修改' : '✅ 已撤回AI回复（无快照可回滚，角色卡未变更）', 'success');
       }
 
-      // ===== 撤回：用户消息之后所有AI消息和操作（含cardData） =====
+      // ===== 撤回：用户消息之后所有消息和操作（含cardData，含之后的用户消息） =====
       function revokeAfterUserMessage(userIdx) {
         var msgs = getCurrentMessages();
         if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
           showToast('无法撤回：该消息不是用户消息', 'warning'); return;
         }
         if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
-        if (!confirm('确定撤回此条之后所有的AI消息和操作吗？\n\n✅ 移除该用户消息之后的所有AI回复\n✅ 回滚这些AI回复对角色卡/变量系统的全部修改\n✅ 保留该用户消息，可重新生成下面的AI回答\nℹ️ 状态栏界面和角色卡界面互不影响（仅回滚当前Tab）')) return;
+        // 统计该用户消息之后的消息数量（用户消息和AI回复）
+        var userCountAfter = 0;
+        var aiCountAfter = 0;
+        for (var _wai = userIdx + 1; _wai < msgs.length; _wai++) {
+          if (msgs[_wai].role === 'user') userCountAfter++;
+          else aiCountAfter++;
+        }
+        var msg = '确定从这条用户消息之后全部撤回吗？\n\n';
+        msg += '⚠️ 会移除：';
+        if (aiCountAfter > 0) msg += aiCountAfter + ' 条AI回复';
+        if (userCountAfter > 0) msg += ' + ' + userCountAfter + ' 条用户消息（之后的用户输入也会被删除，因上下文基于此条之前的对话）';
+        if (aiCountAfter === 0 && userCountAfter === 0) msg += '当前之后无任何消息，无需撤回';
+        msg += '\n✅ 回滚这些AI回复对角色卡/变量系统的全部修改';
+        msg += '\n✅ 保留当前这条用户消息本身，可重新生成下面的AI回答';
+        msg += '\nℹ️ 状态栏界面和角色卡界面互不影响（仅回滚当前Tab）';
+        if (aiCountAfter === 0 && userCountAfter === 0) { showToast('当前这条用户消息之后没有任何消息可撤回', 'info'); return; }
+        if (!confirm(msg)) return;
         // 该用户消息后的AI消息索引 = userIdx+1
         var aiIdx = userIdx + 1;
         var ok = false;
@@ -10279,7 +10313,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (aiIdx - 1 < 0 || msgs[aiIdx-1].role !== 'user') {
           showToast('无法重新生成：找不到对应的用户提问', 'warning'); return;
         }
-        // 回滚该AI消息的cardData修改 + 截断到aiIdx（移除该AI消息）
+        // 检查后面是否还有用户消息——有则禁止，否则后续上下文断裂
+        var hasUserAfter = false;
+        var userCountAfter = 0;
+        var aiCountAfter = 0;
+        for (var _ri = aiIdx + 1; _ri < msgs.length; _ri++) {
+          if (msgs[_ri].role === 'user') { hasUserAfter = true; userCountAfter++; }
+          else aiCountAfter++;
+        }
+        if (hasUserAfter) {
+          showToast('本条AI之后还有 ' + userCountAfter + ' 条用户消息，无法单独重新生成此条（会导致后续对话上下文断裂）。\n\n请点击【对应那条用户消息的头像→重新生成】，从用户消息整条链路重新生成。', 'warning');
+          return;
+        }
+        if (aiCountAfter > 0 && !confirm('此条AI之后还有 ' + aiCountAfter + ' 条AI回复，重新生成会将这些AI回复一并移除并重建新回答。确定继续？')) return;
+        // 回滚该AI消息的cardData修改 + 截断到aiIdx（移除该AI消息及其后所有AI）
         restoreCardDataSnapshot(aiIdx);
         msgs.length = aiIdx;
         clearSnapshotsAfter(aiIdx - 1);
@@ -10298,10 +10345,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('无法重新生成：该消息不是用户消息', 'warning'); return;
         }
         if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        // 统计该用户消息之后有多少用户消息和AI回复——如果后面还有用户消息，需提示
+        var userCountAfter = 0;
+        var aiCountAfter = 0;
+        for (var _bai = userIdx + 1; _bai < msgs.length; _bai++) {
+          if (msgs[_bai].role === 'user') userCountAfter++;
+          else aiCountAfter++;
+        }
+        // 后面还有用户消息：提示上下文断裂风险
+        if (userCountAfter > 0) {
+          if (!confirm('该用户消息之后还有 ' + userCountAfter + ' 条用户消息 + ' + aiCountAfter + ' 条AI回复。\n\n重新生成本条AI回答时，这些后续消息会被一并移除（因为它们的上下文基于本条之前的AI输出，会导致不一致）。\n\n确定继续？')) return;
+        } else if (aiCountAfter > 1) {
+          if (!confirm('该用户消息之后还有 ' + aiCountAfter + ' 条AI回复，重新生成会移除这些AI回复并重建新回答。确定继续？')) return;
+        }
         // 该用户消息下的AI回答索引 = userIdx+1
         var aiIdx = userIdx + 1;
         if (aiIdx < msgs.length && msgs[aiIdx].role === 'assistant') {
-          // 存在AI回答：回滚 + 截断到aiIdx
+          // 存在AI回答：回滚 + 截断到aiIdx（移除其及之后所有）
           restoreCardDataSnapshot(aiIdx);
           msgs.length = aiIdx;
           clearSnapshotsAfter(userIdx);
