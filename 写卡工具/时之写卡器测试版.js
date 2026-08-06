@@ -10020,7 +10020,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function buildAvatarHtml(role) {
         var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
         var cls = 'avatar avatar-clickable';
-        var title = role === 'user' ? '点击更换用户头像' : '点击更换AI头像';
+        var title = role === 'user' ? '点击展开操作菜单（修改头像/人设/撤回等）' : '点击展开操作菜单（修改头像/人设/撤回/重新生成等）';
         var saved = localStorage.getItem(key);
         if (saved) {
           return '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
@@ -12160,8 +12160,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
             '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
+          // 注入全局人设（与 callAIChat 路径保持一致）
+          var _genPersonaHdr = getPersonaHeader();
+          if (_genPersonaHdr) genPrompt = _genPersonaHdr + '\n\n' + genPrompt;
           var aiResponse = await callAI(genPrompt);
           removeTyping();
+          // doGenerate 路径同样需要快照，否则撤回一键生成结果时无法回滚cardData
+          try {
+            var _genMsgs = getCurrentMessages();
+            saveCardDataSnapshot(_genMsgs.length);
+          } catch(_genSnapErr) {}
+
           var parsed = extractJSON(aiResponse);
           if (parsed) {
             // 角色卡一键生成：同样走MVU内容过滤防御
