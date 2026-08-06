@@ -8134,7 +8134,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           chatC.innerHTML = '';
           var msgs = getCurrentMessages();
           for (var mi = 0; mi < msgs.length; mi++) {
-            appendMsg(msgs[mi].role, msgs[mi].content);
+            appendMsg(msgs[mi].role, msgs[mi].content, mi);
           }
           // ★ 重绘后自动滚动到底部，让用户看到最新消息
           try { chatC.scrollTop = chatC.scrollHeight; } catch(_scErr) {}
@@ -9956,7 +9956,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('❌ 导出失败：' + (err && err.message ? err.message : '未知错误'), 'error');
         }
       }
-      function appendMsg(role, content) {
+      function appendMsg(role, content, explicitIdx) {
         var c = doc.getElementById('chatMessages');
         if (!c) return;
         var div = doc.createElement('div');
@@ -9964,8 +9964,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
         div.setAttribute('data-msg-id', msgId);
         // 记录消息在当前Tab消息数组中的索引（供头像菜单撤回/重新生成定位）
-        var msgIdx = -1;
-        try { msgIdx = getCurrentMessages().length - 1; } catch(_eIdx) {}
+        // explicitIdx 由重放场景（switchTab/rerenderChatMessages）显式传入；
+        // 正常流程（push后立即append）用 getCurrentMessages().length-1 兜底
+        var msgIdx = (typeof explicitIdx === 'number' && explicitIdx >= 0) ? explicitIdx : -1;
+        if (msgIdx < 0) {
+          try { msgIdx = getCurrentMessages().length - 1; } catch(_eIdx) {}
+        }
         if (msgIdx < 0) msgIdx = (c.querySelectorAll('.chat-msg').length);
         div.setAttribute('data-msg-index', String(msgIdx));
         div.setAttribute('data-msg-role', role);
@@ -10185,12 +10189,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           html += '<div class="avatar-menu-item' + (it.danger ? ' danger' : '') + '" title="' + (it.title || '') + '">' + svgIcon(it.icon, 14) + '<span>' + it.label + '</span></div>';
         });
         menu.innerHTML = html;
-        // 定位：挂到anchorEl的父节点（chat-msg），相对avatar定位
-        var host = anchorEl.parentNode; // .chat-msg
-        if (!host) { doc.body.appendChild(menu); menu.style.position = 'fixed'; }
+        // 定位：挂到 avatar 元素本身（avatar 已设 position:relative），相对 avatar 展开在旁边
+        // ⚠️不能挂到 chat-msg：assistant 的 bubble 是 width:100%，chat-msg 撑满会导致菜单 left:calc(100%+8px) 跑到屏幕外
+        if (!anchorEl) { doc.body.appendChild(menu); menu.style.position = 'fixed'; }
         else {
-          host.style.position = 'relative';
-          host.appendChild(menu);
+          anchorEl.appendChild(menu);
         }
         // 绑定点击
         var itemEls = menu.querySelectorAll('.avatar-menu-item');
@@ -10214,7 +10217,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         chatC.innerHTML = '';
         var msgs = getCurrentMessages();
         for (var i = 0; i < msgs.length; i++) {
-          appendMsg(msgs[i].role, msgs[i].content);
+          appendMsg(msgs[i].role, msgs[i].content, i);
         }
         try { chatC.scrollTop = chatC.scrollHeight; } catch(_) {}
         // 刷新关联UI
