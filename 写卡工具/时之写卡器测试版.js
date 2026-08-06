@@ -10318,34 +10318,53 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         callAIChat().catch(function(err) { showToast('重新生成失败：' + (err && err.message ? err.message : ''), 'error'); });
       }
 
-      // ===== 修改：用户消息（载入输入框，移除该消息及其后所有，用户编辑后重发）=====
+      // ===== 修改：用户消息（原地修改内容，弹窗textArea确认，该消息之后的AI/用户消息全部移除并回滚快照）=====
       function editUserMessage(userIdx) {
         var msgs = getCurrentMessages();
         if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
           showToast('无法修改：该消息不是用户消息', 'warning'); return;
         }
         if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
-        var text = msgs[userIdx].content || '';
-        // 该用户消息后的AI消息索引 = userIdx+1，回滚其修改
-        var aiIdx = userIdx + 1;
-        if (aiIdx < msgs.length) restoreCardDataSnapshot(aiIdx);
-        // 截断到userIdx（移除该用户消息及其后所有）
-        msgs.length = userIdx;
-        clearSnapshotsAfter(userIdx - 1);
-        saveToStorage();
-        progress = calcProgress();
-        rerenderChatMessages();
-        // 载入输入框供编辑
-        var input = doc.getElementById('chatInput');
-        if (input) {
-          input.value = text;
-          try { input.focus(); } catch(_) {}
-          // 触发input事件刷新字符计数
-          try {
-            var ev = doc.createEvent('Event'); ev.initEvent('input', false, true); input.dispatchEvent(ev);
-          } catch(_) {}
-        }
-        showToast('已载入消息，编辑后点击发送即可', 'info');
+        var origText = msgs[userIdx].content || '';
+        // 弹窗：textArea + 取消/确定
+        var html = '<div class="modal-content" style="max-width:640px">'
+          + '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('edit',16) + ' 修改用户消息</h3>'
+          + '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">修改本条消息后，本条之后的所有消息（含AI回答和后续用户消息）将被撤销并回滚对应改动。</div>'
+          + '<textarea id="editMsgText" style="width:100%;min-height:160px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(origText) + '</textarea>'
+          + '<div class="modal-actions">'
+          + '<button class="btn" id="editMsgCancel" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>'
+          + '<button class="btn" id="editMsgOk" style="background:var(--accent);color:#fff">确认修改</button>'
+          + '</div></div>';
+        var mask = doc.createElement('div');
+        mask.className = 'modal';
+        mask.innerHTML = html;
+        doc.body.appendChild(mask);
+        var ta = doc.getElementById('editMsgText');
+        if (ta) { try { ta.focus(); } catch(_) {} }
+        var close = function() { if (mask.parentNode) mask.parentNode.removeChild(mask); };
+        doc.getElementById('editMsgCancel').addEventListener('click', close);
+        mask.addEventListener('click', function(e) { if (e.target === mask) close(); });
+        doc.getElementById('editMsgOk').addEventListener('click', function() {
+          var newText = ta ? ta.value : '';
+          if (!newText || !newText.trim()) { showToast('消息内容不能为空', 'warning'); return; }
+          // 1. 该用户消息之后的第一条AI消息：回滚快照（若存在）
+          var aiIdx = userIdx + 1;
+          if (aiIdx < msgs.length) restoreCardDataSnapshot(aiIdx);
+          // 2. 截断到 userIdx+1（保留[0..userIdx]，移除 userIdx 之后的所有）
+          msgs.length = userIdx + 1;
+          // 3. 原地修改该用户消息内容
+          msgs[userIdx].content = newText;
+          // 4. 清除此消息之后的快照（此后所有被删的AI回答快照都应丢弃）
+          clearSnapshotsAfter(userIdx);
+          saveToStorage();
+          progress = calcProgress();
+          rerenderChatMessages();
+          close();
+          showToast('消息已修改，之后的回复已撤销', 'success');
+          // 自动重新生成（基于修改后的用户消息）
+          if (isGenerating) return;
+          callAIChat().catch(function(err) { showToast('自动重新生成失败：' + (err && err.message ? err.message : ''), 'error'); });
+        });
       }
       function addTyping() {
         removeTyping();
