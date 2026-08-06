@@ -3669,11 +3669,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       cd.character_book = cd.character_book || { entries: [] };
       var existing = cd.character_book.entries || [];
       var SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+      // 拦截 AI 误将 regex 脚本配置写成世界书条目（正则脚本由写卡器自动维护）
+      var REGEX_ENTRY_BLOCK_RE = /^regex[:：]/i;
       newEntries = newEntries.filter(function(ne) {
         if (!ne || typeof ne !== 'object') return true;
         var cmt = String(ne.comment || '');
         if (SB_ENTRY_BLOCK_RE.test(cmt)) {
           console.warn('[statusbar] 拦截状态栏模块条目，不写入世界书:', cmt);
+          return false;
+        }
+        // 拦截 regex: 脚本配置误写为世界书条目
+        if (REGEX_ENTRY_BLOCK_RE.test(cmt)) {
+          console.warn('[sanitize] 拦截regex脚本配置条目，不写入世界书:', cmt);
           return false;
         }
         var cnt = String(ne.content || '');
@@ -3740,6 +3747,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
         }
         // ===== 再规范化（确保规范化结果是最终值，不被后续清洗破坏）=====
+        if (String(ne.comment || '').indexOf('[InitVar]') >= 0 || (String(ne.comment || '').indexOf('初始变量') >= 0 && typeof ne.content === 'string' && ne.content.indexOf('stat_data') >= 0)) {
+          if (typeof ne.content === 'string') ne.content = normalizeInitVarContent(ne.content);
+        }
         if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
@@ -4679,8 +4689,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '      </Analysis>\n' +
     '      <JSONPatch>\n' +
     '      [\n' +
-    '        { "op": "replace", "path": "/stat_data/path/to/variable", "value": "new_value" },\n' +
-    '        { "op": "delta", "path": "/stat_data/path/to/number", "value": 5 },\n' +
+    '        { "op": "replace", "path": "/path/to/variable", "value": "new_value" },\n' +
+    '        { "op": "delta", "path": "/path/to/number", "value": 5 },\n' +
     '        ...\n' +
     '      ]\n' +
     '      </JSONPatch>\n' +
@@ -5285,9 +5295,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '═══════════════════════════════════════════════════════════════════\n' +
         '· 如果用户要求设计/修改MVU变量条目（第1-7条）：使用:::操作块协议输出修改指令，不要输出```json代码块\n' +
         '  格式：::: upsert [InitVar]初始变量\\n---\\n变量名: 值\\n---\\n:::\n' +
-        '  ⚠️【InitVar正文纯净铁律】::: upsert 块的 content 部分**只写 YAML 变量内容**（如 stat_data: ...）！\n' +
+        '  ⚠️【InitVar正文纯净铁律】::: upsert 块的 content 部分**只写 YAML 变量内容**（不包含 stat_data 根键，MVU底层自动挂载）！\n' +
         '  ❌ 绝对不要把 enabled/content/comment 这些条目配置字段写进 content！它们由写卡器自动维护！\n' +
-        '  ✅ 正确：::: upsert [InitVar]初始变量\\nstat_data:\\n  世界:\\n    境界: 炼气\\n:::\n' +
+        '  ✅ 正确：::: upsert [InitVar]初始变量\\n世界:\\n  境界: 炼气\\n:::\n' +
         '  ❌ 错误：::: upsert [InitVar]初始变量\\nenabled: false\\ncontent: |\\n  stat_data:\\n    境界: 炼气\\n:::\n' +
         '· 如果用户要求修改变量结构脚本：::: upsert script:变量结构\\nzod代码\\n:::\n' +
         '  5种动作：upsert(增改) / update(只改) / delete(删) / set(顶层字段) / rename(重命名)\n' +
@@ -6129,6 +6139,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     }
     return filtered;
+  }
+
+  // 规范化 InitVar 条目内容：剥离 AI 误写的 stat_data 根键
+  // MVU 底层自动挂载到 stat_data，InitVar 中再写一层会导致套娃
+  function normalizeInitVarContent(content) {
+    if (!content || !content.trim()) return content;
+    var parsed = parseInitVar(content);
+    if (!parsed || typeof parsed !== 'object') return content;
+    // parseInitVar 已通过 stripStatDataRoot 剥离了 stat_data 根键
+    // 检查原始内容是否含 stat_data 根键，若有则用剥离后的结果重建 YAML
+    var trimmed = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    // 去除前导 --- 分隔符后检查
+    var afterSep = trimmed.replace(/^---\s*\n/, '');
+    if (/^stat_data\s*:/.test(afterSep)) {
+      return yamlDumpSimple(parsed);
+    }
+    return content;
   }
 
   function generateMvuSchemaScript(initVarContent) {
@@ -7473,6 +7500,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       .map(function(e, i, arr) {
         // 防御：entries 里混了纯字符串/数字（典型：depth_prompt.prompt 被误 push）→ 包装成匿名条目避免后面对字符串写 .depth
         if (e == null) return null;
+        // 拦截 regex: 脚本配置误写为世界书条目
+        var _eCmt = String((e && (e.comment || e.name)) || '');
+        if (/^regex[:：]/i.test(_eCmt)) {
+          console.warn('[sanitize] 写入前拦截regex脚本配置条目:', _eCmt.slice(0, 30));
+          return null;
+        }
         if (typeof e === 'string') {
           var firstL = e.split('\n')[0].trim().slice(0, 40) || ('误写字符串条目' + (i + 1));
           console.warn('[sanitize] entries里发现字符串元素，已包装为匿名条目:', firstL.slice(0, 20));
@@ -7526,6 +7559,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ===== 🧹 最后一道防线：变量列表/变量输出格式条目强制规范化 content =====
         var _sanitizeComment = String(e.comment || e.name || '');
         var _sanitizeContent = String(e.content == null ? '' : e.content);
+        if (_sanitizeComment.indexOf('[InitVar]') >= 0 || (_sanitizeComment.indexOf('初始变量') >= 0 && _sanitizeContent.indexOf('stat_data') >= 0)) {
+          _sanitizeContent = normalizeInitVarContent(_sanitizeContent);
+        }
         if (_sanitizeComment.indexOf('变量列表') >= 0) {
           _sanitizeContent = normalizeVarListContent(_sanitizeContent);
         }
