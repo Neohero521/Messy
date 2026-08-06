@@ -3757,9 +3757,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (String(ne.comment || '').indexOf('变量输出格式') >= 0 && typeof ne.content === 'string') {
           ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content, _getParsedInitForEntries(newEntries));
         }
+        // 变量更新规则条目：规范化缩进/range格式/补全type字段
+        if (String(ne.comment || '').indexOf('变量更新规则') >= 0 && typeof ne.content === 'string') {
+          ne.content = normalizeVarUpdateRuleContent(ne.content);
+        }
         if (tmpl) {
-          if (ne.selective === undefined) ne.selective = tmpl.selective;
-          if (ne.constant === undefined) ne.constant = tmpl.constant;
+          // MVU 系统条目（变量输出格式/变量更新规则/InitVar等）的 selective/constant 必须强制使用模板值
+          // AI 经常误写 selective:true，导致条目变为选择性触发而非常驻
+          var isMvuSystemEntry = (String(ne.comment || '').toLowerCase().indexOf('变量输出格式') >= 0 || String(ne.comment || '').toLowerCase().indexOf('变量更新规则') >= 0 ||
+                                  String(ne.comment || '').toLowerCase().indexOf('[initvar]') >= 0 || String(ne.comment || '').indexOf('初始变量') >= 0 ||
+                                  String(ne.comment || '').indexOf('变量列表') >= 0);
+          if (isMvuSystemEntry) {
+            ne.selective = tmpl.selective;
+            ne.constant = tmpl.constant;
+          } else {
+            if (ne.selective === undefined) ne.selective = tmpl.selective;
+            if (ne.constant === undefined) ne.constant = tmpl.constant;
+          }
           if (ne.insertion_order === undefined) ne.insertion_order = tmpl.order;
           if (ne.use_regex === undefined) ne.use_regex = tmpl.use_regex;
           if (ne.secondary_keys === undefined) ne.secondary_keys = tmpl.secondary_keys || [];
@@ -6526,11 +6540,65 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     // 剥离 stat_data. 前缀（行首或缩进后的路径键）
     text = text.replace(/(^|\n)(\s*)stat_data\./g, '$1$2');
+    // 修正缩进层级：AI 常多缩进一级（变量更新规则:\n  identity: → 变量更新规则:\nidentity:）
+    // 策略：检测根节点后第一行非空行的缩进，若 >0 则统一去除该层级缩进
+    text = text.replace(/^(变量更新规则\s*:\s*\n)((?:[ \t]+\S[^\n]*\n?)+)/, function(m, head, body) {
+      // 找到 body 中最小缩进
+      var minIndent = -1;
+      body.split('\n').forEach(function(line) {
+        if (!line.trim()) return;
+        var m2 = line.match(/^([ \t]*)/);
+        var ind = m2 ? m2[1].length : 0;
+        if (minIndent < 0 || ind < minIndent) minIndent = ind;
+      });
+      if (minIndent <= 0) return m; // 已是顶格，无需修正
+      // 去除 minIndent 个前导空格
+      var newBody = body.split('\n').map(function(line) {
+        if (!line.trim()) return line;
+        return line.slice(minIndent);
+      }).join('\n');
+      return head + newBody;
+    });
+    // 修正 range 格式：range: 0~100 → range: [0, 100]
+    text = text.replace(/^(\s*)range\s*:\s*(\d+)\s*[~～\-到]\s*(\d+)\s*$/gm, function(m, indent, lo, hi) {
+      return indent + 'range: [' + lo + ', ' + hi + ']';
+    });
+    // 补全缺失的 type 字段：有 check 但无 type 的变量块，推断 type 并插入
+    // 逐行扫描，找到 "  变量名:" 后面没有 type 的块，根据 range 存在性推断 type
+    var lines = text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      // 匹配变量定义行：缩进 + 名称: （非 check/type/range 等已知字段）
+      var varMatch = lines[i].match(/^(\s+)(\S+)\s*:\s*$/);
+      if (!varMatch) continue;
+      var varIndent = varMatch[1];
+      var varName = varMatch[2];
+      // 跳过已知字段名
+      if (/^(check|type|range|变量更新规则)$/.test(varName)) continue;
+      // 检查后续行（同缩进+2）是否有 type 或 range
+      var hasType = false;
+      var hasRange = false;
+      var checkLineIdx = -1;
+      for (var j = i + 1; j < lines.length; j++) {
+        var nextLine = lines[j];
+        if (!nextLine.trim()) continue;
+        var nextIndent = nextLine.match(/^(\s*)/)[1];
+        if (nextIndent.length <= varIndent.length) break; // 离开当前变量块
+        if (nextLine.indexOf(varIndent + '  type:') >= 0) hasType = true;
+        if (nextLine.indexOf(varIndent + '  range:') >= 0) hasRange = true;
+        if (nextLine.indexOf(varIndent + '  check:') >= 0) checkLineIdx = j;
+      }
+      // 若无 type，在 check 行之前插入 type
+      if (!hasType && checkLineIdx >= 0) {
+        var inferredType = hasRange ? 'number' : 'string';
+        lines.splice(checkLineIdx, 0, varIndent + '  type: ' + inferredType);
+        // 插入后行索引偏移，跳过插入的行
+        i++;
+      }
+    }
+    text = lines.join('\n');
     // check 单行字符串转列表：将 "  check: 某段文字" 转为 "  check:\n      - 某段文字"
-    // 匹配 check: 后直接跟非空内容（非列表项），按 check 行缩进 +2 推断子项缩进
     text = text.replace(/^(\s*)check:\s*([^\n]+)$/gm, function(m, indent, desc) {
       var descTrim = desc.trim();
-      // 若已是 - 开头的列表项或空则不转换
       if (!descTrim || descTrim.charAt(0) === '-') return m;
       var itemIndent = new Array(indent.length + 2 + 1).join(' ');
       return indent + 'check:\n' + itemIndent + '- ' + descTrim;
@@ -7567,6 +7635,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         if (_sanitizeComment.indexOf('变量输出格式') >= 0) {
           _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent, _getParsedInitForEntries(arr));
+        }
+        if (_sanitizeComment.indexOf('变量更新规则') >= 0) {
+          _sanitizeContent = normalizeVarUpdateRuleContent(_sanitizeContent);
         }
         return {
           name: String(e.name || e.comment || ('条目' + (i + 1))),
@@ -11375,6 +11446,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (_cleanedContent && (cleanComment.indexOf('变量输出格式') >= 0)) {
               _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent, _getParsedInitForEntries((cd.character_book && cd.character_book.entries) || []));
             }
+            // 变量更新规则条目：规范化缩进/range格式/补全type字段
+            if (_cleanedContent && cleanComment.indexOf('变量更新规则') >= 0) {
+              _cleanedContent = normalizeVarUpdateRuleContent(_cleanedContent);
+            }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
             var metaKeysTop = ['keys','secondary_keys','selectiveLogic','constant','depth','cooldown','sticky','delay',
                                'vectorized','prevent_recursion','exclude_recursion','delay_until_recursion','use_regex',
@@ -11434,8 +11509,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 if (extPatch) newEntry.extensions = Object.assign({}, newEntry.extensions || {}, extPatch);
                 var _tmplNew = getEntryTemplate(newEntry.comment || '');
                 if (_tmplNew) {
-                  if (newEntry.selective === undefined) newEntry.selective = _tmplNew.selective;
-                  if (newEntry.constant === undefined) newEntry.constant = _tmplNew.constant;
+                  // MVU 系统条目强制使用模板的 selective/constant 值
+                  var _isNewMvuSys = (String(newEntry.comment || '').toLowerCase().indexOf('变量输出格式') >= 0 ||
+                                     String(newEntry.comment || '').toLowerCase().indexOf('变量更新规则') >= 0 ||
+                                     String(newEntry.comment || '').toLowerCase().indexOf('[initvar]') >= 0 ||
+                                     String(newEntry.comment || '').indexOf('初始变量') >= 0 ||
+                                     String(newEntry.comment || '').indexOf('变量列表') >= 0);
+                  if (_isNewMvuSys) {
+                    newEntry.selective = _tmplNew.selective;
+                    newEntry.constant = _tmplNew.constant;
+                  } else {
+                    if (newEntry.selective === undefined) newEntry.selective = _tmplNew.selective;
+                    if (newEntry.constant === undefined) newEntry.constant = _tmplNew.constant;
+                  }
                 }
                 // ===== ✅新增：新条目 keys 为空自动派生 =====
                 if ((!newEntry.keys || newEntry.keys.length === 0) && !(newEntry.constant || (_tmplNew && _tmplNew.constant))) {
