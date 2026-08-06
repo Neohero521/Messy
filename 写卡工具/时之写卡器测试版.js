@@ -84,7 +84,11 @@
     code:       'M8 9l-3 3 3 3M16 9l3 3-3 3M14 5l-4 14',
     menu:       'M3 12h18M3 6h18M3 18h18',
     folder:     'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
-    dot:        'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0'
+    dot:        'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+    // 头像菜单专用
+    undo:       'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-4',
+    image:      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5L5 21',
+    settings:   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
   };
 
   /**
@@ -212,10 +216,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:14px 14px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
-.chat-msg .avatar{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.chat-msg .avatar svg{width:20px;height:20px}
+.chat-msg .avatar{width:72px;height:72px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0}
+.chat-msg .avatar svg{width:40px;height:40px}
 .chat-msg.assistant .avatar{background:var(--accent-soft);color:var(--accent-deep)}
 .chat-msg.user .avatar{background:var(--surface-sink);color:var(--ink-soft)}
+/* 头像点击弹出菜单（展开在头像旁边） */
+.avatar-menu{position:absolute;z-index:500;min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-card);padding:5px;display:flex;flex-direction:column;gap:2px;font-size:.84em}
+.avatar-menu.am-left{right:calc(100% + 8px);top:0}
+.avatar-menu.am-right{left:calc(100% + 8px);top:0}
+.avatar-menu-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:background .12s;white-space:nowrap;font-weight:500}
+.avatar-menu-item:hover{background:var(--surface-soft)}
+.avatar-menu-item.danger{color:var(--danger,#dc2626)}
+.avatar-menu-item.danger:hover{background:rgba(220,38,38,.08)}
+.avatar-menu-item svg{flex-shrink:0}
+.avatar-menu-sep{height:1px;background:var(--line-soft);margin:3px 0}
 .chat-msg .bubble{max-width:82%;padding:10px 14px;border-radius:var(--radius);font-size:.85em;line-height:1.65;word-break:break-word}
 .chat-msg.assistant .bubble{background:var(--surface);border:1px solid var(--line-soft);color:var(--ink);font-size:1em;padding:12px 16px;max-width:100%;width:100%;border-radius:var(--radius);box-shadow:var(--shadow-soft)}
 .chat-msg.user .bubble{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:var(--radius-sm);box-shadow:var(--shadow-soft)}
@@ -635,7 +649,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .chat-messages{padding:10px 6px}
   .chat-msg .bubble{max-width:88%;font-size:.88em;padding:8px 11px}
   .chat-msg.assistant .bubble{font-size:.92em}
-  .chat-msg .avatar{width:32px;height:32px;font-size:16px;border-radius:9px}
+  .chat-msg .avatar{width:64px;height:64px;font-size:32px;border-radius:12px}
   /* 输入区：防止 iOS 聚焦缩放（≥16px），增大触摸区 */
   .chat-input-area{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
   .chat-input{font-size:16px;min-height:42px;padding:10px 14px;border-radius:12px}
@@ -4359,7 +4373,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
     var rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
     // 前7条检测（按8条工作流顺序：第3条=更新规则，第4条=变量列表）
-    var has1 = thScripts.some(function(s) { return typeof s === 'string' && (s.indexOf('registerMvuSchema') >= 0 || s.indexOf('z.object') >= 0); });
+    // ⚠️脚本存为对象（含content/name/id字段），非string；兼容两种形态
+    var has1 = thScripts.some(function(s) {
+      if (!s) return false;
+      var c = typeof s === 'string' ? s : (s.content || '');
+      return c.indexOf('registerMvuSchema') >= 0 || c.indexOf('z.object') >= 0;
+    });
     var has2 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0; });
     var has3 = entries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; });
     var has4 = entries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
@@ -9562,16 +9581,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           stageIcon = 'info';
           stageName = p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可生成角色卡';
         } else {
-          // MVU Tab：基于8条工作流动态阶段标签
-          var _ctxChk0 = checkMvu8Entries(cardData);
+          // MVU Tab：静态阶段标签（进度由8步chip展示，避免与chip重复冲突）
           stageIcon = 'sliders';
-          if (!_ctxChk0.all7Done) {
-            stageName = 'MVU · ' + _ctxChk0.doneCount + '/7';
-          } else if (!_ctxChk0.has8) {
-            stageName = 'MVU · 待生成状态栏';
-          } else {
-            stageName = 'MVU · 完成';
-          }
+          stageName = 'MVU变量系统';
         }
         stage.innerHTML = svgIcon(stageIcon, 13) + ' <strong>' + stageName + '</strong>';
         // ===== 操作区内容 =====
@@ -9616,10 +9628,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h += '<span class="ctx-chip ' + (s.has ? 'ok' : 'todo') + '" title="' + s.title + '">' + svgIcon(s.has ? 'checkCircle' : 'circle', 11) + ' ' + s.label + '</span>';
           });
           // 阶段自适应主操作按钮（右对齐，高亮当前阶段主操作）
+          // 注：部分完成(1-6/7)时不显示主按钮，由输入框上方"继续"按钮接管
           if (!_ctxChk.all7Done) {
-            var _act = _doneCnt === 0 ? 'init_var' : 'var_update_rule';
-            var _lbl = _doneCnt === 0 ? '生成变量系统' : '补齐缺失(' + _doneCnt + '/7)';
-            h += '<button class="ctx-mod" data-mod="' + _act + '" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('code', 13) + ' ' + _lbl + '</button>';
+            if (_doneCnt === 0) {
+              h += '<button class="ctx-mod" data-mod="init_var" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('code', 13) + ' 生成变量系统</button>';
+            }
           } else if (!_ctxChk.has8) {
             h += '<button class="ctx-mod" data-mod="start_sb" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('sliders', 13) + ' 生成状态栏</button>';
           } else {
@@ -9675,7 +9688,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (_done7Count === 0) {
               actions.push({ action: 'init_var',        icon: 'code',    label: '生成MVU变量系统',       hl: true });
             } else {
-              actions.push({ action: 'var_update_rule', icon: 'docVar',  label: '补齐缺失条目(' + _done7Count + '/7)', hl: true });
+              actions.push({ action: 'continue_mvu',    icon: 'play',    label: '继续',                  hl: true });
             }
             actions.push({ action: 'next',             icon: 'bolt', label: '下一步建议' });
           } else if (!_chk.has8) {
@@ -9759,7 +9772,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // ========== Tab 隔离：动作权限校验，跨Tab动作自动跳转 ==========
         // 在角色卡Tab中点击了MVU专属动作 → 自动切到MVU Tab再执行
-        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview'];
+        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview', 'continue_mvu'];
         if (currentTab === 'card' && mvuOnlyActions.indexOf(action) >= 0) {
           showToast('「' + action + '」是MVU专属功能，正在切换到MVU变量状态栏Tab...', 'info');
           switchTab('mvu');
@@ -9797,6 +9810,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (action === 'continue_sb') {
           // 继续状态栏生成
           if (input) { input.value = '继续生成状态栏'; handleSend(); }
+          return;
+        }
+        if (action === 'continue_mvu') {
+          // 继续MVU逐条生成：自动发送"继续"两个字
+          if (input) { input.value = '继续'; handleSend(); }
           return;
         }
         if (action === 'reset_sb') {
@@ -9945,6 +9963,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         div.className = 'chat-msg ' + role;
         var msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
         div.setAttribute('data-msg-id', msgId);
+        // 记录消息在当前Tab消息数组中的索引（供头像菜单撤回/重新生成定位）
+        var msgIdx = -1;
+        try { msgIdx = getCurrentMessages().length - 1; } catch(_eIdx) {}
+        if (msgIdx < 0) msgIdx = (c.querySelectorAll('.chat-msg').length);
+        div.setAttribute('data-msg-index', String(msgIdx));
+        div.setAttribute('data-msg-role', role);
         var avatarHtml = buildAvatarHtml(role);
         var bubbleHtml;
         // AI 消息：使用 section 分区渲染（思维链/正文/代码块可折叠）
@@ -9973,8 +9997,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (bubbleEl) bubbleEl.textContent = (content == null ? '' : String(content));
         }
         c.appendChild(div);
+        // 头像点击：弹出操作菜单（修改头像/人设/撤回/重新生成等），不再直接上传
         var avEl = div.querySelector('.avatar-clickable');
-        if (avEl) avEl.addEventListener('click', function() { triggerAvatarUpload(role); });
+        if (avEl) {
+          avEl.style.position = 'relative';
+          avEl.addEventListener('click', function(e) {
+            if (e) { e.stopPropagation(); }
+            showAvatarMenu(role, msgIdx, avEl);
+          });
+        }
         // AI 消息：绑定 section 折叠交互
         if (role === 'assistant') {
           var bubbleDiv = div.querySelector('.bubble');
@@ -10037,6 +10068,279 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           avatars[i].style.backgroundSize = 'cover';
           avatars[i].style.backgroundPosition = 'center';
         }
+      }
+
+      // ====================================================================
+      // ========== 头像菜单系统 + cardData快照撤回系统 ==========
+      // ====================================================================
+      // 每个Tab维护独立的快照表：{ card: {msgIndex: cardDataClone}, mvu: {...} }
+      // 在每条AI消息应用修改前保存快照，撤回时回滚cardData + 截断消息
+      var cardDataSnapshots = { card: {}, mvu: {} };
+      function _snapTabKey() { return (activeTab === 'mvu') ? 'mvu' : 'card'; }
+      function saveCardDataSnapshot(aiMsgIndex) {
+        try {
+          var clone = JSON.parse(JSON.stringify(cardData));
+          cardDataSnapshots[_snapTabKey()][aiMsgIndex] = clone;
+        } catch(e) { console.warn('[snapshot] save failed:', e && e.message); }
+      }
+      function restoreCardDataSnapshot(aiMsgIndex) {
+        var snap = cardDataSnapshots[_snapTabKey()][aiMsgIndex];
+        if (!snap) return false;
+        try {
+          var restored = JSON.parse(JSON.stringify(snap));
+          // 原地替换 cardData 的内容（保留引用，避免各处引用失效）
+          for (var k in cardData) { if (cardData.hasOwnProperty(k)) delete cardData[k]; }
+          for (var k2 in restored) { if (restored.hasOwnProperty(k2)) cardData[k2] = restored[k2]; }
+          return true;
+        } catch(e) { console.warn('[snapshot] restore failed:', e && e.message); return false; }
+      }
+      function clearSnapshotsAfter(msgIndex) {
+        var tab = _snapTabKey();
+        var snaps = cardDataSnapshots[tab];
+        for (var k in snaps) {
+          if (snaps.hasOwnProperty(k) && Number(k) > msgIndex) delete snaps[k];
+        }
+      }
+
+      // 全局人设：AI人设 / 用户人设（存localStorage，buildPrompt注入）
+      function getPersonaHeader() {
+        var aiP = (localStorage.getItem('aiPersona') || '').trim();
+        var userP = (localStorage.getItem('userPersona') || '').trim();
+        var hdr = '';
+        if (aiP)   hdr += '【AI全局人设】\n' + aiP + '\n';
+        if (userP) hdr += '【用户全局人设】\n' + userP + '\n';
+        return hdr;
+      }
+
+      // 修改头像（复用原triggerAvatarUpload的文件上传逻辑）
+      function editAvatar(role) {
+        triggerAvatarUpload(role);
+      }
+
+      // 编辑全局人设（弹窗textarea）
+      function editPersona(role) {
+        var key = role === 'user' ? 'userPersona' : 'aiPersona';
+        var title = role === 'user' ? '用户全局人设' : 'AI全局人设';
+        var cur = localStorage.getItem(key) || '';
+        var html = '<div class="modal-content" style="max-width:560px">'
+          + '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('settings',16) + ' ' + title + '</h3>'
+          + '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">该人设会注入到每次AI对话的开头，对当前工具内的AI生效（与状态栏/角色卡界面互不影响，仅影响工具内对话）。</div>'
+          + '<textarea id="personaEditArea" style="width:100%;min-height:160px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(cur) + '</textarea>'
+          + '<div class="modal-actions">'
+          + '<button class="btn" id="personaCancelBtn" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>'
+          + '<button class="btn" id="personaSaveBtn" style="background:var(--accent);color:#fff">保存</button>'
+          + '</div></div>';
+        var mask = doc.createElement('div');
+        mask.className = 'modal';
+        mask.innerHTML = html;
+        doc.body.appendChild(mask);
+        var ta = doc.getElementById('personaEditArea');
+        if (ta) { try { ta.focus(); } catch(_) {} }
+        var close = function() { if (mask.parentNode) mask.parentNode.removeChild(mask); };
+        doc.getElementById('personaCancelBtn').addEventListener('click', close);
+        doc.getElementById('personaSaveBtn').addEventListener('click', function() {
+          var val = ta ? ta.value : '';
+          localStorage.setItem(key, val);
+          close();
+          showToast(title + '已保存', 'success');
+        });
+        mask.addEventListener('click', function(e) { if (e.target === mask) close(); });
+      }
+
+      // 关闭所有已打开的头像菜单
+      function closeAllAvatarMenus() {
+        var ms = doc.querySelectorAll('.avatar-menu');
+        for (var i = 0; i < ms.length; i++) { if (ms[i].parentNode) ms[i].parentNode.removeChild(ms[i]); }
+      }
+      // 点击页面其他位置关闭菜单
+      doc.addEventListener('click', function() { closeAllAvatarMenus(); });
+
+      // 显示头像菜单（展开在头像旁边）
+      function showAvatarMenu(role, msgIdx, anchorEl) {
+        closeAllAvatarMenus();
+        var msgs = getCurrentMessages();
+        var menu = doc.createElement('div');
+        menu.className = 'avatar-menu';
+        // AI头像在左(user右对齐)，菜单展开在右侧；用户头像在右，菜单展开在左侧
+        menu.classList.add(role === 'user' ? 'am-left' : 'am-right');
+        var items = [];
+        if (role === 'assistant') {
+          items.push({ icon: 'image',   label: '修改头像', act: function(){ editAvatar('assistant'); } });
+          items.push({ icon: 'settings',label: '人设设置(AI全局人设)', act: function(){ editPersona('assistant'); } });
+          items.push({ sep: true });
+          items.push({ icon: 'undo',    label: '撤回', title: '撤回此条AI回复及其对角色卡的修改', danger: true, act: function(){ revokeAIMessage(msgIdx); } });
+          items.push({ icon: 'refresh', label: '重新生成', title: '重新生成此条AI回复', act: function(){ regenerateAIMessage(msgIdx); } });
+        } else {
+          items.push({ icon: 'image',   label: '修改头像', act: function(){ editAvatar('user'); } });
+          items.push({ icon: 'settings',label: '人设设置(用户全局人设)', act: function(){ editPersona('user'); } });
+          items.push({ sep: true });
+          items.push({ icon: 'edit',    label: '修改', title: '修改此条消息', act: function(){ editUserMessage(msgIdx); } });
+          items.push({ icon: 'refresh', label: '重新生成', title: '重新生成下面的AI回答', act: function(){ regenerateAnswerBelow(msgIdx); } });
+          items.push({ sep: true });
+          items.push({ icon: 'undo',    label: '撤回', title: '撤回AI从此条之后所有的消息和操作(含角色卡内容)', danger: true, act: function(){ revokeAfterUserMessage(msgIdx); } });
+        }
+        var html = '';
+        items.forEach(function(it) {
+          if (it.sep) { html += '<div class="avatar-menu-sep"></div>'; return; }
+          html += '<div class="avatar-menu-item' + (it.danger ? ' danger' : '') + '" title="' + (it.title || '') + '">' + svgIcon(it.icon, 14) + '<span>' + it.label + '</span></div>';
+        });
+        menu.innerHTML = html;
+        // 定位：挂到anchorEl的父节点（chat-msg），相对avatar定位
+        var host = anchorEl.parentNode; // .chat-msg
+        if (!host) { doc.body.appendChild(menu); menu.style.position = 'fixed'; }
+        else {
+          host.style.position = 'relative';
+          host.appendChild(menu);
+        }
+        // 绑定点击
+        var itemEls = menu.querySelectorAll('.avatar-menu-item');
+        var actIdx = 0;
+        items.forEach(function(it) {
+          if (it.sep) return;
+          var el = itemEls[actIdx]; actIdx++;
+          if (!el || !it.act) return;
+          el.addEventListener('click', function(e) {
+            if (e) { e.stopPropagation(); }
+            closeAllAvatarMenus();
+            try { it.act(); } catch(err) { showToast('操作失败：' + (err && err.message ? err.message : ''), 'error'); }
+          });
+        });
+      }
+
+      // ===== 重放当前Tab所有消息到聊天面板（撤回/重新生成后调用） =====
+      function rerenderChatMessages() {
+        var chatC = doc.getElementById('chatMessages');
+        if (!chatC) return;
+        chatC.innerHTML = '';
+        var msgs = getCurrentMessages();
+        for (var i = 0; i < msgs.length; i++) {
+          appendMsg(msgs[i].role, msgs[i].content);
+        }
+        try { chatC.scrollTop = chatC.scrollHeight; } catch(_) {}
+        // 刷新关联UI
+        try { renderPreview(); } catch(_) {}
+        try { updateQuickActions(); } catch(_) {}
+        try { updateCtxBar(); } catch(_) {}
+      }
+
+      // ===== 撤回：移除某条AI消息 + 回滚其cardData修改 =====
+      function revokeAIMessage(aiIdx) {
+        var msgs = getCurrentMessages();
+        if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
+          showToast('无法撤回：该消息不是AI回复', 'warning'); return;
+        }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        if (!confirm('确定撤回此条AI回复吗？\n\n✅ 移除该AI回复消息\n✅ 回滚该AI回复对角色卡/变量系统的修改\n✅ 保留你的提问消息，可重新生成')) return;
+        // 回滚cardData到该AI消息应用修改前的快照
+        var ok = restoreCardDataSnapshot(aiIdx);
+        // 截断消息：保留到aiIdx（不含），即移除该AI消息
+        msgs.length = aiIdx;
+        clearSnapshotsAfter(aiIdx - 1);
+        saveToStorage();
+        progress = calcProgress();
+        rerenderChatMessages();
+        showToast(ok ? '✅ 已撤回AI回复并回滚修改' : '✅ 已撤回AI回复（无快照可回滚，角色卡未变更）', 'success');
+      }
+
+      // ===== 撤回：用户消息之后所有AI消息和操作（含cardData） =====
+      function revokeAfterUserMessage(userIdx) {
+        var msgs = getCurrentMessages();
+        if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
+          showToast('无法撤回：该消息不是用户消息', 'warning'); return;
+        }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        if (!confirm('确定撤回此条之后所有的AI消息和操作吗？\n\n✅ 移除该用户消息之后的所有AI回复\n✅ 回滚这些AI回复对角色卡/变量系统的全部修改\n✅ 保留该用户消息，可重新生成下面的AI回答\nℹ️ 状态栏界面和角色卡界面互不影响（仅回滚当前Tab）')) return;
+        // 该用户消息后的AI消息索引 = userIdx+1
+        var aiIdx = userIdx + 1;
+        var ok = false;
+        if (aiIdx < msgs.length) {
+          ok = restoreCardDataSnapshot(aiIdx);
+        }
+        // 截断消息：保留到userIdx+1（含用户消息，移除其后所有）
+        msgs.length = userIdx + 1;
+        clearSnapshotsAfter(userIdx);
+        saveToStorage();
+        progress = calcProgress();
+        rerenderChatMessages();
+        showToast(ok ? '✅ 已撤回此条之后所有AI消息并回滚修改' : '✅ 已撤回此条之后所有AI消息（无快照可回滚，角色卡未变更）', 'success');
+      }
+
+      // ===== 重新生成：某条AI消息（撤回该AI回复后重新调用AI）=====
+      function regenerateAIMessage(aiIdx) {
+        var msgs = getCurrentMessages();
+        if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
+          showToast('无法重新生成：该消息不是AI回复', 'warning'); return;
+        }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        // 需要前一条用户消息作为重新生成的依据
+        if (aiIdx - 1 < 0 || msgs[aiIdx-1].role !== 'user') {
+          showToast('无法重新生成：找不到对应的用户提问', 'warning'); return;
+        }
+        // 回滚该AI消息的cardData修改 + 截断到aiIdx（移除该AI消息）
+        restoreCardDataSnapshot(aiIdx);
+        msgs.length = aiIdx;
+        clearSnapshotsAfter(aiIdx - 1);
+        saveToStorage();
+        progress = calcProgress();
+        rerenderChatMessages();
+        // 重新调用AI（基于已有的最后一条用户消息）
+        callAIChat();
+      }
+
+      // ===== 重新生成：用户消息下面的AI回答 =====
+      function regenerateAnswerBelow(userIdx) {
+        var msgs = getCurrentMessages();
+        if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
+          showToast('无法重新生成：该消息不是用户消息', 'warning'); return;
+        }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        // 该用户消息下的AI回答索引 = userIdx+1
+        var aiIdx = userIdx + 1;
+        if (aiIdx < msgs.length && msgs[aiIdx].role === 'assistant') {
+          // 存在AI回答：回滚 + 截断到aiIdx
+          restoreCardDataSnapshot(aiIdx);
+          msgs.length = aiIdx;
+          clearSnapshotsAfter(userIdx);
+        } else {
+          // 没有AI回答：截断到userIdx+1（保留该用户消息）
+          msgs.length = userIdx + 1;
+          clearSnapshotsAfter(userIdx);
+        }
+        saveToStorage();
+        progress = calcProgress();
+        rerenderChatMessages();
+        // 重新调用AI（基于该用户消息）
+        callAIChat();
+      }
+
+      // ===== 修改：用户消息（载入输入框，移除该消息及其后所有，用户编辑后重发）=====
+      function editUserMessage(userIdx) {
+        var msgs = getCurrentMessages();
+        if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
+          showToast('无法修改：该消息不是用户消息', 'warning'); return;
+        }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        var text = msgs[userIdx].content || '';
+        // 该用户消息后的AI消息索引 = userIdx+1，回滚其修改
+        var aiIdx = userIdx + 1;
+        if (aiIdx < msgs.length) restoreCardDataSnapshot(aiIdx);
+        // 截断到userIdx（移除该用户消息及其后所有）
+        msgs.length = userIdx;
+        clearSnapshotsAfter(userIdx - 1);
+        saveToStorage();
+        progress = calcProgress();
+        rerenderChatMessages();
+        // 载入输入框供编辑
+        var input = doc.getElementById('chatInput');
+        if (input) {
+          input.value = text;
+          try { input.focus(); } catch(_) {}
+          // 触发input事件刷新字符计数
+          try {
+            var ev = doc.createEvent('Event'); ev.initEvent('input', false, true); input.dispatchEvent(ev);
+          } catch(_) {}
+        }
+        showToast('已载入消息，编辑后点击发送即可', 'info');
       }
       function addTyping() {
         removeTyping();
@@ -11569,9 +11873,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
           var curTabMessages = getCurrentMessages();
           var prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
+          // 注入全局人设（AI/用户人设，从 localStorage 读取，头像菜单可编辑）
+          var _personaHdr = getPersonaHeader();
+          if (_personaHdr) prompt = _personaHdr + '\n\n' + prompt;
           var aiResponse = await callAI(prompt);
           aiResponse = cleanAIReply(aiResponse);
           removeTyping();
+
+          // ========== 🆕 保存cardData快照（用于头像菜单"撤回"回滚）==========
+          // 在应用任何AI修改前保存；AI消息将落在 curTabMessages.length 索引处
+          try { saveCardDataSnapshot(curTabMessages.length); } catch(_snapErr) {}
 
           // ========== 🆕 ::: 操作块协议优先检测 ==========
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
