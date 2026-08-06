@@ -7488,7 +7488,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return e;
       })
       .filter(function(e) { return e && typeof e === 'object'; })
-      .map(function(e, i) {
+      .map(function(e, i, arr) {
         var pos = (e.position && typeof e.position === 'object') ? e.position : {};
         var strat = (e.strategy && typeof e.strategy === 'object') ? e.strategy : {};
         var ks = (strat.keys_secondary && typeof strat.keys_secondary === 'object') ? strat.keys_secondary : {};
