@@ -8401,6 +8401,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '</div>';
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
         doc.getElementById('startBtn').addEventListener('click', function() {
+          // ✅ 点击「开始创作」= 全新开始：自动清空之前所有记录（角色卡数据 + 两边Tab聊天记录 + localStorage存档）
+          resetAllWorkForNewCard();
           renderChatUI();
           addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
         });
@@ -9491,6 +9493,85 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== localStorage 持久化 =====
       var STORAGE_KEY = 'modelo_char_generator_state';
+
+      // ===== 创建全新空 cardData 对象（写新卡/新建工作区时用，保证彻底无旧值残留）=====
+      //   模板与 openEditor 入口处 L8154 初始化完全一致，保证新建与首次打开状态等价
+      function createEmptyCardData() {
+        return {
+          name: '', description: '', personality: '', scenario: '',
+          first_mes: '', creator_notes: '', system_prompt: '',
+          creator: '时之写卡器',
+          character_version: '', alternate_greetings: [], group_only_greetings: [],
+          extensions: {
+            talkativeness: '0.5',
+            fav: false,
+            world: '',
+            depth_prompt: { prompt: '', depth: 4, role: 'system' },
+            regex_scripts: [],
+            'xiaobaix-template': {
+              enabled: false,
+              template: '',
+              customRegex: '',
+              disableParsers: false,
+              skipFirstMessage: false,
+              recentMessageCount: 0,
+              limitToRecentMessages: false
+            },
+            tavern_helper: { scripts: [], variables: {} }
+          },
+          character_book: { entries: [] }
+        };
+      }
+
+      // ===== 「开始创作」全新开始：重置角色卡 + 聊天记录 + 本地存档（不重置字体、不切Tab）=====
+      function resetAllWorkForNewCard() {
+        // 1. 角色卡数据：替换为全新空对象（彻底切断旧引用）
+        cardData = createEmptyCardData();
+        if (typeof window !== 'undefined') window.__cardData = cardData;
+
+        // 2. 聊天记录：两边 Tab 全部清空 + 所有别名同步（兼容旧代码对 messages/cardMessages/mvuMessages 的直接引用）
+        chatSessions.card = { messages: [], mode: 'normal' };
+        chatSessions.mvu = {
+          messages: [],
+          currentStep: 0,
+          modules: { step2: null, step3: null, step4: null, step5: null, step6: null },
+          statusBarMode: false
+        };
+        cardMessages = chatSessions.card.messages;
+        mvuMessages = chatSessions.mvu.messages;
+        mvuTabStatusBarModules = chatSessions.mvu.modules;
+        mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
+        mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
+        // 全局 messages 兼容别名：默认回到角色卡 Tab（与首次打开时 L8220 一致）
+        messages = chatSessions.card.messages;
+
+        // 3. 当前 Tab 强制回到「角色卡生成」（与首次打开 welcome 起点一致）
+        activeTab = 'card';
+        currentTab = 'card';
+        if (typeof window !== 'undefined') {
+          window.__tab_activeTab = activeTab;
+        }
+
+        // 4. 进度/生成状态归零
+        cardGenerated = false;
+        progress = 0;
+        moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
+        // 5. 旧 5 步状态栏状态同步归零（虽然已废弃，但避免旧代码读取残留值）
+        statusBarModules = { step2: null, step3: null, step4: null, step5: null, step6: null };
+        statusBarCurrentStep = 0;
+        statusBarMode = false;
+        // 6. 撤回快照 / AI 队列 归零
+        try {
+          if (typeof cardDataSnapshots !== 'undefined') {
+            cardDataSnapshots = { card: {}, mvu: {} };
+          }
+        } catch(_eSnap) {}
+        try { _aiChatQueueMode = false; } catch(_eQ) {}
+        try { _aiChatNotesQueue = []; } catch(_eQ) {}
+        // 7. localStorage 存档：移除旧 STORAGE_KEY，避免"关闭重开又带回来旧卡"
+        clearStorage();
+      }
+
       // 全局字体缩放：0.85 (最小) ~ 5.0 (最大，接近无限大)，步进0.1
       var _MIN_FONT_SCALE = 0.85, _MAX_FONT_SCALE = 5.0, _FONT_STEP = 0.1;
       var _appFontScale = 1;
