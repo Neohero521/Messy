@@ -6685,10 +6685,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 在 iframe 内通过 window.parent 访问酒馆原生 API，实现角色卡直接写入
 
   // 获取酒馆 API 函数（兼容 iframe 上下文）
+  // 查找顺序（遵循 tavern_helper_template @types/function/index.d.ts）：
+  //   1. window[name]                     —— 全局导出（最老版 ST 助手）
+  //   2. window.parent[name]              —— iframe 内访问父窗口的全局
+  //   3. window.TavernHelper[name]        —— 新版：所有函数统一挂在 TavernHelper 命名空间下
+  //   4. window.parent.TavernHelper[name] —— iframe 内访问父窗口的 TavernHelper
+  //   5. SillyTavern.getContext()[name]   —— 新版 ST 稳定接口（@types/iframe/exported.sillytavern.d.ts）
+  //   6. 全局 getContext()[name] / window.parent.getContext()[name]
   function _tavernFn(name) {
     try {
       if (typeof window[name] === 'function') return window[name];
       if (window.parent && typeof window.parent[name] === 'function') return window.parent[name];
+      if (typeof window.TavernHelper !== 'undefined' && window.TavernHelper && typeof window.TavernHelper[name] === 'function') return window.TavernHelper[name];
+      if (window.parent && typeof window.parent.TavernHelper !== 'undefined' && window.parent.TavernHelper && typeof window.parent.TavernHelper[name] === 'function') return window.parent.TavernHelper[name];
     } catch(e) {}
     // 兼容新版 SillyTavern（1.12+）：部分函数从 window 全局移到 SillyTavern.getContext() 上下文对象
     try {
@@ -6697,7 +6706,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var _ctx = _st.getContext();
         if (_ctx && typeof _ctx[name] === 'function') return _ctx[name];
       }
-      // 也检查全局 getContext 返回的上下文
       if (typeof getContext === 'function') {
         var _ctx2 = getContext();
         if (_ctx2 && typeof _ctx2[name] === 'function') return _ctx2[name];
