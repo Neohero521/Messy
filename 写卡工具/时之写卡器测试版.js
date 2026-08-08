@@ -6690,6 +6690,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (typeof window[name] === 'function') return window[name];
       if (window.parent && typeof window.parent[name] === 'function') return window.parent[name];
     } catch(e) {}
+    // 兼容新版 SillyTavern（1.12+）：部分函数从 window 全局移到 SillyTavern.getContext() 上下文对象
+    try {
+      var _st = _tavern();
+      if (_st && typeof _st.getContext === 'function') {
+        var _ctx = _st.getContext();
+        if (_ctx && typeof _ctx[name] === 'function') return _ctx[name];
+      }
+      // 也检查全局 getContext 返回的上下文
+      if (typeof getContext === 'function') {
+        var _ctx2 = getContext();
+        if (_ctx2 && typeof _ctx2[name] === 'function') return _ctx2[name];
+      }
+      if (window.parent && typeof window.parent.getContext === 'function') {
+        var _ctx3 = window.parent.getContext();
+        if (_ctx3 && typeof _ctx3[name] === 'function') return _ctx3[name];
+      }
+    } catch(e2) {}
     return null;
   }
 
@@ -6814,7 +6831,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       await _tavernEnsureCharacter(validated);
     } else {
       var createCharacter = _tavernFn('createCharacter');
-      if (!createCharacter) throw new Error('酒馆不支持 createCharacter API，无法直接创建角色卡');
+      if (!createCharacter) {
+        // 兜底：酒馆 JS API 不支持 createCharacter（新版 ST 或 iframe 隔离），
+        // 直接用 REST API POST /api/characters/create 创建空角色卡
+        await _tavernCreateCharacterViaFetch(validated);
+        created = true;
+        await _refreshCharacterList();
+        await _tavernEnsureCharacter(validated);
+        return { name: validated, created: created };
+      }
       var lastErr;
       for (var attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -6842,6 +6867,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     }
     return { name: validated, created: created };
+  }
+
+  // 兜底：通过 REST API 创建角色卡（不依赖 SillyTavern JS createCharacter 函数）
+  // 直接 POST /api/characters/create，兼容所有 ST 版本
+  async function _tavernCreateCharacterViaFetch(name) {
+    var formData = new FormData();
+    formData.append('name', name);
+    // 最小化字段：只需 name，其余字段后续由 _tavernWriteCharacterData 填充
+    formData.append('description', '');
+    formData.append('first_mes', '');
+    formData.append('mes_example', '');
+    formData.append('creator', '');
+    formData.append('creator_notes', '');
+    formData.append('character_version', '');
+    formData.append('system_prompt', '');
+    formData.append('tags', '[]');
+    formData.append('alternate_greetings', '[]');
+    var resp = await fetch('/api/characters/create', {
+      method: 'POST',
+      body: formData
+    });
+    if (!resp.ok) {
+      var txt = '';
+      try { txt = await resp.text(); } catch(_) {}
+      throw new Error('REST API 创建角色卡失败 (HTTP ' + resp.status + '): ' + (txt || resp.statusText));
+    }
+    var data = null;
+    try { data = await resp.json(); } catch(_) {}
+    // 创建后刷新角色列表，确保后续 _tavernEnsureCharacter 能找到它
+    await _refreshCharacterList();
+    return data;
   }
 
   // 写入开场白（Yr）
