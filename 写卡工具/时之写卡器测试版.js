@@ -3348,6 +3348,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // ===== 增量合并（修复版：智能匹配 + 变更记录 + 删改可追溯） =====
+  // 共享：把 {prompt,depth,role} 可能的"JSON 字符串" / "纯 prompt 字符串" / null 统一规范化为对象
+  //   - null/undefined: 返回空默认对象
+  //   - 形如 '{...}' 的字符串：尝试 JSON.parse，失败就退回纯 prompt 文本
+  //   - 其他字符串：视为纯 prompt 文本（旧规范）
+  function normalizeDepthPrompt(v, _defaultDepth) {
+    if (v == null) return { prompt: '', depth: typeof _defaultDepth === 'number' ? _defaultDepth : 0, role: 'system' };
+    if (typeof v === 'object') {
+      return {
+        prompt: typeof v.prompt === 'string' ? v.prompt : '',
+        depth: (typeof v.depth === 'number' && v.depth >= 0) ? v.depth : (typeof _defaultDepth === 'number' ? _defaultDepth : 0),
+        role: (v.role === 0 || v.role === 1 || v.role === 2 || v.role === 'system' || v.role === 'user' || v.role === 'assistant') ? v.role : 'system'
+      };
+    }
+    if (typeof v === 'string') {
+      var s = v.trim();
+      if (s.length > 0 && s.charAt(0) === '{') {
+        try {
+          var p = JSON.parse(s);
+          if (p && typeof p === 'object') {
+            return {
+              prompt: typeof p.prompt === 'string' ? p.prompt : (typeof v === 'string' ? v : ''),
+              depth: (typeof p.depth === 'number' && p.depth >= 0) ? p.depth : (typeof _defaultDepth === 'number' ? _defaultDepth : 0),
+              role: (p.role === 0 || p.role === 1 || p.role === 2 || p.role === 'system' || p.role === 'user' || p.role === 'assistant') ? p.role : 'system'
+            };
+          }
+        } catch(_e) { /* 不是合法 JSON，按纯 prompt 文本处理 */ }
+      }
+      return { prompt: v, depth: typeof _defaultDepth === 'number' ? _defaultDepth : 0, role: 'system' };
+    }
+    return { prompt: '', depth: typeof _defaultDepth === 'number' ? _defaultDepth : 0, role: 'system' };
+  }
   function mergePartial(partial, cd, options) {
     if (!partial || typeof partial !== 'object') return false;
     options = options || {};
@@ -4037,13 +4068,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (partial.depth_prompt !== undefined) {
       cd.extensions = cd.extensions || {};
       // 防御：旧卡 extensions.depth_prompt / depth_prompt 可能是字符串（非空字符串 truthy，|| 不会替换）
-      // 导致后续 cd.extensions.depth_prompt.depth = ... 抛 "Cannot create property 'depth' on string"
-      if (typeof cd.extensions.depth_prompt !== 'object' || cd.extensions.depth_prompt === null) {
-        cd.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
-      }
-      if (typeof cd.depth_prompt !== 'object' || cd.depth_prompt === null) {
-        cd.depth_prompt = { prompt: '', depth: 0, role: 'system' };
-      }
+      // 或更严重：JSON.stringify 后的字符串对象，导致 ".depth = ..." 抛 "Cannot create property 'depth' on string"
+      cd.extensions.depth_prompt = normalizeDepthPrompt(cd.extensions.depth_prompt, 0);
+      cd.depth_prompt = normalizeDepthPrompt(cd.depth_prompt, 0);
       var dp = partial.depth_prompt;
       var dpModified = false;
       if (typeof dp === 'string') {
@@ -4191,9 +4218,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (ek === 'depth_prompt') {
             // 顶层已处理过 depth_prompt（delete partial.depth_prompt 已执行），这里仅当 partial.extensions 有独立配置时处理
             // 防御：旧卡 extensions.depth_prompt 可能是字符串（非空字符串 truthy，|| 不会替换）
-            if (typeof cd.extensions.depth_prompt !== 'object' || cd.extensions.depth_prompt === null) {
-              cd.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
-            }
+            // 或 JSON.stringify 后的字符串对象，需要反序列化为对象
+            cd.extensions.depth_prompt = normalizeDepthPrompt(cd.extensions.depth_prompt, 0);
             var dp2 = partial.extensions.depth_prompt;
             var beforeDp = JSON.stringify(cd.extensions.depth_prompt);
             if (typeof dp2 === 'string') {
@@ -6839,6 +6865,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 非规范字段 → extensions（extensions 支持 [other: string]: any）
       // V3 data.* 兼容写入（SillyTavern 提示词构建器从 data.* 读取）
 
+      // ===== 前置规范化：酒馆读回来的 depth_prompt/data.depth_prompt 可能是 JSON 字符串
+      //   （tavern 在某些版本会把 depth_prompt 序列化为字符串存储），
+      //   如果不先反序列化，后续任意赋值 .depth/.prompt 都会抛 "Cannot create property 'depth' on string"
+      if (!charData.extensions) charData.extensions = {};
+      charData.extensions.depth_prompt = normalizeDepthPrompt(charData.extensions.depth_prompt, 4);
+      if (!charData.data) charData.data = {};
+      charData.data.depth_prompt = normalizeDepthPrompt(charData.data.depth_prompt, 4);
+
       // --- 规范顶层字段 ---
       if (data.description !== undefined) { charData.description = data.description; }
       if (data.creator !== undefined) { charData.creator = data.creator; }
@@ -6853,16 +6887,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // --- 非规范字段 → extensions ---
-      if (!charData.extensions) charData.extensions = {};
       if (data.system_prompt !== undefined) { charData.extensions.system_prompt = data.system_prompt; }
       if (data.personality !== undefined) { charData.extensions.personality = data.personality; }
       if (data.scenario !== undefined) { charData.extensions.scenario = data.scenario; }
       if (data.depth_prompt !== undefined) {
-        // 防御：depth_prompt 必须是对象，字符串会导致酒馆内部 "Cannot create property 'depth' on string"
-        var _dp = data.depth_prompt;
-        if (typeof _dp === 'string') { _dp = { prompt: _dp, depth: 4, role: 'system' }; }
-        else if (!_dp || typeof _dp !== 'object') { _dp = null; }
-        if (_dp) charData.extensions.depth_prompt = _dp;
+        // 防御：depth_prompt 必须是对象；JSON 字符串 / 纯 prompt 字符串统一规范化
+        var _dp = normalizeDepthPrompt(data.depth_prompt, 4);
+        charData.extensions.depth_prompt = _dp;
       }
 
       // --- V3 兼容：同时写入 data.* 供 SillyTavern 提示词构建器读取 ---
@@ -6878,10 +6909,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         charData.data.alternate_greetings = data.alternate_greetings;
       }
       if (data.depth_prompt !== undefined) {
-        var _dp2 = data.depth_prompt;
-        if (typeof _dp2 === 'string') { _dp2 = { prompt: _dp2, depth: 4, role: 'system' }; }
-        else if (!_dp2 || typeof _dp2 !== 'object') { _dp2 = null; }
-        if (_dp2) charData.data.depth_prompt = _dp2;
+        var _dp2 = normalizeDepthPrompt(data.depth_prompt, 4);
+        charData.data.depth_prompt = _dp2;
       }
 
       // --- 关联世界书（保持原样）---
@@ -7822,7 +7851,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
     // 优先从 data.depth_prompt 读取（v3规范），回退到 extensions.depth_prompt（v2兼容）
     // 改进D：深拷贝避免引用污染源cardData（多次buildExportCard会累积修改role/depth）
-    var _depthPromptSrc = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 4, role: 'system' });
+    // 修复：若来源是 JSON 字符串（形如 '{"prompt":"...","depth":0,"role":"system"}'），先反序列化再操作，
+    //   否则 JSON.parse(JSON.stringify(string)) 仍是字符串，后续 .depth= 会抛 "Cannot create property 'depth' on string"
+    var _rawDpSrc = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : { prompt: '', depth: 4, role: 'system' });
+    var _depthPromptSrc = normalizeDepthPrompt(_rawDpSrc, 4);
     var depthPrompt = JSON.parse(JSON.stringify(_depthPromptSrc));
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
@@ -9453,7 +9485,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!cardData.character_book) cardData.character_book = { entries: [] };
             if (!cardData.character_book.entries) cardData.character_book.entries = [];
             if (!cardData.extensions) cardData.extensions = {};
-            if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
+            cardData.extensions.depth_prompt = normalizeDepthPrompt(cardData.extensions.depth_prompt, 0);
+            // 顶层 depth_prompt（V3 字段）同样需要规范化：防止它是字符串导致后续 buildExportCard / mergePartial 崩溃
+            if (typeof cardData.depth_prompt !== 'undefined') {
+              cardData.depth_prompt = normalizeDepthPrompt(cardData.depth_prompt, 0);
+            } else {
+              // 与 extensions.depth_prompt 双向同步，保持旧代码（直接读 cd.depth_prompt 的）一致
+              cardData.depth_prompt = normalizeDepthPrompt(cardData.extensions.depth_prompt, 0);
+            }
             if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = { scripts: [], variables: {} };
             if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
             if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
