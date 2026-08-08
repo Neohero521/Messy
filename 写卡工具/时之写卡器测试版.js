@@ -547,7 +547,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .sb-step.todo{background:linear-gradient(135deg,var(--surface) 0%,var(--surface-soft) 100%);color:var(--muted);border:1px solid var(--line)}
 .sb-step.todo:hover{border-color:var(--accent-soft);color:var(--ink-soft);box-shadow:0 2px 8px rgba(15,23,42,.06)}
 
-.chat-input-char-count{font-size:.78em;color:var(--muted);text-align:right;padding:3px 6px 0;transition:color .2s}
+.chat-input-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 6px 0}
+.chat-input-hint{font-size:.76em;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.chat-input-hint .kbd{display:inline-block;min-width:18px;padding:1px 6px;border-radius:5px;background:linear-gradient(180deg,var(--surface-soft),#fff);border:1px solid var(--line);border-bottom-width:2px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;font-weight:600;color:var(--ink-soft);line-height:1.3;box-shadow:0 1px 0 rgba(15,23,42,.04)}
+.chat-input-char-count{font-size:.78em;color:var(--muted);text-align:right;transition:color .2s;white-space:nowrap}
 .chat-input-char-count.warn{color:var(--amber)}
 .chat-input-char-count.over{color:var(--terra)}
 
@@ -714,6 +717,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .chat-input-area{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
   .chat-input{font-size:16px;min-height:42px;padding:10px 14px;border-radius:12px}
   .btn-send{width:42px;height:42px;border-radius:12px}
+  /* 手机端：无实体 Ctrl 键，隐藏快捷键提示，字符计数居中 */
+  .chat-input-hint{display:none}
+  .chat-input-foot{justify-content:flex-end}
   /* 快捷按钮：手机端横向滚动，避免拥挤换行 */
   .quick-actions{gap:5px;padding:6px 8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;-webkit-overflow-scrolling:touch}
   .quick-actions::-webkit-scrollbar{display:none}
@@ -8370,7 +8376,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       svgIcon('spinner', 18, 'send-spinner ic-spin') +
                     '</button>' +
                   '</div>' +
-                  '<div class="chat-input-char-count" id="charCount">0 / 2000</div>' +
+                  '<div class="chat-input-foot">' +
+                    '<span class="chat-input-hint" id="chatInputHint"><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行</span>' +
+                    '<span class="chat-input-char-count" id="charCount">0 / 2000</span>' +
+                  '</div>' +
                 '</div>' +
               '</div>' +
               '<div class="preview-panel">' +
@@ -9026,9 +9035,35 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var input = doc.getElementById('chatInput');
         var sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
+        // 键盘事件：
+        //   · 桌面：单纯 Enter = 换行（textarea 默认行为，不拦截）；Ctrl/Cmd + Enter = 发送
+        //   · 移动端：软键盘 Enter/Send 键 = 换行（textarea 默认行为），点击纸飞机按钮才发送
+        //   · 通用：中文/日文输入法合成中（isComposing）一律不触发发送，避免候选上屏阶段误发送
+        //   · Shift+Enter 与 Ctrl+Enter 区分：Shift 保留给"语义换段"（仍换行），Ctrl/Cmd 才发送
         input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+          if (e.key !== 'Enter') return;
+          // 合成中：直接 return，交给 textarea 默认换行
+          if (e.isComposing) return;
+          // Ctrl(Mac:Cmd) + Enter → 发送
+          var sendModifier = e.ctrlKey || e.metaKey;
+          if (sendModifier) {
+            e.preventDefault();
+            handleSend();
+          }
+          // 其他情况（纯 Enter / Shift+Enter / Alt+Enter 等）：不 prevent，textarea 默认换行
         });
+        // 提示：在 sendBtn title / 底部 hint 动态加上正确的修饰键（Mac=⌘, Win/Linux=Ctrl）
+        try {
+          var _ua = typeof navigator !== 'undefined' ? (navigator.platform || navigator.userAgent || '') : '';
+          var _isMac = /Mac|iPhone|iPad|iPod/i.test(_ua);
+          var _mod = _isMac ? '⌘' : 'Ctrl';
+          sendBtn.setAttribute('title', '发送（' + _mod + '+Enter）');
+          sendBtn.setAttribute('aria-label', '发送（' + _mod + '+Enter）');
+          var _hintEl = doc.getElementById('chatInputHint');
+          if (_hintEl) {
+            _hintEl.innerHTML = '<span class="kbd">' + _mod + '</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行';
+          }
+        } catch(_hm) {}
         input.addEventListener('input', function() {
           updateCharCount();
           updateSendBtnPulse();
@@ -9678,7 +9713,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var stageName, stageIcon;
         if (__tab === 'card') {
           stageIcon = 'info';
-          stageName = p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可生成角色卡';
+          stageName = p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可写入酒馆';
         } else {
           // MVU Tab：静态阶段标签（进度由8步chip展示，避免与chip重复冲突）
           stageIcon = 'sliders';
@@ -9775,8 +9810,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           else if (p < 60)   actions.push({ action: 'entity_interact', icon: 'users',        label: '做实体内容',   hl: true });
           else if (p < 80)   actions.push({ action: 'dynamic_adapt',   icon: 'refreshCycle', label: '做动态适配',   hl: true });
           else if (p < 95)   actions.push({ action: 'goto_mvu',        icon: 'sliders',      label: '去做MVU变量/状态栏', hl: true });
-          // 生成角色卡（p>=95 时高亮）
-          actions.push({ action: 'generate', icon: 'sparkle', label: '生成角色卡', hl: p >= 95 });
+          // 生成角色卡并写入酒馆（新：直接调用 tavern API 装配导出，而非再让AI输出完整JSON）
+          // p>=95 时高亮；p<95 也能点（允许用户提前导出），但不做高亮提示
+          actions.push({ action: 'generate', icon: 'sparkle', label: '生成并写入酒馆', title: '通过写卡器装配角色卡（含MVU/正则/脚本），直接写入到酒馆当前角色卡', hl: p >= 95 });
         } else {
           // MVU Tab：基于8条工作流的三阶段按钮组
           var _chk = checkMvu8Entries(cardData);
@@ -9804,7 +9840,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var h = '';
         actions.forEach(function(a) {
           var icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
-          h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + icHtml + a.label + '</button>';
+          var titleAttr = a.title ? (' title="' + a.title.replace(/"/g, '&quot;') + '"') : '';
+          var ariaLabel = a.title ? (' aria-label="' + a.title.replace(/"/g, '&quot;') + '"') : '';
+          h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '"' + titleAttr + ariaLabel + '>' + icHtml + a.label + '</button>';
         });
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
@@ -9942,8 +9980,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (action === 'group') { showGroupMgr(); return; }
         if (action === 'mvuPreview') { showMvuStatusBarPreview(); return; }
         if (action === 'generate') {
-          // generate 仅角色卡Tab有效（已在上面校验），但在这里再兜底
-          if (currentTab === 'card' && input) { input.value = '生成完整角色卡'; handleSend(); }
+          // 新版：不再让AI生成完整JSON（旧版）。当前流程是「渐进写卡 + 写卡器自动装配 + 酒馆API」，
+          // 点击「生成角色卡」直接执行写入酒馆（与 qa-mini 写入酒馆按钮一致，按钮位置更显眼）。
+          // 兜底：仍仅角色卡Tab生效
+          if (currentTab !== 'card') {
+            showToast('⚠️ 「生成并写入酒馆」仅在「角色卡生成」Tab中可用。\n当前在MVU变量状态栏Tab，请切换到角色卡生成Tab使用此功能。', 'warning', 5000);
+            return;
+          }
+          saveCharacter();
           return;
         }
 
