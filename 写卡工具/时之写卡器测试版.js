@@ -1,133 +1,39 @@
 (function() {
+/* ============================================================================
+ * 时之写卡器 · Tavern Helper 脚本（整理版）
+ * ----------------------------------------------------------------------------
+ * 项目类型：后台脚本（Tavern Helper Script · 相当于模板里的 index.ts）
+ * 运行形式：单文件 JS，导入到酒馆脚本库，点击脚本按钮打开写卡器
+ * 技术栈：原生 JS + 自建 iframe UI（无需构建工具，便于酒馆用户使用）
+ *
+ * 依据 tavern-helper-template 脚本规范 + sillytavern-dev 技能进行整理：
+ *   1) 入口/卸载时序：用 $(() => scriptEntryPoint()) 替代顶层 tryInit()
+ *                     pagehide 时统一 cleanupScriptArtifacts()
+ *   2) 常量与模板集中在顶部：IFRAME_CSS、SVG 图标库、cardData 模板等
+ *   3) 工具函数在业务逻辑之前
+ *   4) 所有写卡/酒馆 API 调用封装在 "酒馆适配层" 中
+ *   5) 脚本自身 UI（写卡器 iframe） 的样式和 JS 分离
+ *
+ * 本文件分块索引（按代码顺序从上到下）：
+ *   ▌SECTION 0  脚本元信息 & 全局常量
+ *   ▌SECTION 1  IFRAME 外观样式（已抽到顶部 IFRAME_CSS 常量）
+ *   ▌SECTION 2  通用工具函数（Toast、SVG图标、Token估算、iframe创建/销毁）
+ *   ▌SECTION 3  卡片数据模板 + 世界书条目模板 + MVU美化模板
+ *   ▌SECTION 4  写卡预设 + 系统提示词（含 AI 输出格式约束）
+ *   ▌SECTION 5  条目匹配 + 智能合并引擎（mergePartial · 去重/删除屏障）
+ *   ▌SECTION 6  AI 调用适配层 + 响应清洗（callAI · cleanAIReply · JSON修复）
+ *   ▌SECTION 7  MVU 8步质检 + 提示词构建（buildPrompt · 角色卡/MVU Tab 隔离）
+ *   ▌SECTION 8  酒馆 SillyTavern API 适配层（_tavern() 封装 · 导入导出）
+ *   ▌SECTION 9  写卡器主界面 UI 渲染（欢迎页 · 聊天页 · 预览面板 · 工作台）
+ *   ▌SECTION 10 聊天消息发送与 AI 流式回复（callAIChat · 写卡流程主循环）
+ *   ▌SECTION 11 脚本注册按钮 + 浮动按钮 + 入口 / 卸载清理
+ * ==========================================================================
+ */
   const SCRIPT_ID = 'modelo-char-generator';
 
-  function showToast(msg, type) {
-    type = type || 'info';
-    if (type === 'warn') type = 'warning';
-    try {
-      if (window.parent && window.parent.toastr && window.parent.toastr[type]) window.parent.toastr[type](msg);
-      else if (typeof toastr !== 'undefined' && toastr && toastr[type]) toastr[type](msg);
-      else if (window.parent && window.parent.toastr) window.parent.toastr.info(msg);
-      else alert(msg);
-    } catch (e) { try { alert(msg); } catch(_) { console.log(msg); } }
-  }
 
-  // ===== Token估算 =====
-  function countTokens(text) {
-    if (!text) return 0;
-    var t = String(text);
-    var cn = (t.match(/[\u4e00-\u9fa5]/g) || []).length;
-    var enWords = t.replace(/[\u4e00-\u9fa5]/g, ' ').split(/\s+/).filter(Boolean).length;
-    return cn + Math.ceil(enWords * 0.75);
-  }
-
-  // ===== SvgIcons 组件系统 =====
-  // 统一大小/描边，颜色继承 currentColor，与主题完美融合（参考文件7 stroke 风格）
-  var SVG_PATHS = {
-    // 通用操作
-    close:      'M6 6l12 12M18 6L6 18',
-    send:       'M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z',
-    spinner:    'M21 12a9 9 0 1 1-6.219-8.56',
-    chevronDown:'M6 9l6 6 6-6',
-    arrowDown:  'M12 5v14M5 12l7 7 7-7',
-    bolt:       'M13 2L3 14h7v8l10-12h-7V2z',
-    download:   'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14',
-    folderOpen: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H5a2 2 0 0 0-2 2V7zm0 4l1.5 6a2 2 0 0 0 2 1.5h11A2 2 0 0 0 21 17l-1.5-6H3z',
-    // 视图/导航
-    chat:       'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z',
-    clipboard:  'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM6 4h2v2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2V4h2',
-    sliders:    'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5M14 4v4M6 10v4M11 16v4',
-    chart:      'M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3',
-    list:       'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
-    // 状态
-    check:      'M5 13l4 4L19 7',
-    checkCircle:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l3 3 5-5',
-    alert:      'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
-    info:       'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8h.01M11 12h1v4h1',
-    wrench:     'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.4-2.4 2.1-2.1z',
-    trash:      'M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7',
-    copy:       'M9 3h9a2 2 0 0 1 2 2v9M5 7h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z',
-    edit:       'M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
-    save:       'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
-    refresh:    'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
-    // 模块/体系
-    axiom:      'M12 2l9 5v10l-9 5-9-5V7l9-5zM12 2v20M3 7l9 5 9-5',
-    handshake:  'M11 17l-2 2a2 2 0 0 1-3-3M13 17l2 2a2 2 0 0 0 3-3M3 12l3-3 4 1 2-2 2 2 4-1 3 3M3 12v3a2 2 0 0 0 2 2h1M21 12v3a2 2 0 0 1-2 2h-1',
-    lock:       'M6 10V8a6 6 0 0 1 12 0v2M5 10h14a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a1 1 0 0 1 1-1z',
-    target:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
-    sword:      'M14 4l6 6-4 4-6-6V4h4zM5 19l3-3 3 3-3 3-3-3zM9 15l6-6',
-    users:      'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
-    book:       'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5H6.5A2.5 2.5 0 0 0 4 19.5z',
-    refreshCycle:'M3 12a9 9 0 1 0 9-9M3 12l3-3M3 12l3 3',
-    table:      'M5 4h14v16H5zM5 10h14M5 16h14M9 4v16M15 4v16',
-    docVar:     'M8 3h7l5 5v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v6h6M10 13h6M10 17h4',
-    // 角色/MVU
-    mask:       'M3 12c0-4 4-7 9-7s9 3 9 7-4 7-9 7-9-3-9-7zM8 12h.01M16 12h.01M9 15c1 1 5 1 6 0',
-    gauge:      'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 12l4-2M12 12l-3 4',
-    sparkle:    'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z',
-    play:       'M6 4l14 8-14 8V4z',
-    search:     'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
-    eye:        'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-    fileExport: 'M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-4-5zM12 18v-6m0 0l-2 2m2-2l2 2',
-    // 扩展图标（预览区/快捷动作专用）
-    globe:      'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20',
-    tag:        'M20 12l-8 8-9-9V3h8l9 9zM7.5 7.5h.01',
-    film:       'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18',
-    scroll:     'M8 3h11a2 2 0 0 1 2 2v3h-3M8 3H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h3M8 3v18M19 8v11a2 2 0 0 1-2 2H8M12 8h4M12 12h4',
-    skip:       'M5 4l10 8-10 8V4zM19 5v14',
-    palette:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM7 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM12 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8 13a4 4 0 0 0 8 0',
-    layers:     'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
-    circle:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
-    user:       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-    bot:        'M12 4v4M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM9 13h.01M15 13h.01M9 17h6',
-    // 工作区图标
-    code:       'M8 9l-3 3 3 3M16 9l3 3-3 3M14 5l-4 14',
-    menu:       'M3 12h18M3 6h18M3 18h18',
-    folder:     'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
-    dot:        'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
-    // 头像菜单专用
-    undo:       'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-4',
-    image:      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5L5 21',
-    settings:   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
-  };
-
-  /**
-   * 渲染内联 SVG 图标。统一 viewBox=24，描边风格，颜色继承 currentColor。
-   * @param {string} name SVG_PATHS 键名
-   * @param {number|string} [size=18] 图标尺寸(px)
-   * @param {string} [cls] 附加 class
-   * @returns {string} 内联 SVG 字符串
-   */
-  function svgIcon(name, size, cls) {
-    var path = SVG_PATHS[name];
-    if (!path) return '';
-    var s = (size == null ? 18 : size);
-    var c = cls ? (' ' + cls) : '';
-    // 圆形/方框型图标使用填充风格，其余使用描边风格（参考文件7统一风格）
-    var filled = (name === 'checkCircle' || name === 'info' || name === 'alert' || name === 'sparkle' || name === 'play');
-    if (filled) {
-      return '<svg class="ic' + c + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true"><path d="' + path + '"/></svg>';
-    }
-    return '<svg class="ic' + c + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + path + '"/></svg>';
-  }
-
-
-  // ===== Iframe创建 =====
-  function createModalIframe() {
-    return new Promise(function(resolve, reject) {
-      try {
-        var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-        var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
-        if (old) old.remove();
-        var iframe = parentDoc.createElement('iframe');
-        iframe.id = SCRIPT_ID + '-modal';
-        iframe.setAttribute('script_id', SCRIPT_ID);
-        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#f6f2ea;';
-        iframe.addEventListener('load', function() {
-          try {
-            var d = iframe.contentDocument || iframe.contentWindow.document;
-            var s = d.createElement('style');
-            s.textContent = `
+  // ===== Iframe 样式表（已从 createModalIframe 中抽出，便于维护和复用）=====
+  var IFRAME_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;width:100%;overflow:hidden}
 :root{
@@ -954,6 +860,139 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
 }
 `;
+  function showToast(msg, type) {
+    type = type || 'info';
+    if (type === 'warn') type = 'warning';
+    try {
+      if (window.parent && window.parent.toastr && window.parent.toastr[type]) window.parent.toastr[type](msg);
+      else if (typeof toastr !== 'undefined' && toastr && toastr[type]) toastr[type](msg);
+      else if (window.parent && window.parent.toastr) window.parent.toastr.info(msg);
+      else alert(msg);
+    } catch (e) { try { alert(msg); } catch(_) { console.log(msg); } }
+  }
+
+    // ============================================================================
+  // SECTION 2  通用工具函数
+  // ============================================================================
+  // ===== Token估算 =====
+  function countTokens(text) {
+    if (!text) return 0;
+    var t = String(text);
+    var cn = (t.match(/[\u4e00-\u9fa5]/g) || []).length;
+    var enWords = t.replace(/[\u4e00-\u9fa5]/g, ' ').split(/\s+/).filter(Boolean).length;
+    return cn + Math.ceil(enWords * 0.75);
+  }
+
+  // ===== SvgIcons 组件系统 =====
+  // 统一大小/描边，颜色继承 currentColor，与主题完美融合（参考文件7 stroke 风格）
+  var SVG_PATHS = {
+    // 通用操作
+    close:      'M6 6l12 12M18 6L6 18',
+    send:       'M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z',
+    spinner:    'M21 12a9 9 0 1 1-6.219-8.56',
+    chevronDown:'M6 9l6 6 6-6',
+    arrowDown:  'M12 5v14M5 12l7 7 7-7',
+    bolt:       'M13 2L3 14h7v8l10-12h-7V2z',
+    download:   'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14',
+    folderOpen: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H5a2 2 0 0 0-2 2V7zm0 4l1.5 6a2 2 0 0 0 2 1.5h11A2 2 0 0 0 21 17l-1.5-6H3z',
+    // 视图/导航
+    chat:       'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z',
+    clipboard:  'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM6 4h2v2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2V4h2',
+    sliders:    'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5M14 4v4M6 10v4M11 16v4',
+    chart:      'M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3',
+    list:       'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+    // 状态
+    check:      'M5 13l4 4L19 7',
+    checkCircle:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l3 3 5-5',
+    alert:      'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+    info:       'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8h.01M11 12h1v4h1',
+    wrench:     'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.4-2.4 2.1-2.1z',
+    trash:      'M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7',
+    copy:       'M9 3h9a2 2 0 0 1 2 2v9M5 7h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z',
+    edit:       'M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
+    save:       'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
+    refresh:    'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
+    // 模块/体系
+    axiom:      'M12 2l9 5v10l-9 5-9-5V7l9-5zM12 2v20M3 7l9 5 9-5',
+    handshake:  'M11 17l-2 2a2 2 0 0 1-3-3M13 17l2 2a2 2 0 0 0 3-3M3 12l3-3 4 1 2-2 2 2 4-1 3 3M3 12v3a2 2 0 0 0 2 2h1M21 12v3a2 2 0 0 1-2 2h-1',
+    lock:       'M6 10V8a6 6 0 0 1 12 0v2M5 10h14a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a1 1 0 0 1 1-1z',
+    target:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+    sword:      'M14 4l6 6-4 4-6-6V4h4zM5 19l3-3 3 3-3 3-3-3zM9 15l6-6',
+    users:      'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+    book:       'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5H6.5A2.5 2.5 0 0 0 4 19.5z',
+    refreshCycle:'M3 12a9 9 0 1 0 9-9M3 12l3-3M3 12l3 3',
+    table:      'M5 4h14v16H5zM5 10h14M5 16h14M9 4v16M15 4v16',
+    docVar:     'M8 3h7l5 5v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v6h6M10 13h6M10 17h4',
+    // 角色/MVU
+    mask:       'M3 12c0-4 4-7 9-7s9 3 9 7-4 7-9 7-9-3-9-7zM8 12h.01M16 12h.01M9 15c1 1 5 1 6 0',
+    gauge:      'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 12l4-2M12 12l-3 4',
+    sparkle:    'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z',
+    play:       'M6 4l14 8-14 8V4z',
+    search:     'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
+    eye:        'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    fileExport: 'M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-4-5zM12 18v-6m0 0l-2 2m2-2l2 2',
+    // 扩展图标（预览区/快捷动作专用）
+    globe:      'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20',
+    tag:        'M20 12l-8 8-9-9V3h8l9 9zM7.5 7.5h.01',
+    film:       'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18',
+    scroll:     'M8 3h11a2 2 0 0 1 2 2v3h-3M8 3H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h3M8 3v18M19 8v11a2 2 0 0 1-2 2H8M12 8h4M12 12h4',
+    skip:       'M5 4l10 8-10 8V4zM19 5v14',
+    palette:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM7 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM12 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8 13a4 4 0 0 0 8 0',
+    layers:     'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
+    circle:     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
+    user:       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    bot:        'M12 4v4M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM9 13h.01M15 13h.01M9 17h6',
+    // 工作区图标
+    code:       'M8 9l-3 3 3 3M16 9l3 3-3 3M14 5l-4 14',
+    menu:       'M3 12h18M3 6h18M3 18h18',
+    folder:     'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
+    dot:        'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+    // 头像菜单专用
+    undo:       'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-4',
+    image:      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5L5 21',
+    settings:   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
+  };
+
+  /**
+   * 渲染内联 SVG 图标。统一 viewBox=24，描边风格，颜色继承 currentColor。
+   * @param {string} name SVG_PATHS 键名
+   * @param {number|string} [size=18] 图标尺寸(px)
+   * @param {string} [cls] 附加 class
+   * @returns {string} 内联 SVG 字符串
+   */
+  function svgIcon(name, size, cls) {
+    var path = SVG_PATHS[name];
+    if (!path) return '';
+    var s = (size == null ? 18 : size);
+    var c = cls ? (' ' + cls) : '';
+    // 圆形/方框型图标使用填充风格，其余使用描边风格（参考文件7统一风格）
+    var filled = (name === 'checkCircle' || name === 'info' || name === 'alert' || name === 'sparkle' || name === 'play');
+    if (filled) {
+      return '<svg class="ic' + c + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true"><path d="' + path + '"/></svg>';
+    }
+    return '<svg class="ic' + c + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + path + '"/></svg>';
+  }
+
+
+    // ============================================================================
+  // SECTION 2（续） 通用工具：Modal Iframe 创建与样式注入
+  // ============================================================================
+  // ===== Iframe创建 =====
+  function createModalIframe() {
+    return new Promise(function(resolve, reject) {
+      try {
+        var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
+        if (old) old.remove();
+        var iframe = parentDoc.createElement('iframe');
+        iframe.id = SCRIPT_ID + '-modal';
+        iframe.setAttribute('script_id', SCRIPT_ID);
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#f6f2ea;';
+        iframe.addEventListener('load', function() {
+          try {
+            var d = iframe.contentDocument || iframe.contentWindow.document;
+            var s = d.createElement('style');
+            s.textContent = IFRAME_CSS;
             d.head.appendChild(s);
             // viewport meta：确保移动端正确渲染（禁止缩放，支持 dvh）
             try {
@@ -980,6 +1019,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
   }
 
+    // ============================================================================
+  // SECTION 3  卡片数据模板 + 世界书条目模板 + MVU 美化 HTML 模板
+  // ============================================================================
   // ===== 世界书名称生成 =====
   function genBookName(worldName) {
     if (!worldName || !worldName.trim()) return '世界设定集';
@@ -1459,6 +1501,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     ]
   };
 
+    // ============================================================================
+  // SECTION 4  写卡预设 + 系统提示词（注入到每一次 AI 请求的 system prompt）
+  // ============================================================================
   // ===== 【写卡预设】生成参数默认值（对齐写卡.json 数值） =====
   const TAVERN_GENERATION_PARAMS = {
     temperature: 1,
@@ -3234,6 +3279,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   6. 用户给出混合需求（如「把A改成XX，再加两个B，删掉C」）→ 对应的 update + upsert + delete 全放在同一回复里，按需求顺序或随意顺序输出\n' +
     '   7. 用户需求模糊时，先输出 1-2 句文字总结你的理解 + 推理出的增删改组合说明，然后再输出 :::操作块';
 
+    // ============================================================================
+  // SECTION 5  条目匹配 + 智能合并引擎（mergePartial · 去重/删除屏障）
+  // ============================================================================
   // ===== 提取条目的规范前缀（用于智能匹配） =====
   function extractEntryPrefix(comment) {
     if (!comment) return '';
@@ -4381,6 +4429,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return modified;
   }
 
+    // ============================================================================
+  // SECTION 6  AI 调用适配层 + 响应清洗（callAI · cleanAIReply · JSON修复）
+  // ============================================================================
   // ===== AI调用 =====
   async function callAI(prompt) {
     var errors = [];
@@ -4858,6 +4909,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  完成后的引导\n\n' +
     '  注意：这个条目只在测试时发现AI不输出 <UpdateVariable> 块时才需要启用。';
 
+    // ============================================================================
+  // SECTION 7  MVU 8步质检 + 提示词构建（buildPrompt · Tab隔离）
+  // ============================================================================
   // ===== 构建完整提示词 =====
   function buildPrompt(cardData, cardGenerated, messages) {
     // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
@@ -8150,6 +8204,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
   }
 
+    // ============================================================================
+  // SECTION 8  写卡器主界面 UI 渲染（欢迎页 · 聊天 · 预览 · 工作台）
+  // ============================================================================
   // ===== 主界面 =====
   async function openEditor() {
     try {
@@ -9501,7 +9558,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         saveToStorage();
       }
 
-      // ===== localStorage 持久化 =====
+        // ============================================================================
+  // SECTION 9  持久化 & 酒馆 SillyTavern API 适配层
+  // ============================================================================
+  // ===== localStorage 持久化 =====
       var STORAGE_KEY = 'modelo_char_generator_state';
 
       // ===== 创建全新空 cardData 对象（写新卡/新建工作区时用，保证彻底无旧值残留）=====
@@ -11403,7 +11463,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       var lastUserInput = '';
-      async function handleSend() {
+        // ============================================================================
+  // SECTION 10 聊天消息发送 + AI 写卡流程主循环（callAIChat）
+  // ============================================================================
+  async function handleSend() {
         var input = doc.getElementById('chatInput');
         var text = input ? input.value.trim() : '';
         if (!text || isGenerating) return;
@@ -14185,6 +14248,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
   }
 
+    // ============================================================================
+  // SECTION 11 脚本按钮注册 + 浮动按钮兜底 + 入口 / 卸载清理
+  // ============================================================================
   function registerButton() {
     try {
       var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
@@ -14220,7 +14286,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (retryCount < 10) { retryCount++; setTimeout(tryInit, 500); }
     else { addFloatingButton(); }
   }
+  // ============================================================================
+  // ===== 脚本入口 / 卸载清理：遵循 tavern-helper-template 脚本模板规范 =====
+  //   · 初始化放入 $() 中（等价于 jQuery ready，防止 DOM 未就绪时注册按钮失败）
+  //   · 卸载时(pagehide)不仅关闭写卡器弹窗，还清理浮动按钮，避免残留DOM
+  // ============================================================================
+  // 清理函数：写卡器专用浮动按钮 + 弹层 iframe 统一卸载
+  function cleanupScriptArtifacts() {
+    try { closeModal(); } catch (_) {}
+    try {
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
+      if (btn) btn.remove();
+      var md = pDoc.getElementById(SCRIPT_ID + '-modal');
+      if (md) md.remove();
+    } catch (_) {}
+  }
 
-  window.addEventListener('pagehide', closeModal);
-  tryInit();
+  // ===== 初始化入口：优先 jQuery ready（酒馆环境必定注入 jQuery），否则直接执行 =====
+  // skill 规范：脚本代码的副作用（DOM注册、按钮、监听器）必须在 jQuery ready 回调中，
+  // 禁止使用 DOMContentLoaded（远程加载场景不会触发），禁止直接在顶层作用域执行 DOM 写入。
+  function scriptEntryPoint() {
+    window.addEventListener('pagehide', cleanupScriptArtifacts);
+    tryInit();
+  }
+  if (typeof $ !== 'undefined') {
+    $(scriptEntryPoint);
+  } else if (typeof window !== 'undefined' && window.parent && typeof window.parent.$ !== 'undefined') {
+    window.parent.$(scriptEntryPoint);
+  } else {
+    scriptEntryPoint();
+  }
 })();
+
