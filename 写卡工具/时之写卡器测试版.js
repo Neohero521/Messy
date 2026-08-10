@@ -294,7 +294,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .qa-mini:disabled{opacity:.4;cursor:not-allowed}
 .chat-input-area{flex-shrink:0;padding:12px 14px;border-top:1px solid var(--line-soft);background:linear-gradient(180deg,var(--surface) 0%,var(--surface) 60%,rgba(79,70,229,.02) 100%)}
 .chat-input-row{display:flex;gap:9px;align-items:flex-end}
-.chat-input{width:100%;padding:11px 15px;background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font-size:14px;resize:none;min-height:44px;max-height:96px;font-family:inherit;line-height:1.55;transition:border-color .25s cubic-bezier(.4,0,.2,1),box-shadow .25s cubic-bezier(.4,0,.2,1),background .2s;box-shadow:inset 0 1px 3px rgba(15,23,42,.03)}
+.chat-input{width:100%;padding:11px 15px;background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font-size:14px;resize:none;min-height:44px;max-height:140px;font-family:inherit;line-height:1.55;transition:border-color .25s cubic-bezier(.4,0,.2,1),box-shadow .25s cubic-bezier(.4,0,.2,1),background .2s;box-shadow:inset 0 1px 3px rgba(15,23,42,.03);overflow-y:auto}
 .chat-input-row .chat-input{flex:1;width:auto}
 .chat-input:hover:not(:disabled){border-color:var(--accent-soft);background:var(--surface)}
 .chat-input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px var(--accent-soft-strong),0 4px 14px rgba(79,70,229,.08)}
@@ -350,6 +350,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-section .pv-toggle::before{content:'▾';display:inline-block;transition:transform .25s cubic-bezier(.4,0,.2,1)}
 .pv-section.collapsed .pv-toggle::before{transform:rotate(-90deg)}
 .pv-section .pv-empty{color:var(--muted);font-style:italic;font-size:.82em}
+.pv-editable{border-radius:var(--radius-sm);transition:background .18s ease,box-shadow .18s ease;position:relative}
+.pv-editable:hover{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-border)}
+.pv-edit-hint{font-size:.7em;color:var(--muted);cursor:pointer;flex-shrink:0;opacity:.6;transition:opacity .18s}
+.pv-edit-hint:hover{opacity:1}
 .pv-section .pv-entry{background:var(--surface-soft);padding:0;border-radius:var(--radius-sm);margin-bottom:8px;border-left:3px solid var(--accent-soft);transition:all .18s ease}
 .pv-section .pv-entry:last-child{margin-bottom:0}
 .pv-section .pv-entry:hover{background:var(--surface);border-left-color:var(--accent);box-shadow:0 2px 8px rgba(15,23,42,.05)}
@@ -644,7 +648,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ctx-bar{padding:5px 10px;min-height:36px}
   .ctx-mod{font-size:.72em;padding:4px 8px}
   .chat-input-area{padding:6px 10px;gap:4px}
-  .chat-input{min-height:36px;padding:6px}
+  .chat-input{min-height:36px;padding:6px;max-height:120px}
   .quick-actions{gap:4px}
   .quick-btn{font-size:.7em;padding:4px 8px}
   .preview-panel .preview-header{padding:6px 10px;font-size:.8em}
@@ -661,7 +665,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ctx-bar{padding:4px 8px;min-height:34px}
   .ctx-mod{font-size:.7em;padding:3px 8px}
   .chat-input-area{padding:4px 8px;gap:3px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
-  .chat-input{min-height:32px;padding:5px;font-size:.85em}
+  .chat-input{min-height:32px;padding:5px;font-size:.85em;max-height:110px}
   .btn-send{width:34px;height:34px}
   .quick-actions{gap:3px;max-height:60px}
   .quick-btn{font-size:.68em;padding:3px 6px}
@@ -715,7 +719,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .chat-msg .avatar{width:64px;height:64px;font-size:32px;border-radius:12px}
   /* 输入区：防止 iOS 聚焦缩放（≥16px），增大触摸区 */
   .chat-input-area{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
-  .chat-input{font-size:16px;min-height:42px;padding:10px 14px;border-radius:12px}
+  .chat-input{font-size:16px;min-height:42px;padding:10px 14px;border-radius:12px;max-height:160px}
   .btn-send{width:42px;height:42px;border-radius:12px}
   /* 手机端：无实体 Ctrl 键，隐藏快捷键提示，字符计数居中 */
   .chat-input-hint{display:none}
@@ -8764,10 +8768,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           wsOriginalContent = {};
           if (saved > 0) { updateProgress(); renderPreview(); showToast('已保存 ' + saved + ' 项更改到角色卡', 'success'); }
           else showToast('没有未保存的更改', 'info');
-          // 刷新编辑器
+          // 刷新编辑器和工作台预览
           var editorEl = container.querySelector('#wsEditor');
           if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
           bindWsEditorEvents(container);
+          renderWsArtifact(container);
         });
         // Tab 切换（移动端）
         container.querySelectorAll('.ws-panel-tab').forEach(function(tab) {
@@ -8819,6 +8824,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function closeWorkspacePanel() {
         var container = doc.getElementById('wsPanelContainer');
         if (container) container.innerHTML = '';
+        // 关闭工作台后刷新预览，确保最新保存的内容立即显示
+        renderPreview();
       }
       // ===== 文件树：从 cardData 读取真实数据，虚拟文件系统 =====
       function buildWorkspaceTree() {
@@ -9147,6 +9154,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.addEventListener('input', function() {
           updateCharCount();
           updateSendBtnPulse();
+          // 自动变高：重置高度后按内容撑开，上限由 CSS max-height 控制（约5行）
+          this.style.height = 'auto';
+          this.style.height = this.scrollHeight + 'px';
         });
         // Esc：优先关闭弹窗（模态框），其次关闭工作台浮窗
         doc.addEventListener('keydown', function(e) {
@@ -11398,6 +11408,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var text = input ? input.value.trim() : '';
         if (!text || isGenerating) return;
         input.value = '';
+        input.style.height = 'auto';  // 发送后重置输入框高度
         lastUserInput = text;
         var genKw = ['生成角色卡','生成完整角色卡','导出角色卡','写入酒馆','完整生成'];
         var isGenCmd = genKw.some(function(k) { return text === k || text.indexOf(k) >= 0; });
@@ -13577,14 +13588,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
 
         // 通用段落：完整显示内容（不再截断），支持折叠。icon 支持 emoji 字符串或 SVG 图标名
-        function sec(icon, title, content, rightInfo) {
+        // editKey(可选)：传入字段名时，内容区可双击编辑
+        function sec(icon, title, content, rightInfo, editKey) {
           var has = content && (typeof content === 'string' ? content.trim().length > 0 : true);
           var dot = has ? 'full' : 'empty';
-          var inner = has ? '<div class="pv-content">' + escHtml(typeof content === 'string' ? content : '') + '</div>' : '<div class="pv-empty">待生成...</div>';
+          var editAttr = editKey ? ' data-edit-type="field" data-edit-key="' + escHtml(editKey) + '"' : '';
+          var editCls = editKey ? ' pv-editable' : '';
+          var editHint = editKey ? '<span class="pv-edit-hint" title="双击编辑">✏️</span>' : '';
+          var inner = has
+            ? '<div class="pv-content' + editCls + '"' + editAttr + '>' + escHtml(typeof content === 'string' ? content : '') + '</div>'
+            : '<div class="pv-empty' + editCls + '"' + editAttr + '>待生成...</div>';
           var rightHtml = rightInfo ? '<span class="sec-right">' + rightInfo + '</span>' : '';
           // icon 为 SVG 图标名（无 emoji 字符）时渲染内联 SVG
           var iconHtml = (/^[a-zA-Z]+$/.test(icon)) ? svgIcon(icon, 14) : icon;
-          return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dot + '"></span>' + iconHtml + ' ' + title + '</span>' + rightHtml + '<span class="pv-toggle" title="折叠/展开"></span></h3>' + inner + '</div>';
+          return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dot + '"></span>' + iconHtml + ' ' + title + '</span>' + rightHtml + editHint + '<span class="pv-toggle" title="折叠/展开"></span></h3>' + inner + '</div>';
         }
 
         var h = '';
@@ -13690,8 +13707,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // ========== 角色卡 Tab 预览：过滤掉 MVU 内容 ==========
 
-        h += sec('globe', '世界名称', cardData.name);
-        h += sec('scroll', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '');
+        h += sec('globe', '世界名称', cardData.name, '', 'name');
+        h += sec('scroll', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '', 'description');
 
         // 模块进度（独立 pv-section，角色卡Tab：隐藏MVU模块）
         var mp = getModuleProgress();
@@ -13725,7 +13742,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
             var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
             eH += '<details class="pv-entry"><summary><span>' + escHtml(label) + '</span><span class="sec-right">~' + eTok + 'T ' + constTag + posTag + depTag + disabledTag + '</span></summary>' +
-              '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(e.content || '') + '</div></div></details>';
+              '<div class="pv-entry-body"><div class="pv-entry-content pv-editable" data-edit-type="entry" data-edit-index="' + allEntries.indexOf(e) + '">' + escHtml(e.content || '') + '</div></div></details>';
           }
           eH += '</div>';
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + eH + '</div>';
@@ -13733,7 +13750,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="pv-toggle"></span></h3><div class="pv-empty">待生成...</div></div>';
         }
 
-        h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
+        h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '', 'first_mes');
         // 身份定位（自动提取：personality+description 前 50 字）
         var autoIdExtract = '';
         if (cardData.personality || cardData.description) {
@@ -13760,7 +13777,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var multiRight = ((multiOpenEntries >= 1 || firstMesHasChoice) ? '✅ ' : '⚠️ ') + multiOpenEntries + '分支 / ' + choiceCount + '选项';
         h += sec('refreshCycle', '多开局机制（替代 alternate_greetings）', multiContent, multiRight);
 
-        h += sec('edit', '创作者备注', cardData.creator_notes);
+        h += sec('edit', '创作者备注', cardData.creator_notes, '', 'creator_notes');
 
         // ===== 脚本（tavern_helper.scripts）：变量结构/MVU/WTC等，可折叠显示 =====
         var cardScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
@@ -13932,6 +13949,93 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           });
         }
+        // ========== 双击编辑：预览内容区双击弹出编辑窗口 ==========
+        var editables = body.querySelectorAll('[data-edit-type]');
+        for (var ei = 0; ei < editables.length; ei++) {
+          editables[ei].style.cursor = 'pointer';
+          editables[ei].addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            var type = this.getAttribute('data-edit-type');
+            var key = this.getAttribute('data-edit-key');
+            var index = this.getAttribute('data-edit-index');
+            showPreviewEditModal(type, key, index);
+          });
+        }
+      }
+
+      // ===== 预览双击编辑弹窗 =====
+      function showPreviewEditModal(type, key, index) {
+        // 读取当前值
+        var currentVal = '';
+        var title = '';
+        if (type === 'field') {
+          currentVal = cardData[key] != null ? String(cardData[key]) : '';
+          title = '编辑字段：' + key;
+        } else if (type === 'entry') {
+          var idx = parseInt(index);
+          var entries = (cardData.character_book || {}).entries || [];
+          var entry = entries[idx];
+          if (!entry) return;
+          currentVal = entry.content || '';
+          title = '编辑条目：' + (entry.comment || ('条目' + (idx + 1)));
+        } else {
+          return;
+        }
+        // 创建弹窗
+        var overlay = doc.createElement('div');
+        overlay.className = 'json-modal';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px';
+        var modal = doc.createElement('div');
+        modal.style.cssText = 'background:var(--surface);border-radius:var(--radius);box-shadow:0 20px 60px rgba(15,23,42,.2);width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden';
+        var header = doc.createElement('div');
+        header.style.cssText = 'padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:10px';
+        header.innerHTML = '<span style="font-weight:600;color:var(--accent-deep);font-size:.95em">' + escHtml(title) + '</span>';
+        var closeBtn = doc.createElement('button');
+        closeBtn.className = 'icon-btn icon-btn-square';
+        closeBtn.innerHTML = svgIcon('close', 16);
+        closeBtn.onclick = function() { overlay.remove(); };
+        header.appendChild(closeBtn);
+        var textareaWrap = doc.createElement('div');
+        textareaWrap.style.cssText = 'flex:1;overflow:auto;padding:14px 18px';
+        var textarea = doc.createElement('textarea');
+        textarea.style.cssText = 'width:100%;min-height:200px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;color:var(--ink);background:var(--surface-soft)';
+        textarea.value = currentVal;
+        textareaWrap.appendChild(textarea);
+        var footer = doc.createElement('div');
+        footer.style.cssText = 'padding:10px 18px;border-top:1px solid var(--line-soft);display:flex;justify-content:flex-end;gap:8px';
+        var cancelBtn = doc.createElement('button');
+        cancelBtn.className = 'btn btn-ghost';
+        cancelBtn.textContent = '取消';
+        cancelBtn.onclick = function() { overlay.remove(); };
+        var saveBtn = doc.createElement('button');
+        saveBtn.className = 'btn btn-primary';
+        saveBtn.innerHTML = svgIcon('save', 14) + ' 保存';
+        saveBtn.onclick = function() {
+          var newVal = textarea.value;
+          if (type === 'field') {
+            cardData[key] = newVal;
+          } else if (type === 'entry') {
+            var idx2 = parseInt(index);
+            var entries2 = (cardData.character_book || {}).entries || [];
+            if (entries2[idx2]) {
+              entries2[idx2].content = newVal;
+            }
+          }
+          overlay.remove();
+          updateProgress();
+          renderPreview();
+          saveToStorage();
+          showToast('✅ 已保存修改', 'success');
+        };
+        footer.appendChild(cancelBtn);
+        footer.appendChild(saveBtn);
+        modal.appendChild(header);
+        modal.appendChild(textareaWrap);
+        modal.appendChild(footer);
+        overlay.appendChild(modal);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        doc.body.appendChild(overlay);
+        try { textarea.focus(); } catch(_) {}
       }
 
       async function saveCharacter() {
