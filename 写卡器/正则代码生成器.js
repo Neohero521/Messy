@@ -982,6 +982,20 @@ ${fieldRowsHtml}
 
   // ===== Iframe UI HTML =====
   function getIframeHTML() {
+    // 【关键】iframe 是独立执行环境，无法访问脚本主体中的变量/函数。
+    // 必须把 STYLE_PRESETS_A、generateModeA、generateModeB、escapeHtml、
+    // createToast、copyToClipboard 注入到 iframe 内部。
+    var injectScripts = [
+      'var STYLE_PRESETS_A = ' + JSON.stringify(STYLE_PRESETS_A) + ';',
+      'var escapeHtml = ' + escapeHtml.toString() + ';',
+      'var createToast = ' + createToast.toString() + ';',
+      'var copyToClipboard = ' + copyToClipboard.toString() + ';',
+      'var generateModeA = ' + generateModeA.toString() + ';',
+      'var generateModeB = ' + generateModeB.toString() + ';'
+    ].join('\n');
+    // 用 JSON.stringify 包一层，避免函数体内的反引号/换行破坏外层模板字符串
+    var injectStr = JSON.stringify(injectScripts);
+
     return `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -1040,6 +1054,7 @@ ${fieldRowsHtml}
 </div>
 
 <script>
+eval(${injectStr});
 (function() {
   // 状态
   var state = {
@@ -1523,7 +1538,7 @@ ${fieldRowsHtml}
 
     var fr = pDoc.createElement('iframe');
     fr.id = SCRIPT_ID + '_iframe';
-    fr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-modals allow-forms allow-popups allow-downloads');
+    // 不设 sandbox：酒馆脚本 iframe 本身是无沙盒的，弹窗也需要访问 parent 的 API
     try { fr.srcdoc = html; } catch (e) { throw new Error('设置 srcdoc 失败：' + (e.message || String(e))); }
     fr.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#fff;';
 
