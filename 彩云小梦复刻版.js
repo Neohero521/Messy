@@ -1231,6 +1231,10 @@
     min-height: var(--touch-target-min);
     min-width: var(--touch-target-min);
   }
+  
+  .xiaomeng-editor-container .xiaomeng-footer {
+    max-height: 260px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1433,6 +1437,10 @@
     padding: 6px 10px;
     font-size: 12px;
   }
+  
+  .xiaomeng-editor-container .xiaomeng-footer {
+    max-height: 240px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -1457,11 +1465,15 @@
     max-height: calc(100vh - 8px);
     max-height: calc(env(safe-area-inset-top) + env(safe-area-inset-bottom) + 450px);
   }
+  .xiaomeng-editor-container .xiaomeng-footer {
+    max-height: 200px;
+  }
   .xiaomeng-editor-container .xiaomeng-editor-main {
-    min-height: 150px;
+    min-height: 120px;
   }
   .xiaomeng-editor-container .footer-results-area {
-    max-height: 120px;
+    max-height: 110px;
+    min-height: 100px;
   }
 }
 
@@ -1958,8 +1970,8 @@
   box-sizing: border-box;
   z-index: 100;
   flex-shrink: 0;
-  max-height: 220px;
-  overflow: visible !important;
+  max-height: 280px;
+  overflow: hidden;
   position: relative;
 }
 .xiaomeng-editor-container .loading-overlay {
@@ -2018,7 +2030,7 @@
   gap: 16px;
   border-bottom: 1px solid var(--xiaomeng-border);
   flex-shrink: 0;
-  overflow: visible !important;
+  overflow: visible;
   position: relative;
 }
 .xiaomeng-editor-container .bar-left-group {
@@ -2906,8 +2918,9 @@ const Utils = {
 
 const API = {
   // 获取 SillyTavern 当前预设（Presets）信息
+  // 【关键修复】每次调用都实时从最新上下文读取，确保用户切换预设后立即生效
+  // 参考时之写卡器：所有预设相关信息必须在每次调用前从最新的ST上下文拉取
   getActivePresetInfo() {
-    const context = getContext();
     const presetInfo = {
       name: null,
       model: null,
@@ -2927,63 +2940,74 @@ const API = {
     };
 
     try {
-      // 尝试从 window 对象获取预设信息
-      if (typeof window !== 'undefined') {
-        // 当前预设名称
-        if (window.current_preset) {
-          presetInfo.name = window.current_preset;
+      // 获取各种上下文的访问入口（支持 iframe / window.parent 场景）
+      const contexts = [];
+      // 1. 本页 window（最先尝试）
+      if (typeof window !== 'undefined') contexts.push(window);
+      // 2. 父页面 window.parent（iframe 内场景）— 参考时之写卡器 _tavern() 逻辑
+      try {
+        if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+          contexts.push(window.parent);
         }
-        
-        // 当前模型信息
-        if (window.model) {
-          presetInfo.model = window.model;
+      } catch(_) {}
+      // 3. getContext() 最新上下文对象（ST 1.12+ 标准）
+      let stContext = null;
+      try {
+        if (typeof getContext === 'function') {
+          stContext = getContext();
+          if (stContext) contexts.push(stContext);
         }
-        if (window.model_name) {
-          presetInfo.model_name = window.model_name;
+      } catch(_) {}
+      try {
+        const pWin = (typeof window !== 'undefined' && window.parent) ? window.parent : null;
+        if (pWin && typeof pWin.getContext === 'function') {
+          const pCtx = pWin.getContext();
+          if (pCtx && pCtx !== stContext) contexts.push(pCtx);
         }
-        if (window.max_context_length) {
-          presetInfo.max_context_length = window.max_context_length;
-        }
-        
-        // 提示词相关
-        if (window.system_prompt) {
-          presetInfo.system_prompt = window.system_prompt;
-        }
-        if (window.jailbreak_prompt) {
-          presetInfo.jailbreak_prompt = window.jailbreak_prompt;
-        }
-        
-        // 预设列表
-        if (window.presets && typeof window.presets === 'object') {
-          const currentPresetName = window.current_preset || 'default';
-          if (window.presets[currentPresetName]) {
-            presetInfo.preset_data = window.presets[currentPresetName];
-            
-            // 从预设数据中提取详细信息
-            const preset = window.presets[currentPresetName];
-            if (preset.model) presetInfo.model = preset.model;
-            if (preset.max_context_length) presetInfo.max_context_length = preset.max_context_length;
-            if (preset.prompt_template) presetInfo.prompt_template = preset.prompt_template;
-            if (preset.system_prompt) presetInfo.system_prompt = preset.system_prompt;
-            if (preset.system_prompt_prefix) presetInfo.system_prompt_prefix = preset.system_prompt_prefix;
-            if (preset.system_prompt_suffix) presetInfo.system_prompt_suffix = preset.system_prompt_suffix;
-            if (preset.system_prompt_enabled !== undefined) presetInfo.system_prompt_enabled = preset.system_prompt_enabled;
-            if (preset.jailbreak_prompt) presetInfo.jailbreak_prompt = preset.jailbreak_prompt;
-            if (preset.jailbreak_prompt_enabled !== undefined) presetInfo.jailbreak_prompt_enabled = preset.jailbreak_prompt_enabled;
-            if (preset.instructions_prompt) presetInfo.instructions_prompt = preset.instructions_prompt;
-            if (preset.instructions_enabled !== undefined) presetInfo.instructions_enabled = preset.instructions_enabled;
-            
-            // 生成设置
-            if (preset.generation_settings) {
-              presetInfo.generation_settings = preset.generation_settings;
+      } catch(_) {}
+
+      // 遍历所有上下文，依次读取信息（第一个找到的有效非空值生效）
+      for (const ctx of contexts) {
+        if (!ctx) continue;
+        try {
+          // 预设名称
+          if (presetInfo.name === null && ctx.current_preset) presetInfo.name = ctx.current_preset;
+          // 模型信息
+          if (presetInfo.model === null && ctx.model) presetInfo.model = ctx.model;
+          if (presetInfo.model_name === null && ctx.model_name) presetInfo.model_name = ctx.model_name;
+          if (presetInfo.max_context_length === null && ctx.max_context_length) presetInfo.max_context_length = ctx.max_context_length;
+          // 提示词相关
+          if (presetInfo.system_prompt === null && ctx.system_prompt) presetInfo.system_prompt = ctx.system_prompt;
+          if (presetInfo.jailbreak_prompt === null && ctx.jailbreak_prompt) presetInfo.jailbreak_prompt = ctx.jailbreak_prompt;
+          // generationSettings 从上下文对象获取（ST 1.12+ 放这里）
+          if (presetInfo.generation_settings === null && ctx.generationSettings && typeof ctx.generationSettings === 'object') {
+            presetInfo.generation_settings = { ...ctx.generationSettings };
+          }
+          // 从 presets[current_preset] 提取详细信息
+          if (ctx.presets && typeof ctx.presets === 'object') {
+            const currentPresetName = presetInfo.name || ctx.current_preset || 'default';
+            if (currentPresetName && ctx.presets[currentPresetName]) {
+              const preset = ctx.presets[currentPresetName];
+              if (!presetInfo.preset_data) presetInfo.preset_data = preset;
+              if (presetInfo.model === null && preset.model) presetInfo.model = preset.model;
+              if (presetInfo.max_context_length === null && preset.max_context_length) presetInfo.max_context_length = preset.max_context_length;
+              if (presetInfo.prompt_template === null && preset.prompt_template) presetInfo.prompt_template = preset.prompt_template;
+              if (presetInfo.system_prompt === null && preset.system_prompt) presetInfo.system_prompt = preset.system_prompt;
+              if (presetInfo.system_prompt_prefix === null && preset.system_prompt_prefix) presetInfo.system_prompt_prefix = preset.system_prompt_prefix;
+              if (presetInfo.system_prompt_suffix === null && preset.system_prompt_suffix) presetInfo.system_prompt_suffix = preset.system_prompt_suffix;
+              if (presetInfo.system_prompt_enabled === null && preset.system_prompt_enabled !== undefined) presetInfo.system_prompt_enabled = preset.system_prompt_enabled;
+              if (presetInfo.jailbreak_prompt === null && preset.jailbreak_prompt) presetInfo.jailbreak_prompt = preset.jailbreak_prompt;
+              if (presetInfo.jailbreak_prompt_enabled === null && preset.jailbreak_prompt_enabled !== undefined) presetInfo.jailbreak_prompt_enabled = preset.jailbreak_prompt_enabled;
+              if (presetInfo.instructions_prompt === null && preset.instructions_prompt) presetInfo.instructions_prompt = preset.instructions_prompt;
+              if (presetInfo.instructions_enabled === null && preset.instructions_enabled !== undefined) presetInfo.instructions_enabled = preset.instructions_enabled;
+              if (presetInfo.generation_settings === null && preset.generation_settings) {
+                presetInfo.generation_settings = typeof preset.generation_settings === 'object' ? { ...preset.generation_settings } : preset.generation_settings;
+              }
             }
           }
+        } catch(e) {
+          console.debug('[彩云小梦] 从单个上下文读取预设信息失败，继续尝试:', e.message);
         }
-      }
-
-      // 从上下文获取生成设置（作为补充）
-      if (!presetInfo.generation_settings && context?.generationSettings) {
-        presetInfo.generation_settings = context.generationSettings;
       }
 
       console.log('[彩云小梦] 获取到的 SillyTavern 预设信息:', presetInfo);
@@ -3100,20 +3124,57 @@ const API = {
   getActivePresetParams() {
     const settings = extension_settings[extensionName];
     let presetParams = {};
-    const context = getContext();
-    if (context?.generationSettings && typeof context.generationSettings === 'object') {
-      presetParams = { ...context.generationSettings };
-    } else if (window.generation_params && typeof window.generation_params === 'object') {
-      presetParams = { ...window.generation_params };
-    }
-    if (!settings.inheritStParams) {
-      if (window.generation_params && typeof window.generation_params === 'object') {
-        presetParams = { ...window.generation_params };
+
+    // 【关键修复：每次调用都实时读取ST的当前预设，确保用户切换预设后立即生效】
+    // 参考时之写卡器：所有AI生成参数必须在每次调用前从最新的ST上下文拉取
+    try {
+      // 优先从最新的 getContext() 读取（ST 1.12+ 标准接口）
+      if (typeof getContext === 'function') {
+        const ctx = getContext();
+        if (ctx?.generationSettings && typeof ctx.generationSettings === 'object') {
+          presetParams = { ...ctx.generationSettings };
+        }
       }
+      // 兼容：从父页面 window.parent.getContext() 读取（iframe场景）
+      if (Object.keys(presetParams).length === 0) {
+        try {
+          const pWin = (typeof window !== 'undefined' && window.parent) ? window.parent : null;
+          if (pWin && typeof pWin.getContext === 'function') {
+            const pCtx = pWin.getContext();
+            if (pCtx?.generationSettings && typeof pCtx.generationSettings === 'object') {
+              presetParams = { ...pCtx.generationSettings };
+            }
+          }
+        } catch(_) {}
+      }
+      // 兼容回退：从 window / window.parent 的 generation_params 读取
+      if (Object.keys(presetParams).length === 0) {
+        if (typeof window !== 'undefined' && window.generation_params && typeof window.generation_params === 'object') {
+          presetParams = { ...window.generation_params };
+        } else {
+          try {
+            const pWin = (typeof window !== 'undefined' && window.parent) ? window.parent : null;
+            if (pWin && pWin.generation_params && typeof pWin.generation_params === 'object') {
+              presetParams = { ...pWin.generation_params };
+            }
+          } catch(_) {}
+        }
+      }
+    } catch(e) {
+      console.warn('[彩云小梦] 读取ST预设失败，使用回退逻辑:', e.message);
     }
+
+    // inheritStParams 开关逻辑：
+    //   true  = 继承ST当前预设（从上面读取的presetParams生效）
+    //   false = 不继承ST预设，改用脚本内默认值（此时清空presetParams，后续走默认兜底）
+    if (settings && settings.inheritStParams === false) {
+      presetParams = {};
+    }
+
+    // 只保留合法的生成参数字段
     const validParams = [
       'temperature', 'top_p', 'top_k', 'min_p', 'top_a',
-      'max_new_tokens', 'min_new_tokens',
+      'max_new_tokens', 'min_new_tokens', 'max_tokens',
       'repetition_penalty', 'repetition_penalty_range', 'repetition_penalty_slope', 'presence_penalty', 'frequency_penalty',
       'typical_p', 'tfs', 'guidance_scale', 'cfg_scale', 'mirostat_mode', 'mirostat_tau', 'mirostat_eta',
       'negative_prompt', 'stop_sequence', 'seed', 'do_sample', 'ban_eos_token', 'skip_special_tokens', 'add_bos_token', 'truncation_length', 'stream'
@@ -3123,6 +3184,10 @@ const API = {
       if (presetParams[key] !== undefined && presetParams[key] !== null) {
         filteredParams[key] = presetParams[key];
       }
+    }
+    // max_tokens 和 max_new_tokens 兼容：两者至少提供一个
+    if (filteredParams.max_new_tokens === undefined && filteredParams.max_tokens !== undefined) {
+      filteredParams.max_new_tokens = filteredParams.max_tokens;
     }
     const defaultFallbackParams = {
       temperature: 0.7,
