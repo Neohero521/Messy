@@ -16,6 +16,84 @@
  */
   const SCRIPT_ID = 'regex-code-generator';
 
+  // ----------------------------------------------------------------------------
+  // 【关键】脚本运行在后台 iframe 中，所有全局 Taver Helper API 都可能挂在
+  // window 或 window.parent 或 window.top 上。用 getApi() 统一查找，避免失效。
+  // ----------------------------------------------------------------------------
+  function getApi(name) {
+    var candidates = [];
+    try { if (typeof window !== 'undefined') candidates.push(window); } catch (_) {}
+    try { if (window && window.parent) candidates.push(window.parent); } catch (_) {}
+    try { if (window && window.top && window.top !== window) candidates.push(window.top); } catch (_) {}
+    try { if (typeof self !== 'undefined') candidates.push(self); } catch (_) {}
+    try { if (typeof globalThis !== 'undefined') candidates.push(globalThis); } catch (_) {}
+    for (var i = 0; i < candidates.length; i++) {
+      try {
+        var w = candidates[i];
+        if (w && typeof w[name] === 'function') return w[name];
+      } catch (_) {}
+    }
+    try { if (typeof eval(name) === 'function') return eval(name); } catch (_) {}
+    return null;
+  }
+
+  // 预取最常用的 Tavern Helper API（脚本内必须使用官方 API）
+  function getJQuery() {
+    // 脚本环境约定：window.$ = window.parent.$（jQuery 直接操作酒馆页面）
+    try { if (window.parent && window.parent.$) return window.parent.$; } catch (_) {}
+    try { if (window.top && window.top.$) return window.top.$; } catch (_) {}
+    try { if (typeof $ !== 'undefined') return $; } catch (_) {}
+    try { if (typeof jQuery !== 'undefined') return jQuery; } catch (_) {}
+    return null;
+  }
+
+  function getParentWindow() {
+    try { if (window.parent && window.parent.document) return window.parent; } catch (_) {}
+    try { if (window.top && window.top.document) return window.top; } catch (_) {}
+    return window;
+  }
+
+  // ----------------------------------------------------------------------------
+  // 把常用 Tavern Helper API 挂载到脚本 iframe 自己的 window 上（因为内部 srcdoc
+  // iframe 的 parent 就是当前脚本 iframe）。这样 getIframeHTML() 里写的
+  //   var root = win.parent; root.updateTavernRegexesWith(...)
+  // 就不用再绕 window.parent.parent 了。
+  // ----------------------------------------------------------------------------
+  (function exposeTavernApiLocally() {
+    var names = [
+      'eventOn', 'eventOff', 'eventTrigger',
+      'getButtonEvent', 'replaceScriptButtons', 'appendInexistentScriptButtons',
+      'updateScriptButtonsWith', 'getScriptButtons', 'getScriptId', 'getScriptName',
+      'replaceScriptInfo', 'getScriptInfo',
+      'getVariables', 'replaceVariables', 'updateVariablesWith',
+      'getChatMessages', 'getMessageById', 'getCurrentMessageId',
+      'generate', 'generateRaw', 'triggerSlash',
+      'replaceWorldbook', 'updateWorldbookWith',
+      'updateTavernRegexesWith', 'replaceTavernRegexes',
+      'toastr', 'replaceRegex',
+      'waitGlobalInitialized', 'getCurrentChatId'
+    ];
+    for (var i = 0; i < names.length; i++) {
+      try {
+        var name = names[i];
+        if (typeof window[name] !== 'undefined') continue; // 已经有就不覆盖
+        var fn = getApi(name);
+        if (fn !== null) {
+          try { window[name] = fn; } catch (_) {
+            // 某些环境只读，直接跳过
+          }
+        }
+      } catch (_) {}
+    }
+    // toastr 可能是对象
+    try {
+      if (!window.toastr) {
+        var t = getApi('toastr');
+        if (t) window.toastr = t;
+      }
+    } catch (_) {}
+  })();
+
   // ===== Iframe 样式表 =====
   var IFRAME_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1389,17 +1467,26 @@ ${fieldRowsHtml}
   var iframeContainer = null;
 
   function createModalIframe() {
-    if (iframeContainer) { iframeContainer.remove(); }
+    var $ = getJQuery();
+    if (!$) {
+      console.error('[正则代码生成器] ❌ 无法获取 jQuery，不能打开弹窗');
+      // 最后一招：用原生 DOM 兜底
+      return fallbackOpenWithNativeDOM();
+    }
+    if (iframeContainer) { try { $(iframeContainer).remove(); } catch (_) {} iframeContainer = null; }
 
-    var $body = window.parent.$('body');
+    var pWin = getParentWindow();
+    var $body = $('body', pWin.document);
+    if (!$body.length) $body = $(pWin.document.body);
     if (!$body.length) {
       console.error('[正则生成器] 无法获取酒馆 body');
       return;
     }
 
     // 模态遮罩层 + iframe 容器
-    var isMobile = window.parent.matchMedia && window.parent.matchMedia('(max-width: 768px)').matches;
-    var $overlay = window.parent.$('<div>')
+    var isMobile = false;
+    try { isMobile = pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches; } catch (_) {}
+    var $overlay = $('<div>')
       .attr('id', SCRIPT_ID + '_overlay')
       .css({
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -1413,7 +1500,7 @@ ${fieldRowsHtml}
         if (e.target === e.currentTarget) closeIframe();
       });
 
-    var $wrap = window.parent.$('<div>')
+    var $wrap = $('<div>')
       .attr('id', SCRIPT_ID + '_wrap')
       .css({
         position: 'relative',
@@ -1427,7 +1514,7 @@ ${fieldRowsHtml}
         border: isMobile ? 'none' : '1px solid rgba(15, 23, 42, 0.08)'
       });
 
-    var $iframe = window.parent.$('<iframe>')
+    var $iframe = $('<iframe>')
       .attr('id', SCRIPT_ID + '_iframe')
       .attr('srcdoc', getIframeHTML())
       .css({
@@ -1443,7 +1530,7 @@ ${fieldRowsHtml}
     function escHandler(e) {
       if (e.key === 'Escape') closeIframe();
     }
-    window.parent.document.addEventListener('keydown', escHandler);
+    pWin.document.addEventListener('keydown', escHandler);
     $overlay.data('escHandler', escHandler);
 
     // 监听 iframe 请求关闭
@@ -1452,18 +1539,75 @@ ${fieldRowsHtml}
         closeIframe();
       }
     }
-    window.parent.addEventListener('message', msgHandler);
+    pWin.addEventListener('message', msgHandler);
     $overlay.data('msgHandler', msgHandler);
+  }
+
+  // 原生 DOM 兜底打开弹窗（jQuery 完全不可用时启用）
+  function fallbackOpenWithNativeDOM() {
+    try {
+      var pWin = getParentWindow();
+      var pDoc = pWin.document;
+      if (!pDoc || !pDoc.body) return false;
+
+      // 清理已有
+      var oldOv = pDoc.getElementById(SCRIPT_ID + '_overlay');
+      if (oldOv) oldOv.remove();
+
+      var isMobile = false;
+      try { isMobile = pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches; } catch (_) {}
+
+      var ov = pDoc.createElement('div');
+      ov.id = SCRIPT_ID + '_overlay';
+      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:' + (isMobile ? '#fff' : 'rgba(15,23,42,0.55)') + ';padding:' + (isMobile ? '0' : '16px') + ';';
+      ov.addEventListener('click', function(e) { if (e.target === ov) closeIframe(); });
+
+      var wrap = pDoc.createElement('div');
+      wrap.id = SCRIPT_ID + '_wrap';
+      wrap.style.cssText = 'position:relative;width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';max-width:100%;max-height:100%;border-radius:' + (isMobile ? '0' : '16px') + ';overflow:hidden;background:#fff;' + (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
+
+      var fr = pDoc.createElement('iframe');
+      fr.id = SCRIPT_ID + '_iframe';
+      fr.srcdoc = getIframeHTML();
+      fr.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+
+      wrap.appendChild(fr);
+      ov.appendChild(wrap);
+      pDoc.body.appendChild(ov);
+      iframeContainer = ov;
+
+      function esc(e) { if (e.key === 'Escape') closeIframe(); }
+      pDoc.addEventListener('keydown', esc);
+      function msg(ev) { if (ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); }
+      pWin.addEventListener('message', msg);
+      ov._escFn = esc; ov._msgFn = msg;
+      console.log('[正则代码生成器] ✅ 已通过原生 DOM 打开弹窗');
+      return true;
+    } catch (e) {
+      console.error('[正则代码生成器] ❌ 原生 DOM 兜底也失败：', e);
+      alert('正则代码生成器打开失败，请检查浏览器控制台错误');
+      return false;
+    }
   }
 
   function closeIframe() {
     if (!iframeContainer) return;
-    var $ov = window.parent.$(iframeContainer);
-    var escH = $ov.data('escHandler');
-    var msgH = $ov.data('msgHandler');
-    if (escH) window.parent.document.removeEventListener('keydown', escH);
-    if (msgH) window.parent.removeEventListener('message', msgH);
-    $ov.remove();
+    var $ = getJQuery();
+    var pWin = getParentWindow();
+    try {
+      if ($) {
+        var $ov = $(iframeContainer);
+        var escH = $ov.data('escHandler');
+        var msgH = $ov.data('msgHandler');
+        if (escH) pWin.document.removeEventListener('keydown', escH);
+        if (msgH) pWin.removeEventListener('message', msgH);
+        $ov.remove();
+      } else {
+        if (iframeContainer._escFn) pWin.document.removeEventListener('keydown', iframeContainer._escFn);
+        if (iframeContainer._msgFn) pWin.removeEventListener('message', iframeContainer._msgFn);
+        if (iframeContainer.parentNode) iframeContainer.parentNode.removeChild(iframeContainer);
+      }
+    } catch (_) {}
     iframeContainer = null;
   }
 
@@ -1471,109 +1615,121 @@ ${fieldRowsHtml}
   function cleanupScriptArtifacts() {
     try { closeIframe(); } catch (_) {}
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var pDoc = getParentWindow().document;
       var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
-      try {
-        if (window.parent && window.parent.$) {
-          window.parent.$('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]').remove();
-        }
-      } catch (_) {}
+      var $ = getJQuery();
+      if ($) { $('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]', pDoc).remove(); }
     } catch (_) {}
   }
 
-  // ===== 获取环境：在脚本 iframe 中，API 可能挂在 window 或 window.parent =====
-  function getApi(name) {
-    try { if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name]; } catch (_) {}
-    try { if (typeof window.parent !== 'undefined' && window.parent && typeof window.parent[name] === 'function') return window.parent[name]; } catch (_) {}
-    try { if (typeof window.top !== 'undefined' && window.top && window.top !== window && typeof window.top[name] === 'function') return window.top[name]; } catch (_) {}
-    if (typeof this !== 'undefined' && typeof this[name] === 'function') return this[name];
-    if (typeof self !== 'undefined' && typeof self[name] === 'function') return self[name];
-    // 全局作用域兜底
-    try { if (typeof eval(name) === 'function') return eval(name); } catch (_) {}
-    return null;
-  }
+  // ===== 脚本按钮 + 浮动按钮（按官方示例：replaceScriptButtons 配合 eventOn(getButtonEvent(...))）=====
+  var OFFICIAL_BUTTON_NAME = '打开正则生成器';
+  var OFFICIAL_BUTTON_NAME2 = '关闭正则生成器';
+  var scriptButtonsCreated = false;
 
-  // ===== 按钮注册（优先脚本按钮，兜底浮动按钮）=====
-  function registerButton() {
+  function ensureScriptButtons() {
+    // 参考官方示例：replaceScriptButtons([{ name: '按钮名', visible: true }])
+    // 参考：/data/user/skills/tavern-helper-template/assets/examples/script/添加按钮和注册按钮事件.ts
+    var replaceButtons = getApi('replaceScriptButtons');
+    var appendButtons = getApi('appendInexistentScriptButtons');
+    var updateButtons = getApi('updateScriptButtonsWith');
+
     try {
-      var evtOn = getApi('eventOn');
-      var getBtnEvt = getApi('getButtonEvent');
-      if (evtOn && getBtnEvt) {
-        var created = false;
+      var buttons = [
+        { name: OFFICIAL_BUTTON_NAME, visible: true },
+        { name: '✨ 打开生成器', visible: true },
+        { name: '关闭正则生成器', visible: false }
+      ];
+      if (replaceButtons) {
+        replaceButtons(buttons);
+        console.log('[正则代码生成器] ✅ replaceScriptButtons 成功（按钮已自动写入脚本库）');
+        return true;
+      } else if (appendButtons) {
+        appendButtons(buttons);
+        console.log('[正则代码生成器] ✅ appendInexistentScriptButtons 成功（按钮已追加到脚本库）');
+        return true;
+      } else if (updateButtons) {
         try {
-          evtOn(getBtnEvt('打开正则生成器'), function() { createModalIframe(); });
-          evtOn(getBtnEvt('关闭正则生成器'), function() { closeIframe(); });
-          created = true;
-        } catch (innerErr) {
-          console.warn('[正则代码生成器] eventOn 注册异常：', innerErr && innerErr.message ? innerErr.message : innerErr);
-        }
-        // 双按钮名兼容：兼容脚本库中自定义按钮名
-        try {
-          evtOn(getBtnEvt('正则代码生成器'), function() { createModalIframe(); });
-        } catch (_) {}
-        try {
-          evtOn(getBtnEvt('正则生成器'), function() { createModalIframe(); });
-        } catch (_) {}
-        if (created) {
-          console.log('[正则代码生成器] ✅ 脚本按钮已注册（事件名：打开正则生成器 / 关闭正则生成器 / 正则代码生成器 / 正则生成器）');
+          updateButtonsWith(function (list) {
+            var map = {};
+            (list || []).forEach(function (b) { map[b.name] = b; });
+            buttons.forEach(function (b) { if (!map[b.name]) { (list = list || []).push(b); } else { map[b.name].visible = b.visible; } });
+            return list;
+          });
           return true;
-        }
+        } catch (_) { return false; }
+      } else {
+        console.warn('[正则代码生成器] ⚠️ 未获取到 replaceScriptButtons / appendInexistentScriptButtons，脚本按钮将不会自动创建（可手动在脚本库添加按钮名：' + OFFICIAL_BUTTON_NAME + '）');
+        return false;
       }
     } catch (e) {
-      console.warn('[正则代码生成器] registerButton 失败：', e && e.message ? e.message : e);
+      console.warn('[正则代码生成器] 按钮写入脚本库失败：', e && e.message ? e.message : e);
+      return false;
     }
-    return false;
   }
 
-  // ===== 浮动按钮（带 body 就绪重试）=====
+  function bindScriptButtonEvents() {
+    // 官方注册方式：eventOn(getButtonEvent('按钮名'), handler)
+    var evtOn = getApi('eventOn');
+    var getBtnEvt = getApi('getButtonEvent');
+    if (!evtOn || !getBtnEvt) {
+      console.warn('[正则代码生成器] ⚠️ 未获取到 eventOn 或 getButtonEvent API');
+      return false;
+    }
+    var bound = 0;
+    function tryBind(name, fn) {
+      try {
+        evtOn(getBtnEvt(name), fn);
+        console.log('[正则代码生成器] 🔗 已绑定按钮事件：' + name);
+        bound++;
+      } catch (e) {
+        console.warn('[正则代码生成器] 绑定 ' + name + ' 失败：', e && e.message ? e.message : e);
+      }
+    }
+    tryBind(OFFICIAL_BUTTON_NAME, function () { createModalIframe(); });
+    tryBind('✨ 打开生成器', function () { createModalIframe(); });
+    tryBind('正则代码生成器', function () { createModalIframe(); });
+    tryBind('正则生成器', function () { createModalIframe(); });
+    tryBind(OFFICIAL_BUTTON_NAME2, function () { closeIframe(); });
+    return bound > 0;
+  }
+
+  // ===== 浮动按钮（无论脚本按钮如何都会创建，双保险）=====
   var floatRetryCount = 0;
   function addFloatingButton() {
     try {
-      var pWin = (window.parent && window.parent.document) ? window.parent : window;
+      var pWin = getParentWindow();
       var pDoc = pWin.document;
-
-      // 主体必须存在
       if (!pDoc || !pDoc.body) {
         if (floatRetryCount < 20) {
           floatRetryCount++;
           setTimeout(addFloatingButton, 300);
-        } else {
-          console.error('[正则代码生成器] ❌ 多次重试后 document.body 仍不存在，浮动按钮创建失败');
         }
         return false;
       }
-
       var old = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (old) { try { old.remove(); } catch (_) {} }
 
       var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '✨ 正则生成器';
+      btn.title = '点击打开正则代码生成器';
       var isMobileBtn = false;
       try { isMobileBtn = (pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches) || false; } catch (_) {}
       var btnCss = isMobileBtn
-        ? 'position:fixed;bottom:70px;right:12px;z-index:99998;padding:8px 14px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(15,23,42,.25);transition:all .3s;font-size:12px;-webkit-tap-highlight-color:transparent;'
-        : 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.2);transition:all .3s;font-size:14px;';
+        ? 'position:fixed;bottom:72px;right:12px;z-index:99998;padding:9px 15px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(79,70,229,.4);transition:transform .2s, box-shadow .2s;font-size:12px;-webkit-tap-highlight-color:transparent;'
+        : 'position:fixed;bottom:80px;right:24px;z-index:99998;padding:11px 20px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 24px rgba(79,70,229,.35);transition:transform .2s, box-shadow .2s;font-size:14px;';
       btn.style.cssText = btnCss;
-      btn.onmouseover = function() { try { btn.style.transform = 'scale(1.05)'; } catch(_) {} };
-      btn.onmouseout = function() { try { btn.style.transform = 'scale(1)'; } catch(_) {} };
-      btn.onclick = function() {
-        try { createModalIframe(); } catch(e) { console.error('[正则代码生成器] 打开失败：', e); }
+      btn.onmouseover = function () { try { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 8px 28px rgba(79,70,229,.5)'; } catch (_) {} };
+      btn.onmouseout = function () { try { btn.style.transform = 'scale(1)'; } catch (_) {} };
+      btn.onclick = function () {
+        try { createModalIframe(); } catch (e) { console.error('[正则代码生成器] 打开失败：', e); try { fallbackOpenWithNativeDOM(); } catch (_) {} }
       };
-
       pDoc.body.appendChild(btn);
-      console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角）');
-
-      // 如果父窗口 jQuery 存在，也可以通过选择器确认按钮存在
-      try {
-        if (pWin.$ && pWin.$('#' + SCRIPT_ID + '-btn').length === 1) {
-          // OK
-        }
-      } catch (_) {}
+      console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角），可直接点击打开');
       return true;
     } catch (e) {
-      console.warn('[正则代码生成器] addFloatingButton 失败：', e && e.message ? e.message : e);
       if (floatRetryCount < 20) {
         floatRetryCount++;
         setTimeout(addFloatingButton, 300);
@@ -1582,99 +1738,79 @@ ${fieldRowsHtml}
     }
   }
 
-  // ===== 初始化：先尝试注册脚本按钮（重试），然后无论成功与否都加浮动按钮 =====
-  var retryCount = 0;
-  var buttonRegistered = false;
-  function tryInit() {
-    try {
-      if (!buttonRegistered && registerButton()) {
-        buttonRegistered = true;
-      }
-      if (retryCount < 20) {
-        retryCount++;
-        setTimeout(tryInit, 500);
-      } else {
-        // 10 秒后兜底：无论脚本按钮是否注册成功，都强制添加浮动按钮
-        console.log('[正则代码生成器] ⚠️ 脚本按钮未注册，启用浮动按钮兜底');
-        addFloatingButton();
-      }
-    } catch (e) {
-      console.error('[正则代码生成器] tryInit 异常：', e);
-      addFloatingButton();
-    }
-  }
+  // ===== 主初始化流程 =====
+  var initialized = false;
+  function mainInit() {
+    if (initialized) return;
+    initialized = true;
+    console.log('[正则代码生成器] 🚀 初始化（版本：官方按钮API版 · 多作用域兼容）');
 
-  // ===== 脚本入口 =====
-  function scriptEntryPoint() {
-    console.log('[正则代码生成器] 🚀 正在初始化（版本：全屏/响应式修复版）');
-
-    // 监听卸载：两边都挂（脚本 iframe 和 父页面）
     try { window.addEventListener('pagehide', cleanupScriptArtifacts); } catch (_) {}
     try {
-      if (window.parent && window.parent !== window) {
-        window.parent.addEventListener('pagehide', cleanupScriptArtifacts);
-      }
+      var pWin = getParentWindow();
+      if (pWin !== window) pWin.addEventListener('pagehide', cleanupScriptArtifacts);
     } catch (_) {}
 
-    tryInit();
+    // 1) 先在脚本库自动创建按钮（replaceScriptButtons）
+    var buttonsCreated = false;
+    var buttonsBound = false;
+    try { buttonsCreated = ensureScriptButtons(); } catch (_) {}
+    try { buttonsBound = bindScriptButtonEvents(); } catch (_) {}
 
-    // 终极保底：15 秒后检查是否有按钮，没的话强行创建
-    setTimeout(function() {
+    scriptButtonsCreated = buttonsCreated && buttonsBound;
+    console.log('[正则代码生成器] 📋 脚本库按钮：' + (buttonsCreated ? '已创建' : '未创建') + ' / 事件绑定：' + (buttonsBound ? '已绑定' : '未绑定'));
+
+    // 2) 无论脚本按钮是否生效，都创建浮动按钮（兜底 + 最快可用）
+    addFloatingButton();
+
+    // 3) 延迟后再试一次：如果 API 是异步注入的，这时可能才可用
+    setTimeout(function () {
+      if (!buttonsCreated) try { ensureScriptButtons(); } catch (_) {}
+      if (!buttonsBound) try { bindScriptButtonEvents(); } catch (_) {}
+    }, 1500);
+
+    // 4) 终极保底：10 秒后如果没看到浮动按钮，再创建一次
+    setTimeout(function () {
       try {
-        var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        var pDoc = getParentWindow().document;
         if (pDoc && !pDoc.getElementById(SCRIPT_ID + '-btn')) {
-          console.log('[正则代码生成器] 🛡️ 终极保底：15秒强制创建浮动按钮');
+          console.log('[正则代码生成器] 🛡️ 保底：未检测到浮动按钮，重新创建');
           addFloatingButton();
         }
       } catch (_) {}
-    }, 15000);
+    }, 10000);
+
+    // 5) 导入酒馆正则所用到的 helper（iframe 内部 postMessage 使用）
+    //    确保 postMessage 处理时能正确找到 triggerSlash / replaceRegex / getCurrentMessageId 等
+    //    这些在下方 onMessage 回调中已通过 getApi 调用（见 getIframeHTML() 内部的消息处理器）
   }
 
-  // ===== 多策略 jQuery ready 启动（兼容脚本 iframe / 父页面注入）=====
+  // ===== 启动：按官方示例用 $(cb) jQuery ready =====
   var started = false;
   function startOnce() {
     if (started) return;
     started = true;
-    try { scriptEntryPoint(); } catch (e) {
-      console.error('[正则代码生成器] 入口异常：', e);
-      // 即使入口异常，也直接开浮动按钮
+    try { mainInit(); } catch (e) {
+      console.error('[正则代码生成器] ❌ 主流程异常：', e);
       try { addFloatingButton(); } catch (_) {}
     }
   }
 
-  try {
-    // 1. 本地 jQuery
-    if (typeof $ !== 'undefined') {
-      $(startOnce);
-    } else if (typeof jQuery !== 'undefined') {
-      jQuery(startOnce);
+  function boot() {
+    // 脚本环境约定：window.$ = window.parent.$（jQuery 直接操作酒馆页面）
+    // 所以 $(cb) 就等同于 window.parent.$(cb)
+    var $ = getJQuery();
+    if ($) {
+      $(function () { startOnce(); });
+    } else {
+      // jQuery 不可用，直接起
+      setTimeout(startOnce, 500);
     }
-    // 2. 父页面 jQuery（脚本 iframe 场景）
-    try {
-      if (window.parent && window.parent.$) {
-        window.parent.$(startOnce);
-      } else if (window.parent && window.parent.jQuery) {
-        window.parent.jQuery(startOnce);
-      }
-    } catch (_) {}
-    // 3. top jQuery
-    try {
-      if (window.top && window.top !== window && window.top.$) {
-        window.top.$(startOnce);
-      }
-    } catch (_) {}
-  } catch (e) {
-    console.warn('[正则代码生成器] jQuery ready 绑定失败，改用直启：', e);
+    // 再加一个兜底：3 秒后强制起一次
+    setTimeout(startOnce, 3000);
   }
 
-  // 4. 无论 jQuery 是否可用，3 秒后强行启动（防所有启动链路都失效）
-  setTimeout(function() {
-    startOnce();
-  }, 3000);
-
-  // 5. 立即执行一次（脚本在某些环境是同步注入，ready 回调会被漏掉）
-  setTimeout(function() {
-    startOnce();
-  }, 200);
+  // 立即尝试启动（大多数环境，脚本加载时全局 API 已经准备好了）
+  boot();
 
 })();
