@@ -1340,34 +1340,70 @@ ${fieldRowsHtml}
   function cleanupScriptArtifacts() {
     closeIframe();
     try {
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
+      if (btn) btn.remove();
       window.parent.$('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]').remove();
     } catch (e) { /* noop */ }
   }
 
-  // ===== 脚本入口 + 事件绑定 =====
-  $(function() {
+  // ===== 按钮注册（优先脚本按钮，兜底浮动按钮）=====
+  function registerButton() {
     try {
-      // 注册按钮事件
-      if (typeof eventOn === 'function') {
-        // 「打开正则生成器」按钮
-        if (typeof getButtonEvent === 'function') {
-          eventOn(getButtonEvent('打开正则生成器'), function() {
-            createModalIframe();
-          });
-          eventOn(getButtonEvent('关闭正则生成器'), function() {
-            closeIframe();
-          });
-        }
+      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
+      if (evtOn && getBtnEvt) {
+        evtOn(getBtnEvt('打开正则生成器'), function() { createModalIframe(); });
+        evtOn(getBtnEvt('关闭正则生成器'), function() { closeIframe(); });
+        return true;
       }
+    } catch (e) {}
+    return false;
+  }
 
-      // 页面卸载清理
-      $(window).on('pagehide', function() {
-        cleanupScriptArtifacts();
-      });
+  function addFloatingButton() {
+    try {
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var old = pDoc.getElementById(SCRIPT_ID + '-btn');
+      if (old) old.remove();
+      var btn = pDoc.createElement('button');
+      btn.id = SCRIPT_ID + '-btn';
+      btn.textContent = '✨ 正则生成器';
+      btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:all .3s;font-size:14px;';
+      btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
+      btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
+      btn.onclick = createModalIframe;
+      pDoc.body.appendChild(btn);
+      console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角）');
+      return true;
+    } catch (e) { return false; }
+  }
 
-      console.log('[正则代码生成器] ✅ 脚本加载成功！点击脚本按钮「打开正则生成器」即可使用。');
-    } catch (err) {
-      console.error('[正则代码生成器] 启动失败:', err);
+  var retryCount = 0;
+  function tryInit() {
+    if (registerButton()) {
+      console.log('[正则代码生成器] ✅ 脚本按钮注册成功！');
+      return;
     }
-  });
+    if (retryCount < 10) {
+      retryCount++;
+      setTimeout(tryInit, 500);
+    } else {
+      addFloatingButton();
+    }
+  }
+
+  // ===== 脚本入口 =====
+  function scriptEntryPoint() {
+    window.addEventListener('pagehide', cleanupScriptArtifacts);
+    tryInit();
+  }
+
+  if (typeof $ !== 'undefined') {
+    $(scriptEntryPoint);
+  } else if (typeof window !== 'undefined' && window.parent && typeof window.parent.$ !== 'undefined') {
+    window.parent.$(scriptEntryPoint);
+  } else {
+    scriptEntryPoint();
+  }
 })();
