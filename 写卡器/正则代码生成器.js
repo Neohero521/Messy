@@ -3,15 +3,14 @@
  * 正则代码生成器 · Tavern Helper 脚本
  * ----------------------------------------------------------------------------
  * 项目类型：后台脚本（Tavern Helper Script）
- * 运行形式：单文件 JS，导入到酒馆脚本库，点击脚本按钮打开发电机
+ * 运行形式：单文件 JS，导入到酒馆脚本库，点击脚本按钮打开聊天界面
  * 技术栈：原生 JS + 自建 iframe UI（无需构建工具，便于酒馆用户使用）
  *
  * 功能：
- *   - 模式A：正文美化模板生成器（小说排版、对话气泡、信件等）
- *   - 模式B：结构化数据美化模板生成器（状态栏、论坛、任务面板等）
- *   - 实时预览生成代码
- *   - 一键复制代码
- *   - 一键导入酒馆正则配置
+ *   - 聊天式交互：用户描述需求，AI 自动生成正则代码
+ *   - AI 自动判断模式（正文美化 / 结构化数据）
+ *   - 随对话逐步完善代码
+ *   - 每条 AI 回复附带「复制」「导入酒馆正则」按钮
  * ==========================================================================
  */
   const SCRIPT_ID = 'regex-code-generator';
@@ -37,9 +36,7 @@
     return null;
   }
 
-  // 预取最常用的 Tavern Helper API（脚本内必须使用官方 API）
   function getJQuery() {
-    // 脚本环境约定：window.$ = window.parent.$（jQuery 直接操作酒馆页面）
     try { if (window.parent && window.parent.$) return window.parent.$; } catch (_) {}
     try { if (window.top && window.top.$) return window.top.$; } catch (_) {}
     try { if (typeof $ !== 'undefined') return $; } catch (_) {}
@@ -74,16 +71,13 @@
     for (var i = 0; i < names.length; i++) {
       try {
         var name = names[i];
-        if (typeof window[name] !== 'undefined') continue; // 已经有就不覆盖
+        if (typeof window[name] !== 'undefined') continue;
         var fn = getApi(name);
         if (fn !== null) {
-          try { window[name] = fn; } catch (_) {
-            // 某些环境只读，直接跳过
-          }
+          try { window[name] = fn; } catch (_) {}
         }
       } catch (_) {}
     }
-    // toastr 可能是对象
     try {
       if (!window.toastr) {
         var t = getApi('toastr');
@@ -92,398 +86,206 @@
     } catch (_) {}
   })();
 
-  // ===== Iframe 样式表 =====
+  // ===== 聊天界面样式表 =====
   var IFRAME_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden}
 :root{
-  --bg:#f7f7f2;
+  --bg:#f0f2f5;
   --surface:#ffffff;
-  --surface-soft:#f4f5f7;
-  --surface-sink:#eef0f3;
-  --ink:#111827;
-  --ink-soft:#475467;
-  --muted:#667085;
+  --surface-soft:#f8f9fa;
+  --ink:#1a1a2e;
+  --ink-soft:#495057;
+  --muted:#868e96;
   --accent:#4f46e5;
   --accent-deep:#4338ca;
   --accent-soft:rgba(79,70,229,.08);
-  --accent-soft-strong:rgba(79,70,229,.12);
   --accent-border:rgba(79,70,229,.22);
   --accent-text:#4338ca;
+  --user-bubble:#4f46e5;
+  --user-bubble-text:#ffffff;
+  --ai-bubble:#ffffff;
+  --ai-bubble-text:#1a1a2e;
+  --code-bg:#1e1e2e;
+  --code-text:#cdd6f4;
   --sage:#16a34a;
-  --sage-soft:rgba(22,163,74,.08);
-  --sage-text:#15803d;
-  --amber:#ca8a04;
-  --amber-soft:rgba(202,138,4,.09);
-  --amber-text:#a16207;
   --terra:#dc2626;
-  --terra-text:#dc2626;
-  --line:rgba(15,23,42,.10);
-  --line-soft:rgba(15,23,42,.06);
+  --line:rgba(15,23,42,.08);
+  --line-soft:rgba(15,23,42,.04);
   --radius:12px;
   --radius-sm:8px;
-  --radius-lg:16px;
-  --shadow-soft:0 6px 20px rgba(15,23,42,.06);
-  --shadow-card:0 12px 30px rgba(15,23,42,.08);
-  --shadow-float:0 20px 60px rgba(15,23,42,.12);
-  --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei UI','Hiragino Sans GB',sans-serif;
-  --font-mono:'Sarasa Mono SC','Cascadia Code','JetBrains Mono','Consolas',Menlo,monospace;
+  --shadow-soft:0 2px 8px rgba(15,23,42,.04);
+  --shadow-bubble:0 1px 2px rgba(15,23,42,.06);
+  --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei UI',sans-serif;
+  --font-mono:'Cascadia Code','JetBrains Mono','Consolas',Menlo,monospace;
 }
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;height:100%;width:100%;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden;min-height:0}
 
 /* 顶栏 */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
-.topbar h1{font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
-.topbar .subtitle{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
-.top-actions{display:flex;gap:8px}
+.chat-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0;box-shadow:var(--shadow-soft)}
+.chat-header h1{font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.chat-header .subtitle{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}
+.header-actions{display:flex;gap:4px;align-items:center}
 
-/* 模式切换 */
-.mode-tabs{display:flex;gap:4px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
-.mode-tab{padding:12px 20px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;transition:all .2s;display:flex;align-items:center;gap:6px}
-.mode-tab:hover{color:var(--ink-soft)}
-.mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.mode-tab .badge{background:var(--surface-sink);color:var(--ink-soft);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:400}
-.mode-tab.active .badge{background:var(--accent-soft);color:var(--accent-text)}
+/* 消息列表 */
+.chat-messages{flex:1 1 0;overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.chat-messages::-webkit-scrollbar{width:6px}
+.chat-messages::-webkit-scrollbar-track{background:transparent}
+.chat-messages::-webkit-scrollbar-thumb{background:rgba(148,163,184,.3);border-radius:3px}
 
-/* 主体区域 */
-.main{flex:1 1 0;display:grid;grid-template-columns:380px 1fr;overflow:hidden;min-height:0}
+/* 单条消息 */
+.message{display:flex;max-width:100%;min-width:0}
+.message.user{justify-content:flex-end}
+.message.assistant{justify-content:flex-start}
 
-/* 左侧表单区 */
-.form-panel{background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;overflow-x:hidden;padding:20px;min-height:0}
-.form-section{margin-bottom:24px}
-.form-section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)}
-.form-group{margin-bottom:16px}
-.form-label{display:block;font-size:12px;font-weight:500;color:var(--ink-soft);margin-bottom:6px}
-.form-label .req{color:var(--terra);margin-left:2px}
-.form-label .hint{color:var(--muted);font-weight:400;margin-left:6px;font-size:11px}
-.form-input,.form-select,.form-textarea{
-  width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);
-  font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface);
-  transition:all .15s;outline:none
-}
-.form-input:focus,.form-select:focus,.form-textarea:focus{
-  border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)
-}
-.form-textarea{min-height:90px;resize:vertical;font-family:var(--font-mono);font-size:12px;line-height:1.6}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-checkbox{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;background:var(--surface-soft);border-radius:var(--radius-sm);border:1px solid var(--line-soft);transition:all .15s}
-.form-checkbox:hover{background:var(--surface-sink)}
-.form-checkbox.checked{background:var(--accent-soft);border-color:var(--accent-border)}
-.form-checkbox input{width:16px;height:16px;accent-color:var(--accent)}
-.form-checkbox label{font-size:13px;color:var(--ink-soft);cursor:pointer}
+/* 气泡 */
+.message-bubble{max-width:85%;padding:10px 14px;border-radius:var(--radius);box-shadow:var(--shadow-bubble);word-wrap:break-word;word-break:break-word;min-width:0}
+.user-bubble{background:var(--user-bubble);color:var(--user-bubble-text);border-bottom-right-radius:4px}
+.assistant-bubble{background:var(--ai-bubble);color:var(--ai-bubble-text);border-bottom-left-radius:4px;border:1px solid var(--line-soft)}
 
-/* 字段列表编辑器 */
-.field-list{border:1px solid var(--line-soft);border-radius:var(--radius-sm);overflow:hidden}
-.field-item{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:10px;border-bottom:1px solid var(--line-soft);background:var(--surface-soft)}
-.field-item:last-child{border-bottom:none}
-.field-item input{padding:7px 10px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
-.field-item input:focus{border-color:var(--accent);outline:none}
-.field-item button{padding:7px 10px;background:var(--terra);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer}
-.add-field-btn{width:100%;padding:10px;background:var(--surface-soft);border:1px dashed var(--line);border-radius:var(--radius-sm);font-size:13px;color:var(--accent-text);cursor:pointer;margin-top:8px;transition:all .15s}
-.add-field-btn:hover{background:var(--accent-soft);border-color:var(--accent-border)}
+/* 消息文本 */
+.msg-text{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 
-/* 右侧预览区 */
-.preview-panel{display:flex;flex-direction:column;overflow:hidden;min-height:0;min-width:0}
-.preview-tabs{display:flex;gap:0;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
-.preview-tab{padding:10px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;transition:all .2s;white-space:nowrap}
-.preview-tab:hover{color:var(--ink-soft)}
-.preview-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.code-container{flex:1 1 0;overflow:hidden;display:flex;flex-direction:column;padding:16px;min-height:0}
-.code-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;gap:8px}
-.code-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.code-actions{display:flex;gap:8px}
-.btn{
-  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);
-  font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
-  transition:all .15s;font-family:var(--font)
-}
+/* 代码区块 */
+.code-section{margin-top:10px;border-top:1px solid var(--line-soft);padding-top:10px}
+.code-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.code-block{background:var(--code-bg);color:var(--code-text);border-radius:var(--radius-sm);padding:12px;overflow:auto;font-family:var(--font-mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:300px}
+.code-block::-webkit-scrollbar{width:6px;height:6px}
+.code-block::-webkit-scrollbar-thumb{background:rgba(148,163,184,.3);border-radius:3px}
+
+/* 代码操作按钮 */
+.code-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+/* 通用按钮 */
+.btn{display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);transition:all .15s;font-family:var(--font)}
 .btn:hover{background:var(--surface-soft);color:var(--ink)}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:white}
-.btn-primary:hover{background:var(--accent-deep);border-color:var(--accent-deep);color:white}
-.btn-success{background:var(--sage);border-color:var(--sage);color:white}
-.btn-success:hover{background:#15803d;border-color:#15803d;color:white}
-.btn-ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-deep);border-color:var(--accent-deep);color:#fff}
 .btn-sm{padding:5px 10px;font-size:11px}
-.code-block{
-  flex:1 1 0;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius);padding:16px;overflow:auto;
-  font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;min-height:0
-}
-.code-block::-webkit-scrollbar{width:8px;height:8px}
-.code-block::-webkit-scrollbar-track{background:transparent}
-.code-block::-webkit-scrollbar-thumb{background:rgba(148,163,184,.3);border-radius:4px}
-
-/* Toast 提示 */
-.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
-.toast{padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-float);animation:slideIn .25s ease}
-.toast-success{background:var(--sage);color:white}
-.toast-error{background:var(--terra);color:white}
-.toast-info{background:var(--accent);color:white}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-
-/* 样式预设网格 */
-.style-presets{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.style-preset{padding:14px;border:2px solid var(--line-soft);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;background:var(--surface-soft)}
-.style-preset:hover{border-color:var(--accent-border);background:var(--accent-soft)}
-.style-preset.selected{border-color:var(--accent);background:var(--accent-soft)}
-.style-preset-name{font-weight:600;font-size:13px;color:var(--ink);margin-bottom:4px}
-.style-preset-desc{font-size:11px;color:var(--muted);line-height:1.4}
-
-/* 关闭按钮 */
-.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:8px;cursor:pointer;color:var(--muted);transition:all .15s}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:8px;cursor:pointer;color:var(--muted);transition:all .15s;font-size:16px}
 .icon-btn:hover{background:var(--surface-soft);color:var(--ink)}
 
-/* 移动端视图切换栏（默认隐藏） */
-.view-switch{display:none;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
-.view-switch-btn{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none}
-.view-switch-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* 输入区 */
+.chat-input-area{display:flex;gap:8px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0;align-items:flex-end}
+.chat-input{flex:1 1 0;min-width:0;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface-soft);outline:none;resize:none;line-height:1.5;max-height:120px;transition:border-color .15s}
+.chat-input:focus{border-color:var(--accent);background:var(--surface)}
+.chat-input::placeholder{color:var(--muted)}
+.chat-send{padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font);flex-shrink:0;min-width:64px}
+.chat-send:hover:not(:disabled){background:var(--accent-deep)}
+.chat-send:disabled{opacity:.5;cursor:not-allowed}
+
+/* 打字指示器 */
+.typing-indicator{display:flex;gap:4px;padding:4px 0}
+.typing-indicator span{width:8px;height:8px;background:var(--muted);border-radius:50%;animation:typingBounce 1.4s infinite ease-in-out}
+.typing-indicator span:nth-child(1){animation-delay:-.32s}
+.typing-indicator span:nth-child(2){animation-delay:-.16s}
+@keyframes typingBounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* Toast */
+.toast-container{position:fixed;top:12px;left:12px;right:12px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{padding:10px 18px;border-radius:8px;font-size:13px;box-shadow:0 4px 16px rgba(15,23,42,.15);animation:slideIn .25s ease;pointer-events:auto}
+.toast-success{background:var(--sage);color:#fff}
+.toast-error{background:var(--terra);color:#fff}
+.toast-info{background:var(--accent);color:#fff}
+@keyframes slideIn{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
 
 /* ===== 响应式：手机端（<=768px） ===== */
 @media (max-width: 768px) {
-  :root{
-    --radius:10px;
-    --radius-sm:6px;
-  }
-  body{font-size:13px}
-
-  /* 顶栏紧凑 */
-  .topbar{padding:10px 14px}
-  .topbar h1{font-size:14px;gap:6px}
-  .topbar .subtitle{display:none}
-
-  /* 模式 Tab 紧凑 */
-  .mode-tabs{padding:0 8px}
-  .mode-tab{padding:10px 14px;font-size:12px;gap:4px}
-  .mode-tab .badge{padding:2px 6px;font-size:10px}
-
-  /* 显示移动端视图切换 */
-  .view-switch{display:flex}
-
-  /* 主体改为单列堆叠 */
-  .main{display:block !important;overflow:hidden;position:relative}
-  .form-panel{
-    border-right:none !important;
-    border-bottom:1px solid var(--line);
-    padding:14px;
-    height:100%;width:100%
-  }
-  .preview-panel{height:100%;width:100%}
-
-  /* 手机端默认只显示表单，预览隐藏 */
-  .main.mobile-view-form .preview-panel{display:none}
-  .main.mobile-view-form .form-panel{display:block}
-  .main.mobile-view-preview .form-panel{display:none}
-  .main.mobile-view-preview .preview-panel{display:flex}
-
-  /* 表单行改为单列 */
-  .form-row{grid-template-columns:1fr !important;gap:10px}
-
-  /* 样式预设单列 */
-  .style-presets{grid-template-columns:1fr !important;gap:8px}
-  .style-preset{padding:12px}
-
-  /* 输入框增大触摸区域 */
-  .form-input,.form-select,.form-textarea{padding:11px 14px;font-size:14px}
-  .form-checkbox{padding:10px 14px}
-  .form-checkbox label{font-size:14px}
-  .form-checkbox input{width:18px;height:18px}
-
-  /* 字段编辑器：删除按钮缩小 */
-  .field-item{grid-template-columns:1fr 1fr 36px !important;gap:6px;padding:8px}
-  .field-item input{padding:9px 10px;font-size:13px}
-  .field-item button{padding:7px 4px;font-size:11px}
-
-  /* 预览区代码容器紧凑 */
-  .code-container{padding:12px}
-  .code-header{flex-wrap:wrap;gap:8px}
-  .code-actions{width:100%;justify-content:flex-end}
-  .code-block{font-size:11px;padding:12px}
-
-  /* 按钮增大触摸区域 */
-  .btn{padding:9px 16px;font-size:13px}
-  .btn-sm{padding:8px 14px;font-size:12px}
+  .chat-header{padding:10px 12px}
+  .chat-header h1{font-size:14px}
+  .chat-header .subtitle{display:none}
+  .chat-messages{padding:12px;gap:10px}
+  .message-bubble{max-width:90%;padding:9px 12px;font-size:13px}
+  .msg-text{font-size:13px;line-height:1.55}
+  .code-block{font-size:10px;padding:10px;max-height:240px}
+  .chat-input-area{padding:10px 12px;gap:6px}
+  .chat-input{padding:9px 12px;font-size:14px}
+  .chat-send{padding:9px 16px;font-size:13px;min-width:56px}
+  .btn-sm{padding:6px 12px;font-size:11px}
   .icon-btn{width:36px;height:36px}
-
-  /* Toast 居中显示 */
-  .toast-container{top:10px;left:10px;right:10px;align-items:center}
-  .toast{max-width:100%;text-align:center}
-
-  /* 模式 Tab 可横向滚动 */
-  .mode-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
-
-  /* 预览 Tab 可横向滚动 */
-  .preview-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px}
-  .preview-tab{padding:10px 12px;font-size:11px;white-space:nowrap;flex-shrink:0}
 }
 
 /* ===== 响应式：小手机端（<=380px） ===== */
 @media (max-width: 380px) {
-  .topbar h1 span:not(.subtitle){font-size:13px}
-  .mode-tab .badge{display:none}
-  .mode-tab{padding:10px 10px;font-size:11px}
-  .code-block{font-size:10px;padding:10px}
-  .form-input,.form-select,.form-textarea{font-size:13px}
-}
-
-/* ===== 响应式：大屏电脑端（>=1200px） ===== */
-@media (min-width: 1200px) {
-  .main{grid-template-columns:420px 1fr}
-  .form-panel{padding:24px}
-  .code-container{padding:20px}
-  .code-block{font-size:13px;padding:20px}
-  .style-presets{grid-template-columns:repeat(2,1fr);gap:12px}
-}
-
-/* ===== 响应式：超宽屏（>=1600px） ===== */
-@media (min-width: 1600px) {
-  .main{grid-template-columns:460px 1fr}
-  .form-panel{padding:28px}
-  .form-section{margin-bottom:28px}
-  .topbar h1{font-size:16px}
+  .message-bubble{max-width:94%}
+  .code-block{font-size:9px;padding:8px}
+  .chat-send{padding:9px 12px;min-width:48px}
 }
 `;
 
-  // ===== 样式预设定义 =====
-  var STYLE_PRESETS_A = {
-    novel: {
-      name: '小说排版',
-      desc: '经典小说样式，段落清晰',
-      containerClass: 'novel-style',
-      extraCSS: `
-        .novel-style {
-            background: linear-gradient(180deg, #fdfcf9 0%, #f8f6f0 100%);
-            border-radius: 8px;
-            border: 1px solid #e8e4da;
-            box-shadow: 0 2px 12px rgba(120, 100, 80, 0.08);
-        }
-        .novel-style .narrative {
-            text-indent: 2em;
-            color: #3d3d3d;
-            margin-bottom: 1em;
-        }
-        .novel-style .dialogue {
-            color: #8b5a3c;
-            margin-bottom: 1em;
-            padding: 0 1em;
-            border-left: 3px solid #c9a87c;
-        }
-      `
-    },
-    letter: {
-      name: '信纸质感',
-      desc: '仿信纸效果，适合信件',
-      containerClass: 'letter-style',
-      extraCSS: `
-        .letter-style {
-            background: #fffef8;
-            background-image:
-                repeating-linear-gradient(
-                    transparent,
-                    transparent 31px,
-                    #e8e0d0 31px,
-                    #e8e0d0 32px
-                );
-            border-radius: 4px;
-            border: 1px solid #d4c8b0;
-            padding: 32px 40px !important;
-            box-shadow: 0 4px 16px rgba(150, 130, 100, 0.12);
-            position: relative;
-        }
-        .letter-style::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 8px;
-            background: linear-gradient(90deg, #c9a87c, #d4b896);
-            border-radius: 4px 4px 0 0;
-        }
-        .letter-style p {
-            line-height: 32px;
-            margin-bottom: 0;
-            color: #4a3f35;
-        }
-      `
-    },
-    bubble: {
-      name: '对话气泡',
-      desc: '聊天气泡风格，生动活泼',
-      containerClass: 'bubble-style',
-      extraCSS: `
-        .bubble-style {
-            padding: 16px !important;
-        }
-        .bubble-style .narrative {
-            text-align: center;
-            color: #888;
-            font-size: 13px;
-            font-style: italic;
-            padding: 8px 0;
-            margin: 8px 0;
-        }
-        .bubble-style .dialogue {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 18px;
-            border-radius: 18px 18px 18px 4px;
-            margin: 10px 0;
-            max-width: 85%;
-            position: relative;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
-        }
-        .bubble-style .dialogue::before {
-            content: '';
-            position: absolute;
-            bottom: 0; left: -6px;
-            width: 12px; height: 12px;
-            background: #764ba2;
-            border-bottom-right-radius: 12px;
-        }
-      `
-    },
-    diary: {
-      name: '日记本',
-      desc: '温馨日记本样式',
-      containerClass: 'diary-style',
-      extraCSS: `
-        .diary-style {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            border-radius: 4px;
-            padding: 32px 36px !important;
-            box-shadow:
-                inset 0 0 60px rgba(253, 230, 138, 0.2),
-                0 4px 16px rgba(200, 180, 100, 0.1);
-            position: relative;
-        }
-        .diary-style::before {
-            content: '📖';
-            position: absolute;
-            top: 12px; right: 16px;
-            font-size: 20px;
-            opacity: 0.4;
-        }
-        .diary-style .narrative {
-            text-indent: 2em;
-            color: #78350f;
-            margin-bottom: 1em;
-        }
-        .diary-style .dialogue {
-            color: #92400e;
-            font-weight: 500;
-            padding: 0 0.5em;
-            background: rgba(253, 230, 138, 0.3);
-            border-radius: 4px;
-            display: inline;
-            line-height: 2.2;
-        }
-      `
-    }
-  };
+  // ===== AI 系统提示词 =====
+  var SYSTEM_PROMPT = [
+    '你是 SillyTavern（酒馆助手）的正则代码生成助手。用户用自然语言描述想要的效果，你生成对应的酒馆正则配置和前端 HTML 代码。',
+    '',
+    '【输出格式】',
+    '每次回复严格按以下格式输出三部分：',
+    '',
+    '1. 先用中文简要说明你的理解和方案（1-3句话）',
+    '',
+    '2. 输出正则配置（用 <REGEX_CONFIG> 标签包裹）：',
+    '<REGEX_CONFIG>',
+    '脚本名称: [界面]xxx',
+    '查找正则: <标签名>[\\s\\S]*?</标签名>',
+    '</REGEX_CONFIG>',
+    '',
+    '3. 输出前端 HTML 代码（用 <HTML_CODE> 标签包裹）：',
+    '<HTML_CODE>',
+    '<!DOCTYPE html> ... 完整 HTML 文档 ...',
+    '</HTML_CODE>',
+    '',
+    '【规则】',
+    '- 标签名严禁使用 think、thinking、content',
+    '- 自动判断需求类型：',
+    '  · 正文美化（小说排版、对话气泡、信件、日记等）→ AI 只需输出 <标签>正文</标签>',
+    '  · 结构化数据（状态栏、属性面板、论坛帖子等）→ AI 需按固定格式输出字段',
+    '- HTML 中获取消息内容用：getChatMessages(getCurrentMessageId())[0].message',
+    '- HTML 中触发指令用：triggerSlash(\'/send 关键词|/trigger\')',
+    '- 结构化数据类型需在说明中告诉用户配合世界书规则',
+    '- 根据用户后续反馈不断修改完善代码，输出完整的更新版本（不要只输出改动部分）',
+    '- 用户没指定标签名时，选一个语义化的英文标签名',
+    '- HTML 中 script 标签的结束用 <\\/script> 写法',
+    '',
+    '【HTML 模板参考】',
+    '<!DOCTYPE html>',
+    '<html lang="zh-CN">',
+    '<head>',
+    '<meta charset="UTF-8">',
+    '<style>',
+    '* { margin:0; padding:0; box-sizing:border-box; }',
+    'body { font-family:"Microsoft YaHei",sans-serif; background:transparent; padding:8px; }',
+    '/* 根据需求设计样式 */',
+    '</style>',
+    '</head>',
+    '<body>',
+    '<div id="content">正在加载...</div>',
+    '<script>',
+    'function getMessageData() {',
+    '  var chatMessages = getChatMessages(getCurrentMessageId());',
+    '  if (!chatMessages || chatMessages.length === 0) return null;',
+    '  return chatMessages[0].message;',
+    '}',
+    'function init() {',
+    '  try {',
+    '    var messageText = getMessageData();',
+    '    if (!messageText) { document.getElementById(\'content\').innerHTML=\'❌ 无法获取消息\'; return; }',
+    '    /* 解析和渲染逻辑 */',
+    '  } catch(e) {',
+    '    document.getElementById(\'content\').innerHTML=\'❌ \'+e.message;',
+    '  }',
+    '}',
+    '$(function(){ init(); });',
+    '<\\/script>',
+    '</body>',
+    '</html>'
+  ].join('\n');
 
   // ===== 工具函数 =====
   function escapeHtml(str) {
+    if (str == null) return '';
     var div = document.createElement('div');
-    div.textContent = str;
+    div.textContent = String(str);
     return div.innerHTML;
   }
 
@@ -501,9 +303,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
     container.appendChild(toast);
     setTimeout(function() {
       toast.style.opacity = '0';
-      toast.style.transform = 'translateX(100%)';
+      toast.style.transform = 'translateY(-100%)';
       toast.style.transition = 'all .25s ease';
-      setTimeout(function() { toast.remove(); }, 250);
+      setTimeout(function() { if (toast.parentNode) toast.remove(); }, 250);
     }, 2500);
   }
 
@@ -534,448 +336,111 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
     }
   }
 
-  // ===== 模式A：正文美化代码生成 =====
-  function generateModeA(config) {
-    var tagName = config.tagName || 'story';
-    var scriptName = config.scriptName || '[界面]正文美化';
-    var preset = STYLE_PRESETS_A[config.stylePreset] || STYLE_PRESETS_A.novel;
+  // ===== 调用 AI 生成 =====
+  async function callAI(messages) {
+    var historyText = messages.map(function(m) {
+      return (m.role === 'user' ? '用户' : '助手') + '：' + m.content;
+    }).join('\n\n');
+    var fullPrompt = SYSTEM_PROMPT + '\n\n' + historyText + '\n\n助手：';
 
-    // 文件一：正则配置文本
-    var regexConfig =
-`脚本名称: ${scriptName}
-查找正则表达式: <${tagName}>[\\s\\S]*?</${tagName}>
-替换为: 下方HTML代码
-勾选:
-  - AI输出 ✓
-  - 在编辑时运行 ✓
-  - 仅格式显示 ✓
-
-(注：<${tagName}>可以换成你想要的任何标签名，但严禁使用 <think>、<thinking>、<content>)`;
-
-    // 文件二：前端界面HTML
-    var htmlCode =
-`<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>${scriptName.replace(/^\[界面\]/, '')}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+    // 1. generateRaw（最干净，不带聊天历史和角色卡）
+    var generateRaw = getApi('generateRaw');
+    if (generateRaw) {
+      try {
+        var result;
+        if (generateRaw.length <= 1) {
+          result = await generateRaw(fullPrompt);
+        } else {
+          result = await generateRaw({ prompt: fullPrompt });
         }
+        if (typeof result === 'string' && result.trim()) return result;
+        if (result && typeof result === 'object' && result.message) return result.message;
+      } catch (e) {
+        console.warn('[正则代码生成器] generateRaw 调用失败，尝试其他方式', e);
+      }
+    }
 
-        body {
-            font-family: "Microsoft YaHei", sans-serif;
-            background: transparent;
-            padding: 8px;
+    // 2. generate
+    var generate = getApi('generate');
+    if (generate) {
+      try {
+        var lastUser = '';
+        for (var i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === 'user') { lastUser = messages[i].content; break; }
         }
+        var result = await generate({ prompt: lastUser, quietPrompt: fullPrompt });
+        if (typeof result === 'string' && result.trim()) return result;
+      } catch (e) {
+        console.warn('[正则代码生成器] generate 调用失败，尝试 triggerSlash', e);
+      }
+    }
 
-        .story-container {
-            max-width: 650px;
-            margin: 0 auto;
-            padding: 24px 32px;
-            line-height: 1.9;
-            font-size: 15px;
-            color: #d4d4d4;
-        }
+    // 3. triggerSlash /genraw
+    var triggerSlash = getApi('triggerSlash');
+    if (triggerSlash) {
+      try {
+        var result = await triggerSlash('/genraw instruct=off ' + fullPrompt);
+        if (typeof result === 'string' && result.trim()) return result;
+      } catch (e) {
+        console.warn('[正则代码生成器] triggerSlash /genraw 调用失败', e);
+      }
+    }
 
-        /* ===== ${preset.name} 样式 ===== */${preset.extraCSS}
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #999;
-        }
-    </style>
-</head>
-<body>
-    <div class="story-container ${preset.containerClass}" id="content">
-        <div class="loading">正在加载...</div>
-    </div>
-
-    <script>
-        /* ========== 获取消息内容 ========== */
-        function getMessageData() {
-            var chatMessages = getChatMessages(getCurrentMessageId());
-            if (!chatMessages || chatMessages.length === 0) {
-                console.error("无法获取消息内容");
-                return null;
-            }
-            return chatMessages[0].message;
-        }
-
-        /* ========== 提取正文 ========== */
-        function extractContent(messageText) {
-            /* 注意这里的标签名要和正则里的保持一致 */
-            var match = messageText.match(/<${tagName}>([\\s\\S]*?)<\\/${tagName}>/);
-            if (match && match[1]) {
-                return match[1].trim();
-            }
-            return messageText;
-        }
-
-        /* ========== 渲染界面 ========== */
-        function renderPage(text) {
-            /* 将换行转为段落 */
-            var paragraphs = text.split(/\\n\\s*\\n/);
-            var html = '';
-            paragraphs.forEach(function(p) {
-                var trimmed = p.trim();
-                if (trimmed) {
-                    /* 处理对话行和叙述行 */
-                    if (trimmed.startsWith('"') || trimmed.startsWith('「')) {
-                        html += '<p class="dialogue">' + trimmed + '</p>';
-                    } else {
-                        html += '<p class="narrative">' + trimmed + '</p>';
-                    }
-                }
-            });
-            document.getElementById('content').innerHTML = html;
-        }
-
-        /* ========== 主函数 ========== */
-        function init() {
-            try {
-                var messageText = getMessageData();
-                if (!messageText) {
-                    document.getElementById('content').innerHTML =
-                        '<div class="loading">❌ 无法获取消息内容</div>';
-                    return;
-                }
-                var text = extractContent(messageText);
-                renderPage(text);
-            } catch (error) {
-                console.error("错误:", error);
-                document.getElementById('content').innerHTML =
-                    '<div class="loading">❌ 加载失败：' + error.message + '</div>';
-            }
-        }
-
-        $(function() { init(); });
-    <\/script>
-</body>
-</html>`;
-
-    // 酒馆正则对象（用于直接导入）
-    var tavernRegexObj = {
-      id: 'regex-gen-' + Date.now(),
-      script_name: scriptName,
-      enabled: true,
-      find_regex: '<' + tagName + '>[\\s\\S]*?</' + tagName + '>',
-      replace_string: '```\n' + htmlCode + '\n```',
-      trim_strings: [],
-      source: {
-        user_input: false,
-        ai_output: true,
-        slash_command: false,
-        world_info: false,
-        reasoning: false
-      },
-      destination: {
-        display: true,
-        prompt: false
-      },
-      run_on_edit: true,
-      min_depth: null,
-      max_depth: null
-    };
-
-    return {
-      regexConfig: regexConfig,
-      htmlCode: htmlCode,
-      tavernRegexObj: tavernRegexObj
-    };
+    throw new Error('AI 生成失败：generateRaw/generate/triggerSlash 均不可用或调用失败');
   }
 
-  // ===== 模式B：结构化数据美化代码生成 =====
-  function generateModeB(config) {
-    var tagName = config.tagName || 'status';
-    var scriptName = config.scriptName || '[界面]状态栏';
-    var pageTitle = config.pageTitle || '状态栏';
-    var fields = config.fields || [{ key: 'name', label: '名称' }, { key: 'value', label: '数值' }];
-    var keywords = config.keywords || ['查看状态', '打开面板'];
-    var dataFormat = config.dataFormat || 'pipe'; // pipe | kv
-    var triggerDesc = config.triggerDesc || '当用户提到查看状态、属性面板等信息时使用';
-
-    // 生成字段解析代码
-    var fieldParseCode = '';
-    if (dataFormat === 'pipe') {
-      fields.forEach(function(f, i) {
-        if (i === 0) {
-          fieldParseCode += '            var match;\n';
-        }
-        fieldParseCode +=
-`            match = content.match(/\\[${f.key}\\|([^\\]]+)\\]/);
-            if (match && match[1]) result.${f.key} = match[1].trim();\n`;
-      });
-    } else {
-      fieldParseCode +=
-`            var lines = content.trim().split('\\n');
-            lines.forEach(function(line) {
-                var kv = line.split(':');
-                if (kv.length >= 2) {
-                    var key = kv[0].trim();
-                    var value = kv.slice(1).join(':').trim();
-                    result[key] = value;
-                }
-            });`;
-    }
-
-    // 生成渲染HTML代码
-    var fieldRowsHtml = fields.map(function(f) {
-      return `                <div class="field-row">
-                    <span class="field-label">${f.label}：</span>
-                    <span class="field-value">\${data.${f.key} || '-'}</span>
-                </div>`;
-    }).join('\n');
-
-    // 生成关键词列表
-    var keywordList = keywords.map(function(k) { return `- "${k}"`; }).join('\n');
-
-    // 生成格式示例
-    var formatExample = '';
-    if (dataFormat === 'pipe') {
-      formatExample = fields.map(function(f) {
-        return `[${f.key}|${f.label}的值]`;
-      }).join('\n');
-    } else {
-      formatExample = fields.map(function(f) {
-        return `${f.key}: ${f.label}的值`;
-      }).join('\n');
-    }
-
-    // 文件一：正则配置文本
-    var regexConfig =
-`脚本名称: ${scriptName}
-查找正则表达式: <${tagName}>[\\s\\S]*?</${tagName}>
-替换为: 下方HTML代码
-勾选:
-  - AI输出 ✓
-  - 在编辑时运行 ✓
-  - 仅格式显示 ✓`;
-
-    // 文件二：世界书
-    var worldbookCode =
-`<${pageTitle}相关>
-** 注意事项说明
-
-<FORMAT_RULE>
-#${triggerDesc}
-Format:
-<${tagName}>
-${formatExample}
-</${tagName}>
-</FORMAT_RULE>
-
-# 注意
-- 严禁使用<think>、<thinking>、<content>标签
-- 闭合标签后禁止输出其他内容
-- (如果使用{{}}占位符)"{{}}"并不是格式的一部分，输出时禁止携带
-
-# 触发词
-${keywordList}`;
-
-    // 文件三：前端界面HTML
-    var htmlCode =
-`<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>${pageTitle}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: "Microsoft YaHei", sans-serif;
-            background: transparent;
-            padding: 8px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            border-radius: 12px;
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .panel-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #e2e8f0;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-            text-align: center;
-            letter-spacing: 2px;
-        }
-
-        .field-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            background: rgba(148, 163, 184, 0.08);
-            border-radius: 8px;
-            transition: all 0.2s;
-        }
-
-        .field-row:hover {
-            background: rgba(148, 163, 184, 0.15);
-        }
-
-        .field-label {
-            font-size: 13px;
-            color: #94a3b8;
-            font-weight: 500;
-        }
-
-        .field-value {
-            font-size: 14px;
-            color: #f1f5f9;
-            font-weight: 600;
-            font-family: 'Consolas', monospace;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #999;
-        }
-
-        .action-btn {
-            margin-top: 16px;
-            width: 100%;
-            padding: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-    </style>
-</head>
-<body>
-    <div class="container" id="content">
-        <div class="loading">正在加载...</div>
-    </div>
-
-    <script>
-        /* ========== 获取消息内容 ========== */
-        function getMessageData() {
-            var chatMessages = getChatMessages(getCurrentMessageId());
-            if (!chatMessages || chatMessages.length === 0) {
-                console.error("无法获取消息内容");
-                return null;
-            }
-            return chatMessages[0].message;
-        }
-
-        /* ========== 解析数据 ========== */
-        function parseData(messageText) {
-            var result = {};
-
-            /* 从完整消息中提取标签内容 */
-            var tagMatch = messageText.match(/<${tagName}>([\\s\\S]*?)<\\/${tagName}>/);
-            if (!tagMatch || !tagMatch[1]) {
-                console.error("未找到标签内容");
-                return result;
-            }
-            var content = tagMatch[1];
-
-            /* 解析字段 */
-${fieldParseCode}
-
-            return result;
-        }
-
-        /* ========== 渲染界面 ========== */
-        function renderPage(data) {
-            var html = \`
-                <div class="panel-title">${pageTitle}</div>
-${fieldRowsHtml}
-                <button class="action-btn" onclick="handleRefresh()">🔄 刷新数据</button>
-            \`;
-            document.getElementById('content').innerHTML = html;
-        }
-
-        /* ========== 交互函数 ========== */
-        function handleRefresh() {
-            if (typeof triggerSlash === 'function') {
-                triggerSlash('/send ${keywords[0] || '刷新面板'}|/trigger');
-            }
-        }
-
-        /* ========== 主函数 ========== */
-        function init() {
-            try {
-                var messageText = getMessageData();
-                if (!messageText) {
-                    document.getElementById('content').innerHTML =
-                        '<div class="loading">❌ 无法获取消息内容</div>';
-                    return;
-                }
-                var data = parseData(messageText);
-                renderPage(data);
-            } catch (error) {
-                console.error("错误:", error);
-                document.getElementById('content').innerHTML =
-                    '<div class="loading">❌ 加载失败：' + error.message + '</div>';
-            }
-        }
-
-        $(function() { init(); });
-    <\/script>
-</body>
-</html>`;
-
-    // 酒馆正则对象
-    var tavernRegexObj = {
-      id: 'regex-gen-' + Date.now(),
-      script_name: scriptName,
-      enabled: true,
-      find_regex: '<' + tagName + '>[\\s\\S]*?</' + tagName + '>',
-      replace_string: '```\n' + htmlCode + '\n```',
-      trim_strings: [],
-      source: {
-        user_input: false,
-        ai_output: true,
-        slash_command: false,
-        world_info: false,
-        reasoning: false
-      },
-      destination: {
-        display: true,
-        prompt: false
-      },
-      run_on_edit: true,
-      min_depth: null,
-      max_depth: null
+  // ===== 解析 AI 回复 =====
+  function parseAIResponse(text) {
+    var result = {
+      explanation: '',
+      regexConfig: '',
+      htmlCode: '',
+      scriptName: '',
+      findRegex: '',
+      tavernRegexObj: null
     };
 
-    return {
-      regexConfig: regexConfig,
-      worldbookCode: worldbookCode,
-      htmlCode: htmlCode,
-      tavernRegexObj: tavernRegexObj
-    };
+    // 提取 <REGEX_CONFIG>...</REGEX_CONFIG>
+    var regexMatch = text.match(/<REGEX_CONFIG>([\s\S]*?)<\/REGEX_CONFIG>/);
+    if (regexMatch) {
+      result.regexConfig = regexMatch[1].trim();
+      var nameMatch = result.regexConfig.match(/脚本名称\s*[:：]\s*(.+)/);
+      var findMatch = result.regexConfig.match(/查找正则\s*[:：]\s*(.+)/);
+      if (nameMatch) result.scriptName = nameMatch[1].trim();
+      if (findMatch) result.findRegex = findMatch[1].trim();
+    }
+
+    // 提取 <HTML_CODE>...</HTML_CODE>
+    var htmlMatch = text.match(/<HTML_CODE>([\s\S]*?)<\/HTML_CODE>/);
+    if (htmlMatch) {
+      result.htmlCode = htmlMatch[1].trim();
+    }
+
+    // 提取说明文字（REGEX_CONFIG 之前的内容）
+    if (regexMatch) {
+      result.explanation = text.substring(0, regexMatch.index).trim();
+    } else {
+      result.explanation = text.trim();
+    }
+
+    // 构造酒馆正则对象
+    if (result.findRegex && result.htmlCode) {
+      result.tavernRegexObj = {
+        id: 'regex-gen-' + Date.now(),
+        script_name: result.scriptName || '[界面]自定义',
+        enabled: true,
+        find_regex: result.findRegex,
+        replace_string: '```\n' + result.htmlCode + '\n```',
+        trim_strings: [],
+        source: { user_input: false, ai_output: true, slash_command: false, world_info: false, reasoning: false },
+        destination: { display: true, prompt: false },
+        run_on_edit: true,
+        min_depth: null,
+        max_depth: null
+      };
+    }
+
+    return result;
   }
 
   // ===== 创建/销毁 Iframe（参考时之写卡器：iframe 直接 fixed 撑满视口 + DOM API 注入内容）=====
@@ -990,16 +455,14 @@ ${fieldRowsHtml}
         if (!pDoc) return reject(new Error('父窗口没有 document'));
         if (!pDoc.body) return reject(new Error('document.body 尚未创建'));
 
-        // 清理旧的
         closeIframe();
         console.log('[正则代码生成器] ① 父窗口/Document/Body OK');
 
-        // 直接创建 fixed 撑满视口的 iframe（不用 overlay/wrap 多层嵌套，避免高度链断裂）
+        // iframe 直接 fixed 撑满视口（不用 overlay/wrap 多层嵌套，避免高度链断裂）
         var fr = pDoc.createElement('iframe');
         fr.id = SCRIPT_ID + '_iframe';
         fr.setAttribute('script_id', SCRIPT_ID);
-        // 100dvh 适配移动端动态视口，100vh 作为兜底
-        fr.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:100000;background:#f7f7f2;';
+        fr.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:100000;background:#f0f2f5;';
 
         console.log('[正则代码生成器] ② 创建 iframe，等待 load...');
 
@@ -1010,7 +473,6 @@ ${fieldRowsHtml}
 
             console.log('[正则代码生成器] ③ iframe load，用 DOM API 注入样式和内容...');
 
-            // viewport meta（确保移动端正确渲染）
             try {
               var vp = d.createElement('meta');
               vp.name = 'viewport';
@@ -1021,17 +483,14 @@ ${fieldRowsHtml}
               d.head.appendChild(charset);
             } catch (_) {}
 
-            // 注入样式（用 textContent，不用 d.write，避免文档重开导致的渲染问题）
             var s = d.createElement('style');
             s.textContent = IFRAME_CSS;
             d.head.appendChild(s);
 
-            // 注入 body 内容
             d.body.innerHTML = getIframeBodyHTML();
 
             console.log('[正则代码生成器] ④ ✅ 内容注入完成');
 
-            // 绑定 ESC 关闭
             function escFn(e) { if (e.key === 'Escape') closeIframe(); }
             pDoc.addEventListener('keydown', escFn);
             fr._escFn = escFn;
@@ -1046,7 +505,6 @@ ${fieldRowsHtml}
         pDoc.body.appendChild(fr);
         iframeEl = fr;
 
-        // 超时保护
         setTimeout(function () {
           try {
             if (!fr.contentDocument || !fr.contentDocument.body) reject(new Error('iframe load 超时'));
@@ -1070,45 +528,26 @@ ${fieldRowsHtml}
     iframeEl = null;
   }
 
-  // iframe 内部的静态 HTML 结构
+  // iframe 内部的静态 HTML 结构（聊天界面）
   function getIframeBodyHTML() {
     return '' +
       '<div class="app">' +
-        '<div class="topbar">' +
-          '<h1>✨ <span>正则代码生成器</span><span class="subtitle">酒馆助手模板生成工具</span></h1>' +
-          '<div class="top-actions">' +
-            '<button class="btn btn-sm btn-ghost" id="btnHelp" title="使用说明">❓ 说明</button>' +
+        '<div class="chat-header">' +
+          '<h1>✨ <span>正则代码生成器</span><span class="subtitle">和 AI 聊天生成代码</span></h1>' +
+          '<div class="header-actions">' +
+            '<button class="icon-btn" id="btnHelp" title="使用说明">❓</button>' +
             '<button class="icon-btn" id="btnClose" title="关闭">✕</button>' +
           '</div>' +
         '</div>' +
-        '<div class="mode-tabs">' +
-          '<div class="mode-tab active" data-mode="A">📄 模式A<span class="badge">正文美化</span></div>' +
-          '<div class="mode-tab" data-mode="B">📊 模式B<span class="badge">结构化数据</span></div>' +
-        '</div>' +
-        '<div class="view-switch">' +
-          '<button class="view-switch-btn active" data-view="form">📝 配置</button>' +
-          '<button class="view-switch-btn" data-view="preview">👁️ 预览</button>' +
-        '</div>' +
-        '<div class="main mobile-view-form">' +
-          '<div class="form-panel" id="formPanel"></div>' +
-          '<div class="preview-panel">' +
-            '<div class="preview-tabs" id="previewTabs"></div>' +
-            '<div class="code-container">' +
-              '<div class="code-header">' +
-                '<span class="code-title" id="codeTitle">📝 酒馆正则配置</span>' +
-                '<div class="code-actions">' +
-                  '<button class="btn btn-sm" id="btnCopy">📋 复制代码</button>' +
-                  '<button class="btn btn-sm btn-primary" id="btnImport">➕ 导入酒馆正则</button>' +
-                '</div>' +
-              '</div>' +
-              '<pre class="code-block" id="codeBlock"></pre>' +
-            '</div>' +
-          '</div>' +
+        '<div class="chat-messages" id="chatMessages"></div>' +
+        '<div class="chat-input-area">' +
+          '<textarea class="chat-input" id="chatInput" rows="1" placeholder="描述你想要的效果，例如：做一个小说正文美化..."></textarea>' +
+          '<button class="chat-send" id="btnSend">发送</button>' +
         '</div>' +
       '</div>';
   }
 
-  // ===== 打开生成器：拿到 doc 后在闭包中直接操作 DOM（参考时之写卡器 openEditor）=====
+  // ===== 打开生成器：聊天界面逻辑 =====
   async function openGenerator() {
     console.log('[正则代码生成器] 🚀 正在打开生成器...');
     var doc = await createModalIframe();
@@ -1117,269 +556,237 @@ ${fieldRowsHtml}
     var win = iframeEl ? iframeEl.contentWindow : window;
     var root = getParentWindow();
 
-    // 状态
-    var state = {
-      mode: 'A',
-      activeTab: 0,
-      configA: {
-        scriptName: '[界面]正文美化',
-        tagName: 'story',
-        stylePreset: 'novel',
-        srcAIOutput: true,
-        runOnEdit: true,
-        destDisplay: true
-      },
-      configB: {
-        scriptName: '[界面]状态栏',
-        tagName: 'status',
-        pageTitle: '角色状态栏',
-        dataFormat: 'pipe',
-        triggerDesc: '当用户提到查看状态、属性面板等信息时使用',
-        fields: [
-          { key: 'hp', label: '生命值' },
-          { key: 'mp', label: '法力值' },
-          { key: 'atk', label: '攻击力' },
-          { key: 'def', label: '防御力' }
-        ],
-        keywords: ['查看状态', '打开面板', '属性']
+    var messages = []; // 对话历史 [{role, content}]
+    var isGenerating = false;
+
+    var chatMessagesEl = doc.getElementById('chatMessages');
+    var chatInput = doc.getElementById('chatInput');
+    var btnSend = doc.getElementById('btnSend');
+    var btnClose = doc.getElementById('btnClose');
+    var btnHelp = doc.getElementById('btnHelp');
+
+    // ===== 滚动到底部 =====
+    function scrollToBottom() {
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    }
+
+    // ===== 添加用户消息 =====
+    function addUserMessage(text) {
+      var msg = doc.createElement('div');
+      msg.className = 'message user';
+      var bubble = doc.createElement('div');
+      bubble.className = 'message-bubble user-bubble';
+      var txt = doc.createElement('div');
+      txt.className = 'msg-text';
+      txt.textContent = text;
+      bubble.appendChild(txt);
+      msg.appendChild(bubble);
+      chatMessagesEl.appendChild(msg);
+      scrollToBottom();
+    }
+
+    // ===== 添加 AI 消息 =====
+    function addAssistantMessage(text, parsed) {
+      var msg = doc.createElement('div');
+      msg.className = 'message assistant';
+      var bubble = doc.createElement('div');
+      bubble.className = 'message-bubble assistant-bubble';
+
+      // 说明文字
+      var displayText = (parsed && parsed.explanation) ? parsed.explanation : text;
+      if (displayText) {
+        var txt = doc.createElement('div');
+        txt.className = 'msg-text';
+        txt.textContent = displayText;
+        bubble.appendChild(txt);
       }
-    };
 
-    // ===== 模式切换 =====
-    doc.querySelectorAll('.mode-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        doc.querySelectorAll('.mode-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        state.mode = tab.dataset.mode;
-        state.activeTab = 0;
-        renderForm();
-        renderPreviewTabs();
-        updateCode();
-      });
-    });
+      // 正则配置代码块
+      if (parsed && parsed.regexConfig) {
+        var rcSection = doc.createElement('div');
+        rcSection.className = 'code-section';
+        var rcLabel = doc.createElement('div');
+        rcLabel.className = 'code-label';
+        rcLabel.textContent = '📝 正则配置';
+        rcSection.appendChild(rcLabel);
+        var rcPre = doc.createElement('pre');
+        rcPre.className = 'code-block';
+        rcPre.textContent = parsed.regexConfig;
+        rcSection.appendChild(rcPre);
+        bubble.appendChild(rcSection);
+      }
 
-    // ===== 表单渲染：模式A =====
-    function renderFormA() {
-      var panel = doc.getElementById('formPanel');
-      var c = state.configA;
-      var presetsHtml = Object.keys(STYLE_PRESETS_A).map(function (key) {
-        var p = STYLE_PRESETS_A[key];
-        var selected = c.stylePreset === key ? ' selected' : '';
-        return '<div class="style-preset' + selected + '" data-preset="' + key + '">' +
-          '<div class="style-preset-name">' + p.name + '</div>' +
-          '<div class="style-preset-desc">' + p.desc + '</div>' +
-          '</div>';
-      }).join('');
+      // HTML 代码块
+      if (parsed && parsed.htmlCode) {
+        var htmlSection = doc.createElement('div');
+        htmlSection.className = 'code-section';
+        var htmlLabel = doc.createElement('div');
+        htmlLabel.className = 'code-label';
+        htmlLabel.textContent = '🌐 前端 HTML';
+        htmlSection.appendChild(htmlLabel);
+        var htmlPre = doc.createElement('pre');
+        htmlPre.className = 'code-block';
+        htmlPre.textContent = parsed.htmlCode;
+        htmlSection.appendChild(htmlPre);
+        bubble.appendChild(htmlSection);
+      }
 
-      panel.innerHTML =
-        '<div class="form-section">' +
-          '<div class="form-section-title">⚙️ 基本配置</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">脚本名称<span class="req">*</span><span class="hint">酒馆正则中显示的名字</span></label>' +
-            '<input type="text" class="form-input" id="input_scriptName" value="' + escapeHtml(c.scriptName) + '" placeholder="[界面]xxx">' +
-          '</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">标签名<span class="req">*</span><span class="hint">不要用 think/thinking/content</span></label>' +
-            '<input type="text" class="form-input" id="input_tagName" value="' + escapeHtml(c.tagName) + '" placeholder="story">' +
-          '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-          '<div class="form-section-title">🎨 样式预设</div>' +
-          '<div class="style-presets">' + presetsHtml + '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-          '<div class="form-section-title">✅ 正则选项</div>' +
-          '<div class="form-row">' +
-            '<div class="form-checkbox' + (c.srcAIOutput ? ' checked' : '') + '" data-opt="srcAIOutput">' +
-              '<input type="checkbox" id="opt_srcAIOutput"' + (c.srcAIOutput ? ' checked' : '') + '>' +
-              '<label for="opt_srcAIOutput">AI输出</label>' +
-            '</div>' +
-            '<div class="form-checkbox' + (c.runOnEdit ? ' checked' : '') + '" data-opt="runOnEdit">' +
-              '<input type="checkbox" id="opt_runOnEdit"' + (c.runOnEdit ? ' checked' : '') + '>' +
-              '<label for="opt_runOnEdit">编辑时运行</label>' +
-            '</div>' +
-          '</div>' +
-          '<div style="height:12px"></div>' +
-          '<div class="form-checkbox' + (c.destDisplay ? ' checked' : '') + '" data-opt="destDisplay">' +
-            '<input type="checkbox" id="opt_destDisplay"' + (c.destDisplay ? ' checked' : '') + '>' +
-            '<label for="opt_destDisplay">仅格式显示（推荐开启）</label>' +
-          '</div>' +
-        '</div>';
-      bindFormAEvents();
-    }
+      // 操作按钮
+      if (parsed && parsed.tavernRegexObj) {
+        var actions = doc.createElement('div');
+        actions.className = 'code-actions';
 
-    function bindFormAEvents() {
-      var c = state.configA;
-      doc.getElementById('input_scriptName').addEventListener('input', function (e) { c.scriptName = e.target.value; updateCode(); });
-      doc.getElementById('input_tagName').addEventListener('input', function (e) {
-        c.tagName = e.target.value.replace(/[<>\/\s]/g, '');
-        e.target.value = c.tagName;
-        updateCode();
-      });
-      doc.querySelectorAll('.style-preset').forEach(function (el) {
-        el.addEventListener('click', function () {
-          doc.querySelectorAll('.style-preset').forEach(function (p) { p.classList.remove('selected'); });
-          el.classList.add('selected');
-          c.stylePreset = el.dataset.preset;
-          updateCode();
-        });
-      });
-      ['srcAIOutput', 'runOnEdit', 'destDisplay'].forEach(function (opt) {
-        var wrap = doc.querySelector('[data-opt="' + opt + '"]');
-        var cb = doc.getElementById('opt_' + opt);
-        function toggle() { c[opt] = !c[opt]; cb.checked = c[opt]; wrap.classList.toggle('checked', c[opt]); updateCode(); }
-        wrap.addEventListener('click', function (e) { if (e.target !== cb) { e.preventDefault(); toggle(); } });
-        cb.addEventListener('change', toggle);
-      });
-    }
-
-    // ===== 表单渲染：模式B =====
-    function renderFormB() {
-      var panel = doc.getElementById('formPanel');
-      var c = state.configB;
-      var fieldsHtml = c.fields.map(function (f, idx) {
-        return '<div class="field-item" data-idx="' + idx + '">' +
-          '<input type="text" class="field-key" placeholder="字段key" value="' + escapeHtml(f.key) + '">' +
-          '<input type="text" class="field-label" placeholder="显示名称" value="' + escapeHtml(f.label) + '">' +
-          '<button class="field-del" data-idx="' + idx + '">删除</button>' +
-          '</div>';
-      }).join('');
-
-      panel.innerHTML =
-        '<div class="form-section">' +
-          '<div class="form-section-title">⚙️ 基本配置</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">脚本名称<span class="req">*</span></label>' +
-            '<input type="text" class="form-input" id="input_scriptName" value="' + escapeHtml(c.scriptName) + '">' +
-          '</div>' +
-          '<div class="form-row">' +
-            '<div class="form-group">' +
-              '<label class="form-label">标签名<span class="req">*</span></label>' +
-              '<input type="text" class="form-input" id="input_tagName" value="' + escapeHtml(c.tagName) + '">' +
-            '</div>' +
-            '<div class="form-group">' +
-              '<label class="form-label">页面标题<span class="req">*</span></label>' +
-              '<input type="text" class="form-input" id="input_pageTitle" value="' + escapeHtml(c.pageTitle) + '">' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-          '<div class="form-section-title">📋 数据格式</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">解析方式</label>' +
-            '<select class="form-select" id="input_dataFormat">' +
-              '<option value="pipe"' + (c.dataFormat === 'pipe' ? ' selected' : '') + '>[字段|值] 管道格式（推荐）</option>' +
-              '<option value="kv"' + (c.dataFormat === 'kv' ? ' selected' : '') + '>键:值 行格式</option>' +
-            '</select>' +
-          '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-          '<div class="form-section-title">🔑 字段定义</div>' +
-          '<div class="field-list">' + fieldsHtml + '</div>' +
-          '<button class="add-field-btn" id="btnAddField">+ 添加字段</button>' +
-        '</div>' +
-        '<div class="form-section">' +
-          '<div class="form-section-title">🎯 世界书触发</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">触发条件说明</label>' +
-            '<input type="text" class="form-input" id="input_triggerDesc" value="' + escapeHtml(c.triggerDesc) + '">' +
-          '</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">触发关键词<span class="hint">每行一个</span></label>' +
-            '<textarea class="form-textarea" id="input_keywords">' + escapeHtml(c.keywords.join('\n')) + '</textarea>' +
-          '</div>' +
-        '</div>';
-      bindFormBEvents();
-    }
-
-    function bindFormBEvents() {
-      var c = state.configB;
-      doc.getElementById('input_scriptName').addEventListener('input', function (e) { c.scriptName = e.target.value; updateCode(); });
-      doc.getElementById('input_tagName').addEventListener('input', function (e) { c.tagName = e.target.value.replace(/[<>\/\s]/g, ''); e.target.value = c.tagName; updateCode(); });
-      doc.getElementById('input_pageTitle').addEventListener('input', function (e) { c.pageTitle = e.target.value; updateCode(); });
-      doc.getElementById('input_dataFormat').addEventListener('change', function (e) { c.dataFormat = e.target.value; updateCode(); });
-      doc.getElementById('input_triggerDesc').addEventListener('input', function (e) { c.triggerDesc = e.target.value; updateCode(); });
-      doc.getElementById('input_keywords').addEventListener('input', function (e) { c.keywords = e.target.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); updateCode(); });
-      doc.querySelectorAll('.field-key').forEach(function (inp, i) { inp.addEventListener('input', function (e) { c.fields[i].key = e.target.value.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, ''); e.target.value = c.fields[i].key; updateCode(); }); });
-      doc.querySelectorAll('.field-label').forEach(function (inp, i) { inp.addEventListener('input', function (e) { c.fields[i].label = e.target.value; updateCode(); }); });
-      doc.querySelectorAll('.field-del').forEach(function (btn) { btn.addEventListener('click', function () { var idx = parseInt(btn.dataset.idx); if (c.fields.length <= 1) { createToast(win, '至少保留一个字段', 'error'); return; } c.fields.splice(idx, 1); renderFormB(); updateCode(); }); });
-      doc.getElementById('btnAddField').addEventListener('click', function () { c.fields.push({ key: 'field' + (c.fields.length + 1), label: '字段' + (c.fields.length + 1) }); renderFormB(); updateCode(); });
-    }
-
-    function renderForm() { if (state.mode === 'A') renderFormA(); else renderFormB(); }
-
-    function renderPreviewTabs() {
-      var tabs = doc.getElementById('previewTabs');
-      var tabDefs = state.mode === 'A'
-        ? [{ key: 'regexConfig', label: '📝 正则配置' }, { key: 'htmlCode', label: '🌐 前端HTML' }]
-        : [{ key: 'regexConfig', label: '📝 正则配置' }, { key: 'worldbookCode', label: '📖 世界书规则' }, { key: 'htmlCode', label: '🌐 前端HTML' }];
-      state.tabDefs = tabDefs;
-      if (state.activeTab >= tabDefs.length) state.activeTab = 0;
-      tabs.innerHTML = tabDefs.map(function (t, i) { return '<div class="preview-tab' + (i === state.activeTab ? ' active' : '') + '" data-idx="' + i + '">' + t.label + '</div>'; }).join('');
-      tabs.querySelectorAll('.preview-tab').forEach(function (tab) {
-        tab.addEventListener('click', function () { state.activeTab = parseInt(tab.dataset.idx); tabs.querySelectorAll('.preview-tab').forEach(function (t) { t.classList.remove('active'); }); tab.classList.add('active'); updateCode(); });
-      });
-    }
-
-    function updateCode() {
-      var result = state.mode === 'A' ? generateModeA(state.configA) : generateModeB(state.configB);
-      state.lastResult = result;
-      var tab = state.tabDefs[state.activeTab];
-      doc.getElementById('codeBlock').textContent = result[tab.key] || '';
-      doc.getElementById('codeTitle').textContent = tab.label;
-    }
-
-    doc.getElementById('btnCopy').addEventListener('click', function () {
-      copyToClipboard(win, doc.getElementById('codeBlock').textContent, function (ok) {
-        createToast(win, ok ? '✅ 代码已复制到剪贴板' : '❌ 复制失败', ok ? 'success' : 'error');
-      });
-    });
-
-    doc.getElementById('btnImport').addEventListener('click', async function () {
-      if (!state.lastResult) return;
-      var obj = state.lastResult.tavernRegexObj;
-      var forbidden = ['think', 'thinking', 'content'];
-      var tagCheck = obj.find_regex.match(/<([a-zA-Z_][a-zA-Z0-9_-]*)>/);
-      if (tagCheck && forbidden.indexOf(tagCheck[1].toLowerCase()) !== -1) { createToast(win, '❌ 标签名 ' + tagCheck[1] + ' 被禁止使用！', 'error'); return; }
-      try {
-        createToast(win, '⏳ 正在导入酒馆正则...', 'info');
-        if (typeof root.updateTavernRegexesWith === 'function') {
-          await root.updateTavernRegexesWith(function (regexes) {
-            var existingIdx = -1;
-            regexes.forEach(function (r, i) { if (r.script_name === obj.script_name) existingIdx = i; });
-            if (existingIdx >= 0) regexes[existingIdx] = obj; else regexes.push(obj);
-            return regexes;
-          }, { type: 'global' });
-          createToast(win, '✅ 正则「' + obj.script_name + '」已成功导入！', 'success');
-        } else {
-          copyToClipboard(win, state.lastResult.regexConfig, function (ok) {
-            createToast(win, ok ? '⚠️ 已复制配置到剪贴板，请手动导入' : '⚠️ 请手动复制配置', 'info');
+        // 复制 HTML 按钮
+        var btnCopyHtml = doc.createElement('button');
+        btnCopyHtml.className = 'btn btn-sm';
+        btnCopyHtml.textContent = '📋 复制 HTML';
+        btnCopyHtml.addEventListener('click', function () {
+          copyToClipboard(win, parsed.htmlCode, function (ok) {
+            createToast(win, ok ? '✅ HTML 已复制' : '❌ 复制失败', ok ? 'success' : 'error');
           });
+        });
+        actions.appendChild(btnCopyHtml);
+
+        // 复制正则配置按钮
+        if (parsed.regexConfig) {
+          var btnCopyRegex = doc.createElement('button');
+          btnCopyRegex.className = 'btn btn-sm';
+          btnCopyRegex.textContent = '📋 复制配置';
+          btnCopyRegex.addEventListener('click', function () {
+            copyToClipboard(win, parsed.regexConfig, function (ok) {
+              createToast(win, ok ? '✅ 配置已复制' : '❌ 复制失败', ok ? 'success' : 'error');
+            });
+          });
+          actions.appendChild(btnCopyRegex);
         }
-      } catch (err) { createToast(win, '❌ 导入失败：' + (err.message || String(err)), 'error'); }
+
+        // 导入酒馆正则按钮
+        var btnImport = doc.createElement('button');
+        btnImport.className = 'btn btn-sm btn-primary';
+        btnImport.textContent = '➕ 导入酒馆正则';
+        btnImport.addEventListener('click', async function () {
+          var obj = parsed.tavernRegexObj;
+          var forbidden = ['think', 'thinking', 'content'];
+          var tagCheck = obj.find_regex.match(/<([a-zA-Z_][a-zA-Z0-9_-]*)>/);
+          if (tagCheck && forbidden.indexOf(tagCheck[1].toLowerCase()) !== -1) {
+            createToast(win, '❌ 标签名 ' + tagCheck[1] + ' 被禁止使用！', 'error');
+            return;
+          }
+          try {
+            createToast(win, '⏳ 正在导入...', 'info');
+            if (typeof root.updateTavernRegexesWith === 'function') {
+              await root.updateTavernRegexesWith(function (regexes) {
+                var existingIdx = -1;
+                regexes.forEach(function (r, i) { if (r.script_name === obj.script_name) existingIdx = i; });
+                if (existingIdx >= 0) regexes[existingIdx] = obj; else regexes.push(obj);
+                return regexes;
+              }, { type: 'global' });
+              createToast(win, '✅ 正则「' + obj.script_name + '」已导入！', 'success');
+            } else {
+              copyToClipboard(win, parsed.regexConfig + '\n\n' + parsed.htmlCode, function (ok) {
+                createToast(win, ok ? '⚠️ 已复制代码，请手动导入' : '⚠️ 请手动复制', 'info');
+              });
+            }
+          } catch (err) {
+            createToast(win, '❌ 导入失败：' + (err.message || String(err)), 'error');
+          }
+        });
+        actions.appendChild(btnImport);
+
+        bubble.appendChild(actions);
+      }
+
+      msg.appendChild(bubble);
+      chatMessagesEl.appendChild(msg);
+      scrollToBottom();
+    }
+
+    // ===== 打字指示器 =====
+    function addTypingIndicator() {
+      var msg = doc.createElement('div');
+      msg.className = 'message assistant';
+      msg.id = 'typingIndicator';
+      var bubble = doc.createElement('div');
+      bubble.className = 'message-bubble assistant-bubble';
+      var ti = doc.createElement('div');
+      ti.className = 'typing-indicator';
+      ti.innerHTML = '<span></span><span></span><span></span>';
+      bubble.appendChild(ti);
+      msg.appendChild(bubble);
+      chatMessagesEl.appendChild(msg);
+      scrollToBottom();
+    }
+
+    function removeTypingIndicator() {
+      var ti = doc.getElementById('typingIndicator');
+      if (ti) ti.remove();
+    }
+
+    // ===== 发送消息 =====
+    async function sendMessage() {
+      var text = chatInput.value.trim();
+      if (!text || isGenerating) return;
+
+      isGenerating = true;
+      btnSend.disabled = true;
+      btnSend.textContent = '生成中...';
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+
+      addUserMessage(text);
+      messages.push({ role: 'user', content: text });
+
+      addTypingIndicator();
+
+      try {
+        var response = await callAI(messages);
+        removeTypingIndicator();
+
+        messages.push({ role: 'assistant', content: response });
+
+        var parsed = parseAIResponse(response);
+        if (parsed.tavernRegexObj || parsed.regexConfig || parsed.htmlCode) {
+          addAssistantMessage(parsed.explanation || '已生成代码：', parsed);
+        } else {
+          addAssistantMessage(response);
+        }
+      } catch (e) {
+        removeTypingIndicator();
+        addAssistantMessage('❌ 生成失败：' + (e.message || String(e)) + '\n\n请检查酒馆是否正确配置了 AI API。');
+      } finally {
+        isGenerating = false;
+        btnSend.disabled = false;
+        btnSend.textContent = '发送';
+        chatInput.focus();
+      }
+    }
+
+    // ===== 事件绑定 =====
+    btnSend.addEventListener('click', sendMessage);
+
+    chatInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
     });
 
-    doc.getElementById('btnClose').addEventListener('click', function () { closeIframe(); });
-    doc.getElementById('btnHelp').addEventListener('click', function () {
-      alert('【正则代码生成器使用说明】\n\n📄 模式A：正文美化\n  · 适用于小说排版、对话气泡、信件等\n  · 只需要AI输出 <标签>正文</标签> 格式\n  · 提供 4 种样式预设可选\n\n📊 模式B：结构化数据\n  · 适用于状态栏、任务面板、论坛帖子等\n  · 需要AI按固定字段格式输出\n  · 自动生成世界书规则约束AI格式\n\n💡 使用步骤：\n  1. 选择模式，填写配置\n  2. 切换预览Tab查看生成代码\n  3. 点「导入酒馆正则」一键导入\n  4. 在世界书中加入生成的规则（模式B）');
+    chatInput.addEventListener('input', function () {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
     });
 
-    doc.querySelectorAll('.view-switch-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        doc.querySelectorAll('.view-switch-btn').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        var main = doc.querySelector('.main');
-        var view = btn.dataset.view;
-        main.classList.remove('mobile-view-form', 'mobile-view-preview');
-        main.classList.add('mobile-view-' + view);
-      });
+    btnClose.addEventListener('click', closeIframe);
+
+    btnHelp.addEventListener('click', function () {
+      alert('【正则代码生成器使用说明】\n\n💬 聊天生成\n  · 描述你想要的效果，AI 自动生成正则代码\n  · 可以继续对话让 AI 修改完善\n\n💡 示例\n  · "做一个小说正文美化，带段落缩进"\n  · "做一个角色状态栏，显示HP/MP"\n  · "把背景改成深色"\n  · "加一个刷新按钮"\n\n📌 操作\n  · Enter 发送，Shift+Enter 换行\n  · 点「导入酒馆正则」一键导入到酒馆');
     });
 
-    // ===== 初始化 =====
-    renderForm();
-    renderPreviewTabs();
-    updateCode();
-    console.log('[正则代码生成器] ⑥ ✅ 界面初始化完成！');
+    // ===== 欢迎消息 =====
+    addAssistantMessage('你好！我是正则代码生成助手。描述你想要的效果，我会帮你生成酒馆正则代码。\n\n例如：\n· "帮我做一个小说正文美化，带段落缩进"\n· "做一个角色状态栏，显示HP/MP/攻击力"\n· "做一个对话气泡样式"');
+
+    chatInput.focus();
+    console.log('[正则代码生成器] ⑥ ✅ 聊天界面初始化完成！');
   }
 
   // ===== 卸载清理 =====
@@ -1398,7 +805,6 @@ ${fieldRowsHtml}
   var OFFICIAL_BUTTON_NAME = '正则代码生成器';
 
   function ensureScriptButtons() {
-    // 官方示例：replaceScriptButtons([{ name: '按钮名', visible: true }])
     var replaceButtons = getApi('replaceScriptButtons');
     var appendButtons = getApi('appendInexistentScriptButtons');
     try {
@@ -1412,7 +818,7 @@ ${fieldRowsHtml}
         console.log('[正则代码生成器] ✅ 脚本库按钮已追加：' + OFFICIAL_BUTTON_NAME);
         return true;
       } else {
-        console.warn('[正则代码生成器] ⚠️ 未获取到 replaceScriptButtons / appendInexistentScriptButtons，可手动在脚本库添加按钮名：' + OFFICIAL_BUTTON_NAME);
+        console.warn('[正则代码生成器] ⚠️ 未获取到 replaceScriptButtons / appendInexistentScriptButtons');
         return false;
       }
     } catch (e) {
@@ -1422,7 +828,6 @@ ${fieldRowsHtml}
   }
 
   function bindScriptButtonEvents() {
-    // 官方注册方式：eventOn(getButtonEvent('按钮名'), handler)
     var evtOn = getApi('eventOn');
     var getBtnEvt = getApi('getButtonEvent');
     if (!evtOn || !getBtnEvt) {
@@ -1439,7 +844,6 @@ ${fieldRowsHtml}
         console.warn('[正则代码生成器] 绑定 ' + name + ' 失败：', e && e.message ? e.message : e);
       }
     }
-    // 多名字兼容（绑定 4 个，防止用户改按钮名）
     tryBind(OFFICIAL_BUTTON_NAME);
     tryBind('打开正则生成器');
     tryBind('正则生成器');
@@ -1447,7 +851,7 @@ ${fieldRowsHtml}
     return bound > 0;
   }
 
-  // ===== 真正的打开入口（统一错误处理：出错就 alert 具体原因给用户）=====
+  // ===== 真正的打开入口（统一错误处理）=====
   function openGeneratorWithError() {
     try {
       console.log('[正则代码生成器] 🎯 点击触发：正在打开弹窗…');
@@ -1455,19 +859,19 @@ ${fieldRowsHtml}
         var msg = (e && e.message) ? e.message : String(e);
         console.error('[正则代码生成器] ❌ 打开失败：', e);
         try {
-          alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console 标签页）');
+          alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console）');
         } catch (_) {}
       });
     } catch (e) {
       var msg = (e && e.message) ? e.message : String(e);
       console.error('[正则代码生成器] ❌ 打开失败：', e);
       try {
-        alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console 标签页）');
+        alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console）');
       } catch (_) {}
     }
   }
 
-  // ===== 浮动按钮（无论脚本按钮如何都会创建，双保险）=====
+  // ===== 浮动按钮（双保险）=====
   var floatRetryCount = 0;
   function addFloatingButton() {
     try {
@@ -1490,14 +894,14 @@ ${fieldRowsHtml}
       var isMobileBtn = false;
       try { isMobileBtn = (pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches) || false; } catch (_) {}
       var btnCss = isMobileBtn
-        ? 'position:fixed;bottom:72px;right:12px;z-index:99998;padding:9px 15px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(79,70,229,.4);transition:transform .2s, box-shadow .2s;font-size:12px;-webkit-tap-highlight-color:transparent;'
-        : 'position:fixed;bottom:80px;right:24px;z-index:99998;padding:11px 20px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 24px rgba(79,70,229,.35);transition:transform .2s, box-shadow .2s;font-size:14px;';
+        ? 'position:fixed;bottom:72px;right:12px;z-index:99998;padding:9px 15px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(79,70,229,.4);transition:transform .2s;font-size:12px;-webkit-tap-highlight-color:transparent;'
+        : 'position:fixed;bottom:80px;right:24px;z-index:99998;padding:11px 20px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 24px rgba(79,70,229,.35);transition:transform .2s;font-size:14px;';
       btn.style.cssText = btnCss;
-      btn.onmouseover = function () { try { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 8px 28px rgba(79,70,229,.5)'; } catch (_) {} };
+      btn.onmouseover = function () { try { btn.style.transform = 'scale(1.05)'; } catch (_) {} };
       btn.onmouseout = function () { try { btn.style.transform = 'scale(1)'; } catch (_) {} };
       btn.onclick = function () { openGeneratorWithError(); };
       pDoc.body.appendChild(btn);
-      console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角），可直接点击打开');
+      console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角）');
       return true;
     } catch (e) {
       if (floatRetryCount < 20) {
@@ -1513,7 +917,7 @@ ${fieldRowsHtml}
   function mainInit() {
     if (initialized) return;
     initialized = true;
-    console.log('[正则代码生成器] 🚀 初始化（版本：官方按钮API版 · 多作用域兼容）');
+    console.log('[正则代码生成器] 🚀 初始化（版本：聊天式 AI 生成 · 多作用域兼容）');
 
     try { window.addEventListener('pagehide', cleanupScriptArtifacts); } catch (_) {}
     try {
@@ -1521,7 +925,6 @@ ${fieldRowsHtml}
       if (pWin !== window) pWin.addEventListener('pagehide', cleanupScriptArtifacts);
     } catch (_) {}
 
-    // 1) 先在脚本库自动创建按钮（replaceScriptButtons）
     var buttonsCreated = false;
     var buttonsBound = false;
     try { buttonsCreated = ensureScriptButtons(); } catch (_) {}
@@ -1529,16 +932,13 @@ ${fieldRowsHtml}
 
     console.log('[正则代码生成器] 📋 脚本库按钮：' + (buttonsCreated ? '已创建' : '未创建') + ' / 事件绑定：' + (buttonsBound ? '已绑定' : '未绑定'));
 
-    // 2) 无论脚本按钮是否生效，都创建浮动按钮（兜底 + 最快可用）
     addFloatingButton();
 
-    // 3) 延迟后再试一次：如果 API 是异步注入的，这时可能才可用
     setTimeout(function () {
       if (!buttonsCreated) try { ensureScriptButtons(); } catch (_) {}
       if (!buttonsBound) try { bindScriptButtonEvents(); } catch (_) {}
     }, 1500);
 
-    // 4) 终极保底：10 秒后如果没看到浮动按钮，再创建一次
     setTimeout(function () {
       try {
         var pDoc = getParentWindow().document;
@@ -1550,7 +950,7 @@ ${fieldRowsHtml}
     }, 10000);
   }
 
-  // ===== 启动：按官方示例用 $(cb) jQuery ready =====
+  // ===== 启动 =====
   var started = false;
   function startOnce() {
     if (started) return;
@@ -1562,20 +962,15 @@ ${fieldRowsHtml}
   }
 
   function boot() {
-    // 脚本环境约定：window.$ = window.parent.$（jQuery 直接操作酒馆页面）
-    // 所以 $(cb) 就等同于 window.parent.$(cb)
     var $ = getJQuery();
     if ($) {
       $(function () { startOnce(); });
     } else {
-      // jQuery 不可用，直接起
       setTimeout(startOnce, 500);
     }
-    // 再加一个兜底：3 秒后强制起一次
     setTimeout(startOnce, 3000);
   }
 
-  // 立即尝试启动（大多数环境，脚本加载时全局 API 已经准备好了）
   boot();
 
 })();
