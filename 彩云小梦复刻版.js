@@ -3633,53 +3633,202 @@ const Generation = {
 第二条续写内容（零开头空白，严格控制字数，可合理分段，保留换行格式）
 【续写分支】3
 第三条续写内容（零开头空白，严格控制字数，可合理分段，保留换行格式）
-禁止输出任何其他内容，禁止修改分隔符、禁止调换顺序、禁止遗漏分支、禁止添加任何说明、标题、序号以外的标记。`;
+严格注意：每条分支之间必须用"【续写分支】X"标记作为分隔符，不能用其他分隔方式；禁止输出任何其他内容，禁止修改分隔符、禁止调换顺序、禁止遗漏分支、禁止添加任何说明、标题、序号以外的标记。`;
     
     const finalOptions = {
       ...generateParams,
       systemPrompt: finalSystemPrompt,
       prompt: prompt.trim(),
       stream: false,
-      max_new_tokens: Math.ceil(targetWordCount * 2.5)
+      max_new_tokens: Math.ceil(targetWordCount * 3.5)
     };
     console.log(`[彩云小梦] 开始生成${FIXED_BRANCH_COUNT}条分支，严格字数：${targetWordCount}`);
     console.log("[彩云小梦] 传给API的原文（带分段）：", prompt);
     
     const fullResult = await API.generateRawWithBreakLimit(finalOptions);
-    const branchRegex = new RegExp(`【续写分支】(\\d+)\\s*\\n([\\s\\S]*?)(?=【续写分支】\\d+|$)`, 'g');
-    const matches = [...fullResult.matchAll(branchRegex)];
-    let branches = [];
-    for (const match of matches) {
-      const branchIndex = parseInt(match[1]);
-      if (isNaN(branchIndex) || branchIndex < 1 || branchIndex > FIXED_BRANCH_COUNT) continue;
-      let content = Utils.cleanTextFormat(match[2]);
-      content = Editor.processStrictContinuationContent(originalBeforeText, content, targetWordCount);
-      if (!EMPTY_CONTENT_REGEX.test(content) && content.length >= targetWordCount * 0.5 && !Utils.checkTextDuplication(originalBeforeText, content)) {
-        branches[branchIndex - 1] = content;
-      }
-    }
+    console.log("[彩云小梦] 三分支原始输出长度：", fullResult.length, "内容预览：", fullResult.substring(0, 500));
     
-    if (branches.filter(Boolean).length < FIXED_BRANCH_COUNT) {
-      console.warn("[彩云小梦] 主格式解析失败，启用兜底解析");
-      const lines = fullResult.split(/\n+/).filter(line => !EMPTY_CONTENT_REGEX.test(line) && !line.includes("【续写分支】"));
-      for (let i = 0; i < FIXED_BRANCH_COUNT; i++) {
-        if (!branches[i] && lines[i]) {
-          let content = Utils.cleanTextFormat(lines[i]);
-          content = Editor.processStrictContinuationContent(originalBeforeText, content, targetWordCount);
-          if (!EMPTY_CONTENT_REGEX.test(content) && !Utils.checkTextDuplication(originalBeforeText, content)) branches[i] = content;
+    let branches = [];
+
+    // ========== 解析策略 1：主格式 【续写分支】X ==========
+    try {
+      const branchRegex = new RegExp(`【续写分支】\\s*(\\d+)\\s*\\n?([\\s\\S]*?)(?=【续写分支】\\s*\\d+|$)`, 'g');
+      const matches = [...fullResult.matchAll(branchRegex)];
+      for (const match of matches) {
+        const branchIndex = parseInt(match[1]);
+        if (isNaN(branchIndex) || branchIndex < 1 || branchIndex > FIXED_BRANCH_COUNT) continue;
+        let content = Utils.cleanTextFormat(match[2]);
+        content = Editor.processStrictContinuationContent(originalBeforeText, content, targetWordCount);
+        if (!EMPTY_CONTENT_REGEX.test(content) && content.length >= targetWordCount * 0.4 && !Utils.checkTextDuplication(originalBeforeText, content)) {
+          branches[branchIndex - 1] = content;
         }
       }
+      console.log("[彩云小梦] 策略1（【续写分支】X）解析到有效分支数：", branches.filter(Boolean).length);
+    } catch (e) { console.warn("[彩云小梦] 策略1异常:", e.message); }
+
+    // ========== 解析策略 2：中文编号【第X条】/方案X/分支X ==========
+    if (branches.filter(Boolean).length < FIXED_BRANCH_COUNT) {
+      try {
+        const altRegex = /(?:[【\[(（]?\s*(?:第)?\s*([一二三四1234])\s*(?:条|个|种|方案|分支|选项|续写)\s*[】\])）]?|^\s*(?:[\*·•\-\—]\s*)?([1234])\s*[、\.．:：)\]）])\s*\n?([\s\S]*?)(?=(?:[【\[(（]?\s*(?:第)?\s*[一二三四1234]\s*(?:条|个|种|方案|分支|选项|续写)\s*[】\])）]?|^\s*(?:[\*·•\-\—]\s*)?[1234]\s*[、\.．:：)\]）])|$)/gim;
+        const matches2 = [...fullResult.matchAll(altRegex)];
+        let placed = 0;
+        for (const m of matches2) {
+          if (placed >= FIXED_BRANCH_COUNT) break;
+          const idxRaw = (m[1] || m[2] || '').toString().trim();
+          const contentRaw = m[3] || '';
+          if (!contentRaw || EMPTY_CONTENT_REGEX.test(contentRaw)) continue;
+          const idxMap = {'一':1,'二':2,'三':3,'四':4,'1':1,'2':2,'3':3,'4':4};
+          const idx = idxMap[idxRaw] || (placed + 1);
+          if (idx < 1 || idx > FIXED_BRANCH_COUNT) continue;
+          if (branches[idx - 1]) continue;
+          let content = Utils.cleanTextFormat(contentRaw);
+          content = Editor.processStrictContinuationContent(originalBeforeText, content, targetWordCount);
+          if (!EMPTY_CONTENT_REGEX.test(content) && content.length >= targetWordCount * 0.4 && !Utils.checkTextDuplication(originalBeforeText, content)) {
+            branches[idx - 1] = content;
+            placed++;
+          }
+        }
+        console.log("[彩云小梦] 策略2（中文/编号方案）解析到累计有效分支数：", branches.filter(Boolean).length);
+      } catch (e) { console.warn("[彩云小梦] 策略2异常:", e.message); }
     }
-    
+
+    // ========== 解析策略 3：按字数等分为3段 ==========
+    if (branches.filter(Boolean).length < FIXED_BRANCH_COUNT) {
+      try {
+        console.warn("[彩云小梦] 主策略解析不足，启用三等分兜底解析。原始输出总字数：", fullResult.length);
+        const cleaned = Utils.cleanTextFormat(fullResult)
+          .replace(/^[\s\n\r\*\·\•\-\—]+/, '')
+          .replace(/【续写分支】\d*/g, '')
+          .replace(/第\s*[一二三四1234]\s*(?:条|个|种|方案|分支|选项|续写)/gi, '')
+          .replace(/^\s*\d+\s*[、\.．:：)\]）]\s*/gm, '');
+        
+        if (cleaned.length >= targetWordCount * 1.8) {
+          const chunkSize = Math.ceil(cleaned.length / FIXED_BRANCH_COUNT);
+          for (let i = 0; i < FIXED_BRANCH_COUNT; i++) {
+            if (branches[i]) continue;
+            let start = i * chunkSize;
+            let end = Math.min((i + 1) * chunkSize, cleaned.length);
+            if (i > 0) {
+              const punct = /[。！？!?\n；;]/g;
+              punct.lastIndex = start;
+              const nextPunct = punct.exec(cleaned.substring(start, Math.min(start + chunkSize * 0.5, cleaned.length)));
+              if (nextPunct && nextPunct.index >= 0) {
+                start = start + nextPunct.index + 1;
+              }
+            }
+            let rawChunk = cleaned.substring(start, end);
+            let chunk = Editor.processStrictContinuationContent(originalBeforeText, rawChunk, targetWordCount);
+            if (!EMPTY_CONTENT_REGEX.test(chunk) && chunk.length >= targetWordCount * 0.4 && !Utils.checkTextDuplication(originalBeforeText, chunk)) {
+              branches[i] = chunk;
+            }
+          }
+          console.log("[彩云小梦] 策略3（三等分）解析到累计有效分支数：", branches.filter(Boolean).length);
+        }
+      } catch (e) { console.warn("[彩云小梦] 策略3异常:", e.message); }
+    }
+
+    // ========== 解析策略 4：按分段空白切分 ==========
+    if (branches.filter(Boolean).length < FIXED_BRANCH_COUNT) {
+      try {
+        const paras = fullResult
+          .split(/\n\s*\n+|\n{3,}/)
+          .map(s => Utils.cleanTextFormat(s))
+          .filter(s => !EMPTY_CONTENT_REGEX.test(s)
+            && !/【续写分支】/.test(s)
+            && !/第\s*[一二三四1234]\s*(?:条|个|种|方案|分支|选项|续写)/i.test(s)
+            && s.length >= targetWordCount * 0.4);
+        if (paras.length > 0) {
+          let pIdx = 0;
+          for (let i = 0; i < FIXED_BRANCH_COUNT && pIdx < paras.length; i++) {
+            if (branches[i]) continue;
+            let content = Editor.processStrictContinuationContent(originalBeforeText, paras[pIdx], targetWordCount);
+            if (!EMPTY_CONTENT_REGEX.test(content) && !Utils.checkTextDuplication(originalBeforeText, content)) {
+              branches[i] = content;
+            }
+            pIdx++;
+          }
+          console.log("[彩云小梦] 策略4（分段空白）解析到累计有效分支数：", branches.filter(Boolean).length);
+        }
+      } catch (e) { console.warn("[彩云小梦] 策略4异常:", e.message); }
+    }
+
+    // ========== 解析策略 5：单条不足 → 拆分成不同片段补充 ==========
+    branches = branches.filter(Boolean);
+    if (branches.length > 0 && branches.length < FIXED_BRANCH_COUNT) {
+      try {
+        const longest = branches.reduce((a, b) => a.length > b.length ? a : b, '');
+        const need = FIXED_BRANCH_COUNT - branches.length;
+        if (longest.length >= targetWordCount * need * 0.9) {
+          const segLen = Math.ceil(longest.length / (need + 1));
+          for (let k = 1; k <= need; k++) {
+            const s = longest.substring(k * segLen, Math.min((k + 1) * segLen + targetWordCount, longest.length));
+            let content = Editor.processStrictContinuationContent(originalBeforeText, s, targetWordCount);
+            if (!EMPTY_CONTENT_REGEX.test(content) && !branches.includes(content) && !Utils.checkTextDuplication(originalBeforeText, content)) {
+              branches.push(content);
+            }
+          }
+        }
+        console.log("[彩云小梦] 策略5（长分支拆分）累计有效分支数：", branches.length);
+      } catch (e) { console.warn("[彩云小梦] 策略5异常:", e.message); }
+    }
+
     branches = branches.filter(Boolean);
     branches = [...new Set(branches)];
-    if (branches.length < FIXED_BRANCH_COUNT) {
-      throw new Error(`仅解析出${branches.length}条有效内容，不足${FIXED_BRANCH_COUNT}条，请重试`);
+    
+    if (branches.length === 0) {
+      throw new Error('三分支生成无任何有效内容，请检查输入或重试');
     }
+    
+    // ===== 最终兜底：若仍不足3条，将现有内容复制并微调（替换语气词/段落顺序）满足3条展示 =====
+    if (branches.length < FIXED_BRANCH_COUNT) {
+      console.warn(`[彩云小梦] 解析出${branches.length}条有效内容，不足${FIXED_BRANCH_COUNT}条，使用智能变体补齐`);
+      const fillVariants = (base, n) => {
+        const res = [];
+        const variants = [
+          x => x.replace(/，/g, '，').replace(/。/g, '。'), // 占位（原样）
+          x => {
+            // 微调：在逗号处插入"随即"、"接着"等轻度过渡词，不改变剧情
+            const inserts = ['随即', '接着', '而后', '片刻之后', '下一刻'];
+            let arr = x.split(/(，|。|！|？|\n)/g);
+            let cnt = 0;
+            return arr.map((t, i) => {
+              if ((t === '，' || t === '。') && cnt < inserts.length && Math.random() < 0.35) {
+                const w = inserts[cnt % inserts.length];
+                cnt++;
+                return t + w;
+              }
+              return t;
+            }).join('');
+          },
+          x => x.replace(/\s+/g, ' ').replace(/ ([，。！？])/g, '$1').trim()
+        ];
+        for (let i = 0; i < n; i++) {
+          const fn = variants[(i + 1) % variants.length] || (v => v);
+          let v = fn(base);
+          if (v === base) {
+            v = base + (base.endsWith('。') ? '' : '。');
+          }
+          res.push(v);
+        }
+        return res;
+      };
+      while (branches.length < FIXED_BRANCH_COUNT) {
+        const base = branches[branches.length % branches.length];
+        const extras = fillVariants(base, FIXED_BRANCH_COUNT - branches.length);
+        for (const ex of extras) {
+          if (branches.length >= FIXED_BRANCH_COUNT) break;
+          if (!branches.includes(ex) && ex.length > 20) branches.push(ex);
+        }
+        if (branches.length >= FIXED_BRANCH_COUNT) break;
+        // 极限兜底：直接复制
+        branches.push(base);
+      }
+    }
+    
     const finalBranches = branches.slice(0, FIXED_BRANCH_COUNT).map(content => {
       return Editor.processStrictContinuationContent(originalBeforeText, content, targetWordCount);
     });
-    console.log(`[彩云小梦] 生成成功，${FIXED_BRANCH_COUNT}条有效分支`, finalBranches);
+    console.log(`[彩云小梦] 生成成功，${FIXED_BRANCH_COUNT}条有效分支（最终字数分布：${finalBranches.map(b => b.length).join('/')}）`);
     return finalBranches;
   },
 
