@@ -147,10 +147,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 /* 消息文本 */
 .msg-text{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 
-/* 代码区块 */
+/* 代码区块（可折叠，借鉴时之写卡器 cp-section）*/
 .code-section{margin-top:10px;border-top:1px solid var(--line-soft);padding-top:10px}
+.cp-section{margin-top:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface-soft)}
+.cp-section-header{display:flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;user-select:none;transition:background .15s}
+.cp-section-header:hover{background:var(--surface-sink,#eef0f3)}
+.cp-section-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:var(--accent-soft);color:var(--accent-deep);border-radius:4px;font-size:11px;font-weight:700;flex-shrink:0}
+.cp-section-label{font-size:12px;font-weight:600;color:var(--ink-soft);flex-shrink:0}
+.cp-section-preview{font-size:11px;color:var(--muted);flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px}
+.cp-section-toggle{font-size:11px;color:var(--accent);flex-shrink:0;margin-left:auto}
+.cp-section-body{padding:0}
 .code-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.code-block{background:var(--code-bg);color:var(--code-text);border-radius:var(--radius-sm);padding:12px;overflow:auto;font-family:var(--font-mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:300px}
+.code-block{background:var(--code-bg);color:var(--code-text);border-radius:0;padding:12px;overflow:auto;font-family:var(--font-mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:300px}
 .code-block::-webkit-scrollbar{width:6px;height:6px}
 .code-block::-webkit-scrollbar-thumb{background:rgba(148,163,184,.3);border-radius:3px}
 
@@ -168,13 +176,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 .icon-btn:hover{background:var(--surface-soft);color:var(--ink)}
 
 /* 输入区 */
-.chat-input-area{display:flex;gap:8px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0;align-items:flex-end}
-.chat-input{flex:1 1 0;min-width:0;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface-soft);outline:none;resize:none;line-height:1.5;max-height:120px;transition:border-color .15s}
-.chat-input:focus{border-color:var(--accent);background:var(--surface)}
+.chat-input-area{display:flex;flex-direction:column;gap:6px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end}
+.chat-input{flex:1 1 0;min-width:0;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface-soft);outline:none;resize:none;line-height:1.5;min-height:44px;max-height:120px;transition:border-color .15s,box-shadow .15s}
+.chat-input:hover:not(:disabled){border-color:var(--accent-border);background:var(--surface)}
+.chat-input:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px var(--accent-soft)}
 .chat-input::placeholder{color:var(--muted)}
-.chat-send{padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font);flex-shrink:0;min-width:64px}
-.chat-send:hover:not(:disabled){background:var(--accent-deep)}
-.chat-send:disabled{opacity:.5;cursor:not-allowed}
+.chat-send{padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font);flex-shrink:0;min-width:64px;height:44px}
+.chat-send:hover:not(:disabled){background:var(--accent-deep);transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.25)}
+.chat-send:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.chat-input-foot{display:flex;justify-content:flex-end;align-items:center;padding:0 2px}
+.chat-input-hint{font-size:11px;color:var(--muted)}
+.kbd{display:inline-block;padding:1px 5px;background:var(--surface-soft);border:1px solid var(--line);border-radius:4px;font-size:10px;font-family:var(--font-mono);color:var(--ink-soft)}
 
 /* 打字指示器 */
 .typing-indicator{display:flex;gap:4px;padding:4px 0}
@@ -336,57 +349,106 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
     }
   }
 
-  // ===== 调用 AI 生成 =====
+  // ===== AI 生成参数（借鉴时之写卡器 TAVERN_GENERATION_PARAMS）=====
+  var GEN_PARAMS = {
+    temperature: 1,
+    top_p: 0.9,
+    top_k: 500,
+    top_a: 0,
+    min_p: 0,
+    repetition_penalty: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    max_tokens: 64000
+  };
+
+  // ===== 调用 AI（借鉴时之写卡器 callAI：6 层降级链）=====
   async function callAI(messages) {
+    var errors = [];
+
+    // 装配对话历史
     var historyText = messages.map(function(m) {
       return (m.role === 'user' ? '用户' : '助手') + '：' + m.content;
     }).join('\n\n');
-    var fullPrompt = SYSTEM_PROMPT + '\n\n' + historyText + '\n\n助手：';
+    var userPrompt = historyText + '\n\n助手：';
 
-    // 1. generateRaw（最干净，不带聊天历史和角色卡）
-    var generateRaw = getApi('generateRaw');
-    if (generateRaw) {
-      try {
-        var result;
-        if (generateRaw.length <= 1) {
-          result = await generateRaw(fullPrompt);
+    // 1. generate（最优先，带聊天历史）
+    try {
+      var generateFn = getApi('generate');
+      if (generateFn) {
+        var r1 = await generateFn(Object.assign({
+          user_input: userPrompt,
+          should_silence: true,
+          max_chat_history: 0
+        }, GEN_PARAMS));
+        if (r1 && typeof r1 === 'string' && r1.trim().length > 5) return r1.trim();
+        if (r1 && typeof r1 === 'object' && r1.content && String(r1.content).trim().length > 5) return String(r1.content).trim();
+        if (r1 && typeof r1 === 'string') errors.push('generate: ' + r1.substring(0, 80));
+      }
+    } catch (e) { errors.push('generate: ' + e.message); }
+
+    // 2. generateQuietPrompt
+    try {
+      var gqp = getApi('generateQuietPrompt');
+      if (gqp) {
+        var r2 = await gqp(userPrompt, false, false, false, 120000);
+        if (r2 && typeof r2 === 'string' && r2.trim().length > 5) return r2.trim();
+      }
+    } catch (e) { errors.push('generateQuietPrompt: ' + e.message); }
+
+    // 3. window.parent.generateQuietPrompt
+    try {
+      if (window.parent && typeof window.parent.generateQuietPrompt === 'function') {
+        var r3 = await window.parent.generateQuietPrompt(userPrompt, false, false, false, 120000);
+        if (r3 && typeof r3 === 'string' && r3.trim().length > 5) return r3.trim();
+      }
+    } catch (e) { errors.push('parent.generateQuietPrompt: ' + e.message); }
+
+    // 4. TavernHelper.generate（带 ordered_prompts system+user）
+    try {
+      if (typeof window.TavernHelper !== 'undefined' && window.TavernHelper && typeof window.TavernHelper.generate === 'function') {
+        var r4 = await window.TavernHelper.generate(Object.assign({
+          should_silence: true,
+          ordered_prompts: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt }
+          ]
+        }, GEN_PARAMS));
+        if (r4 && typeof r4 === 'string' && r4.trim().length > 5) return r4.trim();
+      }
+    } catch (e) { errors.push('TavernHelper.generate: ' + e.message); }
+
+    // 5. generateRaw（system + user 双消息）
+    try {
+      var generateRawFn = getApi('generateRaw');
+      if (generateRawFn) {
+        var r5;
+        if (generateRawFn.length <= 1) {
+          r5 = await generateRawFn(SYSTEM_PROMPT + '\n\n' + userPrompt);
         } else {
-          result = await generateRaw({ prompt: fullPrompt });
+          r5 = await generateRawFn(Object.assign({
+            should_silence: true,
+            ordered_prompts: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: userPrompt }
+            ]
+          }, GEN_PARAMS));
         }
-        if (typeof result === 'string' && result.trim()) return result;
-        if (result && typeof result === 'object' && result.message) return result.message;
-      } catch (e) {
-        console.warn('[正则代码生成器] generateRaw 调用失败，尝试其他方式', e);
+        if (r5 && typeof r5 === 'string' && r5.trim().length > 5) return r5.trim();
+        if (r5 && typeof r5 === 'object' && r5.message) return r5.message;
       }
-    }
+    } catch (e) { errors.push('generateRaw: ' + e.message); }
 
-    // 2. generate
-    var generate = getApi('generate');
-    if (generate) {
-      try {
-        var lastUser = '';
-        for (var i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].role === 'user') { lastUser = messages[i].content; break; }
-        }
-        var result = await generate({ prompt: lastUser, quietPrompt: fullPrompt });
-        if (typeof result === 'string' && result.trim()) return result;
-      } catch (e) {
-        console.warn('[正则代码生成器] generate 调用失败，尝试 triggerSlash', e);
+    // 6. triggerSlash /generate（兜底，截断防超长）
+    try {
+      var triggerSlashFn = getApi('triggerSlash');
+      if (triggerSlashFn) {
+        var r6 = await triggerSlashFn('/generate lock=on ' + (SYSTEM_PROMPT + '\n\n' + userPrompt).substring(0, 8000));
+        if (r6 && typeof r6 === 'string' && r6.trim().length > 5) return r6.trim();
       }
-    }
+    } catch (e) { errors.push('triggerSlash: ' + e.message); }
 
-    // 3. triggerSlash /genraw
-    var triggerSlash = getApi('triggerSlash');
-    if (triggerSlash) {
-      try {
-        var result = await triggerSlash('/genraw instruct=off ' + fullPrompt);
-        if (typeof result === 'string' && result.trim()) return result;
-      } catch (e) {
-        console.warn('[正则代码生成器] triggerSlash /genraw 调用失败', e);
-      }
-    }
-
-    throw new Error('AI 生成失败：generateRaw/generate/triggerSlash 均不可用或调用失败');
+    throw new Error('AI 调用失败：' + errors.join('; '));
   }
 
   // ===== 解析 AI 回复 =====
@@ -423,20 +485,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
       result.explanation = text.trim();
     }
 
-    // 构造酒馆正则对象
+    // 构造酒馆正则对象（完整字段，借鉴时之写卡器 _convertRegexScript）
     if (result.findRegex && result.htmlCode) {
       result.tavernRegexObj = {
-        id: 'regex-gen-' + Date.now(),
+        id: 'regex-gen-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
         script_name: result.scriptName || '[界面]自定义',
         enabled: true,
         find_regex: result.findRegex,
         replace_string: '```\n' + result.htmlCode + '\n```',
         trim_strings: [],
-        source: { user_input: false, ai_output: true, slash_command: false, world_info: false, reasoning: false },
-        destination: { display: true, prompt: false },
+        // source：触发位置（user_input=1, ai_output=2, slash_command=3, world_info=4, reasoning=5）
+        source: {
+          user_input: false,
+          ai_output: true,
+          slash_command: false,
+          world_info: false,
+          reasoning: false
+        },
+        // destination：display=仅格式显示替换, prompt=仅提示词替换
+        destination: {
+          display: true,
+          prompt: false
+        },
         run_on_edit: true,
         min_depth: null,
-        max_depth: null
+        max_depth: null,
+        substituteRegex: 0
       };
     }
 
@@ -541,10 +615,65 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
         '</div>' +
         '<div class="chat-messages" id="chatMessages"></div>' +
         '<div class="chat-input-area">' +
-          '<textarea class="chat-input" id="chatInput" rows="1" placeholder="描述你想要的效果，例如：做一个小说正文美化..."></textarea>' +
-          '<button class="chat-send" id="btnSend">发送</button>' +
+          '<div class="chat-input-row">' +
+            '<textarea class="chat-input" id="chatInput" rows="1" placeholder="描述你想要的效果，例如：做一个小说正文美化...（Ctrl+Enter 发送）"></textarea>' +
+            '<button class="chat-send" id="btnSend">发送</button>' +
+          '</div>' +
+          '<div class="chat-input-foot"><span class="chat-input-hint" id="chatInputHint"><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行</span></div>' +
         '</div>' +
       '</div>';
+  }
+
+  // ===== 创建可折叠代码区块（借鉴时之写卡器 cp-section）=====
+  function createCollapsibleSection(doc, icon, label, content, type) {
+    var section = doc.createElement('div');
+    section.className = 'cp-section';
+
+    var header = doc.createElement('div');
+    header.className = 'cp-section-header';
+
+    var iconEl = doc.createElement('span');
+    iconEl.className = 'cp-section-icon';
+    iconEl.textContent = icon;
+    header.appendChild(iconEl);
+
+    var labelEl = doc.createElement('span');
+    labelEl.className = 'cp-section-label';
+    labelEl.textContent = label;
+    header.appendChild(labelEl);
+
+    // 预览（折叠时显示前 60 字符）
+    var preview = doc.createElement('span');
+    preview.className = 'cp-section-preview';
+    var previewText = String(content).replace(/\n/g, ' ').trim();
+    preview.textContent = previewText.substring(0, 60) + (previewText.length > 60 ? '...' : '');
+    header.appendChild(preview);
+
+    var toggle = doc.createElement('span');
+    toggle.className = 'cp-section-toggle';
+    toggle.textContent = '展开';
+    header.appendChild(toggle);
+
+    var body = doc.createElement('div');
+    body.className = 'cp-section-body';
+    body.style.display = 'none';
+    var pre = doc.createElement('pre');
+    pre.className = 'code-block';
+    pre.textContent = content;
+    body.appendChild(pre);
+
+    // 默认折叠，点击切换
+    var collapsed = true;
+    header.addEventListener('click', function () {
+      collapsed = !collapsed;
+      body.style.display = collapsed ? 'none' : 'block';
+      preview.style.display = collapsed ? '' : 'none';
+      toggle.textContent = collapsed ? '展开' : '收起';
+    });
+
+    section.appendChild(header);
+    section.appendChild(body);
+    return section;
   }
 
   // ===== 打开生成器：聊天界面逻辑 =====
@@ -565,9 +694,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
     var btnClose = doc.getElementById('btnClose');
     var btnHelp = doc.getElementById('btnHelp');
 
-    // ===== 滚动到底部 =====
+    // ===== 滚动到底部（借鉴时之写卡器 requestAnimationFrame）=====
     function scrollToBottom() {
-      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      try { win.requestAnimationFrame(function () { chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }); } catch (_) { chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
     }
 
     // ===== 添加用户消息 =====
@@ -601,33 +730,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
         bubble.appendChild(txt);
       }
 
-      // 正则配置代码块
+      // 正则配置代码块（可折叠 cp-section）
       if (parsed && parsed.regexConfig) {
-        var rcSection = doc.createElement('div');
-        rcSection.className = 'code-section';
-        var rcLabel = doc.createElement('div');
-        rcLabel.className = 'code-label';
-        rcLabel.textContent = '📝 正则配置';
-        rcSection.appendChild(rcLabel);
-        var rcPre = doc.createElement('pre');
-        rcPre.className = 'code-block';
-        rcPre.textContent = parsed.regexConfig;
-        rcSection.appendChild(rcPre);
+        var rcSection = createCollapsibleSection(doc, '📝', '正则配置', parsed.regexConfig, 'regex');
         bubble.appendChild(rcSection);
       }
 
-      // HTML 代码块
+      // HTML 代码块（可折叠 cp-section）
       if (parsed && parsed.htmlCode) {
-        var htmlSection = doc.createElement('div');
-        htmlSection.className = 'code-section';
-        var htmlLabel = doc.createElement('div');
-        htmlLabel.className = 'code-label';
-        htmlLabel.textContent = '🌐 前端 HTML';
-        htmlSection.appendChild(htmlLabel);
-        var htmlPre = doc.createElement('pre');
-        htmlPre.className = 'code-block';
-        htmlPre.textContent = parsed.htmlCode;
-        htmlSection.appendChild(htmlPre);
+        var htmlSection = createCollapsibleSection(doc, '🌐', '前端 HTML', parsed.htmlCode, 'html');
         bubble.appendChild(htmlSection);
       }
 
@@ -701,16 +812,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
       scrollToBottom();
     }
 
-    // ===== 打字指示器 =====
+    // ===== 打字指示器（借鉴时之写卡器：思考中...）=====
     function addTypingIndicator() {
+      removeTypingIndicator();
       var msg = doc.createElement('div');
       msg.className = 'message assistant';
       msg.id = 'typingIndicator';
       var bubble = doc.createElement('div');
       bubble.className = 'message-bubble assistant-bubble';
+      bubble.style.fontStyle = 'italic';
+      bubble.style.color = 'var(--muted)';
+      bubble.style.fontSize = '13px';
       var ti = doc.createElement('div');
       ti.className = 'typing-indicator';
-      ti.innerHTML = '<span></span><span></span><span></span>';
+      ti.innerHTML = '<span></span><span></span><span></span> 思考中...';
       bubble.appendChild(ti);
       msg.appendChild(bubble);
       chatMessagesEl.appendChild(msg);
@@ -764,8 +879,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
     // ===== 事件绑定 =====
     btnSend.addEventListener('click', sendMessage);
 
+    // 动态检测平台，显示 ⌘ 或 Ctrl（借鉴时之写卡器）
+    try {
+      var _ua = typeof navigator !== 'undefined' ? (navigator.platform || navigator.userAgent || '') : '';
+      var _isMac = /Mac|iPhone|iPad|iPod/i.test(_ua);
+      var _mod = _isMac ? '⌘' : 'Ctrl';
+      var _hintEl = doc.getElementById('chatInputHint');
+      if (_hintEl) _hintEl.innerHTML = '<span class="kbd">' + _mod + '</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行';
+    } catch (_) {}
+
     chatInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing) return; // 输入法合成中不触发
+      // Ctrl/Cmd+Enter 发送，纯 Enter 换行（借鉴时之写卡器）
+      var sendModifier = e.ctrlKey || e.metaKey;
+      if (sendModifier) {
         e.preventDefault();
         sendMessage();
       }
