@@ -1463,150 +1463,102 @@ ${fieldRowsHtml}
 `;
   }
 
-  // ===== 创建/销毁 Iframe =====
+  // ===== 创建/销毁 Iframe（纯原生 DOM，不依赖 jQuery，最可靠）=====
   var iframeContainer = null;
 
   function createModalIframe() {
-    var $ = getJQuery();
-    if (!$) {
-      console.error('[正则代码生成器] ❌ 无法获取 jQuery，不能打开弹窗');
-      // 最后一招：用原生 DOM 兜底
-      return fallbackOpenWithNativeDOM();
-    }
-    if (iframeContainer) { try { $(iframeContainer).remove(); } catch (_) {} iframeContainer = null; }
-
+    // 【关键】先拿到 pWin / pDoc，如果这里失败就是跨域或 iframe 环境异常
     var pWin = getParentWindow();
-    var $body = $('body', pWin.document);
-    if (!$body.length) $body = $(pWin.document.body);
-    if (!$body.length) {
-      console.error('[正则生成器] 无法获取酒馆 body');
-      return;
-    }
+    if (!pWin) throw new Error('无法获取父窗口（getParentWindow 为空）');
+    var pDoc = pWin.document;
+    if (!pDoc) throw new Error('父窗口没有 document 对象');
+    if (!pDoc.body) throw new Error('document.body 尚未创建，请稍后再试');
+    console.log('[正则代码生成器] ① 父窗口/Document/Body 都 OK');
 
-    // 模态遮罩层 + iframe 容器
+    // 清理旧的
+    if (iframeContainer) { try { if (iframeContainer.parentNode) iframeContainer.parentNode.removeChild(iframeContainer); } catch(_) {} iframeContainer = null; }
+    var oldOv = pDoc.getElementById(SCRIPT_ID + '_overlay');
+    if (oldOv) { try { oldOv.remove(); } catch (_) {} }
+    console.log('[正则代码生成器] ② 旧弹窗清理 OK');
+
     var isMobile = false;
-    try { isMobile = pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches; } catch (_) {}
-    var $overlay = $('<div>')
-      .attr('id', SCRIPT_ID + '_overlay')
-      .css({
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: isMobile ? '#fff' : 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: isMobile ? 'none' : 'blur(4px)',
-        zIndex: 100000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: isMobile ? '0' : '16px'
-      })
-      .on('click', function(e) {
-        if (e.target === e.currentTarget) closeIframe();
-      });
+    try { isMobile = !!(pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches); } catch (_) {}
+    console.log('[正则代码生成器] ③ 响应式判定 isMobile=' + isMobile);
 
-    var $wrap = $('<div>')
-      .attr('id', SCRIPT_ID + '_wrap')
-      .css({
-        position: 'relative',
-        width: isMobile ? '100%' : 'min(1180px, 96vw)',
-        height: isMobile ? '100%' : 'min(820px, 96vh)',
-        maxWidth: '100%', maxHeight: '100%',
-        borderRadius: isMobile ? '0' : '16px',
-        overflow: 'hidden',
-        boxShadow: isMobile ? 'none' : '0 30px 80px rgba(15, 23, 42, 0.35)',
-        background: '#fff',
-        border: isMobile ? 'none' : '1px solid rgba(15, 23, 42, 0.08)'
-      });
+    // 遮罩层
+    var ov = pDoc.createElement('div');
+    ov.id = SCRIPT_ID + '_overlay';
+    ov.style.cssText =
+      'position:fixed;top:0;left:0;right:0;bottom:0;' +
+      'z-index:100000;' +
+      'display:flex;align-items:center;justify-content:center;' +
+      'background:' + (isMobile ? '#ffffff' : 'rgba(15,23,42,0.55)') + ';' +
+      'padding:' + (isMobile ? '0' : '16px') + ';' +
+      'backdrop-filter:' + (isMobile ? 'none' : 'blur(4px)') + ';';
+    ov.addEventListener('click', function (e) { if (e.target === ov) closeIframe(); });
 
-    var $iframe = $('<iframe>')
-      .attr('id', SCRIPT_ID + '_iframe')
-      .attr('srcdoc', getIframeHTML())
-      .css({
-        width: '100%', height: '100%', border: 'none', display: 'block'
-      });
+    // 容器
+    var wrap = pDoc.createElement('div');
+    wrap.id = SCRIPT_ID + '_wrap';
+    wrap.style.cssText =
+      'position:relative;' +
+      'width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';' +
+      'height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';' +
+      'max-width:100%;max-height:100%;' +
+      'border-radius:' + (isMobile ? '0' : '16px') + ';' +
+      'overflow:hidden;' +
+      'background:#ffffff;color:#1e293b;' +
+      (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
 
-    $wrap.append($iframe);
-    $overlay.append($wrap);
-    $body.append($overlay);
-    iframeContainer = $overlay[0];
+    // iframe 内容
+    console.log('[正则代码生成器] ④ 正在生成 iframe HTML（可能有点大）...');
+    var html;
+    try {
+      html = getIframeHTML();
+    } catch (e) {
+      throw new Error('getIframeHTML() 生成失败：' + (e.message || String(e)));
+    }
+    if (!html || !html.length) throw new Error('iframe HTML 为空');
+    console.log('[正则代码生成器] ⑤ iframe HTML 长度：' + html.length + ' 字符');
+
+    var fr = pDoc.createElement('iframe');
+    fr.id = SCRIPT_ID + '_iframe';
+    fr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-modals allow-forms allow-popups allow-downloads');
+    try { fr.srcdoc = html; } catch (e) { throw new Error('设置 srcdoc 失败：' + (e.message || String(e))); }
+    fr.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#fff;';
+
+    wrap.appendChild(fr);
+    ov.appendChild(wrap);
+    try { pDoc.body.appendChild(ov); } catch (e) { throw new Error('appendChild 到 body 失败：' + (e.message || String(e))); }
+    iframeContainer = ov;
+    console.log('[正则代码生成器] ⑥ ✅ 已把弹窗插入到 body');
 
     // ESC 关闭
-    function escHandler(e) {
-      if (e.key === 'Escape') closeIframe();
-    }
-    pWin.document.addEventListener('keydown', escHandler);
-    $overlay.data('escHandler', escHandler);
+    function escFn(e) { if (e.key === 'Escape') closeIframe(); }
+    pDoc.addEventListener('keydown', escFn);
+    // iframe 内部请求关闭
+    function msgFn(ev) { try { if (ev && ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); } catch (_) {} }
+    pWin.addEventListener('message', msgFn);
+    // 绑定到 DOM 元素，closeIframe 时清理
+    ov._escFn = escFn;
+    ov._msgFn = msgFn;
 
-    // 监听 iframe 请求关闭
-    function msgHandler(ev) {
-      if (ev.data && ev.data.action === 'closeRegexGenerator') {
-        closeIframe();
-      }
-    }
-    pWin.addEventListener('message', msgHandler);
-    $overlay.data('msgHandler', msgHandler);
-  }
-
-  // 原生 DOM 兜底打开弹窗（jQuery 完全不可用时启用）
-  function fallbackOpenWithNativeDOM() {
-    try {
-      var pWin = getParentWindow();
-      var pDoc = pWin.document;
-      if (!pDoc || !pDoc.body) return false;
-
-      // 清理已有
-      var oldOv = pDoc.getElementById(SCRIPT_ID + '_overlay');
-      if (oldOv) oldOv.remove();
-
-      var isMobile = false;
-      try { isMobile = pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches; } catch (_) {}
-
-      var ov = pDoc.createElement('div');
-      ov.id = SCRIPT_ID + '_overlay';
-      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:' + (isMobile ? '#fff' : 'rgba(15,23,42,0.55)') + ';padding:' + (isMobile ? '0' : '16px') + ';';
-      ov.addEventListener('click', function(e) { if (e.target === ov) closeIframe(); });
-
-      var wrap = pDoc.createElement('div');
-      wrap.id = SCRIPT_ID + '_wrap';
-      wrap.style.cssText = 'position:relative;width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';max-width:100%;max-height:100%;border-radius:' + (isMobile ? '0' : '16px') + ';overflow:hidden;background:#fff;' + (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
-
-      var fr = pDoc.createElement('iframe');
-      fr.id = SCRIPT_ID + '_iframe';
-      fr.srcdoc = getIframeHTML();
-      fr.style.cssText = 'width:100%;height:100%;border:none;display:block;';
-
-      wrap.appendChild(fr);
-      ov.appendChild(wrap);
-      pDoc.body.appendChild(ov);
-      iframeContainer = ov;
-
-      function esc(e) { if (e.key === 'Escape') closeIframe(); }
-      pDoc.addEventListener('keydown', esc);
-      function msg(ev) { if (ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); }
-      pWin.addEventListener('message', msg);
-      ov._escFn = esc; ov._msgFn = msg;
-      console.log('[正则代码生成器] ✅ 已通过原生 DOM 打开弹窗');
-      return true;
-    } catch (e) {
-      console.error('[正则代码生成器] ❌ 原生 DOM 兜底也失败：', e);
-      alert('正则代码生成器打开失败，请检查浏览器控制台错误');
-      return false;
-    }
+    console.log('[正则代码生成器] ✅ 弹窗打开成功！');
+    return true;
   }
 
   function closeIframe() {
     if (!iframeContainer) return;
-    var $ = getJQuery();
     var pWin = getParentWindow();
     try {
-      if ($) {
-        var $ov = $(iframeContainer);
-        var escH = $ov.data('escHandler');
-        var msgH = $ov.data('msgHandler');
-        if (escH) pWin.document.removeEventListener('keydown', escH);
-        if (msgH) pWin.removeEventListener('message', msgH);
-        $ov.remove();
-      } else {
-        if (iframeContainer._escFn) pWin.document.removeEventListener('keydown', iframeContainer._escFn);
-        if (iframeContainer._msgFn) pWin.removeEventListener('message', iframeContainer._msgFn);
-        if (iframeContainer.parentNode) iframeContainer.parentNode.removeChild(iframeContainer);
+      var ov = iframeContainer;
+      if (ov._escFn && pWin && pWin.document) {
+        try { pWin.document.removeEventListener('keydown', ov._escFn); } catch (_) {}
       }
+      if (ov._msgFn && pWin) {
+        try { pWin.removeEventListener('message', ov._msgFn); } catch (_) {}
+      }
+      if (ov.parentNode) { try { ov.parentNode.removeChild(ov); } catch (_) {} }
     } catch (_) {}
     iframeContainer = null;
   }
@@ -1623,44 +1575,25 @@ ${fieldRowsHtml}
     } catch (_) {}
   }
 
-  // ===== 脚本按钮 + 浮动按钮（按官方示例：replaceScriptButtons 配合 eventOn(getButtonEvent(...))）=====
-  var OFFICIAL_BUTTON_NAME = '打开正则生成器';
-  var OFFICIAL_BUTTON_NAME2 = '关闭正则生成器';
-  var scriptButtonsCreated = false;
+  // ===== 脚本按钮（只留 1 个可见按钮在脚本库）=====
+  var OFFICIAL_BUTTON_NAME = '正则代码生成器';
 
   function ensureScriptButtons() {
-    // 参考官方示例：replaceScriptButtons([{ name: '按钮名', visible: true }])
-    // 参考：/data/user/skills/tavern-helper-template/assets/examples/script/添加按钮和注册按钮事件.ts
+    // 官方示例：replaceScriptButtons([{ name: '按钮名', visible: true }])
     var replaceButtons = getApi('replaceScriptButtons');
     var appendButtons = getApi('appendInexistentScriptButtons');
-    var updateButtons = getApi('updateScriptButtonsWith');
-
     try {
-      var buttons = [
-        { name: OFFICIAL_BUTTON_NAME, visible: true },
-        { name: '✨ 打开生成器', visible: true },
-        { name: '关闭正则生成器', visible: false }
-      ];
+      var buttons = [{ name: OFFICIAL_BUTTON_NAME, visible: true }];
       if (replaceButtons) {
         replaceButtons(buttons);
-        console.log('[正则代码生成器] ✅ replaceScriptButtons 成功（按钮已自动写入脚本库）');
+        console.log('[正则代码生成器] ✅ 脚本库按钮已创建：' + OFFICIAL_BUTTON_NAME);
         return true;
       } else if (appendButtons) {
         appendButtons(buttons);
-        console.log('[正则代码生成器] ✅ appendInexistentScriptButtons 成功（按钮已追加到脚本库）');
+        console.log('[正则代码生成器] ✅ 脚本库按钮已追加：' + OFFICIAL_BUTTON_NAME);
         return true;
-      } else if (updateButtons) {
-        try {
-          updateButtonsWith(function (list) {
-            var map = {};
-            (list || []).forEach(function (b) { map[b.name] = b; });
-            buttons.forEach(function (b) { if (!map[b.name]) { (list = list || []).push(b); } else { map[b.name].visible = b.visible; } });
-            return list;
-          });
-          return true;
-        } catch (_) { return false; }
       } else {
-        console.warn('[正则代码生成器] ⚠️ 未获取到 replaceScriptButtons / appendInexistentScriptButtons，脚本按钮将不会自动创建（可手动在脚本库添加按钮名：' + OFFICIAL_BUTTON_NAME + '）');
+        console.warn('[正则代码生成器] ⚠️ 未获取到 replaceScriptButtons / appendInexistentScriptButtons，可手动在脚本库添加按钮名：' + OFFICIAL_BUTTON_NAME);
         return false;
       }
     } catch (e) {
@@ -1678,21 +1611,35 @@ ${fieldRowsHtml}
       return false;
     }
     var bound = 0;
-    function tryBind(name, fn) {
+    function tryBind(name) {
       try {
-        evtOn(getBtnEvt(name), fn);
+        evtOn(getBtnEvt(name), function () { openGeneratorWithError(); });
         console.log('[正则代码生成器] 🔗 已绑定按钮事件：' + name);
         bound++;
       } catch (e) {
         console.warn('[正则代码生成器] 绑定 ' + name + ' 失败：', e && e.message ? e.message : e);
       }
     }
-    tryBind(OFFICIAL_BUTTON_NAME, function () { createModalIframe(); });
-    tryBind('✨ 打开生成器', function () { createModalIframe(); });
-    tryBind('正则代码生成器', function () { createModalIframe(); });
-    tryBind('正则生成器', function () { createModalIframe(); });
-    tryBind(OFFICIAL_BUTTON_NAME2, function () { closeIframe(); });
+    // 多名字兼容（绑定 4 个，防止用户改按钮名）
+    tryBind(OFFICIAL_BUTTON_NAME);
+    tryBind('打开正则生成器');
+    tryBind('正则生成器');
+    tryBind('✨ 打开生成器');
     return bound > 0;
+  }
+
+  // ===== 真正的打开入口（统一错误处理：出错就 alert 具体原因给用户）=====
+  function openGeneratorWithError() {
+    try {
+      console.log('[正则代码生成器] 🎯 点击触发：正在打开弹窗…');
+      createModalIframe();
+    } catch (e) {
+      var msg = (e && e.message) ? e.message : String(e);
+      console.error('[正则代码生成器] ❌ 打开失败：', e);
+      try {
+        alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console 标签页）');
+      } catch (_) {}
+    }
   }
 
   // ===== 浮动按钮（无论脚本按钮如何都会创建，双保险）=====
@@ -1723,9 +1670,7 @@ ${fieldRowsHtml}
       btn.style.cssText = btnCss;
       btn.onmouseover = function () { try { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 8px 28px rgba(79,70,229,.5)'; } catch (_) {} };
       btn.onmouseout = function () { try { btn.style.transform = 'scale(1)'; } catch (_) {} };
-      btn.onclick = function () {
-        try { createModalIframe(); } catch (e) { console.error('[正则代码生成器] 打开失败：', e); try { fallbackOpenWithNativeDOM(); } catch (_) {} }
-      };
+      btn.onclick = function () { openGeneratorWithError(); };
       pDoc.body.appendChild(btn);
       console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角），可直接点击打开');
       return true;
