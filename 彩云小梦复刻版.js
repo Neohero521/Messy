@@ -1141,9 +1141,7 @@
   
   .xiaomeng-editor-container .footer-results-area {
     padding: 12px 8px;
-    min-height: 140px;
-    max-height: 160px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
   }
   .xiaomeng-editor-container .result-card {
     min-width: 240px;
@@ -1230,10 +1228,6 @@
     font-size: 14px;
     min-height: var(--touch-target-min);
     min-width: var(--touch-target-min);
-  }
-  
-  .xiaomeng-editor-container .xiaomeng-footer {
-    max-height: 260px;
   }
 }
 
@@ -1376,8 +1370,7 @@
   
   .xiaomeng-editor-container .footer-results-area {
     padding: 10px 6px;
-    min-height: 120px;
-    max-height: 140px;
+    gap: 6px;
   }
   .xiaomeng-editor-container .result-card {
     min-width: 220px;
@@ -1437,10 +1430,6 @@
     padding: 6px 10px;
     font-size: 12px;
   }
-  
-  .xiaomeng-editor-container .xiaomeng-footer {
-    max-height: 240px;
-  }
 }
 
 @media (max-width: 360px) {
@@ -1462,18 +1451,17 @@
 
 @media (max-height: 500px) {
   .xiaomeng-editor-container {
-    max-height: calc(100vh - 8px);
-    max-height: calc(env(safe-area-inset-top) + env(safe-area-inset-bottom) + 450px);
+    max-height: calc(100dvh - 8px);
   }
   .xiaomeng-editor-container .xiaomeng-footer {
-    max-height: 200px;
+    max-height: 45%;
   }
   .xiaomeng-editor-container .xiaomeng-editor-main {
-    min-height: 120px;
+    min-height: 80px;
   }
   .xiaomeng-editor-container .footer-results-area {
-    max-height: 110px;
-    min-height: 100px;
+    padding: 6px;
+    gap: 6px;
   }
 }
 
@@ -1527,6 +1515,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: var(--xiaomeng-mask-bg);
   backdrop-filter: blur(3px);
   z-index: 999990;
@@ -1543,9 +1532,9 @@
 }
 .xiaomeng-editor-container {
   width: 100%;
-  height: 100%;
+  height: calc(100dvh - 40px);
   max-width: min(1200px, calc(100vw - 40px));
-  max-height: min(850px, calc(100vh - 40px));
+  max-height: calc(100dvh - 40px);
   background: var(--xiaomeng-bg);
   border-radius: 16px;
   box-shadow: var(--xiaomeng-shadow-lg);
@@ -1969,10 +1958,10 @@
   flex-direction: column;
   box-sizing: border-box;
   z-index: 100;
-  flex-shrink: 0;
-  max-height: 280px;
+  flex-shrink: 1;
   overflow: hidden;
   position: relative;
+  max-height: 50%;
 }
 .xiaomeng-editor-container .loading-overlay {
   position: absolute;
@@ -2446,11 +2435,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex-shrink: 0;
-  height: auto;
-  min-height: 160px;
-  max-height: 180px;
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
 }
 .xiaomeng-editor-container .results-header {
   display: flex;
@@ -3063,31 +3051,83 @@ const API = {
   },
 
   async generateRawWithBreakLimit(params) {
-    const context = getContext();
-    const { generateRaw } = context;
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
-    let finalSystemPrompt = params.systemPrompt || '';
+    let finalSystemPrompt = params.system_prompt || params.systemPrompt || '';
     finalSystemPrompt += BREAK_LIMIT_PROMPT;
-    const finalParams = {
-      ...params,
-      systemPrompt: finalSystemPrompt
-    };
     
+    // 提取参数 — 对齐 ST generate() 的 snake_case 命名
+    const prompt = params.prompt || params.user_input || '';
+    const genOverrides = {};
+    const passthroughKeys = ['temperature', 'top_p', 'top_k', 'top_a', 'min_p', 
+      'repetition_penalty', 'frequency_penalty', 'presence_penalty', 
+      'max_tokens', 'max_new_tokens', 'stream', 'do_sample'];
+    for (const key of passthroughKeys) {
+      if (params[key] !== undefined) genOverrides[key] = params[key];
+    }
+    
+    // 构建传给 ST generate() 的参数 — generate() 会自动合并当前 ST 预设
+    const generatePayload = {
+      user_input: prompt,
+      system_prompt: finalSystemPrompt,
+      should_silence: true,
+      max_chat_history: 0,
+      ...genOverrides
+    };
+
     while (retryCount < MAX_RETRY_TIMES) {
       if (stopGenerateFlag) {
         lastError = new Error('用户手动停止生成');
         break;
       }
       try {
-        console.log(`[彩云小梦] 第${retryCount + 1}次API调用`);
+        console.log(`[彩云小梦] 第${retryCount + 1}次API调用（使用ST原生generate()自动读取当前预设）`);
         await API.rateLimitCheck();
-        const rawResult = await generateRaw(finalParams);
-        if (typeof rawResult !== 'string') {
+        
+        let rawResult = null;
+        
+        // ======= 主路径：ST 原生 generate() —— 自动使用当前预设 =======
+        if (typeof generate === 'function') {
+          console.log('[彩云小梦] 使用 ST.generate() — 自动继承当前ST预设');
+          rawResult = await generate(generatePayload);
+        }
+        // ======= 备用路径1：window.parent.generate() (iframe场景) =======
+        else if (typeof window !== 'undefined' && window.parent && typeof window.parent.generate === 'function') {
+          console.log('[彩云小梦] 使用 window.parent.generate()');
+          rawResult = await window.parent.generate(generatePayload);
+        }
+        // ======= 备用路径2：generateRaw (getContext) =======
+        else {
+          const context = getContext();
+          if (context && typeof context.generateRaw === 'function') {
+            console.log('[彩云小梦] 使用 generateRaw() 兜底');
+            rawResult = await context.generateRaw({
+              ...generatePayload,
+              systemPrompt: finalSystemPrompt
+            });
+          } else {
+            throw new Error('未找到可用的ST生成函数 (generate/generateRaw)');
+          }
+        }
+        
+        // ======= 解析返回结果 =======
+        let textResult = '';
+        if (typeof rawResult === 'string') {
+          textResult = rawResult;
+        } else if (rawResult && typeof rawResult === 'object') {
+          textResult = rawResult.content || rawResult.text || rawResult.result || '';
+          if (Array.isArray(textResult)) textResult = textResult.join('\n');
+          if (!textResult && rawResult.choices && rawResult.choices[0]) {
+            textResult = rawResult.choices[0].message?.content || rawResult.choices[0].text || '';
+          }
+        }
+        
+        if (!textResult || typeof textResult !== 'string') {
           throw new Error('API返回非字符串内容');
         }
-        const trimmedResult = rawResult.trim();
+        
+        const trimmedResult = textResult.trim();
         if (EMPTY_CONTENT_REGEX.test(trimmedResult)) {
           throw new Error('返回内容为空，或仅包含空格、标点符号');
         }
@@ -3105,9 +3145,9 @@ const API = {
         console.warn(`[彩云小梦] 第${retryCount}次调用失败：${error.message}，剩余重试次数：${MAX_RETRY_TIMES - retryCount}`);
         
         if (retryCount < MAX_RETRY_TIMES) {
-          finalParams.systemPrompt += `\n\n【重试强制修正要求】
+          generatePayload.system_prompt += `\n\n【重试强制修正要求】
 上一次生成不符合要求，错误原因：${error.message}。本次必须严格遵守所有强制规则，完整输出符合要求的内容，禁止再次出现相同错误。`;
-          finalParams.temperature = Math.min((finalParams.temperature || 0.7) + 0.12, 1.2);
+          generatePayload.temperature = Math.min((generatePayload.temperature || 0.7) + 0.12, 1.2);
           await new Promise(resolve => setTimeout(resolve, 1200));
         }
       }
@@ -3734,11 +3774,17 @@ const Generation = {
       toastr.warning("编辑器正文不能为空，请输入有效内容", "提示");
       return null;
     }
-    const baseParams = mode === "v_mode" 
-      ? { temperature: 0.7, top_p: 0.85, repetition_penalty: 1.1 }
-      : { temperature: 1.0, top_p: 0.95, repetition_penalty: 1.05 };
-    const parentParams = API.getActivePresetParams();
-    Object.assign(baseParams, parentParams);
+    
+    // ======= 【ST预设继承核心逻辑】 =======
+    // 当 inheritStParams=true 时，不传递任何生成参数覆盖ST预设，让ST自动使用当前预设
+    // 当 inheritStParams=false 时，使用模式默认参数
+    let baseParams = {};
+    if (!settings.inheritStParams) {
+      baseParams = mode === "v_mode" 
+        ? { temperature: 0.7, top_p: 0.85, repetition_penalty: 1.1 }
+        : { temperature: 1.0, top_p: 0.95, repetition_penalty: 1.05 };
+    }
+    // 注意：不再从 getActivePresetParams() 手动读取 —— ST generate() 自动处理预设
     let basePrompt = userInstruction ? `用户额外要求：${userInstruction}。` : "";
     let prompt = "";
     let styleDesc = "";
@@ -5566,11 +5612,12 @@ const Main = {
       if (!extension_settings[extensionName]) {
         extension_settings[extensionName] = Object.assign({}, defaultSettings);
       }
-      // 3) 注入设置面板到扩展区
-      injectSettingsPanel();
+      // 3) 不再注入设置面板到ST扩展区（用户不需要扩展操作栏）
+      //    保留编辑器内的设置模态框即可
+      // injectSettingsPanel();
       // 4) 加载设置到 UI
       Main.loadSettings();
-      // 5) 绑定设置面板事件
+      // 5) 绑定设置面板事件（面板已移除，但绑定失败不会报错）
       bindSettingsEvents();
       // 6) 注册脚本按钮
       tryInit();
