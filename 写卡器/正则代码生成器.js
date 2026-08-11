@@ -156,6 +156,114 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 /* 关闭按钮 */
 .icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:8px;cursor:pointer;color:var(--muted);transition:all .15s}
 .icon-btn:hover{background:var(--surface-soft);color:var(--ink)}
+
+/* 移动端视图切换栏（默认隐藏） */
+.view-switch{display:none;background:var(--surface);border-bottom:1px solid var(--line)}
+.view-switch-btn{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none}
+.view-switch-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ===== 响应式：手机端（<=768px） ===== */
+@media (max-width: 768px) {
+  :root{
+    --radius:10px;
+    --radius-sm:6px;
+  }
+  body{font-size:13px}
+
+  /* 顶栏紧凑 */
+  .topbar{padding:10px 14px}
+  .topbar h1{font-size:14px;gap:6px}
+  .topbar .subtitle{display:none}
+
+  /* 模式 Tab 紧凑 */
+  .mode-tabs{padding:0 8px}
+  .mode-tab{padding:10px 14px;font-size:12px;gap:4px}
+  .mode-tab .badge{padding:2px 6px;font-size:10px}
+
+  /* 显示移动端视图切换 */
+  .view-switch{display:flex}
+
+  /* 主体改为单列堆叠 */
+  .main{grid-template-columns:1fr !important;position:relative}
+  .form-panel{
+    border-right:none !important;
+    border-bottom:1px solid var(--line);
+    padding:14px
+  }
+  .preview-panel{padding-bottom:0}
+
+  /* 手机端默认只显示表单，预览隐藏 */
+  .main.mobile-view-form .preview-panel{display:none}
+  .main.mobile-view-form .form-panel{display:block}
+  .main.mobile-view-preview .form-panel{display:none}
+  .main.mobile-view-preview .preview-panel{display:flex}
+
+  /* 表单行改为单列 */
+  .form-row{grid-template-columns:1fr !important;gap:10px}
+
+  /* 样式预设单列 */
+  .style-presets{grid-template-columns:1fr !important;gap:8px}
+  .style-preset{padding:12px}
+
+  /* 输入框增大触摸区域 */
+  .form-input,.form-select,.form-textarea{padding:11px 14px;font-size:14px}
+  .form-checkbox{padding:10px 14px}
+  .form-checkbox label{font-size:14px}
+  .form-checkbox input{width:18px;height:18px}
+
+  /* 字段编辑器：删除按钮缩小 */
+  .field-item{grid-template-columns:1fr 1fr 36px !important;gap:6px;padding:8px}
+  .field-item input{padding:9px 10px;font-size:13px}
+  .field-item button{padding:7px 4px;font-size:11px}
+
+  /* 预览区代码容器紧凑 */
+  .code-container{padding:12px}
+  .code-header{flex-wrap:wrap;gap:8px}
+  .code-actions{width:100%;justify-content:flex-end}
+  .code-block{font-size:11px;padding:12px}
+
+  /* 按钮增大触摸区域 */
+  .btn{padding:9px 16px;font-size:13px}
+  .btn-sm{padding:8px 14px;font-size:12px}
+  .icon-btn{width:36px;height:36px}
+
+  /* Toast 居中显示 */
+  .toast-container{top:10px;left:10px;right:10px;align-items:center}
+  .toast{max-width:100%;text-align:center}
+
+  /* 模式 Tab 可横向滚动 */
+  .mode-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* 预览 Tab 可横向滚动 */
+  .preview-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px}
+  .preview-tab{padding:10px 12px;font-size:11px;white-space:nowrap;flex-shrink:0}
+}
+
+/* ===== 响应式：小手机端（<=380px） ===== */
+@media (max-width: 380px) {
+  .topbar h1 span:not(.subtitle){font-size:13px}
+  .mode-tab .badge{display:none}
+  .mode-tab{padding:10px 10px;font-size:11px}
+  .code-block{font-size:10px;padding:10px}
+  .form-input,.form-select,.form-textarea{font-size:13px}
+}
+
+/* ===== 响应式：大屏电脑端（>=1200px） ===== */
+@media (min-width: 1200px) {
+  .main{grid-template-columns:420px 1fr}
+  .form-panel{padding:24px}
+  .code-container{padding:20px}
+  .code-block{font-size:13px;padding:20px}
+  .style-presets{grid-template-columns:repeat(2,1fr);gap:12px}
+}
+
+/* ===== 响应式：超宽屏（>=1600px） ===== */
+@media (min-width: 1600px) {
+  .main{grid-template-columns:460px 1fr}
+  .form-panel{padding:28px}
+  .form-section{margin-bottom:28px}
+  .topbar h1{font-size:16px}
+}
 `;
 
   // ===== 样式预设定义 =====
@@ -821,7 +929,13 @@ ${fieldRowsHtml}
     </div>
   </div>
 
-  <div class="main">
+  <!-- 移动端视图切换（手机端可见） -->
+  <div class="view-switch">
+    <button class="view-switch-btn active" data-view="form">📝 配置</button>
+    <button class="view-switch-btn" data-view="preview">👁️ 预览</button>
+  </div>
+
+  <div class="main mobile-view-form">
     <!-- 左侧表单区 -->
     <div class="form-panel" id="formPanel">
       <!-- 动态渲染 -->
@@ -1247,6 +1361,18 @@ ${fieldRowsHtml}
     alert(helpText);
   });
 
+  // ===== 移动端视图切换 =====
+  doc.querySelectorAll('.view-switch-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      doc.querySelectorAll('.view-switch-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var main = doc.querySelector('.main');
+      var view = btn.dataset.view;
+      main.classList.remove('mobile-view-form', 'mobile-view-preview');
+      main.classList.add('mobile-view-' + view);
+    });
+  });
+
   // ===== 初始化 =====
   renderForm();
   renderPreviewTabs();
@@ -1285,6 +1411,7 @@ ${fieldRowsHtml}
       });
 
     var $wrap = window.parent.$('<div>')
+      .attr('id', SCRIPT_ID + '_wrap')
       .css({
         position: 'relative',
         width: 'min(1180px, 94vw)',
@@ -1295,6 +1422,22 @@ ${fieldRowsHtml}
         background: '#fff',
         border: '1px solid rgba(15, 23, 42, 0.08)'
       });
+
+    // 手机端全屏适配
+    var isMobile = window.parent.matchMedia('(max-width: 768px)').matches;
+    if (isMobile) {
+      $wrap.css({
+        width: '100vw',
+        height: '100vh',
+        borderRadius: '0',
+        border: 'none',
+        boxShadow: 'none'
+      });
+      $overlay.css({
+        padding: '0',
+        background: '#fff'
+      });
+    }
 
     var $iframe = window.parent.$('<iframe>')
       .attr('id', SCRIPT_ID + '_iframe')
@@ -1369,7 +1512,11 @@ ${fieldRowsHtml}
       var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '✨ 正则生成器';
-      btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:all .3s;font-size:14px;';
+      var isMobileBtn = pDoc.defaultView && pDoc.defaultView.matchMedia('(max-width: 768px)').matches;
+      var btnCss = isMobileBtn
+        ? 'position:fixed;bottom:70px;right:12px;z-index:99998;padding:8px 14px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(15,23,42,.15);transition:all .3s;font-size:12px;'
+        : 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:all .3s;font-size:14px;';
+      btn.style.cssText = btnCss;
       btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
       btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
       btn.onclick = createModalIframe;
