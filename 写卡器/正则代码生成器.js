@@ -978,7 +978,7 @@ ${fieldRowsHtml}
     };
   }
 
-  // ===== 创建/销毁 Iframe（参考时之写卡器：空 iframe + load 后用 doc.write 写入）=====
+  // ===== 创建/销毁 Iframe（参考时之写卡器：iframe 直接 fixed 撑满视口 + DOM API 注入内容）=====
   var iframeEl = null;
 
   function createModalIframe() {
@@ -994,64 +994,47 @@ ${fieldRowsHtml}
         closeIframe();
         console.log('[正则代码生成器] ① 父窗口/Document/Body OK');
 
-        var isMobile = false;
-        try { isMobile = !!(pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches); } catch (_) {}
-
-        // 遮罩层
-        var ov = pDoc.createElement('div');
-        ov.id = SCRIPT_ID + '_overlay';
-        ov.style.cssText =
-          'position:fixed;top:0;left:0;right:0;bottom:0;' +
-          'z-index:100000;' +
-          'display:flex;align-items:center;justify-content:center;' +
-          'background:' + (isMobile ? '#ffffff' : 'rgba(15,23,42,0.55)') + ';' +
-          'padding:' + (isMobile ? '0' : '16px') + ';';
-        ov.addEventListener('click', function (e) { if (e.target === ov) closeIframe(); });
-
-        // 容器
-        var wrap = pDoc.createElement('div');
-        wrap.id = SCRIPT_ID + '_wrap';
-        wrap.style.cssText =
-          'position:relative;' +
-          'width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';' +
-          'height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';' +
-          'max-width:100%;max-height:100%;' +
-          'border-radius:' + (isMobile ? '0' : '16px') + ';' +
-          'overflow:hidden;' +
-          'background:#ffffff;color:#1e293b;' +
-          (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
-
-        // 空 iframe
+        // 直接创建 fixed 撑满视口的 iframe（不用 overlay/wrap 多层嵌套，避免高度链断裂）
         var fr = pDoc.createElement('iframe');
         fr.id = SCRIPT_ID + '_iframe';
-        fr.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#fff;';
+        fr.setAttribute('script_id', SCRIPT_ID);
+        // 100dvh 适配移动端动态视口，100vh 作为兜底
+        fr.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:100000;background:#f7f7f2;';
 
-        console.log('[正则代码生成器] ② 创建空 iframe，等待 load...');
+        console.log('[正则代码生成器] ② 创建 iframe，等待 load...');
 
         fr.addEventListener('load', function () {
           try {
             var d = fr.contentDocument || fr.contentWindow.document;
             if (!d) { reject(new Error('无法获取 iframe contentDocument')); return; }
 
-            // 写入 HTML 头部 + CSS
-            console.log('[正则代码生成器] ③ iframe load，写入 HTML...');
-            d.open();
-            d.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">');
-            d.write('<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">');
-            d.write('<style>' + IFRAME_CSS + '</style>');
-            d.write('</head><body>');
-            d.write(getIframeBodyHTML());
-            d.write('</body></html>');
-            d.close();
-            console.log('[正则代码生成器] ④ ✅ HTML 写入完成');
+            console.log('[正则代码生成器] ③ iframe load，用 DOM API 注入样式和内容...');
 
-            // 绑定 ESC + message
+            // viewport meta（确保移动端正确渲染）
+            try {
+              var vp = d.createElement('meta');
+              vp.name = 'viewport';
+              vp.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+              d.head.appendChild(vp);
+              var charset = d.createElement('meta');
+              charset.setAttribute('charset', 'UTF-8');
+              d.head.appendChild(charset);
+            } catch (_) {}
+
+            // 注入样式（用 textContent，不用 d.write，避免文档重开导致的渲染问题）
+            var s = d.createElement('style');
+            s.textContent = IFRAME_CSS;
+            d.head.appendChild(s);
+
+            // 注入 body 内容
+            d.body.innerHTML = getIframeBodyHTML();
+
+            console.log('[正则代码生成器] ④ ✅ 内容注入完成');
+
+            // 绑定 ESC 关闭
             function escFn(e) { if (e.key === 'Escape') closeIframe(); }
             pDoc.addEventListener('keydown', escFn);
-            function msgFn(ev) { try { if (ev && ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); } catch (_) {} }
-            pWin.addEventListener('message', msgFn);
-            ov._escFn = escFn;
-            ov._msgFn = msgFn;
+            fr._escFn = escFn;
 
             resolve(d);
           } catch (e) {
@@ -1060,9 +1043,7 @@ ${fieldRowsHtml}
           }
         });
 
-        wrap.appendChild(fr);
-        ov.appendChild(wrap);
-        pDoc.body.appendChild(ov);
+        pDoc.body.appendChild(fr);
         iframeEl = fr;
 
         // 超时保护
@@ -1081,11 +1062,9 @@ ${fieldRowsHtml}
     try {
       var pWin = getParentWindow();
       var pDoc = pWin ? pWin.document : null;
-      var ov = pDoc ? pDoc.getElementById(SCRIPT_ID + '_overlay') : null;
-      if (ov) {
-        if (ov._escFn && pDoc) { try { pDoc.removeEventListener('keydown', ov._escFn); } catch (_) {} }
-        if (ov._msgFn && pWin) { try { pWin.removeEventListener('message', ov._msgFn); } catch (_) {} }
-        if (ov.parentNode) { try { ov.parentNode.removeChild(ov); } catch (_) {} }
+      if (iframeEl) {
+        if (iframeEl._escFn && pDoc) { try { pDoc.removeEventListener('keydown', iframeEl._escFn); } catch (_) {} }
+        if (iframeEl.parentNode) { try { iframeEl.parentNode.removeChild(iframeEl); } catch (_) {} }
       }
     } catch (_) {}
     iframeEl = null;
@@ -1411,7 +1390,7 @@ ${fieldRowsHtml}
       var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
       var $ = getJQuery();
-      if ($) { $('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]', pDoc).remove(); }
+      if ($) { $('#' + SCRIPT_ID + '_iframe, [id^="' + SCRIPT_ID + '_"]', pDoc).remove(); }
     } catch (_) {}
   }
 
