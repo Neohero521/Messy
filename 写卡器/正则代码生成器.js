@@ -439,11 +439,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
       }
     } catch (e) { errors.push('generateRaw: ' + e.message); }
 
-    // 6. triggerSlash /generate（兜底，截断防超长）
+    // 6. triggerSlash /generate（兜底）
     try {
       var triggerSlashFn = getApi('triggerSlash');
       if (triggerSlashFn) {
-        var r6 = await triggerSlashFn('/generate lock=on ' + (SYSTEM_PROMPT + '\n\n' + userPrompt).substring(0, 8000));
+        var r6 = await triggerSlashFn('/generate lock=on ' + SYSTEM_PROMPT + '\n\n' + userPrompt);
         if (r6 && typeof r6 === 'string' && r6.trim().length > 5) return r6.trim();
       }
     } catch (e) { errors.push('triggerSlash: ' + e.message); }
