@@ -1469,76 +1469,212 @@ ${fieldRowsHtml}
 
   // ===== 卸载清理 =====
   function cleanupScriptArtifacts() {
-    closeIframe();
+    try { closeIframe(); } catch (_) {}
     try {
       var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
       var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
-      window.parent.$('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]').remove();
-    } catch (e) { /* noop */ }
+      try {
+        if (window.parent && window.parent.$) {
+          window.parent.$('#' + SCRIPT_ID + '_overlay, [id^="' + SCRIPT_ID + '_"]').remove();
+        }
+      } catch (_) {}
+    } catch (_) {}
+  }
+
+  // ===== 获取环境：在脚本 iframe 中，API 可能挂在 window 或 window.parent =====
+  function getApi(name) {
+    try { if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name]; } catch (_) {}
+    try { if (typeof window.parent !== 'undefined' && window.parent && typeof window.parent[name] === 'function') return window.parent[name]; } catch (_) {}
+    try { if (typeof window.top !== 'undefined' && window.top && window.top !== window && typeof window.top[name] === 'function') return window.top[name]; } catch (_) {}
+    if (typeof this !== 'undefined' && typeof this[name] === 'function') return this[name];
+    if (typeof self !== 'undefined' && typeof self[name] === 'function') return self[name];
+    // 全局作用域兜底
+    try { if (typeof eval(name) === 'function') return eval(name); } catch (_) {}
+    return null;
   }
 
   // ===== 按钮注册（优先脚本按钮，兜底浮动按钮）=====
   function registerButton() {
     try {
-      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
+      var evtOn = getApi('eventOn');
+      var getBtnEvt = getApi('getButtonEvent');
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt('打开正则生成器'), function() { createModalIframe(); });
-        evtOn(getBtnEvt('关闭正则生成器'), function() { closeIframe(); });
-        return true;
+        var created = false;
+        try {
+          evtOn(getBtnEvt('打开正则生成器'), function() { createModalIframe(); });
+          evtOn(getBtnEvt('关闭正则生成器'), function() { closeIframe(); });
+          created = true;
+        } catch (innerErr) {
+          console.warn('[正则代码生成器] eventOn 注册异常：', innerErr && innerErr.message ? innerErr.message : innerErr);
+        }
+        // 双按钮名兼容：兼容脚本库中自定义按钮名
+        try {
+          evtOn(getBtnEvt('正则代码生成器'), function() { createModalIframe(); });
+        } catch (_) {}
+        try {
+          evtOn(getBtnEvt('正则生成器'), function() { createModalIframe(); });
+        } catch (_) {}
+        if (created) {
+          console.log('[正则代码生成器] ✅ 脚本按钮已注册（事件名：打开正则生成器 / 关闭正则生成器 / 正则代码生成器 / 正则生成器）');
+          return true;
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[正则代码生成器] registerButton 失败：', e && e.message ? e.message : e);
+    }
     return false;
   }
 
+  // ===== 浮动按钮（带 body 就绪重试）=====
+  var floatRetryCount = 0;
   function addFloatingButton() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var pWin = (window.parent && window.parent.document) ? window.parent : window;
+      var pDoc = pWin.document;
+
+      // 主体必须存在
+      if (!pDoc || !pDoc.body) {
+        if (floatRetryCount < 20) {
+          floatRetryCount++;
+          setTimeout(addFloatingButton, 300);
+        } else {
+          console.error('[正则代码生成器] ❌ 多次重试后 document.body 仍不存在，浮动按钮创建失败');
+        }
+        return false;
+      }
+
       var old = pDoc.getElementById(SCRIPT_ID + '-btn');
-      if (old) old.remove();
+      if (old) { try { old.remove(); } catch (_) {} }
+
       var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '✨ 正则生成器';
-      var isMobileBtn = pDoc.defaultView && pDoc.defaultView.matchMedia('(max-width: 768px)').matches;
+      var isMobileBtn = false;
+      try { isMobileBtn = (pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches) || false; } catch (_) {}
       var btnCss = isMobileBtn
-        ? 'position:fixed;bottom:70px;right:12px;z-index:99998;padding:8px 14px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(15,23,42,.15);transition:all .3s;font-size:12px;'
-        : 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:all .3s;font-size:14px;';
+        ? 'position:fixed;bottom:70px;right:12px;z-index:99998;padding:8px 14px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;box-shadow:0 4px 16px rgba(15,23,42,.25);transition:all .3s;font-size:12px;-webkit-tap-highlight-color:transparent;'
+        : 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.2);transition:all .3s;font-size:14px;';
       btn.style.cssText = btnCss;
-      btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
-      btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
-      btn.onclick = createModalIframe;
+      btn.onmouseover = function() { try { btn.style.transform = 'scale(1.05)'; } catch(_) {} };
+      btn.onmouseout = function() { try { btn.style.transform = 'scale(1)'; } catch(_) {} };
+      btn.onclick = function() {
+        try { createModalIframe(); } catch(e) { console.error('[正则代码生成器] 打开失败：', e); }
+      };
+
       pDoc.body.appendChild(btn);
       console.log('[正则代码生成器] ✅ 浮动按钮已创建（右下角）');
+
+      // 如果父窗口 jQuery 存在，也可以通过选择器确认按钮存在
+      try {
+        if (pWin.$ && pWin.$('#' + SCRIPT_ID + '-btn').length === 1) {
+          // OK
+        }
+      } catch (_) {}
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      console.warn('[正则代码生成器] addFloatingButton 失败：', e && e.message ? e.message : e);
+      if (floatRetryCount < 20) {
+        floatRetryCount++;
+        setTimeout(addFloatingButton, 300);
+      }
+      return false;
+    }
   }
 
+  // ===== 初始化：先尝试注册脚本按钮（重试），然后无论成功与否都加浮动按钮 =====
   var retryCount = 0;
+  var buttonRegistered = false;
   function tryInit() {
-    if (registerButton()) {
-      console.log('[正则代码生成器] ✅ 脚本按钮注册成功！');
-      return;
-    }
-    if (retryCount < 10) {
-      retryCount++;
-      setTimeout(tryInit, 500);
-    } else {
+    try {
+      if (!buttonRegistered && registerButton()) {
+        buttonRegistered = true;
+      }
+      if (retryCount < 20) {
+        retryCount++;
+        setTimeout(tryInit, 500);
+      } else {
+        // 10 秒后兜底：无论脚本按钮是否注册成功，都强制添加浮动按钮
+        console.log('[正则代码生成器] ⚠️ 脚本按钮未注册，启用浮动按钮兜底');
+        addFloatingButton();
+      }
+    } catch (e) {
+      console.error('[正则代码生成器] tryInit 异常：', e);
       addFloatingButton();
     }
   }
 
   // ===== 脚本入口 =====
   function scriptEntryPoint() {
-    window.addEventListener('pagehide', cleanupScriptArtifacts);
+    console.log('[正则代码生成器] 🚀 正在初始化（版本：全屏/响应式修复版）');
+
+    // 监听卸载：两边都挂（脚本 iframe 和 父页面）
+    try { window.addEventListener('pagehide', cleanupScriptArtifacts); } catch (_) {}
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.addEventListener('pagehide', cleanupScriptArtifacts);
+      }
+    } catch (_) {}
+
     tryInit();
+
+    // 终极保底：15 秒后检查是否有按钮，没的话强行创建
+    setTimeout(function() {
+      try {
+        var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        if (pDoc && !pDoc.getElementById(SCRIPT_ID + '-btn')) {
+          console.log('[正则代码生成器] 🛡️ 终极保底：15秒强制创建浮动按钮');
+          addFloatingButton();
+        }
+      } catch (_) {}
+    }, 15000);
   }
 
-  if (typeof $ !== 'undefined') {
-    $(scriptEntryPoint);
-  } else if (typeof window !== 'undefined' && window.parent && typeof window.parent.$ !== 'undefined') {
-    window.parent.$(scriptEntryPoint);
-  } else {
-    scriptEntryPoint();
+  // ===== 多策略 jQuery ready 启动（兼容脚本 iframe / 父页面注入）=====
+  var started = false;
+  function startOnce() {
+    if (started) return;
+    started = true;
+    try { scriptEntryPoint(); } catch (e) {
+      console.error('[正则代码生成器] 入口异常：', e);
+      // 即使入口异常，也直接开浮动按钮
+      try { addFloatingButton(); } catch (_) {}
+    }
   }
+
+  try {
+    // 1. 本地 jQuery
+    if (typeof $ !== 'undefined') {
+      $(startOnce);
+    } else if (typeof jQuery !== 'undefined') {
+      jQuery(startOnce);
+    }
+    // 2. 父页面 jQuery（脚本 iframe 场景）
+    try {
+      if (window.parent && window.parent.$) {
+        window.parent.$(startOnce);
+      } else if (window.parent && window.parent.jQuery) {
+        window.parent.jQuery(startOnce);
+      }
+    } catch (_) {}
+    // 3. top jQuery
+    try {
+      if (window.top && window.top !== window && window.top.$) {
+        window.top.$(startOnce);
+      }
+    } catch (_) {}
+  } catch (e) {
+    console.warn('[正则代码生成器] jQuery ready 绑定失败，改用直启：', e);
+  }
+
+  // 4. 无论 jQuery 是否可用，3 秒后强行启动（防所有启动链路都失效）
+  setTimeout(function() {
+    startOnce();
+  }, 3000);
+
+  // 5. 立即执行一次（脚本在某些环境是同步注入，ready 回调会被漏掉）
+  setTimeout(function() {
+    startOnce();
+  }, 200);
+
 })();
