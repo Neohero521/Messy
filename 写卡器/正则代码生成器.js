@@ -1478,104 +1478,429 @@ eval(${injectStr});
 `;
   }
 
-  // ===== 创建/销毁 Iframe（纯原生 DOM，不依赖 jQuery，最可靠）=====
-  var iframeContainer = null;
+  // ===== 创建/销毁 Iframe（参考时之写卡器：空 iframe + load 后用 doc.body.innerHTML 写入）=====
+  var iframeEl = null;
 
   function createModalIframe() {
-    // 【关键】先拿到 pWin / pDoc，如果这里失败就是跨域或 iframe 环境异常
-    var pWin = getParentWindow();
-    if (!pWin) throw new Error('无法获取父窗口（getParentWindow 为空）');
-    var pDoc = pWin.document;
-    if (!pDoc) throw new Error('父窗口没有 document 对象');
-    if (!pDoc.body) throw new Error('document.body 尚未创建，请稍后再试');
-    console.log('[正则代码生成器] ① 父窗口/Document/Body 都 OK');
+    return new Promise(function (resolve, reject) {
+      try {
+        var pWin = getParentWindow();
+        if (!pWin) return reject(new Error('无法获取父窗口'));
+        var pDoc = pWin.document;
+        if (!pDoc) return reject(new Error('父窗口没有 document'));
+        if (!pDoc.body) return reject(new Error('document.body 尚未创建'));
 
-    // 清理旧的
-    if (iframeContainer) { try { if (iframeContainer.parentNode) iframeContainer.parentNode.removeChild(iframeContainer); } catch(_) {} iframeContainer = null; }
-    var oldOv = pDoc.getElementById(SCRIPT_ID + '_overlay');
-    if (oldOv) { try { oldOv.remove(); } catch (_) {} }
-    console.log('[正则代码生成器] ② 旧弹窗清理 OK');
+        // 清理旧的
+        closeIframe();
+        console.log('[正则代码生成器] ① 父窗口/Document/Body OK');
 
-    var isMobile = false;
-    try { isMobile = !!(pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches); } catch (_) {}
-    console.log('[正则代码生成器] ③ 响应式判定 isMobile=' + isMobile);
+        var isMobile = false;
+        try { isMobile = !!(pWin.matchMedia && pWin.matchMedia('(max-width: 768px)').matches); } catch (_) {}
 
-    // 遮罩层
-    var ov = pDoc.createElement('div');
-    ov.id = SCRIPT_ID + '_overlay';
-    ov.style.cssText =
-      'position:fixed;top:0;left:0;right:0;bottom:0;' +
-      'z-index:100000;' +
-      'display:flex;align-items:center;justify-content:center;' +
-      'background:' + (isMobile ? '#ffffff' : 'rgba(15,23,42,0.55)') + ';' +
-      'padding:' + (isMobile ? '0' : '16px') + ';' +
-      'backdrop-filter:' + (isMobile ? 'none' : 'blur(4px)') + ';';
-    ov.addEventListener('click', function (e) { if (e.target === ov) closeIframe(); });
+        // 遮罩层
+        var ov = pDoc.createElement('div');
+        ov.id = SCRIPT_ID + '_overlay';
+        ov.style.cssText =
+          'position:fixed;top:0;left:0;right:0;bottom:0;' +
+          'z-index:100000;' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'background:' + (isMobile ? '#ffffff' : 'rgba(15,23,42,0.55)') + ';' +
+          'padding:' + (isMobile ? '0' : '16px') + ';';
+        ov.addEventListener('click', function (e) { if (e.target === ov) closeIframe(); });
 
-    // 容器
-    var wrap = pDoc.createElement('div');
-    wrap.id = SCRIPT_ID + '_wrap';
-    wrap.style.cssText =
-      'position:relative;' +
-      'width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';' +
-      'height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';' +
-      'max-width:100%;max-height:100%;' +
-      'border-radius:' + (isMobile ? '0' : '16px') + ';' +
-      'overflow:hidden;' +
-      'background:#ffffff;color:#1e293b;' +
-      (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
+        // 容器
+        var wrap = pDoc.createElement('div');
+        wrap.id = SCRIPT_ID + '_wrap';
+        wrap.style.cssText =
+          'position:relative;' +
+          'width:' + (isMobile ? '100%' : 'min(1180px,96vw)') + ';' +
+          'height:' + (isMobile ? '100%' : 'min(820px,96vh)') + ';' +
+          'max-width:100%;max-height:100%;' +
+          'border-radius:' + (isMobile ? '0' : '16px') + ';' +
+          'overflow:hidden;' +
+          'background:#ffffff;color:#1e293b;' +
+          (isMobile ? '' : 'box-shadow:0 30px 80px rgba(15,23,42,0.35);border:1px solid rgba(15,23,42,0.08);');
 
-    // iframe 内容
-    console.log('[正则代码生成器] ④ 正在生成 iframe HTML（可能有点大）...');
-    var html;
-    try {
-      html = getIframeHTML();
-    } catch (e) {
-      throw new Error('getIframeHTML() 生成失败：' + (e.message || String(e)));
-    }
-    if (!html || !html.length) throw new Error('iframe HTML 为空');
-    console.log('[正则代码生成器] ⑤ iframe HTML 长度：' + html.length + ' 字符');
+        // 空 iframe
+        var fr = pDoc.createElement('iframe');
+        fr.id = SCRIPT_ID + '_iframe';
+        fr.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#fff;';
 
-    var fr = pDoc.createElement('iframe');
-    fr.id = SCRIPT_ID + '_iframe';
-    // 不设 sandbox：酒馆脚本 iframe 本身是无沙盒的，弹窗也需要访问 parent 的 API
-    try { fr.srcdoc = html; } catch (e) { throw new Error('设置 srcdoc 失败：' + (e.message || String(e))); }
-    fr.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#fff;';
+        console.log('[正则代码生成器] ② 创建空 iframe，等待 load...');
 
-    wrap.appendChild(fr);
-    ov.appendChild(wrap);
-    try { pDoc.body.appendChild(ov); } catch (e) { throw new Error('appendChild 到 body 失败：' + (e.message || String(e))); }
-    iframeContainer = ov;
-    console.log('[正则代码生成器] ⑥ ✅ 已把弹窗插入到 body');
+        fr.addEventListener('load', function () {
+          try {
+            var d = fr.contentDocument || fr.contentWindow.document;
+            if (!d) { reject(new Error('无法获取 iframe contentDocument')); return; }
 
-    // ESC 关闭
-    function escFn(e) { if (e.key === 'Escape') closeIframe(); }
-    pDoc.addEventListener('keydown', escFn);
-    // iframe 内部请求关闭
-    function msgFn(ev) { try { if (ev && ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); } catch (_) {} }
-    pWin.addEventListener('message', msgFn);
-    // 绑定到 DOM 元素，closeIframe 时清理
-    ov._escFn = escFn;
-    ov._msgFn = msgFn;
+            // 写入 HTML 头部 + CSS
+            console.log('[正则代码生成器] ③ iframe load，写入 HTML...');
+            d.open();
+            d.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">');
+            d.write('<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">');
+            d.write('<style>' + IFRAME_CSS + '</style>');
+            d.write('</head><body>');
+            d.write(getIframeBodyHTML());
+            d.write('</body></html>');
+            d.close();
+            console.log('[正则代码生成器] ④ ✅ HTML 写入完成');
 
-    console.log('[正则代码生成器] ✅ 弹窗打开成功！');
-    return true;
+            // 绑定 ESC + message
+            function escFn(e) { if (e.key === 'Escape') closeIframe(); }
+            pDoc.addEventListener('keydown', escFn);
+            function msgFn(ev) { try { if (ev && ev.data && ev.data.action === 'closeRegexGenerator') closeIframe(); } catch (_) {} }
+            pWin.addEventListener('message', msgFn);
+            ov._escFn = escFn;
+            ov._msgFn = msgFn;
+
+            resolve(d);
+          } catch (e) {
+            console.error('[正则代码生成器] ❌ iframe load 回调异常：', e);
+            reject(e);
+          }
+        });
+
+        wrap.appendChild(fr);
+        ov.appendChild(wrap);
+        pDoc.body.appendChild(ov);
+        iframeEl = fr;
+
+        // 超时保护
+        setTimeout(function () {
+          try {
+            if (!fr.contentDocument || !fr.contentDocument.body) reject(new Error('iframe load 超时'));
+          } catch (e) { reject(e); }
+        }, 5000);
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   function closeIframe() {
-    if (!iframeContainer) return;
-    var pWin = getParentWindow();
     try {
-      var ov = iframeContainer;
-      if (ov._escFn && pWin && pWin.document) {
-        try { pWin.document.removeEventListener('keydown', ov._escFn); } catch (_) {}
+      var pWin = getParentWindow();
+      var pDoc = pWin ? pWin.document : null;
+      var ov = pDoc ? pDoc.getElementById(SCRIPT_ID + '_overlay') : null;
+      if (ov) {
+        if (ov._escFn && pDoc) { try { pDoc.removeEventListener('keydown', ov._escFn); } catch (_) {} }
+        if (ov._msgFn && pWin) { try { pWin.removeEventListener('message', ov._msgFn); } catch (_) {} }
+        if (ov.parentNode) { try { ov.parentNode.removeChild(ov); } catch (_) {} }
       }
-      if (ov._msgFn && pWin) {
-        try { pWin.removeEventListener('message', ov._msgFn); } catch (_) {}
-      }
-      if (ov.parentNode) { try { ov.parentNode.removeChild(ov); } catch (_) {} }
     } catch (_) {}
-    iframeContainer = null;
+    iframeEl = null;
+  }
+
+  // iframe 内部的静态 HTML 结构
+  function getIframeBodyHTML() {
+    return '' +
+      '<div class="app">' +
+        '<div class="topbar">' +
+          '<h1>✨ <span>正则代码生成器</span><span class="subtitle">酒馆助手模板生成工具</span></h1>' +
+          '<div class="top-actions">' +
+            '<button class="btn btn-sm btn-ghost" id="btnHelp" title="使用说明">❓ 说明</button>' +
+            '<button class="icon-btn" id="btnClose" title="关闭">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mode-tabs">' +
+          '<div class="mode-tab active" data-mode="A">📄 模式A<span class="badge">正文美化</span></div>' +
+          '<div class="mode-tab" data-mode="B">📊 模式B<span class="badge">结构化数据</span></div>' +
+        '</div>' +
+        '<div class="view-switch">' +
+          '<button class="view-switch-btn active" data-view="form">📝 配置</button>' +
+          '<button class="view-switch-btn" data-view="preview">👁️ 预览</button>' +
+        '</div>' +
+        '<div class="main mobile-view-form">' +
+          '<div class="form-panel" id="formPanel"></div>' +
+          '<div class="preview-panel">' +
+            '<div class="preview-tabs" id="previewTabs"></div>' +
+            '<div class="code-container">' +
+              '<div class="code-header">' +
+                '<span class="code-title" id="codeTitle">📝 酒馆正则配置</span>' +
+                '<div class="code-actions">' +
+                  '<button class="btn btn-sm" id="btnCopy">📋 复制代码</button>' +
+                  '<button class="btn btn-sm btn-primary" id="btnImport">➕ 导入酒馆正则</button>' +
+                '</div>' +
+              '</div>' +
+              '<pre class="code-block" id="codeBlock"></pre>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ===== 打开生成器：拿到 doc 后在闭包中直接操作 DOM（参考时之写卡器 openEditor）=====
+  async function openGenerator() {
+    console.log('[正则代码生成器] 🚀 正在打开生成器...');
+    var doc = await createModalIframe();
+    console.log('[正则代码生成器] ⑤ 拿到 iframe document，开始绑定事件...');
+
+    var win = iframeEl ? iframeEl.contentWindow : window;
+    var root = getParentWindow();
+
+    // 状态
+    var state = {
+      mode: 'A',
+      activeTab: 0,
+      configA: {
+        scriptName: '[界面]正文美化',
+        tagName: 'story',
+        stylePreset: 'novel',
+        srcAIOutput: true,
+        runOnEdit: true,
+        destDisplay: true
+      },
+      configB: {
+        scriptName: '[界面]状态栏',
+        tagName: 'status',
+        pageTitle: '角色状态栏',
+        dataFormat: 'pipe',
+        triggerDesc: '当用户提到查看状态、属性面板等信息时使用',
+        fields: [
+          { key: 'hp', label: '生命值' },
+          { key: 'mp', label: '法力值' },
+          { key: 'atk', label: '攻击力' },
+          { key: 'def', label: '防御力' }
+        ],
+        keywords: ['查看状态', '打开面板', '属性']
+      }
+    };
+
+    // ===== 模式切换 =====
+    doc.querySelectorAll('.mode-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        doc.querySelectorAll('.mode-tab').forEach(function (t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        state.mode = tab.dataset.mode;
+        state.activeTab = 0;
+        renderForm();
+        renderPreviewTabs();
+        updateCode();
+      });
+    });
+
+    // ===== 表单渲染：模式A =====
+    function renderFormA() {
+      var panel = doc.getElementById('formPanel');
+      var c = state.configA;
+      var presetsHtml = Object.keys(STYLE_PRESETS_A).map(function (key) {
+        var p = STYLE_PRESETS_A[key];
+        var selected = c.stylePreset === key ? ' selected' : '';
+        return '<div class="style-preset' + selected + '" data-preset="' + key + '">' +
+          '<div class="style-preset-name">' + p.name + '</div>' +
+          '<div class="style-preset-desc">' + p.desc + '</div>' +
+          '</div>';
+      }).join('');
+
+      panel.innerHTML =
+        '<div class="form-section">' +
+          '<div class="form-section-title">⚙️ 基本配置</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">脚本名称<span class="req">*</span><span class="hint">酒馆正则中显示的名字</span></label>' +
+            '<input type="text" class="form-input" id="input_scriptName" value="' + escapeHtml(c.scriptName) + '" placeholder="[界面]xxx">' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">标签名<span class="req">*</span><span class="hint">不要用 think/thinking/content</span></label>' +
+            '<input type="text" class="form-input" id="input_tagName" value="' + escapeHtml(c.tagName) + '" placeholder="story">' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-section">' +
+          '<div class="form-section-title">🎨 样式预设</div>' +
+          '<div class="style-presets">' + presetsHtml + '</div>' +
+        '</div>' +
+        '<div class="form-section">' +
+          '<div class="form-section-title">✅ 正则选项</div>' +
+          '<div class="form-row">' +
+            '<div class="form-checkbox' + (c.srcAIOutput ? ' checked' : '') + '" data-opt="srcAIOutput">' +
+              '<input type="checkbox" id="opt_srcAIOutput"' + (c.srcAIOutput ? ' checked' : '') + '>' +
+              '<label for="opt_srcAIOutput">AI输出</label>' +
+            '</div>' +
+            '<div class="form-checkbox' + (c.runOnEdit ? ' checked' : '') + '" data-opt="runOnEdit">' +
+              '<input type="checkbox" id="opt_runOnEdit"' + (c.runOnEdit ? ' checked' : '') + '>' +
+              '<label for="opt_runOnEdit">编辑时运行</label>' +
+            '</div>' +
+          '</div>' +
+          '<div style="height:12px"></div>' +
+          '<div class="form-checkbox' + (c.destDisplay ? ' checked' : '') + '" data-opt="destDisplay">' +
+            '<input type="checkbox" id="opt_destDisplay"' + (c.destDisplay ? ' checked' : '') + '>' +
+            '<label for="opt_destDisplay">仅格式显示（推荐开启）</label>' +
+          '</div>' +
+        '</div>';
+      bindFormAEvents();
+    }
+
+    function bindFormAEvents() {
+      var c = state.configA;
+      doc.getElementById('input_scriptName').addEventListener('input', function (e) { c.scriptName = e.target.value; updateCode(); });
+      doc.getElementById('input_tagName').addEventListener('input', function (e) {
+        c.tagName = e.target.value.replace(/[<>\/\s]/g, '');
+        e.target.value = c.tagName;
+        updateCode();
+      });
+      doc.querySelectorAll('.style-preset').forEach(function (el) {
+        el.addEventListener('click', function () {
+          doc.querySelectorAll('.style-preset').forEach(function (p) { p.classList.remove('selected'); });
+          el.classList.add('selected');
+          c.stylePreset = el.dataset.preset;
+          updateCode();
+        });
+      });
+      ['srcAIOutput', 'runOnEdit', 'destDisplay'].forEach(function (opt) {
+        var wrap = doc.querySelector('[data-opt="' + opt + '"]');
+        var cb = doc.getElementById('opt_' + opt);
+        function toggle() { c[opt] = !c[opt]; cb.checked = c[opt]; wrap.classList.toggle('checked', c[opt]); updateCode(); }
+        wrap.addEventListener('click', function (e) { if (e.target !== cb) { e.preventDefault(); toggle(); } });
+        cb.addEventListener('change', toggle);
+      });
+    }
+
+    // ===== 表单渲染：模式B =====
+    function renderFormB() {
+      var panel = doc.getElementById('formPanel');
+      var c = state.configB;
+      var fieldsHtml = c.fields.map(function (f, idx) {
+        return '<div class="field-item" data-idx="' + idx + '">' +
+          '<input type="text" class="field-key" placeholder="字段key" value="' + escapeHtml(f.key) + '">' +
+          '<input type="text" class="field-label" placeholder="显示名称" value="' + escapeHtml(f.label) + '">' +
+          '<button class="field-del" data-idx="' + idx + '">删除</button>' +
+          '</div>';
+      }).join('');
+
+      panel.innerHTML =
+        '<div class="form-section">' +
+          '<div class="form-section-title">⚙️ 基本配置</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">脚本名称<span class="req">*</span></label>' +
+            '<input type="text" class="form-input" id="input_scriptName" value="' + escapeHtml(c.scriptName) + '">' +
+          '</div>' +
+          '<div class="form-row">' +
+            '<div class="form-group">' +
+              '<label class="form-label">标签名<span class="req">*</span></label>' +
+              '<input type="text" class="form-input" id="input_tagName" value="' + escapeHtml(c.tagName) + '">' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">页面标题<span class="req">*</span></label>' +
+              '<input type="text" class="form-input" id="input_pageTitle" value="' + escapeHtml(c.pageTitle) + '">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-section">' +
+          '<div class="form-section-title">📋 数据格式</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">解析方式</label>' +
+            '<select class="form-select" id="input_dataFormat">' +
+              '<option value="pipe"' + (c.dataFormat === 'pipe' ? ' selected' : '') + '>[字段|值] 管道格式（推荐）</option>' +
+              '<option value="kv"' + (c.dataFormat === 'kv' ? ' selected' : '') + '>键:值 行格式</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-section">' +
+          '<div class="form-section-title">🔑 字段定义</div>' +
+          '<div class="field-list">' + fieldsHtml + '</div>' +
+          '<button class="add-field-btn" id="btnAddField">+ 添加字段</button>' +
+        '</div>' +
+        '<div class="form-section">' +
+          '<div class="form-section-title">🎯 世界书触发</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">触发条件说明</label>' +
+            '<input type="text" class="form-input" id="input_triggerDesc" value="' + escapeHtml(c.triggerDesc) + '">' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">触发关键词<span class="hint">每行一个</span></label>' +
+            '<textarea class="form-textarea" id="input_keywords">' + escapeHtml(c.keywords.join('\n')) + '</textarea>' +
+          '</div>' +
+        '</div>';
+      bindFormBEvents();
+    }
+
+    function bindFormBEvents() {
+      var c = state.configB;
+      doc.getElementById('input_scriptName').addEventListener('input', function (e) { c.scriptName = e.target.value; updateCode(); });
+      doc.getElementById('input_tagName').addEventListener('input', function (e) { c.tagName = e.target.value.replace(/[<>\/\s]/g, ''); e.target.value = c.tagName; updateCode(); });
+      doc.getElementById('input_pageTitle').addEventListener('input', function (e) { c.pageTitle = e.target.value; updateCode(); });
+      doc.getElementById('input_dataFormat').addEventListener('change', function (e) { c.dataFormat = e.target.value; updateCode(); });
+      doc.getElementById('input_triggerDesc').addEventListener('input', function (e) { c.triggerDesc = e.target.value; updateCode(); });
+      doc.getElementById('input_keywords').addEventListener('input', function (e) { c.keywords = e.target.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); updateCode(); });
+      doc.querySelectorAll('.field-key').forEach(function (inp, i) { inp.addEventListener('input', function (e) { c.fields[i].key = e.target.value.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, ''); e.target.value = c.fields[i].key; updateCode(); }); });
+      doc.querySelectorAll('.field-label').forEach(function (inp, i) { inp.addEventListener('input', function (e) { c.fields[i].label = e.target.value; updateCode(); }); });
+      doc.querySelectorAll('.field-del').forEach(function (btn) { btn.addEventListener('click', function () { var idx = parseInt(btn.dataset.idx); if (c.fields.length <= 1) { createToast(win, '至少保留一个字段', 'error'); return; } c.fields.splice(idx, 1); renderFormB(); updateCode(); }); });
+      doc.getElementById('btnAddField').addEventListener('click', function () { c.fields.push({ key: 'field' + (c.fields.length + 1), label: '字段' + (c.fields.length + 1) }); renderFormB(); updateCode(); });
+    }
+
+    function renderForm() { if (state.mode === 'A') renderFormA(); else renderFormB(); }
+
+    function renderPreviewTabs() {
+      var tabs = doc.getElementById('previewTabs');
+      var tabDefs = state.mode === 'A'
+        ? [{ key: 'regexConfig', label: '📝 正则配置' }, { key: 'htmlCode', label: '🌐 前端HTML' }]
+        : [{ key: 'regexConfig', label: '📝 正则配置' }, { key: 'worldbookCode', label: '📖 世界书规则' }, { key: 'htmlCode', label: '🌐 前端HTML' }];
+      state.tabDefs = tabDefs;
+      if (state.activeTab >= tabDefs.length) state.activeTab = 0;
+      tabs.innerHTML = tabDefs.map(function (t, i) { return '<div class="preview-tab' + (i === state.activeTab ? ' active' : '') + '" data-idx="' + i + '">' + t.label + '</div>'; }).join('');
+      tabs.querySelectorAll('.preview-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () { state.activeTab = parseInt(tab.dataset.idx); tabs.querySelectorAll('.preview-tab').forEach(function (t) { t.classList.remove('active'); }); tab.classList.add('active'); updateCode(); });
+      });
+    }
+
+    function updateCode() {
+      var result = state.mode === 'A' ? generateModeA(state.configA) : generateModeB(state.configB);
+      state.lastResult = result;
+      var tab = state.tabDefs[state.activeTab];
+      doc.getElementById('codeBlock').textContent = result[tab.key] || '';
+      doc.getElementById('codeTitle').textContent = tab.label;
+    }
+
+    doc.getElementById('btnCopy').addEventListener('click', function () {
+      copyToClipboard(win, doc.getElementById('codeBlock').textContent, function (ok) {
+        createToast(win, ok ? '✅ 代码已复制到剪贴板' : '❌ 复制失败', ok ? 'success' : 'error');
+      });
+    });
+
+    doc.getElementById('btnImport').addEventListener('click', async function () {
+      if (!state.lastResult) return;
+      var obj = state.lastResult.tavernRegexObj;
+      var forbidden = ['think', 'thinking', 'content'];
+      var tagCheck = obj.find_regex.match(/<([a-zA-Z_][a-zA-Z0-9_-]*)>/);
+      if (tagCheck && forbidden.indexOf(tagCheck[1].toLowerCase()) !== -1) { createToast(win, '❌ 标签名 ' + tagCheck[1] + ' 被禁止使用！', 'error'); return; }
+      try {
+        createToast(win, '⏳ 正在导入酒馆正则...', 'info');
+        if (typeof root.updateTavernRegexesWith === 'function') {
+          await root.updateTavernRegexesWith(function (regexes) {
+            var existingIdx = -1;
+            regexes.forEach(function (r, i) { if (r.script_name === obj.script_name) existingIdx = i; });
+            if (existingIdx >= 0) regexes[existingIdx] = obj; else regexes.push(obj);
+            return regexes;
+          }, { type: 'global' });
+          createToast(win, '✅ 正则「' + obj.script_name + '」已成功导入！', 'success');
+        } else {
+          copyToClipboard(win, state.lastResult.regexConfig, function (ok) {
+            createToast(win, ok ? '⚠️ 已复制配置到剪贴板，请手动导入' : '⚠️ 请手动复制配置', 'info');
+          });
+        }
+      } catch (err) { createToast(win, '❌ 导入失败：' + (err.message || String(err)), 'error'); }
+    });
+
+    doc.getElementById('btnClose').addEventListener('click', function () { closeIframe(); });
+    doc.getElementById('btnHelp').addEventListener('click', function () {
+      alert('【正则代码生成器使用说明】\n\n📄 模式A：正文美化\n  · 适用于小说排版、对话气泡、信件等\n  · 只需要AI输出 <标签>正文</标签> 格式\n  · 提供 4 种样式预设可选\n\n📊 模式B：结构化数据\n  · 适用于状态栏、任务面板、论坛帖子等\n  · 需要AI按固定字段格式输出\n  · 自动生成世界书规则约束AI格式\n\n💡 使用步骤：\n  1. 选择模式，填写配置\n  2. 切换预览Tab查看生成代码\n  3. 点「导入酒馆正则」一键导入\n  4. 在世界书中加入生成的规则（模式B）');
+    });
+
+    doc.querySelectorAll('.view-switch-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        doc.querySelectorAll('.view-switch-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var main = doc.querySelector('.main');
+        var view = btn.dataset.view;
+        main.classList.remove('mobile-view-form', 'mobile-view-preview');
+        main.classList.add('mobile-view-' + view);
+      });
+    });
+
+    // ===== 初始化 =====
+    renderForm();
+    renderPreviewTabs();
+    updateCode();
+    console.log('[正则代码生成器] ⑥ ✅ 界面初始化完成！');
   }
 
   // ===== 卸载清理 =====
@@ -1647,7 +1972,13 @@ eval(${injectStr});
   function openGeneratorWithError() {
     try {
       console.log('[正则代码生成器] 🎯 点击触发：正在打开弹窗…');
-      createModalIframe();
+      openGenerator().catch(function (e) {
+        var msg = (e && e.message) ? e.message : String(e);
+        console.error('[正则代码生成器] ❌ 打开失败：', e);
+        try {
+          alert('❌ 正则代码生成器打开失败\n\n错误信息：' + msg + '\n\n（详细错误请按 F12 查看 Console 标签页）');
+        } catch (_) {}
+      });
     } catch (e) {
       var msg = (e && e.message) ? e.message : String(e);
       console.error('[正则代码生成器] ❌ 打开失败：', e);
