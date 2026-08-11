@@ -19,7 +19,7 @@
   // ===== Iframe 样式表 =====
   var IFRAME_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;width:100%;overflow:hidden}
+html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden}
 :root{
   --bg:#f7f7f2;
   --surface:#ffffff;
@@ -53,17 +53,17 @@ html,body{height:100%;width:100%;overflow:hidden}
   --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei UI','Hiragino Sans GB',sans-serif;
   --font-mono:'Sarasa Mono SC','Cascadia Code','JetBrains Mono','Consolas',Menlo,monospace;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
-.app{display:flex;flex-direction:column;height:100vh}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;height:100%;width:100%;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden;min-height:0}
 
 /* 顶栏 */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
 .topbar h1{font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
 .topbar .subtitle{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
 .top-actions{display:flex;gap:8px}
 
 /* 模式切换 */
-.mode-tabs{display:flex;gap:4px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.mode-tabs{display:flex;gap:4px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
 .mode-tab{padding:12px 20px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;transition:all .2s;display:flex;align-items:center;gap:6px}
 .mode-tab:hover{color:var(--ink-soft)}
 .mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -71,10 +71,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 .mode-tab.active .badge{background:var(--accent-soft);color:var(--accent-text)}
 
 /* 主体区域 */
-.main{flex:1;display:grid;grid-template-columns:380px 1fr;overflow:hidden}
+.main{flex:1 1 0;display:grid;grid-template-columns:380px 1fr;overflow:hidden;min-height:0}
 
 /* 左侧表单区 */
-.form-panel{background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;padding:20px}
+.form-panel{background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;overflow-x:hidden;padding:20px;min-height:0}
 .form-section{margin-bottom:24px}
 .form-section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)}
 .form-group{margin-bottom:16px}
@@ -108,13 +108,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 .add-field-btn:hover{background:var(--accent-soft);border-color:var(--accent-border)}
 
 /* 右侧预览区 */
-.preview-panel{display:flex;flex-direction:column;overflow:hidden}
-.preview-tabs{display:flex;gap:0;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line)}
-.preview-tab{padding:10px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;transition:all .2s}
+.preview-panel{display:flex;flex-direction:column;overflow:hidden;min-height:0;min-width:0}
+.preview-tabs{display:flex;gap:0;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
+.preview-tab{padding:10px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;transition:all .2s;white-space:nowrap}
 .preview-tab:hover{color:var(--ink-soft)}
 .preview-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.code-container{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px}
-.code-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.code-container{flex:1 1 0;overflow:hidden;display:flex;flex-direction:column;padding:16px;min-height:0}
+.code-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;gap:8px}
 .code-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .code-actions{display:flex;gap:8px}
 .btn{
@@ -130,8 +130,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 .btn-ghost{background:transparent}
 .btn-sm{padding:5px 10px;font-size:11px}
 .code-block{
-  flex:1;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius);padding:16px;overflow:auto;
-  font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all
+  flex:1 1 0;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius);padding:16px;overflow:auto;
+  font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;min-height:0
 }
 .code-block::-webkit-scrollbar{width:8px;height:8px}
 .code-block::-webkit-scrollbar-track{background:transparent}
@@ -158,7 +158,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
 .icon-btn:hover{background:var(--surface-soft);color:var(--ink)}
 
 /* 移动端视图切换栏（默认隐藏） */
-.view-switch{display:none;background:var(--surface);border-bottom:1px solid var(--line)}
+.view-switch{display:none;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
 .view-switch-btn{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none}
 .view-switch-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 
@@ -184,13 +184,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14p
   .view-switch{display:flex}
 
   /* 主体改为单列堆叠 */
-  .main{grid-template-columns:1fr !important;position:relative}
+  .main{display:block !important;overflow:hidden;position:relative}
   .form-panel{
     border-right:none !important;
     border-bottom:1px solid var(--line);
-    padding:14px
+    padding:14px;
+    height:100%;width:100%
   }
-  .preview-panel{padding-bottom:0}
+  .preview-panel{height:100%;width:100%}
 
   /* 手机端默认只显示表单，预览隐藏 */
   .main.mobile-view-form .preview-panel{display:none}
@@ -1397,14 +1398,16 @@ ${fieldRowsHtml}
     }
 
     // 模态遮罩层 + iframe 容器
+    var isMobile = window.parent.matchMedia && window.parent.matchMedia('(max-width: 768px)').matches;
     var $overlay = window.parent.$('<div>')
       .attr('id', SCRIPT_ID + '_overlay')
       .css({
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
+        background: isMobile ? '#fff' : 'rgba(15, 23, 42, 0.55)',
+        backdropFilter: isMobile ? 'none' : 'blur(4px)',
         zIndex: 100000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center'
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: isMobile ? '0' : '16px'
       })
       .on('click', function(e) {
         if (e.target === e.currentTarget) closeIframe();
@@ -1414,30 +1417,15 @@ ${fieldRowsHtml}
       .attr('id', SCRIPT_ID + '_wrap')
       .css({
         position: 'relative',
-        width: 'min(1180px, 94vw)',
-        height: 'min(820px, 92vh)',
-        borderRadius: '16px',
+        width: isMobile ? '100%' : 'min(1180px, 96vw)',
+        height: isMobile ? '100%' : 'min(820px, 96vh)',
+        maxWidth: '100%', maxHeight: '100%',
+        borderRadius: isMobile ? '0' : '16px',
         overflow: 'hidden',
-        boxShadow: '0 30px 80px rgba(15, 23, 42, 0.35)',
+        boxShadow: isMobile ? 'none' : '0 30px 80px rgba(15, 23, 42, 0.35)',
         background: '#fff',
-        border: '1px solid rgba(15, 23, 42, 0.08)'
+        border: isMobile ? 'none' : '1px solid rgba(15, 23, 42, 0.08)'
       });
-
-    // 手机端全屏适配
-    var isMobile = window.parent.matchMedia('(max-width: 768px)').matches;
-    if (isMobile) {
-      $wrap.css({
-        width: '100vw',
-        height: '100vh',
-        borderRadius: '0',
-        border: 'none',
-        boxShadow: 'none'
-      });
-      $overlay.css({
-        padding: '0',
-        background: '#fff'
-      });
-    }
 
     var $iframe = window.parent.$('<iframe>')
       .attr('id', SCRIPT_ID + '_iframe')
