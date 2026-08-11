@@ -4495,7 +4495,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     } catch(e) { errors.push('generateRaw: ' + e.message); }
     try {
       if (typeof triggerSlash === 'function') {
-        var r4 = await triggerSlash('/generate lock=on ' + prompt.substring(0, 8000));
+        // ⚠️ 取消截断：之前 .substring(0, 8000) 会导致提示词丢失后半部分内容，
+        // 现在直接传递完整 prompt 给 triggerSlash
+        var r4 = await triggerSlash('/generate lock=on ' + prompt);
         if (r4 && typeof r4 === 'string' && r4.trim().length > 5) return r4.trim();
       }
     } catch(e) { errors.push('triggerSlash: ' + e.message); }
@@ -4940,9 +4942,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (cd && (cd.name || cd.description || cd.first_mes || (cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0))) {
       var parts = [];
       if (cd.name) parts.push('世界/角色名称：' + cd.name);
-      if (cd.description) parts.push('世界观描述(' + (cd.description||'').length + '字)：' + (cd.description||'').substring(0, 400));
-      if (cd.system_prompt) parts.push('系统指令(' + (cd.system_prompt||'').length + '字)：' + (cd.system_prompt||'').substring(0, 100));
-      if (cd.first_mes) parts.push('开场白(' + (cd.first_mes||'').length + '字)：' + (cd.first_mes||'').substring(0, 200));
+      if (cd.description) parts.push('世界观描述(完整' + (cd.description||'').length + '字，不截断)：' + (cd.description||''));
+      if (cd.system_prompt) parts.push('系统指令(完整' + (cd.system_prompt||'').length + '字，不截断)：' + (cd.system_prompt||''));
+      if (cd.first_mes) parts.push('开场白(完整' + (cd.first_mes||'').length + '字，不截断)：' + (cd.first_mes||''));
       var entries = (cd.character_book || {}).entries || [];
       if (entries.length > 0) {
         // ========== 角色卡Tab：过滤掉MVU相关条目，不让AI看到MVU内容，也禁止它生成 ==========
@@ -5172,8 +5174,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var cardContext = '';
     var ctxParts = [];
     if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
-    if (cd.description) ctxParts.push('世界观描述摘要：' + (cd.description||'').substring(0, 500));
-    if (cd.first_mes) ctxParts.push('开场白摘要：' + (cd.first_mes||'').substring(0, 200));
+    if (cd.description) ctxParts.push('世界观描述(完整' + (cd.description||'').length + '字，不截断)：' + (cd.description||''));
+    if (cd.first_mes) ctxParts.push('开场白(完整' + (cd.first_mes||'').length + '字，不截断)：' + (cd.first_mes||''));
     // 从现有角色卡条目中，提取MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
     var entries = (cd.character_book || {}).entries || [];
     // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
@@ -5189,10 +5191,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return true;
     });
     if (nonMvuEntries.length > 0) {
-      var nonMvuText = '世界书常规条目摘要（' + nonMvuEntries.length + '条 · 只读上下文，用于设计变量参考，❌禁止修改这些条目）：\n';
+      var nonMvuText = '世界书常规条目完整内容（' + nonMvuEntries.length + '条 · 只读上下文，用于设计变量参考，❌禁止修改这些条目）：\n';
       nonMvuEntries.forEach(function(e, i) {
-        var content = (e.content || '').substring(0, 300);
-        nonMvuText += '  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] ' + content.length + '字: ' + content + '\n';
+        var content = (e.content || '');
+        nonMvuText += '  ' + (i+1) + '. [' + (e.comment || '条目'+(i+1)) + '] (完整' + content.length + '字，不截断):\n' + content + '\n';
       });
       ctxParts.push(nonMvuText);
     }
@@ -11319,7 +11321,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '4. 最后给出一条适合用户直接输入的建议指令（放在<suggestion>标签中，标签内是纯指令文本，不含解释）\n\n' +
             '=== 当前角色卡内容 ===\n' +
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 500) + '\n' : '') +
+            (cardData.description ? '- 描述(完整' + (cardData.description||'').length + '字，不截断)：' + (cardData.description||'') + '\n' : '') +
             (cardData.first_mes ? '- 开场白(' + (cardData.first_mes||'').length + '字)\n' : '') +
             '- 世界书条目：' + entries.length + '条\n' +
             (entries.length > 0 ? '- 条目清单：\n' + entries.map(function(e) { return '  · [' + (e.comment||'未命名') + '] ' + (e.content||'').length + '字' + (e.enabled === false ? ' (禁用)' : ''); }).join('\n') : '');
@@ -12614,7 +12616,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
             '=== 已有内容（参考，不要丢失） ===\n' +
             (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
+            (cardData.description ? '- 描述(完整' + (cardData.description||'').length + '字，不截断)：' + (cardData.description||'') + '\n' : '') +
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
             '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
           // 注入全局人设（与 callAIChat 路径保持一致）
