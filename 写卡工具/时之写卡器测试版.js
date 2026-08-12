@@ -129,10 +129,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:14px 14px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
-.chat-msg .avatar{width:72px;height:72px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0}
+.chat-msg .avatar-row{display:flex;align-items:center;gap:6px}
+.chat-msg .avatar{width:72px;height:72px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;position:relative}
 .chat-msg .avatar svg{width:40px;height:40px}
 .chat-msg.assistant .avatar{background:var(--accent-soft);color:var(--accent-deep)}
 .chat-msg.user .avatar{background:var(--surface-sink);color:var(--ink-soft)}
+/* 头像旁铅笔编辑按钮 */
+.msg-edit-btn{width:28px;height:28px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s ease;box-shadow:var(--shadow-soft)}
+.msg-edit-btn:hover{background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border);transform:scale(1.1)}
+.msg-edit-btn:active{transform:scale(.95)}
+.msg-edit-btn svg{width:14px;height:14px}
 /* 头像点击弹出菜单（展开在头像旁边） */
 .avatar-menu{position:absolute;z-index:500;background:linear-gradient(135deg,var(--surface) 0%,var(--surface-soft) 100%);border:1px solid var(--line);border-radius:999px;box-shadow:0 12px 36px rgba(15,23,42,.12),0 2px 6px rgba(15,23,42,.06);padding:5px 4px;display:flex;flex-direction:row;align-items:center;gap:3px;font-size:.84em;animation:avatarMenuPop .14s cubic-bezier(.34,1.56,.64,1)}
 @keyframes avatarMenuPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
@@ -10503,6 +10509,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             showAvatarMenu(role, msgIdx, avEl);
           });
         }
+        // 铅笔按钮：点击直接编辑该条消息内容（不截断后续、不重新生成，仅原地改文本）
+        var editBtnEl = div.querySelector('.msg-edit-btn');
+        if (editBtnEl) {
+          editBtnEl.addEventListener('click', function(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            editMessageContent(msgIdx, role);
+          });
+        }
         // AI 消息：绑定 section 折叠交互
         if (role === 'assistant') {
           var bubbleDiv = div.querySelector('.bubble');
@@ -10515,11 +10529,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var cls = 'avatar avatar-clickable';
         var title = role === 'user' ? '点击展开操作菜单（修改头像/人设/撤回等）' : '点击展开操作菜单（修改头像/人设/撤回/重新生成等）';
         var saved = localStorage.getItem(key);
+        var avatarInner;
         if (saved) {
-          return '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
+          avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
+        } else {
+          var icon = role === 'user' ? svgIcon('user', 18) : svgIcon('bot', 18);
+          avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer">' + icon + '</div>';
         }
-        var icon = role === 'user' ? svgIcon('user', 18) : svgIcon('bot', 18);
-        return '<div class="' + cls + '" title="' + title + '" style="cursor:pointer">' + icon + '</div>';
+        // 铅笔编辑按钮：AI 在头像右侧，用户在头像左侧
+        var editBtn = '<button class="msg-edit-btn" type="button" title="编辑此条消息内容">' + svgIcon('edit', 14) + '</button>';
+        // 用户消息（右对齐）：铅笔在左、头像在右；AI消息（左对齐）：头像在左、铅笔在右
+        if (role === 'user') {
+          return '<div class="avatar-row">' + editBtn + avatarInner + '</div>';
+        }
+        return '<div class="avatar-row">' + avatarInner + editBtn + '</div>';
       }
       function triggerAvatarUpload(role) {
         var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
@@ -10921,6 +10944,45 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           callAIChat().catch(function(err) { showToast('自动重新生成失败：' + (err && err.message ? err.message : ''), 'error'); });
         });
       }
+      // ===== 铅笔按钮：原地编辑消息内容（不截断后续消息、不重新生成）=====
+      function editMessageContent(msgIdx, role) {
+        var msgs = getCurrentMessages();
+        if (msgIdx < 0 || msgIdx >= msgs.length) { showToast('无法编辑：消息索引无效', 'warning'); return; }
+        if (msgs[msgIdx].role !== role) { showToast('无法编辑：消息角色不匹配', 'warning'); return; }
+        if (isGenerating) { showToast('AI正在生成中，请稍候', 'warning'); return; }
+        var origText = msgs[msgIdx].content || '';
+        var isAI = (role === 'assistant');
+        var titleText = isAI ? '编辑AI消息' : '编辑用户消息';
+        var hint = isAI
+          ? '直接修改AI的回复文本。保存后仅更新本条消息的显示内容，不会重新生成或撤回后续消息。'
+          : '直接修改本条消息文本。保存后仅更新显示内容，不会截断后续消息或重新生成。如需重新生成，请点头像菜单→修改。';
+        var html = '<div class="modal-content" style="max-width:640px">'
+          + '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('edit',16) + ' ' + titleText + '</h3>'
+          + '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">' + hint + '</div>'
+          + '<textarea id="editMsgTextInline" style="width:100%;min-height:200px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(origText) + '</textarea>'
+          + '<div class="modal-actions">'
+          + '<button class="btn" id="editMsgInlineCancel" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>'
+          + '<button class="btn" id="editMsgInlineOk" style="background:var(--accent);color:#fff">保存</button>'
+          + '</div></div>';
+        var mask = doc.createElement('div');
+        mask.className = 'modal';
+        mask.innerHTML = html;
+        doc.body.appendChild(mask);
+        var ta = doc.getElementById('editMsgTextInline');
+        if (ta) { try { ta.focus(); } catch(_) {} }
+        var close = function() { if (mask.parentNode) mask.parentNode.removeChild(mask); };
+        doc.getElementById('editMsgInlineCancel').addEventListener('click', close);
+        mask.addEventListener('click', function(e) { if (e.target === mask) close(); });
+        doc.getElementById('editMsgInlineOk').addEventListener('click', function() {
+          var newText = ta ? ta.value : '';
+          if (!newText || !newText.trim()) { showToast('消息内容不能为空', 'warning'); return; }
+          msgs[msgIdx].content = newText;
+          saveToStorage();
+          rerenderChatMessages();
+          close();
+          showToast('✅ 消息已更新', 'success');
+        });
+      }
       function addTyping() {
         removeTyping();
         var c = doc.getElementById('chatMessages');
@@ -10929,6 +10991,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         div.className = 'chat-msg assistant';
         div.id = 'typingInd';
         div.innerHTML = buildAvatarHtml('assistant') + '<div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
+        // 打字指示器不需要铅笔编辑按钮
+        var typingEditBtn = div.querySelector('.msg-edit-btn');
+        if (typingEditBtn) typingEditBtn.style.display = 'none';
         c.appendChild(div);
         scrollChat();
       }
