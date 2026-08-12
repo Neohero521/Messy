@@ -268,6 +268,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-section .pv-entry summary::-webkit-details-marker{display:none}
 .pv-section .pv-entry summary::before{content:'▸';color:var(--muted);font-size:.9em;transition:transform .25s cubic-bezier(.4,0,.2,1);flex-shrink:0}
 .pv-section .pv-entry[open] summary::before{transform:rotate(90deg);color:var(--accent)}
+/* —— 预览面板条目折叠头的悬浮删除按钮（不用点进去编辑弹窗再删）—— */
+.pv-entry-summary-main{flex:1;min-width:0;display:inline-flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis}
+.pv-entry-summary-tags{flex-shrink:0;display:inline-flex;align-items:center;gap:6px}
+.pv-entry-del{flex-shrink:0;display:none;align-items:center;justify-content:center;width:20px;height:20px;border:none;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:0;margin-left:2px}
+.pv-section .pv-entry summary:hover .pv-entry-del{display:inline-flex}
+.pv-entry-del:hover{background:var(--terra-soft);color:var(--terra-text)}
 .pv-section .pv-entry .pv-entry-body{padding:0 12px 10px 12px}
 .pv-section .pv-entry-title{font-size:.84em;color:var(--accent-deep);font-weight:600;margin-bottom:3px}
 .pv-section .pv-entry-content{font-size:.82em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.65}
@@ -795,6 +801,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .ws-tree-item.selected{background:var(--accent-soft-strong);color:var(--accent-deep);border-left:2px solid var(--accent-border-strong)}
 .ws-tree-item .ws-tree-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;opacity:.5}
 .ws-tree-item.selected .ws-tree-dot{background:var(--accent);opacity:1}
+/* —— 工作台条目/字段删除按钮：悬浮在条目右侧，不会抢占 label 点击选中行为 —— */
+.ws-tree-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-tree-del{flex-shrink:0;width:18px;height:18px;border:none;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:12px;line-height:1}
+.ws-tree-item:hover .ws-tree-del{display:inline-flex}
+.ws-tree-del:hover{background:var(--terra-soft);color:var(--terra-text)}
 .ws-editor{display:flex;flex-direction:column;border-right:1px solid var(--line-soft);overflow:hidden;background:var(--surface)}
 .ws-editor-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:.88em;font-style:italic}
 .ws-editor-title{font-size:.92em;font-weight:600;color:var(--accent-deep);padding:10px 14px;border-bottom:1px solid var(--line-soft);flex-shrink:0}
@@ -4056,6 +4067,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 toDelete = fuzzyMatches;
               } else if (fuzzyMatches.length > 1) {
                 console.warn('[mergePartial] 删除关键词"' + entryKey + '"模糊匹配到' + fuzzyMatches.length + '条条目，为防止误删已跳过。请使用精确comment。');
+                // 模糊匹配多条导致未删除，把失败 key 记下来，外层 Toast 会提醒用户
+                changeLog._deleteFailures = changeLog._deleteFailures || [];
+                changeLog._deleteFailures.push(String(entryKey || '').slice(0, 120) + '（模糊匹配到' + fuzzyMatches.length + '条，已跳过）');
+              }
+              // 精确匹配 / 模糊单条 路径下，如果依然没有任何 toDelete，同样记录失败（精确也完全没匹配到）
+              if (toDelete.length === 0 && exactMatches.length === 0 && fuzzyMatches.length === 0) {
+                changeLog._deleteFailures = changeLog._deleteFailures || [];
+                changeLog._deleteFailures.push(String(entryKey || '').slice(0, 120) + '（未匹配到任何条目）');
               }
               // 🐛修复：不立即 splice，改为收集索引，最后统一删除
               for (var di = 0; di < toDelete.length; di++) {
@@ -8844,33 +8863,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             container.querySelector('#wsArtifact').classList.toggle('active', wsPanelTab === 'artifacts');
           });
         });
-        // 树节点点击
-        container.querySelectorAll('.ws-tree-item').forEach(function(item) {
-          item.addEventListener('click', function() {
-            var nodeStr = this.getAttribute('data-node');
-            if (!nodeStr) return;
-            try { wsSelectedNode = JSON.parse(nodeStr); } catch(e) { return; }
-            var nk = _wsNodeKey(wsSelectedNode);
-            // 首次打开时缓存原始内容
-            if (wsOriginalContent[nk] === undefined) wsOriginalContent[nk] = _wsGetContent(wsSelectedNode);
-            container.querySelectorAll('.ws-tree-item').forEach(function(i) { i.classList.remove('selected'); });
-            this.classList.add('selected');
-            wsEditorView = 'split';
-            var editorEl = container.querySelector('#wsEditor');
-            if (editorEl) {
-              editorEl.innerHTML = buildWorkspaceEditor();
-              bindWsEditorEvents(container);
-            }
-            if (wsPanelTab === 'files') {
-              wsPanelTab = 'editor';
-              container.querySelector('.ws-panel-tab[data-wstab="files"]').classList.remove('active');
-              var et = container.querySelector('.ws-panel-tab[data-wstab="editor"]');
-              if (et) et.classList.add('active');
-              container.querySelector('#wsTree').classList.remove('active');
-              if (editorEl) editorEl.classList.add('active');
-            }
-          });
-        });
+        // 左侧树：点击选中 / 悬浮删除
+        _rebindWsTreeEvents(container);
         // 树分组折叠
         container.querySelectorAll('.ws-tree-group-head').forEach(function(head) {
           head.addEventListener('click', function() {
@@ -8973,7 +8967,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var v = cardData[n.key];
               if (v) len = ' <span class="ws-tree-len">' + String(v).length + '</span>';
             }
-            html += '<div class="ws-tree-item" data-node="' + nodeStr + '"><span class="ws-tree-dot"></span>' + n.label + len + '</div>';
+            html += '<div class="ws-tree-item" data-node="' + nodeStr + '">'
+              + '<span class="ws-tree-dot"></span>'
+              + '<span class="ws-tree-label">' + n.label + len + '</span>'
+              // 只给 entry/regex/thscript/field 类型放删除按钮，Tab栏分组（root group）本身没有 index 就不加；
+              // 点击时 stopPropagation，避免同时触发左侧 item 选中跳转。
+              + ((n.type === 'entry' || n.type === 'regex' || n.type === 'thscript' || n.type === 'field')
+                  ? ('<button class="ws-tree-del" type="button" data-action="delete" title="删除该条目/字段">🗑</button>')
+                  : '')
+              + '</div>';
           });
           html += '</div></div>';
         });
@@ -9131,6 +9133,123 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (groupInp) groupInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { group: this.value }); });
         if (groupWInp) groupWInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { groupWeight: parseInt(this.value) || 0 }); });
         if (keysInp) keysInp.addEventListener('change', function() { if (wsSelectedNode) _wsSetMeta(wsSelectedNode, { keys: this.value }); });
+      }
+      // ===== 删除工作台条目/字段（从卡片数据里真正移除，重排左侧树、刷新预览）=====
+      function _wsDeleteNode(container, node) {
+        if (!container || !node) return;
+        var type = node.type || '';
+        var title = _wsGetTitle(node) || '（未命名）';
+        var typeLabel = '';
+        if (type === 'entry') typeLabel = '条目';
+        else if (type === 'field') typeLabel = '字段';
+        else if (type === 'regex') typeLabel = '正则脚本';
+        else if (type === 'thscript') typeLabel = '酒馆助手脚本';
+        if (!typeLabel) return;
+        // 保护性确认：删除条目是用户高频需求（堆叠了旧条目想清掉），但毕竟不可逆，所以弹一次确认。
+        var ok = window.confirm('确认删除该' + typeLabel + '吗？\n\n' + typeLabel + '：' + title + '\n（此操作无法撤回，若误删可用头像菜单→"撤回AI修改"恢复上一个快照）');
+        if (!ok) return;
+        var deleted = false;
+        var deletedName = title;
+        if (type === 'entry') {
+          var entries = (cardData.character_book || {}).entries || [];
+          if (node.index >= 0 && node.index < entries.length) {
+            entries.splice(node.index, 1);
+            deleted = true;
+          }
+        } else if (type === 'field') {
+          if (node.index != null && Array.isArray(cardData[node.key])) {
+            if (node.index >= 0 && node.index < cardData[node.key].length) {
+              cardData[node.key].splice(node.index, 1);
+              deleted = true;
+            }
+          } else if (cardData.hasOwnProperty(node.key)) {
+            // 顶层字符串字段：置空字符串（完全置 undefined 容易引发渲染报错）
+            cardData[node.key] = '';
+            deleted = true;
+          }
+        } else if (type === 'regex') {
+          var rxs = ((cardData.extensions || {}).regex_scripts) || [];
+          if (node.index >= 0 && node.index < rxs.length) { rxs.splice(node.index, 1); deleted = true; }
+        } else if (type === 'thscript') {
+          if (!cardData.extensions) cardData.extensions = {};
+          if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = {};
+          var ths = cardData.extensions.tavern_helper.script_lib || [];
+          if (node.index >= 0 && node.index < ths.length) { ths.splice(node.index, 1); deleted = true; }
+        }
+        if (!deleted) { showToast('⚠️ 删除失败：未找到该' + typeLabel, 'warning'); return; }
+        // 删完之后：当前选中的节点已经被删掉了，清理相关缓存
+        var nk = _wsNodeKey(node);
+        try { delete wsEditedContent[nk]; } catch(_) {}
+        try { delete wsOriginalContent[nk]; } catch(_) {}
+        if (wsSelectedNode && wsSelectedNode.type === node.type && wsSelectedNode.key === node.key && wsSelectedNode.index === node.index) {
+          wsSelectedNode = null;
+        }
+        updateProgress();
+        renderPreview();
+        saveToStorage();
+        showToast('🗑️ 已删除' + typeLabel + '：' + deletedName, 'success');
+        // 刷新工作台所有视图（左侧树条目顺序会变、编辑器和 artifact 都要重新渲染）
+        var treeEl = container.querySelector('#wsTree');
+        if (treeEl) treeEl.innerHTML = buildWorkspaceTree();
+        var editorEl = container.querySelector('#wsEditor');
+        if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
+        bindWsEditorEvents(container);
+        renderWsArtifact(container);
+        // 树节点点击和删除按钮事件绑定：在 openWorkspacePanel 内部只绑一次就够了，这里只 rebind 树部分
+        _rebindWsTreeEvents(container);
+      }
+      // 左侧树 UI 事件（item 选中 + 悬浮删除按钮）：从 openWorkspacePanel 拆出来，方便删除后 rebind。
+      function _rebindWsTreeEvents(container) {
+        if (!container) return;
+        container.querySelectorAll('.ws-tree-item').forEach(function(item) {
+          // 避免重复绑定：加了 data-bound 就跳过（防止删除后 rebind 导致每次点击触发 N 次选中）
+          if (item.getAttribute('data-tree-bound') === '1') {
+            // 已绑定外层 label/click，但内部删除按钮可能是重新渲染的新 DOM，仍然要去绑子按钮
+          } else {
+            item.addEventListener('click', function(e) {
+              // 点到删除按钮 → 选中由删除自行处理，不要继续展开编辑器
+              if (e.target && e.target.getAttribute && e.target.getAttribute('data-action') === 'delete') return;
+              var nodeStr = this.getAttribute('data-node');
+              if (!nodeStr) return;
+              try { wsSelectedNode = JSON.parse(nodeStr); } catch(_e) { return; }
+              var nk = _wsNodeKey(wsSelectedNode);
+              if (wsOriginalContent[nk] === undefined) wsOriginalContent[nk] = _wsGetContent(wsSelectedNode);
+              container.querySelectorAll('.ws-tree-item').forEach(function(i) { i.classList.remove('selected'); });
+              this.classList.add('selected');
+              wsEditorView = 'split';
+              var editorEl = container.querySelector('#wsEditor');
+              if (editorEl) {
+                editorEl.innerHTML = buildWorkspaceEditor();
+                bindWsEditorEvents(container);
+              }
+              if (wsPanelTab === 'files') {
+                wsPanelTab = 'editor';
+                container.querySelector('.ws-panel-tab[data-wstab="files"]').classList.remove('active');
+                var et = container.querySelector('.ws-panel-tab[data-wstab="editor"]');
+                if (et) et.classList.add('active');
+                container.querySelector('#wsTree').classList.remove('active');
+                if (editorEl) editorEl.classList.add('active');
+              }
+            });
+            item.setAttribute('data-tree-bound', '1');
+          }
+          // 悬浮删除按钮
+          var delBtn = item.querySelector('.ws-tree-del[data-action="delete"]');
+          if (delBtn) {
+            if (delBtn.getAttribute('data-del-bound') === '1') return;
+            delBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              e.preventDefault();
+              var nodeStr = item.getAttribute('data-node');
+              if (!nodeStr) return;
+              try {
+                var node = JSON.parse(nodeStr);
+                _wsDeleteNode(container, node);
+              } catch(_e) { showToast('⚠️ 删除失败：无法解析节点信息', 'warning'); }
+            });
+            delBtn.setAttribute('data-del-bound', '1');
+          }
+        });
       }
       // ===== 预览区：角色卡整体预览 =====
       function renderWsArtifact(container) {
@@ -11565,12 +11684,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 前瞻允许中间有空行（\n\s*:::），解决 delete 后紧跟空行再接下一个操作的问题
         // ⚠️修复：用 (?:^|\n) 锚定行首，避免AI散文里的内联引用（如"使用`::: upsert script:xxx`协议"）
         //   被误匹配为操作块，从而生成垃圾脚本/条目并吞掉真正的:::块。
-        var re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::|$)/gi;
+        // ⚠️【修复AI删除条目不生效 #1】强制要求每个 :::action key ... 必须用一个单独行的 ::: 结束（闭合）。
+        //   原来前瞻写法 (?=\n[ \t]*:::|$) 允许 delete 后跟"没有闭合的:::"，AI在delete后直接写自然语言或另一个:::块开头，
+        //   会导致块体错误吞掉后续大段文本，最终 parseOpBlocks 解析出的 delete.key 里混有"删除理由/下一动作"等垃圾内容，
+        //   applyOps / mergePartial 都匹配不到条目。这是用户反馈"AI明明写了删除但预览还堆叠"的主要根因。
+        //   新规则：块结束 = 【必须】行首（允许前导空格/制表）三冒号 + 行尾空白。delete/rename/set 这种无正文的动作，
+        //   也必须以空行 + 闭合:::结尾（AI 输出格式模板里也已经明确说明写法）。
+        var re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::[ \t]*(?:$|\n))/gi;
         var m;
         while ((m = re.exec(rawText)) !== null) {
           var action = m[1].toLowerCase();
           var key = m[2].trim();
-          var rawBody = (m[3] || '').trim();
+          // 从块体里剥离后面会被前瞻一并捕获的闭合:::行（前瞻只是锚定，内容里仍可能含尾空格/换行）
+          var rawBody = (m[3] || '').replace(/\n[ \t]*:::[ \t]*$/, '').replace(/\n[ \t]*:::[ \t]*\n$/, '\n').trim();
           var content = rawBody;
           // ===== ✅新增：解析 upsert/update 块体开头的元信息头（keys/secondary_keys/selectiveLogic/constant/depth/cooldown等）=====
           //   格式：块体第1行开始，连续出现 `键=值`（单行）行，直到遇到第1个空行或遇到不以"键名="开头的行为止。
@@ -11644,10 +11770,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return ops;
       }
 
-      // 检测AI回复是否包含:::操作块（行首锚定，避免散文内联引用误判）
+      // 检测AI回复是否包含:::操作块（行首锚定，避免散文内联引用误判）——同时要求块必须存在闭合:::行，
+      // 否则 hasOpBlocks 会误判"我要输出:::协议"这种说明性文本也算有效块，导致旧JSON路径被跳过。
       function hasOpBlocks(rawText) {
         if (!rawText) return false;
-        return /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+/i.test(rawText);
+        // 至少要有 开始行 + 闭合行 两个:::。写法：:::action key...\n...\n:::（闭合一行）
+        return /(?:^|\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]+\n[\s\S]*?\n[ \t]*:::[ \t]*(?:$|\n)/i.test(rawText);
       }
 
       // 执行操作数组，返回 { modified, changeLog }
@@ -11896,7 +12024,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               modified = true;
               changeLog.deleted += removeCount;
             } else {
+              // ⚠️【修复AI删除条目不生效 #2】用户反馈：AI写了删除指令，但预览里旧条目一直堆叠，完全看不到删除。
+              // 原来删除失败只打 console.warn，用户看不到。这里把 applyOps 中 delete 没匹配到条目的 key 挂到
+              // changeLog._deleteFailures 上，外层 callAIChat 会弹 Toast 明确告诉用户"删失败了，comment不对"。
               console.warn('[opblock] delete 找不到条目:', op.key);
+              changeLog._deleteFailures = changeLog._deleteFailures || [];
+              changeLog._deleteFailures.push(String(op.key || '').slice(0, 120));
             }
           } else if (op.action === 'set') {
             var fieldName = op.key.toLowerCase().trim();
@@ -12378,6 +12511,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 if (crOps.fieldUpdates) partsOps.push('📝字段' + crOps.fieldUpdates + '项');
                 if (crOps.renamed) partsOps.push('✏️重命名' + crOps.renamed + '条');
                 if (partsOps.length) showToast('✅ 已应用修改：' + partsOps.join('，'), 'success');
+                // ⚠️ 删除失败：把所有没命中的 key 明确告诉用户。避免"AI写了删除但预览堆叠"时用户毫无察觉，
+                // 只能眼睁睁看着旧条目越来越多。这里给出精确匹配的指导文案。
+                if (crOps._deleteFailures && crOps._deleteFailures.length > 0) {
+                  var failList = crOps._deleteFailures.map(function(k, i) { return (i+1) + '. ⟦' + k + '⟧'; }).join('\n');
+                  try {
+                    showToast('⚠️ AI 想要删除以下条目，但未匹配到（comment 不精确）：\n'
+                      + failList
+                      + '\n💡解决：①在预览面板双击该条目→手动删除；②或去工作台→条目→删除按钮；③或告诉AI使用精确 comment 字符串匹配。',
+                      'warning', 9000);
+                  } catch(_) {}
+                }
                 renderPreview();
                 saveToStorage();
               } else if (ops.length > 0) {
@@ -12442,6 +12586,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     if (cr.deleted) parts.push('🗑️删除' + cr.deleted + '条');
                     if (cr.fieldUpdates) parts.push('📝字段' + cr.fieldUpdates + '项');
                     if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
+                    // mergePartial 路径下同样提示删除失败（AI走旧JSON协议、写 _delete/entries[{_action:delete}] 时的兜底提醒）
+                    if (cr._deleteFailures && cr._deleteFailures.length > 0) {
+                      var failList = cr._deleteFailures.map(function(k, i) { return (i+1) + '. ⟦' + k + '⟧'; }).join('\n');
+                      try {
+                        showToast('⚠️ AI 想要删除以下条目，但未匹配到（comment 不精确 / 模糊匹配命中多条已跳过）：\n'
+                          + failList
+                          + '\n💡解决：①预览面板双击该条目→手动删除；②工作台→条目→删除按钮；③或告知AI精确 comment。',
+                          'warning', 9000);
+                      } catch(_) {}
+                    }
                   }
                 } catch(e) { /* ignore */ }
               } else if (hasData) {
@@ -13806,8 +13960,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var posTag = '<span class="pv-tag">P' + (e.position == null ? '-' : e.position) + '</span>';
             var depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
             var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-            eH += '<details class="pv-entry"><summary><span>' + escHtml(label) + '</span><span class="sec-right">~' + eTok + 'T ' + constTag + posTag + depTag + disabledTag + '</span></summary>' +
-              '<div class="pv-entry-body"><div class="pv-entry-content pv-editable" data-edit-type="entry" data-edit-index="' + allEntries.indexOf(e) + '">' + escHtml(e.content || '') + '</div></div></details>';
+            eH += '<details class="pv-entry"><summary>'
+              + '<span class="pv-entry-summary-main">' + escHtml(label) + '</span>'
+              + '<span class="pv-entry-summary-tags">'
+              +   '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + disabledTag + '</span>'
+              +   '<button type="button" class="pv-entry-del" data-pv-entry-del data-entry-idx="' + allEntries.indexOf(e) + '" title="删除该条目">🗑</button>'
+              + '</span>'
+              + '</summary>'
+              + '<div class="pv-entry-body"><div class="pv-entry-content pv-editable" data-edit-type="entry" data-edit-index="' + allEntries.indexOf(e) + '">' + escHtml(e.content || '') + '</div></div></details>';
           }
           eH += '</div>';
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + eH + '</div>';
@@ -14026,6 +14186,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             showPreviewEditModal(type, key, index);
           });
         }
+        // ========== 预览面板条目折叠头：悬浮删除按钮一键删（不用进编辑弹窗）==========
+        var pvDels = body.querySelectorAll('button.pv-entry-del[data-pv-entry-del]');
+        for (var pdi = 0; pdi < pvDels.length; pdi++) {
+          pvDels[pdi].addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var rawIdx = this.getAttribute('data-entry-idx');
+            var idx = parseInt(rawIdx);
+            if (rawIdx == null || isNaN(idx)) { showToast('⚠️ 无法确定要删除的条目索引', 'warning'); return; }
+            var allEntries = (cardData.character_book || {}).entries || [];
+            var en = allEntries[idx];
+            if (!en) { showToast('⚠️ 未找到该条目，可能已被删除', 'warning'); return; }
+            var name = en.comment || ('条目' + (idx + 1));
+            if (!window.confirm('确认删除该条目吗？\n\n条目：' + name + '\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
+            // 这里用 allEntries 里的真实引用直接 splice 掉
+            allEntries.splice(idx, 1);
+            updateProgress();
+            renderPreview();
+            saveToStorage();
+            showToast('🗑️ 已删除条目：' + name, 'success');
+          });
+        }
       }
 
       // ===== 预览双击编辑弹窗 =====
@@ -14067,7 +14249,55 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         textarea.value = currentVal;
         textareaWrap.appendChild(textarea);
         var footer = doc.createElement('div');
-        footer.style.cssText = 'padding:10px 18px;border-top:1px solid var(--line-soft);display:flex;justify-content:flex-end;gap:8px';
+        footer.style.cssText = 'padding:10px 18px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;gap:8px';
+        var footerLeft = doc.createElement('div');
+        footerLeft.style.cssText = 'display:flex;align-items:center;gap:8px';
+        // 删除按钮：给 entry / 顶层 field / 数组 field 三种情况用（用户反馈"AI删不掉时预览里没法手动删"）
+        var canDelete = false;
+        var deleteHint = '';
+        if (type === 'entry') canDelete = true;
+        else if (type === 'field') {
+          var idxNum = parseInt(index);
+          if (index != null && !isNaN(idxNum) && Array.isArray(cardData[key])) canDelete = true;
+          else canDelete = true;   // 顶层字段也允许一键清空（删除按钮文案写"清空"而不是删除）
+        }
+        if (canDelete) {
+          var delBtn = doc.createElement('button');
+          delBtn.className = 'btn';
+          delBtn.style.cssText = 'background:var(--terra-soft);color:var(--terra-text);border:1px solid transparent;display:inline-flex;align-items:center;gap:6px';
+          delBtn.innerHTML = svgIcon('trash', 14) + (type === 'field' && (index == null || isNaN(parseInt(index))) ? ' 清空字段' : ' 删除');
+          delBtn.onclick = function() {
+            var what = '';
+            if (type === 'entry') {
+              var idxE = parseInt(index);
+              var en = (((cardData.character_book || {}).entries || [])[idxE] || {}).comment || ('条目' + (idxE + 1));
+              what = '条目「' + en + '」';
+              if (!window.confirm('确认删除该条目吗？\n\n条目：' + en + '\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
+              var es = (cardData.character_book || {}).entries || [];
+              if (idxE >= 0 && idxE < es.length) es.splice(idxE, 1);
+            } else if (type === 'field') {
+              var iF = parseInt(index);
+              if (index != null && !isNaN(iF) && Array.isArray(cardData[key])) {
+                what = '字段「' + key + '」第' + (iF + 1) + '项';
+                if (!window.confirm('确认删除该数组项吗？\n\n' + what)) return;
+                if (iF >= 0 && iF < cardData[key].length) cardData[key].splice(iF, 1);
+              } else {
+                what = '顶层字段「' + key + '」（清空为 ""）';
+                if (!window.confirm('确认清空该顶层字段吗？\n\n字段：' + key + '\n\n（置为空字符串，不会删除字段本身，避免渲染报错）')) return;
+                cardData[key] = '';
+              }
+            }
+            overlay.remove();
+            updateProgress();
+            renderPreview();
+            saveToStorage();
+            showToast('🗑️ 已删除：' + what, 'success');
+          };
+          footerLeft.appendChild(delBtn);
+        }
+        footer.appendChild(footerLeft);
+        var footerRight = doc.createElement('div');
+        footerRight.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
         var cancelBtn = doc.createElement('button');
         cancelBtn.className = 'btn btn-ghost';
         cancelBtn.textContent = '取消';
@@ -14092,8 +14322,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           saveToStorage();
           showToast('✅ 已保存修改', 'success');
         };
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
+        footerRight.appendChild(cancelBtn);
+        footerRight.appendChild(saveBtn);
+        footer.appendChild(footerRight);
         modal.appendChild(header);
         modal.appendChild(textareaWrap);
         modal.appendChild(footer);
