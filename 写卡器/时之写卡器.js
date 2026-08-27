@@ -1025,15 +1025,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } catch (e) { reject(e); }
         });
         parentDoc.body.appendChild(iframe);
-        setTimeout(function() {
+        var _iframeTimer = setTimeout(function() {
           try { if (!iframe.contentDocument || !iframe.contentDocument.body) reject(new Error('iframe timeout')); } catch(e) { reject(e); }
         }, 4000);
+        // ⚠️修复：正常 resolve/reject 后清理超时定时器（原先 timer 持有 iframe 引用最多延迟 4 秒回收，
+        // 且 closeModal 后触发 reject 属于脏操作）
+        var _origResolve = resolve, _origReject = reject;
+        resolve = function(v) { clearTimeout(_iframeTimer); _origResolve(v); };
+        reject = function(e) { clearTimeout(_iframeTimer); _origReject(e); };
       } catch (e) { reject(e); }
     });
   }
 
   function closeModal() {
     try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
+  }
+
+  // ⚠️修复（卸载清理不完整）：openEditor 把 __cardData / __getChatSessions / __getCurrentMessages 等
+  // 访问器挂在脚本上下文的 window 上（弹窗 iframe 之外的持久 window）。弹窗关闭后这些全局仍持有
+  // 整份 cardData + 双Tab聊天历史的强引用——每次"打开→关闭"泄漏一整份会话数据，直到脚本重载才释放。
+  // 关闭弹窗（无后台生成时）与 pagehide 统一调用本函数切断引用。
+  // 注意：有后台生成任务时不能立即释放（后台闭包经 window.__cardData 读写数据），此时保留，
+  // 由下一次 openEditor 整体覆盖或脚本卸载时释放。
+  function _releaseEditorGlobals() {
+    try {
+      if (typeof window === 'undefined') return;
+      var keys = ['__cardData', '__tab_activeTab', '__getActiveTab', '__getCurrentTab',
+        '__getCurrentMessages', '__setCurrentMessages', '__getChatSessions',
+        '__setChatSessionsCardMessages', '__setChatSessionsMvuMessages',
+        '__mvuDiscussMode', 'setMvuDiscussMode'];
+      for (var i = 0; i < keys.length; i++) {
+        try { delete window[keys[i]]; } catch(_) { try { window[keys[i]] = undefined; } catch(_2) {} }
+      }
+    } catch(_) {}
   }
 
     // ============================================================================
@@ -1058,7 +1082,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== MVU 美化正则 HTML 模板（柔和高对比版本，括号内内容清晰可读）=====
   var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">变量完成</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 内容面板：高对比浅灰蓝底+深灰字，确保括号/列表/JSON全部清晰 -->\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强：列表、括号、JSON代码块全部加强对比度 */\n  .status-notice ul, .status-notice ol { padding-left: 22px; color: #1f2937; }\n  .status-notice li { margin: 3px 0; color: #1f2937; }\n  .status-notice code, .status-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .status-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .status-notice strong, .status-notice b { color: #0f172a; }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
-  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">正在变量更新</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(130,160,210,0.12),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强 */\n  .loading-notice ul, .loading-notice ol { padding-left: 22px; color: #1f2937; }\n  .loading-notice li { margin: 3px 0; color: #1f2937; }\n  .loading-notice code, .loading-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .loading-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .loading-notice strong, .loading-notice b { color: #0f172a; }\n  @keyframes slide-flow {\n    0 { transform: translateX(-100%); }\n    100 { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
+  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">正在变量更新</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(130,160,210,0.12),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强 */\n  .loading-notice ul, .loading-notice ol { padding-left: 22px; color: #1f2937; }\n  .loading-notice li { margin: 3px 0; color: #1f2937; }\n  .loading-notice code, .loading-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .loading-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .loading-notice strong, .loading-notice b { color: #0f172a; }\n  @keyframes slide-flow {\n    0% { transform: translateX(-100%); }\n    100% { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
   // ===== MVU 状态栏 HTML 模板（用户模板标准：populateCharacterData + getAllVariables + eventOn + errorCatched）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
@@ -1166,7 +1190,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '角色边界': { constant: true, selective: false, position: 0, depth: 2, order: 80, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '禁止项': { constant: true, selective: false, position: 0, depth: 3, order: 70, prevent_recursion: true, exclude_recursion: true, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '自定义条目': { constant: false, selective: true, position: 1, depth: 4, order: 55, cooldown: null, delay: null, sticky: null, prevent_recursion: false, exclude_recursion: false, delay_until_recursion: 0, use_regex: true, match_whole_words: null, scan_depth: 5, selectiveLogic: 0, probability: 100, useProbability: true, group: '', group_weight: 100 },
-    '[InitVar]初始变量': { constant: true, selective: false, position: 0, insertion_order: 100, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
+    '[InitVar]初始变量': { constant: true, selective: false, position: 0, order: 100, insertion_order: 100, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100, enabled: false },
     '变量列表': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量更新规则': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
     '变量输出格式': { constant: true, selective: false, position: 4, depth: 0, order: 200, prevent_recursion: true, exclude_recursion: false, delay_until_recursion: 0, cooldown: null, delay: null, sticky: null, use_regex: true, match_whole_words: null, scan_depth: 0, selectiveLogic: 0, probability: 100, useProbability: false, group: '', group_weight: 100 },
@@ -1257,6 +1281,65 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return null;
   }
 
+  // ===== 剥去字符串最外层装饰括号（⟦⟧【】「」等，最多2层）=====
+  // 顶层共享工具：_deriveEntryKeys 与 mergePartial 内的 normKey 共用（原先只在 mergePartial 内有局部定义，
+  // 导致 _deriveEntryKeys 引用未定义函数而静默抛错，触发词自动派生全链路失效）
+  function _stripOuterBrackets(s) {
+    if (!s) return '';
+    var r = String(s).trim();
+    for (var iter = 0; iter < 2; iter++) {
+      var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
+      var matched = false;
+      for (var pi = 0; pi < pairs.length; pi++) {
+        var L = pairs[pi][0], R = pairs[pi][1];
+        if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length-1) === R) {
+          r = r.slice(1, -1).trim();
+          matched = true; break;
+        }
+      }
+      if (!matched) break;
+    }
+    return r;
+  }
+
+  // ===== 条目 comment 核心名提取：剥装饰括号 + 剥 [xxx]/<xxx> 前缀（可多层）=====
+  // 用于判定 comment 是否为某个 MVU 系统条目"本体"，避免宽泛子串误伤普通条目
+  // （如 <自定义条目>变量列表使用说明 的核心名是"变量列表使用说明"，不等于"变量列表"，不应被规范化）
+  function _entryCommentCore(comment) {
+    if (!comment) return '';
+    var c = _stripOuterBrackets(String(comment)).trim();
+    var prev = null;
+    while (prev !== c) {
+      prev = c;
+      c = c.replace(/^\[[^\]]*\]\s*/, '').replace(/^<[^>]*>\s*/, '').trim();
+    }
+    return c;
+  }
+
+  // ===== 判定是否为 [InitVar] 初始变量条目（大小写不敏感）=====
+  function _isInitVarComment(comment, content) {
+    var c = String(comment || '');
+    if (/^\s*\[initvar\]/i.test(c)) return true;
+    var core = _entryCommentCore(c);
+    if (core === '初始变量') return true;
+    return core.indexOf('初始变量') === 0 && typeof content === 'string' && content.indexOf('stat_data') >= 0;
+  }
+
+  // ===== 判定是否为"变量列表"MVU条目 =====
+  // ⚠️ 原先多处写成 comment 同时含"变量列表"和"format_message_variable"才识别——
+  // 但 comment 本身就是"变量列表"，永远不含 format_message_variable，导致该条目在
+  // 角色卡Tab过滤/MVU Tab收集/解析拦截三处全部漏网（隔离失效+重复建条）
+  function _isVarListEntry(comment, content) {
+    var c = String(comment || '');
+    if (_entryCommentCore(c) === '变量列表') return true;
+    if (c.indexOf('变量列表') >= 0) {
+      var ct = String(content || '');
+      // 新格式 <status_current_variables>null</...> 或旧宏 format_message_variable
+      if (ct.indexOf('format_message_variable') >= 0 || ct.indexOf('status_current_variables') >= 0) return true;
+    }
+    return false;
+  }
+
   // ===== 🔑 自动派生触发词（写卡器兜底防线 · 对齐 StageDog 绿灯/向量化/蓝灯策略）=====
   // 仅当 keys 为空时才派生；蓝灯(constant=true)与向量化(vectorized=true)保持空不变
   function _deriveEntryKeys(comment, tmpl, content) {
@@ -1316,9 +1399,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (prefix && categoryAnchors[prefix]) {
       categoryAnchors[prefix].forEach(function(a){ if (candidates.indexOf(a)<0) candidates.push(a); });
     }
-    // 4) "<叙事背景>/<故事发展>/<文化与习俗>/<历史事件>" 属于向量化类，不强制填 keys（保持候选但留空可）——如果实在取不出名字才填
+    // 4) "<叙事背景>/<故事发展>/<文化与习俗>/<历史事件>" 属于向量化类：下方统一限制为最多2个弱锚点
     var vecCats = {'叙事背景':1,'故事发展':1,'文化与习俗':1,'历史事件':1,'叙事':1};
-    if (!m || !vecCats[prefix] || candidates.length < 2) {}
     if (candidates.length < 1 && namePart) candidates.push(namePart);
     // 去重 + 限制数量 3-10 个
     var uniq = [];
@@ -3695,8 +3777,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var cnt = String(e.content || '');
           var mvuType = null;
           // 分类 MVU 条目类型（注意：先检查"格式强调"再检查"输出格式"，否则前者会被后者误匹配）
-          if (cmt.indexOf('[InitVar]') >= 0 || (cmt.indexOf('初始变量') >= 0 && cnt.indexOf('stat_data') >= 0)) mvuType = 'initvar';
-          else if (cmt.indexOf('变量列表') >= 0 || cnt.indexOf('format_message_variable') >= 0) mvuType = 'varlist';
+          if (_isInitVarComment(cmt, cnt)) mvuType = 'initvar';
+          else if (_isVarListEntry(cmt, cnt)) mvuType = 'varlist';
           else if (cmt.indexOf('变量更新规则') >= 0 || cmt.indexOf('[mvu_update]变量更新规则') >= 0) mvuType = 'updaterule';
           else if (cmt.indexOf('变量输出格式强调') >= 0) mvuType = 'outputfmt_emph';
           else if (cmt.indexOf('变量输出格式') >= 0 || (cmt.indexOf('mvu_update') >= 0 && cnt.indexOf('UpdateVariable') >= 0)) mvuType = 'outputfmt';
@@ -3806,23 +3888,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     });
     // 规范化 key：trim + 大小写不敏感 + 剥去⟦⟧/【】等外层装饰括号（解决AI一会儿加括号一会儿不加）
-    var _stripOuterBrackets = function(s) {
-      if (!s) return '';
-      var r = String(s).trim();
-      for (var iter = 0; iter < 2; iter++) {
-        var pairs = [['⟦','⟧'],['【','】'],['「','」'],['『','』'],['［','］'],['《','》'],['〈','〉'],['(',')'],['[',']'],['{','}']];
-        var matched = false;
-        for (var pi = 0; pi < pairs.length; pi++) {
-          var L = pairs[pi][0], R = pairs[pi][1];
-          if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length-1) === R) {
-            r = r.slice(1, -1).trim();
-            matched = true; break;
-          }
-        }
-        if (!matched) break;
-      }
-      return r;
-    };
+    // 注：_stripOuterBrackets 已提升为 IIFE 顶层共享函数（见 _deriveEntryKeys 上方）
     var normKey = function(s) { return _stripOuterBrackets(s).trim().toLowerCase(); };
     var deletedCommentKeySet = {};  // 命中则：新增丢弃 + 更新丢弃（整轮彻底消失）
     var entryPrefixForScan = 'character_book.entries.';
@@ -3934,32 +4000,41 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!hasComment && !hasMeaningfulContent) return;
 
         var tmpl = getEntryTemplate(ne.comment || '');
-        ne.enabled = (tmpl && tmpl.enabled !== undefined) ? tmpl.enabled : true;
+        // ⚠️ enabled 保留策略：模板显式配置 > AI 显式传值 > 更新时继承旧值 > 新增默认 true
+        // （原先无条件设 true + Object.assign 覆盖，导致用户手动禁用的条目被任何 upsert 静默重新启用）
+        var aiProvidedEnabled = ne.enabled !== undefined && ne.enabled !== null;
+        if (tmpl && tmpl.enabled !== undefined) {
+          ne.enabled = tmpl.enabled;   // 模板显式配置优先（如 [InitVar] enabled=false）
+        } else if (!aiProvidedEnabled) {
+          delete ne.enabled;           // 未指定：更新时继承旧值；新增时在 push 前统一补默认值
+        }
         // ===== 🧹先清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
         if (typeof ne.content === 'string') {
           ne.content = _stripEntryConfigFromContent(ne.comment || '', ne.content);
         }
         // ===== 再规范化（确保规范化结果是最终值，不被后续清洗破坏）=====
-        if (String(ne.comment || '').indexOf('[InitVar]') >= 0 || (String(ne.comment || '').indexOf('初始变量') >= 0 && typeof ne.content === 'string' && ne.content.indexOf('stat_data') >= 0)) {
+        // ⚠️ 用核心名严格匹配（_entryCommentCore 剥前缀后 === 系统名），不再用宽泛子串 indexOf：
+        // 原先 <自定义条目>变量列表使用说明 这类普通条目会被 normalizeVarListContent 无条件覆盖为固定串，内容被摧毁
+        var neCore = _entryCommentCore(ne.comment || '');
+        if (_isInitVarComment(ne.comment, ne.content)) {
           if (typeof ne.content === 'string') ne.content = normalizeInitVarContent(ne.content);
         }
-        if (String(ne.comment || '').indexOf('变量列表') >= 0 && typeof ne.content === 'string') {
+        if (neCore === '变量列表' && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
         // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
-        if (String(ne.comment || '').indexOf('变量输出格式') >= 0 && typeof ne.content === 'string') {
+        if ((neCore === '变量输出格式' || neCore === '变量输出格式强调') && typeof ne.content === 'string') {
           ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content, _getParsedInitForEntries(newEntries));
         }
         // 变量更新规则条目：规范化缩进/range格式/移除string的type字段
-        if (String(ne.comment || '').indexOf('变量更新规则') >= 0 && typeof ne.content === 'string') {
+        if (neCore === '变量更新规则' && typeof ne.content === 'string') {
           ne.content = normalizeVarUpdateRuleContent(ne.content);
         }
         if (tmpl) {
           // MVU 系统条目（变量输出格式/变量更新规则/InitVar等）的 selective/constant 必须强制使用模板值
           // AI 经常误写 selective:true，导致条目变为选择性触发而非常驻
-          var isMvuSystemEntry = (String(ne.comment || '').toLowerCase().indexOf('变量输出格式') >= 0 || String(ne.comment || '').toLowerCase().indexOf('变量更新规则') >= 0 ||
-                                  String(ne.comment || '').toLowerCase().indexOf('[initvar]') >= 0 || String(ne.comment || '').indexOf('初始变量') >= 0 ||
-                                  String(ne.comment || '').indexOf('变量列表') >= 0);
+          var isMvuSystemEntry = (neCore === '变量输出格式' || neCore === '变量输出格式强调' || neCore === '变量更新规则' ||
+                                  _isInitVarComment(ne.comment, ne.content) || neCore === '变量列表');
           if (isMvuSystemEntry) {
             ne.selective = tmpl.selective;
             ne.constant = tmpl.constant;
@@ -3993,6 +4068,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (ne.constant === undefined) ne.constant = false;
           if (!ne.extensions) ne.extensions = { position: 4, depth: 4, role: 0, probability: 100, selectiveLogic: 0, prevent_recursion: false, sticky: 0, cooldown: 0, delay: 0, group: '', group_weight: 100, useProbability: true };
         }
+        // ⚠️修复：keys/secondary_keys 可能被 AI 写成字符串（如 "白娅,诗织"），统一归一化为数组
+        if (typeof ne.keys === 'string') {
+          ne.keys = ne.keys.split(/[,，、\n]/).map(function(k) { return k.trim(); }).filter(function(k) { return k; });
+        }
+        if (typeof ne.secondary_keys === 'string') {
+          ne.secondary_keys = ne.secondary_keys.split(/[,，、\n]/).map(function(k) { return k.trim(); }).filter(function(k) { return k; });
+        }
         if (!ne.keys) ne.keys = [];
         if (!ne.secondary_keys) ne.secondary_keys = [];
         // ===== ✅新增：processEntriesFn 空 keys 自动派生（mergePartial 路径的兜底）=====
@@ -4014,8 +4096,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else {
             existing[match.index] = Object.assign({}, oldEntry, ne);
           }
+          // ⚠️ enabled 未显式指定时继承旧值（delete ne.enabled 后 Object.assign 不会覆盖，
+          // 但 oldEntry 自身 enabled 为 undefined 的极端情况下兜底补 true）
+          if (existing[match.index].enabled === undefined) existing[match.index].enabled = (oldEntry.enabled === undefined) ? true : oldEntry.enabled;
           modified = true; changeLog.updated++;
         } else {
+          if (ne.enabled === undefined) ne.enabled = true;   // 新增条目默认启用
           existing.push(ne);
           modified = true; changeLog.added++;
         }
@@ -4458,6 +4544,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // SECTION 6  AI 调用适配层 + 响应清洗（callAI · cleanAIReply · JSON修复）
   // ============================================================================
   // ===== AI调用 =====
+  // ⚠️改进：
+  //   1) 每个后端尝试均带超时（300s）——原先任一后端永久 pending 时整个调用链无限挂起，
+  //      isGenerating 永远为 true，Tab 切换/发送/撤回全部被锁死，用户只能刷新页面
+  //   2) 成功阈值 length>0（原先 >5 会把合法回复"本次无修改"当作失败继续降级重试）
+  //   3) triggerSlash 兜底路径：prompt 用双引号包裹并转义——原先多行 prompt 裸拼进
+  //      STScript 会在首个换行处截断，后续行被当作新命令解析执行（命令注入面）
+  var CALLAI_TIMEOUT_MS = 300000;   // 单后端 5 分钟
+  function withTimeout(promise, ms, label) {
+    return new Promise(function(resolve, reject) {
+      var timer = setTimeout(function() { reject(new Error(label + ' 超时(' + (ms/1000) + 's)')); }, ms);
+      Promise.resolve(promise).then(
+        function(v) { clearTimeout(timer); resolve(v); },
+        function(e) { clearTimeout(timer); reject(e); }
+      );
+    });
+  }
+  function isValidAIReply(r) {
+    return !!(r && typeof r === 'string' && r.trim().length > 0);
+  }
   async function callAI(prompt) {
     var errors = [];
     // ===== 【写卡预设】AI生成参数（与写卡.json数值一致） =====
@@ -4485,45 +4590,47 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '你同时是时之写卡器助手，基于SillyTavern原生机制与ST权重分层8体系引导用户创作角色卡。';
     try {
       if (typeof generate === 'function') {
-        var result = await generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams));
-        if (result && typeof result === 'string' && result.trim().length > 5) return result.trim();
-        if (result && typeof result === 'object' && result.content && String(result.content).trim().length > 5) return String(result.content).trim();
+        var result = await withTimeout(generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams)), CALLAI_TIMEOUT_MS, 'generate');
+        if (isValidAIReply(result)) return result.trim();
+        if (result && typeof result === 'object' && result.content && String(result.content).trim().length > 0) return String(result.content).trim();
         if (result && typeof result === 'string') errors.push('generate returned: ' + result.substring(0, 80));
       }
     } catch(e) { errors.push('generate: ' + e.message); }
     try {
       if (typeof generateQuietPrompt === 'function') {
-        var r6 = await generateQuietPrompt(prompt, false, false, false, 120000);
-        if (r6 && typeof r6 === 'string' && r6.trim().length > 5) return r6.trim();
+        var r6 = await withTimeout(generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'generateQuietPrompt');
+        if (isValidAIReply(r6)) return r6.trim();
       }
     } catch(e) { errors.push('generateQuietPrompt: ' + e.message); }
     try {
       if (window.parent && typeof window.parent.generateQuietPrompt === 'function') {
-        var r5 = await window.parent.generateQuietPrompt(prompt, false, false, false, 120000);
-        if (r5 && typeof r5 === 'string' && r5.trim().length > 5) return r5.trim();
+        var r5 = await withTimeout(window.parent.generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'parent.generateQuietPrompt');
+        if (isValidAIReply(r5)) return r5.trim();
       }
     } catch(e) { errors.push('parent.generateQuietPrompt: ' + e.message); }
     try {
       if (window.TavernHelper && typeof window.TavernHelper.generate === 'function') {
-        var r2 = await window.TavernHelper.generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams));
-        if (r2 && typeof r2 === 'string' && r2.trim().length > 5) return r2.trim();
+        var r2 = await withTimeout(window.TavernHelper.generate(Object.assign({ user_input: prompt, should_silence: true, max_chat_history: 0 }, genParams)), CALLAI_TIMEOUT_MS, 'TavernHelper.generate');
+        if (isValidAIReply(r2)) return r2.trim();
       }
     } catch(e) { errors.push('TavernHelper.generate: ' + e.message); }
     try {
       if (typeof generateRaw === 'function') {
-        var r3 = await generateRaw(Object.assign({ should_silence: true, ordered_prompts: [
+        var r3 = await withTimeout(generateRaw(Object.assign({ should_silence: true, ordered_prompts: [
           { role: 'system', content: sysPrompt },
           { role: 'user', content: prompt }
-        ]}, genParams));
-        if (r3 && typeof r3 === 'string' && r3.trim().length > 5) return r3.trim();
+        ]}, genParams)), CALLAI_TIMEOUT_MS, 'generateRaw');
+        if (isValidAIReply(r3)) return r3.trim();
       }
     } catch(e) { errors.push('generateRaw: ' + e.message); }
     try {
       if (typeof triggerSlash === 'function') {
         // ⚠️ 取消截断：之前 .substring(0, 8000) 会导致提示词丢失后半部分内容，
-        // 现在直接传递完整 prompt 给 triggerSlash
-        var r4 = await triggerSlash('/generate lock=on ' + prompt);
-        if (r4 && typeof r4 === 'string' && r4.trim().length > 5) return r4.trim();
+        // 现在传递完整 prompt；多行内容用双引号包裹+转义，避免在换行处被 STScript 截断
+        // （已知局限：prompt 中的 {{宏}} 仍会被 triggerSlash 替换，此为第5级兜底路径的固有行为）
+        var _tsEscaped = String(prompt).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        var r4 = await withTimeout(triggerSlash('/generate "' + _tsEscaped + '"'), CALLAI_TIMEOUT_MS, 'triggerSlash');
+        if (isValidAIReply(r4)) return r4.trim();
       }
     } catch(e) { errors.push('triggerSlash: ' + e.message); }
     throw new Error('AI调用失败: ' + errors.join('; '));
@@ -4952,11 +5059,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     }
     if (__tab !== 'card' && __tab !== 'mvu') __tab = 'card';
-    // 顶层作用域 activeTab/currentTab 兜底（兼容直接调用场景）
-    try {
-      if (typeof activeTab !== 'undefined' && (activeTab === 'card' || activeTab === 'mvu')) __tab = activeTab;
-      else if (typeof currentTab !== 'undefined' && (currentTab === 'card' || currentTab === 'mvu')) __tab = currentTab;
-    } catch(_eSc) {}
+    // （已删除死代码：原先这里用 typeof 读取 activeTab/currentTab 兜底，但这两个变量声明在
+    //  openEditor() 内部而 buildPrompt 定义在 IIFE 顶层，词法上永不可见，整块永不生效；
+    //  且即便可见也会覆盖上方 window.__getActiveTab() 的权威值，属优先级倒置）
     if (__tab === 'mvu') {
       // ===== MVU变量状态栏 Tab：只发角色卡内容 + MVU专属指令，完全不发角色卡生成逻辑 =====
       return buildMvuTabPrompt(cardData, messages);
@@ -4977,7 +5082,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var c = (e.comment || '').toLowerCase();
           // 只保留非MVU条目：剔除[InitVar]、变量列表、变量更新规则、变量输出格式、状态变量输出这5类MVU专属条目
           if (c.indexOf('[initvar]') >= 0) return false;
-          if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+          if (_isVarListEntry(e.comment, e.content)) return false;
           if (c.indexOf('变量更新规则') >= 0) return false;
           if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
           if (c.indexOf('状态变量输出') >= 0) return false;
@@ -5021,7 +5126,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var nonMvuEntries = entries.filter(function(e) {
         var c = (e.comment || '').toLowerCase();
         if (c.indexOf('[initvar]') >= 0) return false;
-        if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+        if (_isVarListEntry(e.comment, e.content)) return false;
         if (c.indexOf('变量更新规则') >= 0) return false;
         if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
         if (c.indexOf('状态变量输出') >= 0) return false;
@@ -5107,9 +5212,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
     var tabMessages = (messages && Array.isArray(messages) && messages.length > 0)
       ? messages
-      : (typeof getCurrentMessages === 'function')
+      : (typeof getCurrentMessages === 'function' && Array.isArray(getCurrentMessages()))
         ? getCurrentMessages()
-        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function')
+        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function' && Array.isArray(window.__getCurrentMessages()))
           ? window.__getCurrentMessages()
           : (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
@@ -5160,14 +5265,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 5. 条目配置规范中 MVU 相关行
     // 简单起见，用分段+正则过滤掉关键词区域
     var p = originalPrompt;
-    // 移除 "15. MVU-移除旧变量更新..." 到 "18. MVU-状态栏美化显示..." 的所有内容（含后续的生成引导流程）
+    // 移除 "15. MVU-移除旧变量更新..." 到 "高级场景与设计模式" 前的所有内容
+    // ⚠️ 从 15. 开始（原先从 16. 开始导致 15 号 MVU 示例泄漏到角色卡 Tab）
     // 先移除 15~18 号 MVU 专属正则示例以及后面到 "高级场景与设计模式" 前的一大段状态栏生成流程
-    var mvuStartPattern = /16\.\s*MVU-移除变量更新\(显示\)[\s\S]*?高级场景与设计模式/;
+    var mvuStartPattern = /15\.\s*MVU-移除旧变量更新\(提示词\)[\s\S]*?高级场景与设计模式/;
     if (mvuStartPattern.test(p)) {
       p = p.replace(mvuStartPattern, '【MVU状态栏相关内容已剥离 - 请在MVU变量状态栏Tab查看】\n\n**高级场景与设计模式**');
     }
-    // 条目命名规范中移除6个MVU相关条目前缀说明
-    var mvuPrefixPattern = /- \[InitVar\]初始变量：MVU变量系统[\s\S]*?- <状态变量输出>：输出当前变量状态给LLM的触发条目/;
+    // 条目命名规范中移除7个MVU相关条目前缀说明
+    // ⚠️ 宽松锚点：SYS_PROMPT 实际文本为 "- [InitVar]初始变量（第2条）：MVU变量系统..."
+    // （原先正则要求字面 ":MVU变量系统" 无（第N条）编号，导致永不匹配、MVU条目说明泄漏）
+    var mvuPrefixPattern = /- \[InitVar\]初始变量[^\n]*MVU变量系统[\s\S]*?- <状态变量输出>：输出当前变量状态给LLM的触发条目/;
     if (mvuPrefixPattern.test(p)) {
       p = p.replace(mvuPrefixPattern, '- 【MVU专属条目已剥离 - 请在MVU变量状态栏Tab查看】');
     }
@@ -5185,7 +5293,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       p = p.replace(mvuDesignPattern, '【MVU设计模式与安装清单已剥离 - 请在MVU变量状态栏Tab查看】\n\n');
     }
     /* 改进B：过滤"步骤7：配变量系统"区块（正则6详细生成规则等，含StatusPlaceHolderImpl） */
-    var mvuStep7Pattern = /\*\*步骤7：配变量系统\*\*[\s\S]*?(?=== 质量检查标准)/;
+    // ⚠️ 前瞻补全为三个等号（(?==== ...)）：实际标题为 "=== 质量检查标准"，原先两个等号会在
+    // 标题第一个 = 处提前截断，替换后标题被腐蚀成 "== 质量检查标准"
+    var mvuStep7Pattern = /\*\*步骤7：配变量系统\*\*[\s\S]*?(?==== 质量检查标准)/;
     if (mvuStep7Pattern.test(p)) {
       p = p.replace(mvuStep7Pattern, '**步骤7：配变量系统**（MVU变量系统，进阶可选）- 【已剥离，请在MVU变量状态栏Tab查看】\n\n');
     }
@@ -5209,7 +5319,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var nonMvuEntries = entries.filter(function(e) {
       var c = (e.comment || '').toLowerCase();
       if (c.indexOf('[initvar]') >= 0) return false;
-      if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return false;
+      if (_isVarListEntry(e.comment, e.content)) return false;
       if (c.indexOf('变量更新规则') >= 0) return false;
       if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return false;
       if (c.indexOf('状态变量输出') >= 0) return false;
@@ -5226,7 +5336,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var mvuOnlyEntries = entries.filter(function(e) {
       var c = (e.comment || '').toLowerCase();
       if (c.indexOf('[initvar]') >= 0) return true;
-      if (c.indexOf('变量列表') >= 0 && c.indexOf('format_message_variable') >= 0) return true;
+      if (_isVarListEntry(e.comment, e.content)) return true;
       if (c.indexOf('变量更新规则') >= 0) return true;
       if (c.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0) return true;
       if (c.indexOf('状态变量输出') >= 0) return true;
@@ -5419,9 +5529,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
     var tabMessages = (messages && Array.isArray(messages) && messages.length > 0)
       ? messages
-      : (typeof getCurrentMessages === 'function')
+      : (typeof getCurrentMessages === 'function' && Array.isArray(getCurrentMessages()))
         ? getCurrentMessages()
-        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function')
+        : (typeof window !== 'undefined' && typeof window.__getCurrentMessages === 'function' && Array.isArray(window.__getCurrentMessages()))
           ? window.__getCurrentMessages()
           : (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
@@ -5479,7 +5589,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // comment匹配：MVU条目的精确comment
         var cmt = (e.comment || '').toLowerCase();
         if (cmt.indexOf('[initvar]') >= 0) isMvuEntry = true;
-        if (cmt.indexOf('变量列表') >= 0 && (c.indexOf('format_message_variable') >= 0 || c.indexOf('stat_data') >= 0)) isMvuEntry = true;
+        if (_isVarListEntry(e.comment, e.content)) isMvuEntry = true;
         if (cmt.indexOf('变量更新规则') >= 0) isMvuEntry = true;
         if (cmt.indexOf('变量输出格式') >= 0 || c.indexOf('mvu_update') >= 0 || c.indexOf('<updatevariable>') >= 0) isMvuEntry = true;
         if (cmt.indexOf('状态变量输出') >= 0) isMvuEntry = true;
@@ -5689,7 +5799,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     var entriesWithContent = entries.filter(function(e) { return (e.content || '').length >= 250; }).length;
     results.push({
-      pass: !hasEntries || true,
+      pass: true,   // 设计如此：字数不强制（原写法 "!hasEntries || true" 恒真且费解，改为显式 true）
       category: '世界书',
       name: '条目内容（不限字数，自由掌握）',
       desc: entriesWithContent + '/' + entries.length + ' 条≥250字（不强制）',
@@ -6027,14 +6137,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // === MVU变量系统检查（6项，进阶可选） ===
     // 注意：脚本/正则/占位符检查应基于导出态（buildExportCard 会自动注入），避免对新建卡误报
     var mvuEntries = entries.filter(function(e) { return isMVUEntry(e.comment || ''); });
-    var hasInitVar = mvuEntries.some(function(e) { return (e.comment || '').indexOf('[InitVar]') >= 0; });
+    var hasInitVar = mvuEntries.some(function(e) { return _isInitVarComment(e.comment, e.content); });
     var hasVarList = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
     var hasVarRule = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量更新规则') >= 0; });
     var hasVarFormat = mvuEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
     var hasAnyMVU = mvuEntries.length > 0;
     // 检查InitVar条目的enabled是否正确为false（MVU只读取禁用的initvar条目进行初始化）
     var initVarEnabledWrong = mvuEntries.some(function(e) {
-      return (e.comment || '').indexOf('[InitVar]') >= 0 && e.enabled !== false;
+      return _isInitVarComment(e.comment, e.content) && e.enabled !== false;
     });
     // 检查变量列表条目内容是否为变量注入格式（新格式 null 或旧 format_message_variable 宏）
     var varListEntry = mvuEntries.find(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
@@ -6244,17 +6354,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 规范化 InitVar 条目内容：剥离 AI 误写的 stat_data 根键
   // MVU 底层自动挂载到 stat_data，InitVar 中再写一层会导致套娃
+  // ⚠️ 按需规范化：仅当检测到 stat_data 根键 / _,$ 只读字段 / 代码围栏 / JSON 格式时才重建 YAML，
+  // 其余情况原样返回（避免无条件 round-trip 丢失注释、破坏字符串类型）
+  // 注：本文件曾有第二个同名激进版本（无条件重建）因函数声明提升将其遮蔽，已删除合并至此
   function normalizeInitVarContent(content) {
-    if (!content || !content.trim()) return content;
-    var parsed = parseInitVar(content);
-    if (!parsed || typeof parsed !== 'object') return content;
-    // parseInitVar 已通过 stripStatDataRoot 剥离了 stat_data 根键
-    // 检查原始内容是否含 stat_data 根键，若有则用剥离后的结果重建 YAML
-    var trimmed = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
-    // 去除前导 --- 分隔符后检查
-    var afterSep = trimmed.replace(/^---\s*\n/, '');
-    if (/^stat_data\s*:/.test(afterSep)) {
-      return yamlDumpSimple(parsed);
+    if (!content || !content.trim()) return generateInitVarYaml([]);
+    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+    var parsed = parseInitVar(text);
+    if (!parsed || typeof parsed !== 'object') return text;
+    // 检测是否真的需要重建：
+    var trimmed = text.replace(/^---\s*\n/, '');
+    var hasStatDataRoot = /^stat_data\s*:/.test(trimmed);
+    var hadFence = /```/.test(content);
+    var wasJson = trimmed.charAt(0) === '{';
+    var hasDerivedFields = (function scan(o) {
+      if (!o || typeof o !== 'object') return false;
+      var ks = Object.keys(o);
+      for (var i = 0; i < ks.length; i++) {
+        if (ks[i].charAt(0) === '_' || ks[i].charAt(0) === '$') return true;
+        var v = o[ks[i]];
+        if (v && typeof v === 'object' && scan(v)) return true;
+      }
+      return false;
+    })(parsed);
+    if (hasStatDataRoot || hadFence || wasJson || hasDerivedFields) {
+      // stripStatDataRoot 已在 parseInitVar 内调用，此处再保险调一次
+      return yamlDumpSimple(stripStatDataRoot(parsed));
     }
     return content;
   }
@@ -6306,10 +6431,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       if (Array.isArray(val)) {
         // 数组：z.array(子类型) + .prefault([])；所有数组元素必为同一子类型（zod要求）
+        // ⚠️修复：对象数组递归生成 z.object(...)，原先一律 z.string() 导致 schema 与数据不符、
+        // 运行期校验必失败（如 物品栏: [{名: x, 数量: 1}]）
         let itemType = 'z.string()';
         if (val.length > 0) {
           if (typeof val[0] === 'number') itemType = 'z.coerce.number().prefault(0)';
           else if (typeof val[0] === 'boolean') itemType = 'z.boolean().prefault(false)';
+          else if (val[0] && typeof val[0] === 'object' && !Array.isArray(val[0])) {
+            itemType = 'z.object({\n' + genObjectLines(val[0], 4) + '\n    })' +
+              (Object.keys(val[0]).length > 0 ? '.prefault(' + genObjectDefaultInline(val[0]) + ')' : '');
+          }
         }
         return 'z.array(' + itemType + ').prefault([])';
       }
@@ -6532,19 +6663,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return text;
   }
 
-  // ⚠️规范化 AI 生成的初始变量内容：剥离 stat_data 根键、过滤 _/$ 只读字段
-  function normalizeInitVarContent(content) {
-    if (!content || !content.trim()) return generateInitVarYaml([]);
-    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
-    // 去除可能的世界书条目配置注释行（如 # enabled=false）
-    text = text.replace(/^#.*$/gm, '').replace(/^\s*[\r\n]+/gm, '\n').trim();
-    var parsed = parseInitVar(text);
-    if (!parsed || typeof parsed !== 'object') return text;
-    // stripStatDataRoot 已在 parseInitVar 内调用，此处再保险调一次
-    parsed = stripStatDataRoot(parsed);
-    // 重新序列化为纯净 YAML（无 stat_data 根键、无 _/$ 字段）
-    return yamlDumpSimple(parsed);
-  }
+  // （已删除：此处曾有第二个 normalizeInitVarContent 激进版本，因函数声明提升遮蔽上方按需规范化版本；
+  //  行为已合并至上方定义——按需重建，避免无条件 round-trip 丢失注释/破坏类型）
 
   // 简易 YAML 序列化（仅支持 plain object/数组/标量，用于 InitVar 输出）
   function yamlDumpSimple(obj, indent) {
@@ -6577,6 +6697,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 含特殊字符则加引号
       if (/[:#\[\]{}&*!|>'"%@`]/.test(v) || v.trim() !== v || v === '') {
         return '"' + v.replace(/"/g, '\\"') + '"';
+      }
+      // ⚠️ 数字/布尔/null 样式的字符串必须加引号，否则回读时被 parseScalar 强转类型
+      // （如 "007"→7、"true"→true、"2025"→2025，导致 zod 校验失败）
+      if (/^(?:true|false|null|~|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)$/.test(v)) {
+        return '"' + v + '"';
       }
       return v;
     }
@@ -7258,7 +7383,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       _convertRegexScript({
         id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5',
         scriptName: '[美化]变量完成',
-        findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+        findRegex: '/<UpdateVariable(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
         replaceString: NEKO_COMPLETE_HTML,
         trimStrings: [],
         placement: [2],
@@ -7502,18 +7627,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var roleVal = (typeof pos.role === 'string') ? pos.role
           : (pos.role === 1 ? 'user' : (pos.role === 2 ? 'assistant' : 'system'));
         // ===== 🧹 最后一道防线：变量列表/变量输出格式条目强制规范化 content =====
+        // ⚠️ 核心名严格匹配，避免含关键词的普通条目被强制覆盖（同 processEntriesFn 修复）
         var _sanitizeComment = String(e.comment || e.name || '');
         var _sanitizeContent = String(e.content == null ? '' : e.content);
-        if (_sanitizeComment.indexOf('[InitVar]') >= 0 || (_sanitizeComment.indexOf('初始变量') >= 0 && _sanitizeContent.indexOf('stat_data') >= 0)) {
+        var _sanitizeCore = _entryCommentCore(_sanitizeComment);
+        if (_isInitVarComment(_sanitizeComment, _sanitizeContent)) {
           _sanitizeContent = normalizeInitVarContent(_sanitizeContent);
         }
-        if (_sanitizeComment.indexOf('变量列表') >= 0) {
+        if (_sanitizeCore === '变量列表') {
           _sanitizeContent = normalizeVarListContent(_sanitizeContent);
         }
-        if (_sanitizeComment.indexOf('变量输出格式') >= 0) {
+        if (_sanitizeCore === '变量输出格式' || _sanitizeCore === '变量输出格式强调') {
           _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent, _getParsedInitForEntries(arr));
         }
-        if (_sanitizeComment.indexOf('变量更新规则') >= 0) {
+        if (_sanitizeCore === '变量更新规则') {
           _sanitizeContent = normalizeVarUpdateRuleContent(_sanitizeContent);
         }
         return {
@@ -8579,7 +8706,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var toast = doc.createElement('div');
         toast.className = 'work-toast ' + (kind === 'done' ? 'is-done' : 'is-working');
         toast.innerHTML = svgIcon(kind === 'done' ? 'checkCircle' : 'spinner', 18, 'wt-icon' + (kind !== 'done' ? ' ic-spin' : '')) +
-          '<span class="wt-text">' + text + '</span>';
+          '<span class="wt-text">' + escHtml(text) + '</span>';
         layer.appendChild(toast);
         // 触发动画
         setTimeout(function() { toast.classList.add('show'); }, 10);
@@ -8591,6 +8718,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 工作区下拉菜单 =====
+      // ⚠️修复：document 级监听器一次性绑定标志——renderChatUI 每次导入卡/继续上次都会重跑
+      // bindEvents/initWorkspaceMenu，原先 doc.addEventListener 直接累积（N次导入=N倍监听器+游离DOM引用）
+      var _docClickBound = false;
+      var _docKeydownBound = false;
       function initWorkspaceMenu() {
         var btn = doc.getElementById('wsMenuBtn');
         var dropdown = doc.getElementById('wsDropdown');
@@ -8600,9 +8731,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           dropdown.classList.toggle('show');
           if (dropdown.classList.contains('show')) renderWorkspaceMenuItems();
         });
-        doc.addEventListener('click', function(e) {
-          if (!e.target.closest('#wsMenuWrap')) dropdown.classList.remove('show');
-        });
+        if (!_docClickBound) {
+          _docClickBound = true;
+          doc.addEventListener('click', function(e) {
+            // 事件发生时实时查找 dropdown（body.innerHTML 重建后旧引用会指向游离节点）
+            var dd = doc.getElementById('wsDropdown');
+            if (dd && (!e.target || !e.target.closest || !e.target.closest('#wsMenuWrap'))) dd.classList.remove('show');
+          });
+        }
       }
       function renderWorkspaceMenuItems() {
         var dropdown = doc.getElementById('wsDropdown');
@@ -8959,7 +9095,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         groups.forEach(function(g, idx) {
           html += '<div class="ws-tree-group' + (idx > 0 ? ' collapsed' : '') + '">';
-          html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + g.name + '</div>';
+          // ⚠️ XSS修复：g.name 含从导入卡 comment 提取的标签文本，n.label 含 comment/脚本名——均需转义
+          html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + escHtml(g.name) + '</div>';
           html += '<div class="ws-tree-items">';
           g.nodes.forEach(function(n) {
             var nodeStr = escAttr(JSON.stringify({ type: n.type, key: n.key, index: n.index, fieldType: n.fieldType || null }));
@@ -8975,7 +9112,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             html += '<div class="ws-tree-item" data-node="' + nodeStr + '">'
               + '<span class="ws-tree-dot"></span>'
-              + '<span class="ws-tree-label">' + n.label + len + '</span>'
+              + '<span class="ws-tree-label">' + escHtml(n.label) + len + '</span>'
               // 只给 entry/regex/thscript/field 类型放删除按钮，Tab栏分组（root group）本身没有 index 就不加；
               // 点击时 stopPropagation，避免同时触发左侧 item 选中跳转。
               + ((n.type === 'entry' || n.type === 'regex' || n.type === 'thscript' || n.type === 'field')
@@ -9012,17 +9149,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (meta.vectorized === true) activateType = '向量化';
           else if (meta.constant !== true && meta.selective !== true) activateType = '绿灯';
           if (meta.constant === true || (meta.depth === 0 && meta.selective === false)) activateType = '蓝灯';
+          // ⚠️修复：position 类型归一化——条目里存的是数字（0/1/2/3/4），下拉框 value 是字符串，
+          // 原先直接比较导致无论实际值是什么都显示第一项；用户一改动还会把字符串写回与数字并存
+          var posDisplay = meta.position;
+          if (typeof posDisplay === 'number') {
+            posDisplay = posDisplay === 0 ? 'before_char'
+              : posDisplay === 1 ? 'after_char'
+              : posDisplay === 2 ? 'before_an'
+              : posDisplay === 3 ? 'after_an'
+              : 'at_end';
+          }
           metaHtml = '<div class="ws-entry-props">' +
             '<label class="ws-prop"><input type="checkbox" class="ws-prop-enabled" ' + (meta.enabled ? 'checked' : '') + '> 启用</label>' +
             '<label class="ws-prop"><input type="checkbox" class="ws-prop-constant" ' + (meta.constant ? 'checked' : '') + '> 常驻(蓝灯)</label>' +
             '<label class="ws-prop"><input type="checkbox" class="ws-prop-selective" ' + (meta.selective ? 'checked' : '') + '> 关键词匹配(绿灯)</label>' +
             '<label class="ws-prop"><input type="checkbox" class="ws-prop-vectorized" ' + (meta.vectorized ? 'checked' : '') + '> 向量化</label>' +
             '<label class="ws-prop">位置 <select class="ws-prop-position">' +
-              '<option value="before_char"' + (meta.position === 'before_char' ? ' selected' : '') + '>角色定义之前(0)</option>' +
-              '<option value="after_char"' + (meta.position === 'after_char' ? ' selected' : '') + '>角色定义之后(1)</option>' +
-              '<option value="before_an"' + (meta.position === 'before_an' ? ' selected' : '') + '>示例消息之前(2)</option>' +
-              '<option value="after_an"' + (meta.position === 'after_an' ? ' selected' : '') + '>示例消息之后(3)</option>' +
-              '<option value="at_end"' + (meta.position === 'at_end' ? ' selected' : '') + '>作者注底部(2)</option>' +
+              '<option value="before_char"' + (posDisplay === 'before_char' ? ' selected' : '') + '>角色定义之前(0)</option>' +
+              '<option value="after_char"' + (posDisplay === 'after_char' ? ' selected' : '') + '>角色定义之后(1)</option>' +
+              '<option value="before_an"' + (posDisplay === 'before_an' ? ' selected' : '') + '>示例消息之前(2)</option>' +
+              '<option value="after_an"' + (posDisplay === 'after_an' ? ' selected' : '') + '>示例消息之后(3)</option>' +
+              '<option value="at_end"' + (posDisplay === 'at_end' ? ' selected' : '') + '>作者注底部(2)</option>' +
             '</select></label>' +
             '<label class="ws-prop">深度 <input type="number" class="ws-prop-depth" value="' + (meta.depth != null ? meta.depth : 4) + '" min="0" max="12" style="width:40px"></label>' +
             '<label class="ws-prop">优先级 <input type="number" class="ws-prop-order" value="' + (meta.order != null ? meta.order : 100) + '" min="0" max="1000" style="width:50px"></label>' +
@@ -9048,7 +9195,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         var previewEl = '';
         if (isHtml) {
-          previewEl = '<iframe class="ws-preview-iframe" sandbox="allow-scripts allow-same-origin" srcdoc="' + escAttr(current) + '"></iframe>';
+          // ⚠️ 沙箱修复：移除 allow-same-origin——与 allow-scripts 组合时 iframe 内脚本与酒馆父页面同源，
+          // 可访问父 DOM / 修改自身 sandbox 属性实现逃逸（预览的是导入卡的不可信 HTML/脚本）
+          previewEl = '<iframe class="ws-preview-iframe" sandbox="allow-scripts" srcdoc="' + escAttr(current) + '"></iframe>';
         } else {
           previewEl = '<div class="ws-preview-md">' + fmtBubble(current) + '</div>';
         }
@@ -9063,7 +9212,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } else if (wsEditorView === 'preview') {
           bodyHtml = previewEl;
         }
-        return '<div class="ws-editor-title">' + title + (isDirty ? ' <span style="color:var(--terra-text);font-size:.78em;font-weight:500">· 未保存 *</span>' : '') + '</div>' +
+        return '<div class="ws-editor-title">' + escHtml(title) + (isDirty ? ' <span style="color:var(--terra-text);font-size:.78em;font-weight:500">· 未保存 *</span>' : '') + '</div>' +
           metaHtml +
           viewBtns +
           '<div class="ws-editor-area">' + bodyHtml + '</div>';
@@ -9156,16 +9305,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!ok) return;
         var deleted = false;
         var deletedName = title;
+        // ⚠️修复：删除后同组后续条目 index 整体前移，wsEditedContent/wsOriginalContent 按 index
+        // 编码的缓存键必须同步迁移，否则"保存全部"按旧 index 写回会把编辑内容写进错误的条目
+        function _remapWsCacheIndices(delType, delKey, delIndex) {
+          if (delIndex == null) return;
+          var prefix = delType + '::' + delKey + '::';
+          [wsEditedContent, wsOriginalContent].forEach(function(store) {
+            if (!store) return;
+            Object.keys(store).forEach(function(k) {
+              if (k.indexOf(prefix) !== 0) return;
+              var idxStr = k.slice(prefix.length);
+              if (!/^\d+$/.test(idxStr)) return;
+              var idx = parseInt(idxStr, 10);
+              if (idx > delIndex) {
+                store[prefix + (idx - 1)] = store[k];
+                delete store[k];
+              }
+            });
+          });
+        }
         if (type === 'entry') {
           var entries = (cardData.character_book || {}).entries || [];
           if (node.index >= 0 && node.index < entries.length) {
             entries.splice(node.index, 1);
+            _remapWsCacheIndices('entry', node.key, node.index);
             deleted = true;
           }
         } else if (type === 'field') {
           if (node.index != null && Array.isArray(cardData[node.key])) {
             if (node.index >= 0 && node.index < cardData[node.key].length) {
               cardData[node.key].splice(node.index, 1);
+              _remapWsCacheIndices('field', node.key, node.index);
               deleted = true;
             }
           } else if (cardData.hasOwnProperty(node.key)) {
@@ -9175,12 +9345,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         } else if (type === 'regex') {
           var rxs = ((cardData.extensions || {}).regex_scripts) || [];
-          if (node.index >= 0 && node.index < rxs.length) { rxs.splice(node.index, 1); deleted = true; }
+          if (node.index >= 0 && node.index < rxs.length) { rxs.splice(node.index, 1); _remapWsCacheIndices('regex', node.key, node.index); deleted = true; }
         } else if (type === 'thscript') {
           if (!cardData.extensions) cardData.extensions = {};
           if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = {};
           var ths = cardData.extensions.tavern_helper.script_lib || [];
-          if (node.index >= 0 && node.index < ths.length) { ths.splice(node.index, 1); deleted = true; }
+          if (node.index >= 0 && node.index < ths.length) { ths.splice(node.index, 1); _remapWsCacheIndices('thscript', node.key, node.index); deleted = true; }
         }
         if (!deleted) { showToast('⚠️ 删除失败：未找到该' + typeLabel, 'warning'); return; }
         // 删完之后：当前选中的节点已经被删掉了，清理相关缓存
@@ -9302,7 +9472,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function bindEvents() {
-        doc.getElementById('closeBtn').addEventListener('click', closeModal);
+        // ⚠️竞态修复：生成期间关闭编辑器 → 旧闭包的 callAI 返回后仍会写 storage，与用户重新打开的
+        // 新闭包形成双写者竞态（AI 修改可能被覆盖丢失）。改为关闭前二次确认
+        doc.getElementById('closeBtn').addEventListener('click', function() {
+          if (isGenerating) {
+            var okToClose = window.confirm('AI 正在生成中，关闭后本次生成的内容可能丢失（后台任务仍会继续写数据）。\n确定要关闭吗？');
+            if (!okToClose) return;
+            closeModal();
+            // 后台任务仍在运行：保留 window.__* 访问器（后台闭包仍经其读写数据），下次 openEditor 覆盖
+          } else {
+            closeModal();
+            // ⚠️无后台任务：立即释放 window.__* 持有的整份 cardData + 聊天历史引用，防会话数据泄漏
+            _releaseEditorGlobals();
+          }
+        });
         var input = doc.getElementById('chatInput');
         var sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
@@ -9343,17 +9526,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           this.style.height = this.scrollHeight + 'px';
         });
         // Esc：优先关闭弹窗（模态框），其次关闭工作台浮窗
-        doc.addEventListener('keydown', function(e) {
-          if (e.key !== 'Escape') return;
-          // 1) 先尝试关闭最上层模态框（json-modal / modal）
-          var modals = doc.querySelectorAll('.json-modal, .modal');
-          for (var i = modals.length - 1; i >= 0; i--) {
-            if (modals[i].parentNode) { modals[i].remove(); e.preventDefault(); return; }
-          }
-          // 2) 再关闭工作台浮窗
-          var backdrop = doc.getElementById('wsBackdrop');
-          if (backdrop) { closeWorkspacePanel(); e.preventDefault(); }
-        });
+        if (!_docKeydownBound) {
+          _docKeydownBound = true;
+          doc.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            // 1) 先尝试关闭最上层模态框（json-modal / modal）
+            var modals = doc.querySelectorAll('.json-modal, .modal');
+            for (var i = modals.length - 1; i >= 0; i--) {
+              if (modals[i].parentNode) { modals[i].remove(); e.preventDefault(); return; }
+            }
+            // 2) 再关闭工作台浮窗
+            var backdrop = doc.getElementById('wsBackdrop');
+            if (backdrop) { closeWorkspacePanel(); e.preventDefault(); }
+          });
+        }
         var exportLogBtn = doc.getElementById('exportLogBtn');
         if (exportLogBtn) {
           exportLogBtn.addEventListener('click', exportChatLogs);
@@ -9579,7 +9765,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var defaultOrder = tmpl ? tmpl.order : 100;
               var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
               // [InitVar] 条目 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
-              var isInitVar = comment.indexOf('[InitVar]') >= 0;
+              var isInitVar = _isInitVarComment(comment, e.content);
               var isVarList = comment.indexOf('变量列表') >= 0;
               var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               var ext = e.extensions || {};
@@ -9933,7 +10119,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               window.__tab_activeTab = activeTab;
             }
             // 当前Tab的 messages 兼容：虽然我们不再使用全局 messages 变量，但为了向后兼容
-            messages = (activeTab === 'card') ? chatSessions.card.messages.slice() : chatSessions.mvu.messages.slice();
+            // ⚠️修复：不再 .slice() 复制——副本会切断与 chatSessions 唯一真源的引用，
+            // 导致旧代码写 messages 的消息不进 saveToStorage（序列化的是 chatSessions），静默丢失
+            messages = (activeTab === 'card') ? chatSessions.card.messages : chatSessions.mvu.messages;
 
             cardGenerated = state.cardGenerated || false;
             progress = state.progress || 0;
@@ -10267,8 +10455,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 在角色卡Tab中点击了MVU专属动作 → 自动切到MVU Tab再执行
         var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview', 'continue_mvu'];
         if (currentTab === 'card' && mvuOnlyActions.indexOf(action) >= 0) {
-          showToast('「' + action + '」是MVU专属功能，正在切换到MVU变量状态栏Tab...', 'info');
+          // ⚠️修复：生成中 switchTab 被锁静默失败，但旧逻辑仍 300ms 后原样重放 → 无限 toast 循环。
+          // 改为：切换失败（Tab 未变）时中断重放链并明确提示，不重试
           switchTab('mvu');
+          if (currentTab !== 'mvu') {
+            showToast('AI正在处理中，无法切换到MVU Tab，请稍后再试「' + action + '」', 'warning');
+            return;
+          }
+          showToast('「' + action + '」是MVU专属功能，已切换到MVU变量状态栏Tab', 'info');
           // 切换后在MVU Tab执行同一个动作
           setTimeout(function() { handleQuickAction(action); }, 300);
           return;
@@ -10276,8 +10470,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 在MVU Tab中点击了角色卡专属动作 → 自动切到角色卡Tab再执行
         var cardOnlyActions = ['core_rules', 'axiom', 'soft_rules', 'entity_interact', 'scene_mechanics', 'narrative_bg', 'dynamic_adapt', 'opening', 'generate', 'qc', 'optimize', 'weight', 'group'];
         if (currentTab === 'mvu' && cardOnlyActions.indexOf(action) >= 0) {
-          showToast('「' + action + '」是角色卡专属功能，正在切换到角色卡生成Tab...', 'info');
+          // ⚠️修复：同上，切换失败时中断重放链
           switchTab('card');
+          if (currentTab !== 'card') {
+            showToast('AI正在处理中，无法切换到角色卡Tab，请稍后再试「' + action + '」', 'warning');
+            return;
+          }
+          showToast('「' + action + '」是角色卡专属功能，已切换到角色卡生成Tab', 'info');
           setTimeout(function() { handleQuickAction(action); }, 300);
           return;
         }
@@ -10531,7 +10730,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var saved = localStorage.getItem(key);
         var avatarInner;
         if (saved) {
-          avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + saved + ');background-size:cover;background-position:center"></div>';
+          // ⚠️ XSS防御：saved 来自 localStorage（正常为 canvas dataURL），仍需校验为 data:image/*
+          // 且转义引号/括号，防止被注入 x" onmouseover=... 或 url() 逃逸
+          var isSafeAvatar = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(saved);
+          avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + (isSafeAvatar ? ('\'' + saved + '\'') : 'none') + ');background-size:cover;background-position:center"></div>';
         } else {
           var icon = role === 'user' ? svgIcon('user', 18) : svgIcon('bot', 18);
           avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer">' + icon + '</div>';
@@ -10551,10 +10753,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.accept = 'image/*';
         input.style.display = 'none';
         doc.body.appendChild(input);
+        var inputRemoved = false;
+        var removeInput = function() {
+          if (!inputRemoved && input.parentNode) { doc.body.removeChild(input); inputRemoved = true; }
+        };
+        // 取消文件选择对话框不触发 change：用窗口 focus + 延迟兜底清理临时 input（防 DOM 残留）
+        var cancelTimer = null;
+        var win = doc.defaultView || window;
+        var onFocusCleanup = function() {
+          if (cancelTimer) clearTimeout(cancelTimer);
+          cancelTimer = setTimeout(function() {
+            removeInput();
+            win.removeEventListener('focus', onFocusCleanup);
+          }, 1500);
+        };
+        win.addEventListener('focus', onFocusCleanup);
         input.addEventListener('change', function(e) {
+          if (cancelTimer) clearTimeout(cancelTimer);
+          win.removeEventListener('focus', onFocusCleanup);
           var file = e.target.files && e.target.files[0];
           // 无论是否选中文件都移除临时 input，避免 DOM 节点泄漏
-          if (input.parentNode) doc.body.removeChild(input);
+          removeInput();
           if (!file) return;
           var reader = new FileReader();
           reader.onload = function(ev) {
@@ -10571,8 +10790,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               refreshAllAvatars(role);
               showToast((role === 'user' ? '用户' : 'AI') + '头像已更新', 'success');
             };
+            // 损坏图片不再静默失败
+            img.onerror = function() { showToast('图片文件已损坏，无法设为头像', 'error'); };
             img.src = ev.target.result;
           };
+          reader.onerror = function() { showToast('读取图片文件失败', 'error'); };
           reader.readAsDataURL(file);
         });
         input.click();
@@ -11118,19 +11340,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var isCollapsed = cpSectionStates[stateKey] !== true;
           var icon, label, cls;
           if (sec.type === 'thinking') { icon = '思'; label = '思维链'; cls = 'cp-section-thinking'; }
-          else if (sec.type === 'code') { icon = '{}'; label = sec.lang || '代码'; cls = 'cp-section-code'; }
+          else if (sec.type === 'code') { icon = '{}'; label = escHtml(sec.lang || '代码'); cls = 'cp-section-code'; }
           else if (sec.type === 'opblock') {
             icon = '📝'; cls = 'cp-section-opblock';
             // 从:::行提取操作类型作为label
+            // ⚠️ XSS修复：label 来自 AI 输出的 ::: 行剩余文本，必须转义后再拼接
             var opMatch = (sec.content || '').match(/^:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]*)/i);
             if (opMatch) {
-              label = opMatch[1] + ' ' + (opMatch[2] || '').trim();
+              label = escHtml(opMatch[1] + ' ' + (opMatch[2] || '').trim());
             } else {
               label = '操作块';
             }
           }
           else { icon = '答'; label = '正文'; cls = 'cp-section-content'; }
-          var preview = (sec.content || '').slice(0, 80).replace(/\n/g, ' ').replace(/</g, '&lt;');
+          var preview = (sec.content || '').slice(0, 80).replace(/&/g, '&amp;').replace(/</g, '&lt;');
           html += '<div class="cp-section ' + cls + '">';
           html += '<div class="cp-section-header" data-section-key="' + stateKey + '">';
           html += '<span class="cp-section-icon">' + icon + '</span>';
@@ -11168,6 +11391,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               var wasCollapsed = cpSectionStates[key] !== true;
               // 切换：收起→展开(true)，展开→收起(false)
               cpSectionStates[key] = wasCollapsed ? true : false;
+              // ⚠️泄漏修复：msgId 含 Date.now()+random，rerenderChatMessages/switchTab 重放会生成全新 id，
+              // 旧键永不清理导致无界增长。超过上限时清掉最早的键
+              var _cpKeys = Object.keys(cpSectionStates);
+              if (_cpKeys.length > 500) {
+                for (var _ck = 0; _ck < _cpKeys.length - 400; _ck++) delete cpSectionStates[_cpKeys[_ck]];
+              }
               var msgEl = h.closest('.chat-msg');
               if (msgEl) {
                 var msgId = msgEl.getAttribute('data-msg-id');
@@ -11288,7 +11517,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
             h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
             h = h.replace(/__(.+?)__/g, '<b>$1</b>');
-            h = h.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
+            // 行内斜体：⚠️兼容性修复——lookbehind (?<!\*) 在 Safari<16.4/旧Chrome 会抛 SyntaxError，
+            // 且正则字面量在脚本解析期求值，会导致整个脚本加载失败。改用捕获组排除法实现同样语义：
+            // 匹配单个 *xx* 且两侧都不是 *（避免误吃 **粗体** 残留的星号）
+            h = h.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, function(_m, pre, txt) { return pre + '<i>' + txt + '</i>'; });
             h = h.replace(/~~(.+?)~~/g, '<del>$1</del>');
             // 换行
             h = h.replace(/\n{3,}/g, '\n\n');
@@ -11325,7 +11557,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var entries = (cardData.character_book && cardData.character_book.entries) || [];
         var initVarEntry = null;
         for (var i = 0; i < entries.length; i++) {
-          if ((entries[i].comment || '').indexOf('[InitVar]') >= 0) { initVarEntry = entries[i]; break; }
+          if (_isInitVarComment(entries[i].comment, entries[i].content)) { initVarEntry = entries[i]; break; }
         }
         if (initVarEntry && initVarEntry.content) {
           var parsed = parseInitVar(initVarEntry.content);
@@ -11479,10 +11711,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 旧 modDash 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
-      function renderModDash() { updateCtxBar(); }
+      var _ctxBarRenderTimer = null;
+      function renderModDash() {
+        // ⚠️性能修复：renderModDash/renderMvuInfoPanel 常被连续成对调用（每条消息两遍全量重建
+        // ctx-bar：innerHTML 重写 + checkMvu8Entries 全条目扫描 + 监听器重绑）。合并为一次微任务防抖
+        if (_ctxBarRenderTimer) return;
+        _ctxBarRenderTimer = setTimeout(function() {
+          _ctxBarRenderTimer = null;
+          updateCtxBar();
+        }, 0);
+      }
 
       // ===== 旧 mvuInfoPanel 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
-      function renderMvuInfoPanel() { updateCtxBar(); }
+      function renderMvuInfoPanel() { renderModDash(); }
 
       async function handleAnalyzeProgress() {
         if (isGenerating) return;
@@ -11660,8 +11901,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.style.height = 'auto';  // 发送后重置输入框高度
         lastUserInput = text;
         var genKw = ['生成角色卡','生成完整角色卡','导出角色卡','写入酒馆','完整生成'];
-        var isGenCmd = genKw.some(function(k) { return text === k || text.indexOf(k) >= 0; });
+        // ⚠️修复：否定语境不算生成指令（"不要导出角色卡"原先会命中 indexOf 误触发 doGenerate）
+        var isNegation = /不要|别|不许|禁止|无需|不用/.test(text.slice(0, 12));
+        var isGenCmd = !isNegation && genKw.some(function(k) { return text === k || text.indexOf(k) >= 0; });
         if (isGenCmd && progress >= 30) {
+          // ⚠️修复：MVU Tab 下 doGenerate 直接弹 toast 返回，会留下一条无 AI 回复的孤立用户消息。
+          // 先判断 Tab，MVU Tab 下按普通聊天走 callAIChat
+          if (currentTab === 'mvu') {
+            addUserMsg(text);
+            await callAIChat();
+            return;
+          }
           addUserMsg(text);
           await doGenerate();
           return;
@@ -12403,7 +12653,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var hasR3 = rxList.some(function(r) { return r.id === '6fb572ae-a9ea-436d-9779-ad100f1ff7f5'; });
         if (!hasR3) {
           rxList.push({ id: '6fb572ae-a9ea-436d-9779-ad100f1ff7f5', scriptName: '[美化]变量完成',
-            findRegex: '/<UpdateVariable(?:variable)?>\\s*(.*)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
+            findRegex: '/<UpdateVariable(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/UpdateVariable(?:variable)?>/gsi',
             replaceString: MVU_BEAUTIFY_COMPLETE, trimStrings: [], placement: [2], disabled: false,
             markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null });
           injected.push('正则3(变量完成美化)');
@@ -12803,14 +13053,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (hasAll) {
             removeTyping();
             cardGenerated = true;
-            setProgress(100);
+            // ⚠️修复：原先 setProgress(100) 虚报进度（实际按 calcProgress 计），
+            // 且手动收尾后 finally 还会再收尾一遍 + 弹"完成"toast（什么都没生成也算完成）
+            progress = calcProgress();
+            setProgress(progress);
             renderPreview();
             updateModFocus();
             renderModDash();
             addAssistantMsg('🎉 角色卡内容已完整！点击「💾 导出」查看完整JSON。\n\n你也可以继续和我对话，随时修改或补充内容。');
-            isGenerating = false;
-            setEnabled(true);
-            return;
+            return;   // 直接走 finally 统一收尾（不再手动重复 isGenerating/setEnabled）
           }
           // 角色卡Tab：genPrompt也必须过滤MVU内容，并明确禁止生成MVU条目
           var filteredSysForGenerate = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
@@ -13506,7 +13757,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           h += '<span class="opt-field-tag" data-key="' + f.key + '">' + f.label + '</span>';
         });
         h += '</div>' +
-            '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + (optInstructions || '') + (presetReq ? ('\n\n' + presetReq) : '') + '</textarea>' +
+            // ⚠️ XSS防御：textarea 经 innerHTML 注入，内容需转义（当前为静态QC文本，防止未来接入动态数据）
+            '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + escHtml(optInstructions || '') + escHtml(presetReq ? ('\n\n' + presetReq) : '') + '</textarea>' +
             '<div id="optProgress" style="display:none;text-align:center;padding:12px;color:var(--accent-deep);font-size:.85em"><span class="typing" style="display:inline"><span>●</span><span>●</span><span>●</span></span> AI正在优化...</div>' +
             '<div id="optResult" class="modal-body" style="display:none"></div>' +
             '<div class="modal-actions">' +
@@ -13544,6 +13796,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var btn = doc.getElementById('startOptBtn');
         if (prog) prog.style.display = 'block';
         if (btn) btn.disabled = true;
+        // ⚠️修复：与 callAIChat/doGenerate 对齐——生成期间禁用主界面全部交互按钮
+        // （原先只禁用弹窗内自己的按钮，快捷按钮/发送/保存仍可点击，引发并发写入与
+        //  handleQuickAction 的 switchTab 被锁 → 300ms 重放 → 无限 toast 循环）
+        setEnabled(false);
 
         try {
           var cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
@@ -13828,6 +14084,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       progress = calcProgress();
                       updateProgress();
                       renderPreview();
+                      // ⚠️修复：补 saveToStorage()——原先应用优化后不持久化，用户直接关闭编辑器时本次 AI 优化全部丢失
+                      saveToStorage();
                       doc.getElementById('optModal').remove();
                       showToast('✅ 优化已应用 (' + (optMode === 'replace' ? '替换模式' : optMode === 'append' ? '追加模式' : '智能合并') + ')', 'success');
                     } else {
@@ -13853,6 +14111,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } finally {
           isGenerating = false;
           if (btn) btn.disabled = false;
+          setEnabled(true);   // 与上方 setEnabled(false) 配对，恢复主界面交互
         }
       }
 
@@ -14245,6 +14504,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           editables[ei].style.cursor = 'pointer';
           editables[ei].addEventListener('dblclick', function(e) {
             e.stopPropagation();
+            // ⚠️竞态修复：生成期间用户编辑与 AI 回写并发，AI 的 upsert 可能复活刚删的条目/覆盖编辑内容
+            if (isGenerating) { showToast('AI正在生成中，请等待完成后再编辑', 'warning'); return; }
             var type = this.getAttribute('data-edit-type');
             var key = this.getAttribute('data-edit-key');
             var index = this.getAttribute('data-edit-index');
@@ -14257,6 +14518,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           pvDels[pdi].addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
+            // ⚠️竞态修复：生成期间禁删（避免与 AI upsert 并发导致刚删条目被复活）
+            if (isGenerating) { showToast('AI正在生成中，请等待完成后再删除条目', 'warning'); return; }
             var rawIdx = this.getAttribute('data-entry-idx');
             var idx = parseInt(rawIdx);
             if (rawIdx == null || isNaN(idx)) { showToast('⚠️ 无法确定要删除的条目索引', 'warning'); return; }
@@ -14549,12 +14812,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ============================================================================
   // SECTION 11 脚本按钮注册 + 浮动按钮兜底 + 入口 / 卸载清理
   // ============================================================================
+  // ⚠️保存事件注销句柄：pagehide 时用 eventOff 注销框架事件总线上的监听（tavern-helper 规范），
+  // 防止脚本重载后旧 handler 残留导致重复触发/旧闭包复活
+  var _btnEvtOff = null;
   function registerButton() {
     try {
       var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt('时之写卡器'), function() { openEditor(); });
+        var handler = function() { openEditor(); };
+        evtOn(getBtnEvt('时之写卡器'), handler);
+        // 若框架提供 eventOff，保存句柄供卸载时注销
+        try {
+          var evtOff = typeof eventOff === 'function' ? eventOff : (typeof window.eventOff === 'function' ? window.eventOff : null);
+          if (evtOff) _btnEvtOff = function() { try { evtOff(getBtnEvt('时之写卡器'), handler); } catch(_e) {} };
+        } catch(_e2) {}
         return true;
       }
     } catch(e) {}
@@ -14579,9 +14851,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   var retryCount = 0;
+  var _initRetryTimer = null;   // ⚠️保存重试定时器句柄：pagehide 时取消，防止卸载后浮动按钮"复活"
   function tryInit() {
     if (registerButton()) { return; }
-    if (retryCount < 10) { retryCount++; setTimeout(tryInit, 500); }
+    if (retryCount < 10) { retryCount++; _initRetryTimer = setTimeout(tryInit, 500); }
     else { addFloatingButton(); }
   }
   // ============================================================================
@@ -14593,6 +14866,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function cleanupScriptArtifacts() {
     try { closeModal(); } catch (_) {}
     try {
+      // 取消进行中的初始化重试，防止清理后 addFloatingButton 把浮动按钮重新加回父页面
+      if (_initRetryTimer) { clearTimeout(_initRetryTimer); _initRetryTimer = null; }
+      // 注销框架事件总线上的按钮监听（若可用）
+      if (_btnEvtOff) { _btnEvtOff(); _btnEvtOff = null; }
+      // ⚠️修复（卸载清理不完整）：释放 window.__* 编辑器访问器（持有整份 cardData + 双Tab聊天历史）
+      _releaseEditorGlobals();
       var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
       var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
