@@ -12336,16 +12336,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 此时extractJSON提取不到，需要这个兜底机制把HTML保存到cardData.extensions.regex_scripts
       function tryExtractStatusBarHtml(aiText) {
         if (!aiText) return false;
-        // 匹配所有 ```html 代码块
+        // 匹配所有 ```html 代码块（[ \t]*\r?\n? 容错 ```html 后无换行的情况，不吃内容缩进）
         var htmlBlocks = [];
-        var htmlRe = /```html\s*\n([\s\S]*?)\n```/gi;
+        var htmlRe = /```html[ \t]*\r?\n?([\s\S]*?)\r?\n?```/gi;
         var m;
         while ((m = htmlRe.exec(aiText)) !== null) {
           htmlBlocks.push(m[1]);
         }
         // 也匹配无语言标记的 ``` 代码块（可能含HTML）
         if (htmlBlocks.length === 0) {
-          var genericRe = /```\s*\n([\s\S]*?)\n```/g;
+          var genericRe = /```[ \t]*\r?\n?([\s\S]*?)\r?\n?```/g;
           while ((m = genericRe.exec(aiText)) !== null) {
             if (m[1].indexOf('<html') >= 0 || m[1].indexOf('<!doctype') >= 0 || m[1].indexOf('<head') >= 0) {
               htmlBlocks.push(m[1]);
@@ -12355,9 +12355,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (htmlBlocks.length === 0) return false;
 
         // 强负面关键词：含这些内容一定不是状态栏HTML（是写卡器进度块/世界书条目碎片等）
-        var blockBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
-                              '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
-                              'character_book', 'entries', 'comment', 'insertion_order'];
+        // ⚠️P0修复：entries/comment 原先是裸子串匹配——StageDog zod 规范明确推荐 `_(data).entries()`，
+        // AI 按规范生成的状态栏 JS 里出现 Object.entries()/_.entries()/注释 一律被误杀 → 提取失败
+        // → 预览"未生成"+写入酒馆丢自定义状态栏。改为只匹配 JSON 键形态（"entries": / 'comment':）
+        var wordBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
+                             '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
+                             'character_book', 'insertion_order'];
         // 结构验证：完整HTML文档特征（doctype/html + style/script 至少各一）
         var mustHaveStructure = ['<!doctype', '<html', '<style', '<script'];
         // 状态栏HTML专属特征（⚠️对齐用户模板标准：populateCharacterData + getAllVariables + eventOn + errorCatched）
@@ -12375,12 +12378,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var statusBarHtml = null;
         for (var i = 0; i < htmlBlocks.length; i++) {
           var block = htmlBlocks[i];
-          // 黑名单过滤：直接跳过含进度块/世界书碎片的代码块
+          // 黑名单过滤：裸词命中（这些词不会出现在状态栏代码里）→ 跳过
           var hitBlack = false;
-          for (var b = 0; b < blockBlacklist.length; b++) {
-            if (block.indexOf(blockBlacklist[b]) >= 0) { hitBlack = true; break; }
+          for (var b = 0; b < wordBlacklist.length; b++) {
+            if (block.indexOf(wordBlacklist[b]) >= 0) { hitBlack = true; break; }
           }
           if (hitBlack) continue;
+          // JSON键形态黑名单：entries/comment 作为带引号的对象键（世界书JSON碎片特征），
+          // 状态栏JS里的 Object.entries()/_.entries()/注释 不会命中
+          if (/["']entries["']\s*:/.test(block) || /["']comment["']\s*:/.test(block)) continue;
           // 结构验证：至少出现2个HTML结构标签（非单纯CSS/JS碎片）
           var structCount = 0;
           for (var s = 0; s < mustHaveStructure.length; s++) {
@@ -12907,7 +12913,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (_sbSavedMain) {
                 showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
                 progress = calcProgress();
+                // ⚠️P0修复：立即持久化——原先漏了 saveToStorage，若后续步骤异常/用户直接关闭，
+                // 内存里的状态栏正则不落盘，重开编辑器后"未生成"且写入酒馆丢失
+                saveToStorage();
                 renderPreview();
+              } else {
+                // ⚠️失败可见化：原先静默失败，用户只看到"预览未生成"却不知道原因
+                // 有```代码块但没识别为状态栏时给出明确提示（Console 有各代码块判定详情）
+                var _hasFence = /```/.test(aiResponse || '');
+                if (_hasFence) {
+                  showToast('⚠️ AI回复中有代码块，但未识别为状态栏HTML（未保存）。\n详情见浏览器Console的 [statusbar] 日志', 'warning', 7000);
+                }
               }
             } catch(e) { console.warn('statusbar process error:', e); }
           } // End of: if (currentTab === 'mvu') - 状态栏处理仅在MVU Tab
@@ -14725,7 +14741,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             if (customSb) {
               // 解包 ``` 围栏（saveStatusBarToCard 用 ``` 包裹，_tavernWriteRegexScripts 会重新包裹）
-              statusBarHtml = customSb.replace(/^```[a-z]*\n?/m, '').replace(/\n?```$/m, '').trim();
+              // ⚠️修复：原先 /\n?```$/m 带 m 标志会匹配 HTML 内部任何"行尾```"（如 script 里嵌套反引号），
+              // 导致只删到内部位置、尾部```残留进酒馆。改为无 m 标志只匹配整体首行/末行
+              statusBarHtml = customSb.replace(/^```[a-z]*[ \t]*\r?\n?/, '').replace(/\r?\n?[ \t]*```\s*$/, '').trim();
             }
             // 4c-2. 兜底：AI 完全没生成状态栏时，用统一模板生成默认状态栏（保证写入酒馆不缺状态栏）
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
