@@ -5527,7 +5527,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n';
 
     // 5. 组装完整提示词
-    var fullPrompt = mvuSystemPrompt + cardContext + jsonReminder +
+    // ⚠️修复：原先系统提示词只写"详见MVU_VAR_SPEC第N条"的引用文字，从未实际拼接规范内容——
+    // AI 根本看不到六大模板详细规范，被迫依赖快捷按钮把整段规范当用户消息发送（用户看到一大段文字）。
+    // 现在把全部规范常量拼入后台系统提示词，用户消息只需简短指令。
+    var specBlock = '\n\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '📖 MVU六大模板 + 8条工作流完整规范（后台注入，无需用户复述）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      MVU_SEQUENTIAL_RULE + '\n' +
+      MVU_8STEPS_DETAIL + '\n' +
+      MVU_VAR_SPEC + '\n\n' +
+      MVU_8STEPS_COMMON_RULES + '\n' +
+      MVU_MODIFY_RULE + '\n';
+    var fullPrompt = mvuSystemPrompt + specBlock + cardContext + jsonReminder +
       '\n\n═══════════════════════════════════════════════════════════════════\n' +
       '📜 对话历史（MVU Tab专属，与角色卡Tab完全隔离）\n' +
       '═══════════════════════════════════════════════════════════════════\n';
@@ -7904,25 +7916,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[InitVar]初始变量', content: generateInitVarYaml(charNames), constant: true, selective: false, insertion_order: 100, enabled: false, position: 0, use_regex: true, extensions: {} });
         _idx++;
       }
-      // 变量列表（标签内为 null）
+      // 变量列表（标签内为 null）—— ⚠️insertion_order=200 对齐 ENTRY_TEMPLATES/速查表（原150不一致）
       if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '变量列表', content: generateVarListContent(), constant: true, selective: false, insertion_order: 150, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '变量列表', content: generateVarListContent(), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量更新规则
       if (!mvuEntryExists(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量更新规则', content: generateVarUpdateRule(charNames), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量更新规则', content: generateVarUpdateRule(charNames), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // [mvu_update]变量输出格式
       if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 200, enabled: true, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       // ⚠️迭代：补齐模板6 [mvu_update]变量输出格式强调（默认 enabled=false——
       // 仅在测试发现 AI 不输出 <UpdateVariable> 块时才手动启用，六大模板缺一不可）
       if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式强调', content: generateVarOutputEmphasis(), constant: true, selective: false, insertion_order: 100, enabled: false, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式强调', content: generateVarOutputEmphasis(), constant: true, selective: false, insertion_order: 200, enabled: false, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       if (_toAppend.length) {
@@ -10483,28 +10495,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           dynamic_adapt: '请帮我设计【动态适配】体系：<引导机制>新手引导、互动选项、depth_prompt渐进引导、<动态适配>分支开局（多开局请用<动态适配>条目+MVU initvar覆盖实现，禁止写入alternate_greetings字段）。用:::upsert操作块输出，使用<引导机制>/<动态适配>标签前缀。（状态栏和变量系统请去MVU Tab制作）'
         };
         var mvuPrompts = {
-          next: '我当前的MVU进度该怎么推进？请分析：\n1) 前7条MVU条目完成情况（' + MVU_8STEPS_SHORT + '）\n2) 第8条状态栏5模块完成情况（Step 2-6）\n3) 推荐的下一步怎么做。用简洁列表呈现。',
-          summary: '帮我梳理MVU系统当前状态：\n1) 按8条顺序检查前7条完成情况（' + MVU_8STEPS_SHORT + '）\n2) 检查第8条状态栏Step 2-6共5模块完成情况\n3) 缺失什么、推荐的下一步。',
+          next: '我当前的MVU进度该怎么推进？请分析：\n1) 前7条MVU条目完成情况（' + MVU_8STEPS_SHORT + '）\n2) 第8条状态栏完成情况\n3) 推荐的下一步怎么做。用简洁列表呈现。',
+          summary: '帮我梳理MVU系统当前状态：\n1) 按8条顺序检查前7条完成情况（' + MVU_8STEPS_SHORT + '）\n2) 检查第8条状态栏完成情况\n3) 缺失什么、推荐的下一步。',
+          // ⚠️修复：六大模板+8条工作流规范已全部注入后台系统提示词（buildMvuTabPrompt 的 specBlock），
+          // 用户消息只需简短指令——原先把 MVU_VAR_SPEC 等几千字规范整个填进输入框当用户消息发送，
+          // 用户会看到"一按按钮发送一大段文字"
           init_var:
-            '请帮我设计MVU变量系统，严格遵守以下规范：\n' +
-            MVU_SEQUENTIAL_RULE +
-            MVU_8STEPS_DETAIL +
-            MVU_VAR_SPEC + '\n\n' +
-            MVU_8STEPS_COMMON_RULES +
-            MVU_MODIFY_RULE + '\n\n' +
-            '请先收集用户的变量需求（角色/世界观/场景/需要追踪什么状态），然后按上述8条顺序**逐条**开始生成。现在先生成【第1条：变量结构脚本(zod 4 schema)】。',
+            '请帮我设计MVU变量系统：先收集我的变量需求（角色/世界观/场景/需要追踪什么状态），' +
+            '然后按8条固定顺序逐条生成，一次只输出1条，输出后停下等我说"继续"。\n' +
+            '现在从【第1条：变量结构脚本(zod 4 schema)】开始。',
           var_update_rule:
-            '请帮我完善当前MVU系统的缺失条目，严格遵守【逐条生成铁则】：\n' +
-            '⚠️ 一次只补1条，输出后立即停下问"已生成第N条，说\'继续\'生成下一条"。前7条完成后才生成第8条。\n\n' +
-            '先检查当前已有的条目，然后按以下8条固定顺序从缺失的第一条开始补：\n' +
-            MVU_8STEPS_DETAIL +
-            MVU_VAR_SPEC + '\n\n' +
-            MVU_MODIFY_RULE
+            '请检查当前MVU系统已有的条目，按8条固定顺序从缺失的第一条开始补。\n' +
+            '一次只补1条，输出后立即停下等我确认。前7条全部完成后才生成第8条状态栏。'
         };
         // 选择当前Tab对应的Prompt字典
         var prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
         // summary/next在两个字典中都有；init_var/var_update_rule仅在MVU字典
         if (prompts[action] && input) {
+          // ⚠️修复：生成期间禁止填入提示词——原先 isGenerating 时 handleSend 静默 return，
+          // 整段提示词会残留在输入框里
+          if (isGenerating) {
+            showToast('AI正在处理中，请稍候再点「' + action + '」', 'warning');
+            return;
+          }
           input.value = prompts[action];
           handleSend();
         } else if (!prompts[action] && currentTab === 'mvu') {
@@ -12345,12 +12358,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         var blockBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
                               '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
                               'character_book', 'entries', 'comment', 'insertion_order'];
-        // 状态栏HTML专属特征：必须出现HTML结构 + 多个渲染相关特征词才认定
+        // 结构验证：完整HTML文档特征（doctype/html + style/script 至少各一）
         var mustHaveStructure = ['<!doctype', '<html', '<style', '<script'];
+        // 状态栏HTML专属特征（⚠️对齐用户模板标准：populateCharacterData + getAllVariables + eventOn + errorCatched）
+        // 旧表（matrix-card/m-bar-wrap/renderTree等）大半是历史模板专属词，按用户模板生成的
+        // 新状态栏常只命中2-3个，导致提取失败（预览显示未生成+写入酒馆丢失），故大幅扩充并降阈值
         var statusBarKeywords = ['StatusPlaceHolderImpl', 'render-root', 'stat_data', 'waitGlobalInitialized',
-                                 'getAllVariables', 'mvu-status', 'card-body', 'refreshStatus', 'renderTree',
+                                 'getAllVariables', 'populateCharacterData', 'errorCatched', 'eventOn',
+                                 'VARIABLE_UPDATE_ENDED', 'Mvu.events', 'toggleSection', 'section-header',
+                                 'mvu-status', 'card-body', 'refreshStatus', 'renderTree',
                                  'matrix-card', 'matrix-grid', 'm-bar-wrap', '.m-label', '.m-value',
-                                 'renderVars', 'loadVars', 'mvu-matrix-ui', 'mvu-status-card'];
+                                 'renderVars', 'loadVars', 'mvu-matrix-ui', 'mvu-status-card',
+                                 'getVariables', 'stat_data.'];
+        // MVU核心特征（用户模板标准必备）：至少命中1个才可能是状态栏
+        var mvuCoreFeatures = ['getAllVariables', 'stat_data', 'populateCharacterData', 'waitGlobalInitialized', 'Mvu.events', 'getVariables'];
         var statusBarHtml = null;
         for (var i = 0; i < htmlBlocks.length; i++) {
           var block = htmlBlocks[i];
@@ -12366,12 +12387,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (block.indexOf(mustHaveStructure[s]) >= 0) structCount++;
           }
           if (structCount < 2) continue;
-          // 特征关键词：至少4个才认为是状态栏HTML（避免误匹配MVU schema等内容）
+          // MVU核心特征：至少1个（读变量的入口，状态栏必有）
+          var coreCount = 0;
+          for (var c = 0; c < mvuCoreFeatures.length; c++) {
+            if (block.indexOf(mvuCoreFeatures[c]) >= 0) coreCount++;
+          }
+          if (coreCount < 1) continue;
+          // 特征关键词：至少2个即认定（黑名单+完整文档结构+MVU核心特征三重防护，误报风险低）
           var matchCount = 0;
           for (var k = 0; k < statusBarKeywords.length; k++) {
             if (block.indexOf(statusBarKeywords[k]) >= 0) matchCount++;
           }
-          if (matchCount >= 4) {
+          if (matchCount >= 2) {
             // 清理字面量转义字符
             var cleaned = block;
             if (cleaned.indexOf('\\n') >= 0) cleaned = cleaned.replace(/\\n/g, '\n');
@@ -12381,7 +12408,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             break;
           }
         }
-        if (!statusBarHtml) return false;
+        if (!statusBarHtml) {
+          // ⚠️迭代：日志留痕——提取失败时打印各代码块的判定详情，方便排查"生成了但没保存"
+          try {
+            console.warn('[statusbar] 未识别到状态栏HTML：共', htmlBlocks.length, '个代码块。各块判定：',
+              htmlBlocks.map(function(blk) {
+                var mc = 0;
+                for (var k2 = 0; k2 < statusBarKeywords.length; k2++) { if (blk.indexOf(statusBarKeywords[k2]) >= 0) mc++; }
+                var sc = 0;
+                for (var s2 = 0; s2 < mustHaveStructure.length; s2++) { if (blk.indexOf(mustHaveStructure[s2]) >= 0) sc++; }
+                return { len: blk.length, structCount: sc, keywordCount: mc, head: blk.slice(0, 60) };
+              }));
+          } catch(_logErr) {}
+          return false;
+        }
 
         // 复用统一的保存函数，避免重复代码
         return saveStatusBarToCard(statusBarHtml);
