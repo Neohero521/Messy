@@ -1265,7 +1265,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 这里返回变量列表模板作为基础（constant=true, position=4, depth=0）
       return ENTRY_TEMPLATES['变量列表'];
     }
-    if (comment.indexOf('变量分段') >= 0 || comment.indexOf('分段提示') >= 0) return ENTRY_TEMPLATES['变量更新规则'];
     // 4. 通用匹配：遍历模板键找最长匹配
     var keys = Object.keys(ENTRY_TEMPLATES);
     var bestKey = null;
@@ -1491,14 +1490,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 判断条目是否属于MVU变量系统
   // 兼容大小写前缀：[InitVar]/[initvar]、[mvu_update] 等
-  // 扩展：包含8条工作流条目 + 附加条目（阶段判定/EJS/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
+  // 扩展：包含8条工作流条目 + 附加条目（阶段判定/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
+  // ⚠️变量分段/EJS 已按六大标准模板规范移除，不再视为 MVU 体系条目
   function isMVUEntry(comment) {
     var c = (comment || '').toLowerCase();
     return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
            c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
            c.indexOf('状态变量输出') >= 0 || c.indexOf('updatevariable') >= 0 ||
-           c.indexOf('变量分段') >= 0 || c.indexOf('分段提示') >= 0 ||
-           c.indexOf('ejs') >= 0 ||
            c.indexOf('状态栏') >= 0 || c.indexOf('statusplaceholder') >= 0 ||
            c.indexOf('阶段判定') >= 0 || c.indexOf('阶段切换') >= 0 ||
            c.indexOf('人设切换') >= 0 || c.indexOf('人设规则') >= 0 ||
@@ -1861,11 +1859,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         当前日期: 2025-07-26\n' +
     '         当前星期: 星期五\n' +
     '         当前时间: 17:36\n' +
-    '9.1.2 变量列表（对应第3条）：世界书条目（constant=true, depth=0），通过 MVU 脚本注入当前变量值给LLM\n' +
+    '9.1.2 变量列表（对应第4条）：世界书条目（constant=true, depth=0），通过 MVU 脚本注入当前变量值给LLM\n' +
     '     · 固定内容：---\\n<status_current_variables>\\nnull\\n</status_current_variables>\n' +
     '     · 标签内为 null，由 MVU 脚本在发送时替换为最新楼层的全部变量值\n' +
     '     · 插入位置必须D1或D0，让AI知道变量值对应最新剧情\n' +
-    '9.1.3 [mvu_update]变量更新规则（对应第4条）：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
+    '9.1.3 [mvu_update]变量更新规则（对应第3条）：世界书条目（constant=true），告诉LLM如何分析变量变化\n' +
     '     · YAML格式，沿用变量结构层级，每变量含以下字段（按需选用）：\n' +
     '       - type: 变量类型。string 省略此字段；number/boolean 直接写；复杂类型用 |- 多行 TypeScript/zod 块\n' +
     '         · 基础：type: number / type: boolean / type: \'未领取\'|\'进行中\'|\'已完成\'\n' +
@@ -1898,10 +1896,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '         4. 变量的更新条件是什么？\n' +
     '       第二步：按变量结构脚本和用户要求，参考下例编写规则\n' +
     '     · 示例：\n' +
-    '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\\n  ${变量}.主角评价:\\n    value: 主角对某个变量内容的即时感受\\n    check:\\n      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\\n      - 语言应保持第一人称/贴近主角口吻\\n      - 主角的评价并不会被主角本人看到，也不会在剧情中出现\n' +
+    '       ---\\n变量更新规则:\\n  世界:\\n    当前时间:\\n      format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\\n      check:\\n        - 每次事件推进、休息或旅行后更新\\n  主角:\\n    能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\\n      type: number\\n      range: 0~100\\n      category:\\n        20~40: 普通人\\n        40~70: 冒险者常驻\\n      check:\\n        - 训练、战斗、重伤等显著事件才调整\\n        - 单次变化不超过 ±10\\n    装备栏.${部位}:\\n      type: |-\\n        {\\n          装备: string;\\n          主角评价: string;\\n        }\\n      check:\\n        - 穿戴、损毁、替换装备时更新装备描述\\n  任务列表:\\n    type: |-\\n      {\\n        [任务名: string]: {\\n          类型: \'主线\'|\'支线\'|\'每日\'|\'临危受命\';\\n          说明: string;\\n          目标: string;\\n          奖励: string;\\n          惩罚: string;\\n        }\\n      }\\n    check:\\n      - 避免一次性添加超过3个主线任务\\n      - 日常任务完成后可重置但需记录冷却\\n  ${变量}.主角评价:\\n    check:\\n      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\\n      - 语言应保持第一人称/贴近主角口吻\\n      - 主角的评价并不会被主角本人看到，也不会在剧情中出现\n' +
     '9.1.4 [mvu_update]变量输出格式（对应第5条，固定内容原样输出）：世界书条目（constant=true, depth=0），定义<UpdateVariable>段的输出格式\n' +
     '     · 内容完全固定，**原封不动地输出以下 YAML，不要修改任何字段、不要加注释、不要替换占位符**：\n' +
-    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed: yes/no}\\n    - ${analyze every variable based on its corresponding `check`: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
+    '       ---\\n变量输出格式:\\n  rule:\\n    - you must output the update analysis and the actual update commands at once in the end of the next reply\\n    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\\n      - replace: replace the value of existing paths\\n      - delta: update the value of existing number paths by a delta value\\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\\n      - remove\\n      - move\\n    - don\'t update field names starts with `_` as they are readonly, such as `_变量`\\n  format: |-\\n    <UpdateVariable>\\n    <Analysis>$(IN ENGLISH, no more than 80 words)\\n    - ${calculate time passed: ...}\\n    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\\n    </Analysis>\\n    <JSONPatch>\\n    [\\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\\n      { "op": "remove", "path": "${/path/to/object/key}" },\\n      { "op": "remove", "path": "${/path/to/array/0}" },\\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\\n      ...\\n    ]\\n    </JSONPatch>\\n    </UpdateVariable>\n' +
     '     · [mvu_update]前缀适配两种更新方式：随AI输出(全部发送) / 额外模型解析(只发给变量更新AI)\n' +
     '9.1.4a [mvu_update]变量输出格式强调（对应第6条，固定内容原样输出）：世界书条目（constant=true, depth=0, enabled=false默认禁用）\n' +
     '     · 用途：当AI不输出<UpdateVariable>段时，启用此条目强制提醒AI按格式输出\n' +
@@ -2062,7 +2060,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · delta：数值增减（支持负数）；replace：文本/对象整体替换；remove：删除物品/字段/数组元素；insert：新增物品/条目/数组元素；move：移动\n' +
     '     · 路径：/白娅/依存度（相对stat_data内部，不是/stat_data/白娅/依存度）；JSON Patch的根是stat_data内部\n' +
     '     · AI绝对不得修改 _ 开头的只读字段；$开头的派生显示字段AI不写（由zod transform自动生成）\n' +
-    '9.4.3 MVU条目前缀规范：[InitVar]初始变量 / 变量列表 / 变量分段提示（EJS模板） / [mvu_update]变量更新规则 / [mvu_update]变量输出格式 / [mvu_update]变量输出格式强调\n\n' +
+    '9.4.3 MVU条目前缀规范（六大标准模板）：[InitVar]初始变量 / 变量列表 / [mvu_update]变量更新规则 / [mvu_update]变量输出格式 / [mvu_update]变量输出格式强调 / 变量结构脚本(zod)\n\n' +
     '## 9.5 🔧 MVU常见问题标准排查流程（改进22）\n' +
     '【"状态栏没有显示/空白"按此顺序查不跳步】：\n' +
     '  1. first_mes末尾有没有 <StatusPlaceHolderImpl/>（开场白注入生效没）\n' +
@@ -4024,7 +4022,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
         if ((neCore === '变量输出格式' || neCore === '变量输出格式强调') && typeof ne.content === 'string') {
-          ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content, _getParsedInitForEntries(newEntries));
+          ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content);
         }
         // 变量更新规则条目：规范化缩进/range格式/移除string的type字段
         if (neCore === '变量更新规则' && typeof ne.content === 'string') {
@@ -4724,7 +4722,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       · 严格遵循zod 4规范（详见MVU变量结构脚本创作指导）\n' +
     '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— YAML格式，严格依据第1条schema生成；schema有z.prefault()的字段可省略；enabled必须=false\n' +
     '  第3条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/format/check\n' +
-    '  第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容：<status_current_variables>null</status_current_variables>\n' +
+    '  第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容（模板4原样）：---\\n<status_current_variables>\\nnull\\n</status_current_variables>\n' +
     '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，<UpdateVariable>+<Analysis>+<JSONPatch>（5种操作：replace/delta/insert/remove/move）\n' +
     '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML原样输出，AI不输出<UpdateVariable>时启用\n' +
     '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
@@ -4914,11 +4912,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  ---\n' +
     '  变量更新规则:\n' +
     '    ${变量名}:\n' +
-    '      type: ${变量类型，string则省略}\n' +
-    '      ${其他字段如format、range等}\n' +
+    '      type: ${变量类型，如果类型是string则省略这一字段，否则要么是number、boolean等基础类型，要么使用typescript类型定义或zod schema定义（使用|-字符串块）}\n' +
+    '      ${其他合适字段，仅当非常需要时才添加如format、range等...}\n' +
     '      check:\n' +
-    '        - ${更新规则}\n' +
-    '        - ...\n\n' +
+    '        - ${该变量更新时需要检查的更新规则，如：根据角色对行为的反应调整，单次不超过±5}\n' +
+    '        - ...$(根据需要列出更新条件)\n' +
+    '    ...\n\n' +
     '【要求】\n' +
     '  - 合并同类型变量规则：\n' +
     '    * 固定键：z.object({...})和z.record(z.enum(...), ...)的键总是存在，可合并为 主角.能力面板.${力量|敏捷|体质}\n' +
@@ -4978,7 +4977,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '        - 避免一次性添加超过3个主线任务，保持焦点\n' +
     '        - 日常任务完成后可重置但需记录冷却\n' +
     '  ${变量}.主角评价:\n' +
-    '    value: 主角对某个变量内容的即时感受\n' +
     '    check:\n' +
     '      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\n' +
     '      - 语言应保持第一人称/贴近主角口吻\n' +
@@ -5003,10 +5001,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  ---\n' +
     '  变量输出格式:\n' +
     '    rule:\n' +
-    '    rule:\n' +
     '      - you must output the update analysis and the actual update commands at once in the end of the next reply\n' +
-    '      - the update commands works like the **JSON Patch (RFC 6902)** standard\n' +
-    '      - don\'t update field names starts with `_` as they are readonly\n' +
+    '      - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\n' +
+    '        - replace: replace the value of existing paths\n' +
+    '        - delta: update the value of existing number paths by a delta value\n' +
+    '        - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\n' +
+    '        - remove\n' +
+    '        - move\n' +
+    '      - don\'t update field names starts with `_` as they are readonly, such as `_变量`\n' +
     '    format: |-\n' +
     '      <UpdateVariable>\n' +
     '      <Analysis>$(IN ENGLISH, no more than 80 words)\n' +
@@ -5016,8 +5018,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '      </Analysis>\n' +
     '      <JSONPatch>\n' +
     '      [\n' +
-    '        { "op": "replace", "path": "/path/to/variable", "value": "new_value" },\n' +
-    '        { "op": "delta", "path": "/path/to/number", "value": 5 },\n' +
+    '        { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\n' +
+    '        { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\n' +
+    '        { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\n' +
+    '        { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\n' +
+    '        { "op": "remove", "path": "${/path/to/object/key}" },\n' +
+    '        { "op": "remove", "path": "${/path/to/array/0}" },\n' +
+    '        { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\n' +
     '        ...\n' +
     '      ]\n' +
     '      </JSONPatch>\n' +
@@ -5473,9 +5480,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '⚠️状态栏显示为纯文字/占位符不消失，99%是以下路径不一致导致 populateCharacterData 读不到值、写不进DOM：\n' +
       '1. 【键名语言统一】InitVar 的 YAML 键名 ↔ populateCharacterData 的 _.get 路径 ↔ 变量更新规则引用的路径，三者必须字字相同。\n' +
-      '   · 统一用英文键（如 stat_data.world.entropy），禁止中文键（如 stat_data.世界.现实熵）\n' +
-      '   · 若上方「当前角色卡内容上下文」已列出 InitVar 的实际键名，populateCharacterData 的 _.get 路径必须逐字引用那些键名，不得自创中文翻译\n' +
-      '2. 【_.get 根路径统一】populateCharacterData 中 _.get(allVars,"stat_data",{}) 的根字段 "stat_data" ↔ InitVar YAML 的根字段，两者必须都是 "stat_data"（变量列表条目标签内为 null，由 MVU 脚本读取 stat_data 根字段注入）。\n' +
+      '   · 键名语言不限（中文键如 stat_data.世界.当前时间 / 英文键均可，MVU 官方模板两种都支持），但必须三处逐字一致\n' +
+      '   · 若上方「当前角色卡内容上下文」已列出 InitVar 的实际键名，populateCharacterData 的 _.get 路径必须逐字引用那些键名，不得自创翻译\n' +
+      '2. 【_.get 根路径统一】populateCharacterData 必须从 _.get(allVars, "stat_data", {}) 取根节点，再逐变量 _.get(statData, "顶层键.子键", 默认值)——MVU 底层自动把 InitVar 的顶层键挂载到 stat_data 下（InitVar 正文**不写** stat_data 根键），变量列表条目标签内为 null，由 MVU 脚本读取 stat_data 注入。\n' +
       '3. 【逐变量id填充模式统一（用户模板标准核心）】HTML 中每个需显示的变量必须有**唯一id** ↔ populateCharacterData 中用 $(\'#id\').text(value) / $(\'#id\').html(html) 对应选择器逐变量填充。禁止使用递归 renderTree！\n' +
       '   · HTML 骨架 id 命名 ↔ populateCharacterData $(\'#id\') 选择器必须字字一一对应（错一个字母=该变量永远不显示）\n' +
       '   · 禁止"不为每个变量写id，让递归renderTree自动生成"的旧模式——用户模板已废弃该做法\n' +
@@ -6171,25 +6178,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: !hasVarList ? '无变量列表条目' : (hasVarMacro ? '变量注入格式正确' : '变量列表条目标签内缺少 null'),
       fix: hasVarList && !hasVarMacro ? '变量列表条目固定格式：---\\n<status_current_variables>\\nnull\\n</status_current_variables>，否则LLM无法读取当前变量值' : '配置正确'
     });
-    // 脚本/正则/占位符检查：基于导出态（buildExportCard 自动注入），hasAnyMVU 时直接 pass
+    // 脚本/正则/占位符检查：基于导出态（buildExportCard 自动注入 + Z5 兜底补齐缺失核心条目）
+    // ⚠️信息项：编辑态无法验证导出行为，恒 pass 但明确标注，不再伪装条件判断（原 !hasAnyMVU || true 恒真）
     results.push({
-      pass: !hasAnyMVU || true,
+      pass: true,
       category: 'MVU变量系统',
-      name: 'MVU脚本自动注入（导出时）',
+      name: 'MVU脚本自动注入（导出时·信息项）',
       desc: hasAnyMVU ? '导出时会自动注入 bundle.js 脚本到 tavern_helper.scripts' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
-      pass: !hasAnyMVU || true,
+      pass: true,
       category: 'MVU变量系统',
-      name: 'MVU必备正则自动注入（导出时）',
-      desc: hasAnyMVU ? '导出时自动注入：bundle.js本体 + 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）。\n其余8条MVU内容（第1条zod脚本/第2条InitVar/第3条更新规则/第4条变量列表/第5条输出格式/第6条格式强调/第7条占位提醒/第8条正则6）需AI按9.1.6工作流生成。' : '未使用MVU变量系统',
+      name: 'MVU必备正则自动注入（导出时·信息项）',
+      desc: hasAnyMVU ? '导出时自动注入：bundle.js本体 + 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏），Z5兜底自动补齐缺失的核心条目（InitVar/变量列表/更新规则/输出格式/格式强调）。第1条zod脚本与第8条状态栏HTML需AI按9.1.6工作流生成。' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
     results.push({
-      pass: !hasAnyMVU || true,
+      pass: true,
       category: 'MVU变量系统',
-      name: '开场白StatusPlaceHolderImpl自动追加（导出时）',
+      name: '开场白StatusPlaceHolderImpl自动追加（导出时·信息项）',
       desc: hasAnyMVU ? '导出时会自动在开场白末尾追加<StatusPlaceHolderImpl/>' : '未使用MVU变量系统',
       fix: '配置正确（导出时自动处理）'
     });
@@ -6278,6 +6286,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (str === '') return {};
       if (str === 'true' || str === 'false') return str === 'true';
       if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+      // ⚠️模板2修复：对象变量: {} / 数组变量: [] 必须解析为空对象/空数组，
+      // 原先落入字符串分支（"{}"）导致 zod 兜底生成 z.string() 而非 record/object
+      if (str === '{}') return {};
+      if (str === '[]') return [];
+      // 内联 JSON 对象/数组（如 物品栏: {"钥匙": 1}）：尝试解析，失败退回字符串
+      if (str.charAt(0) === '{' || str.charAt(0) === '[') {
+        try { return JSON.parse(str); } catch(_eJson) {}
+      }
+      if (str === 'null' || str === '~') return null;
       return str.replace(/^['"]|['"]$/g, '');
     }
 
@@ -6474,9 +6491,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const val = obj[key];
         const comma = i < keys.length - 1 ? ',' : '';
         if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
-          lines.push(padStr + escapeKey(key) + ': z.object({');
-          lines = lines.concat(genObjectLines(val, indent + 2));
-          lines.push(padStr + '}).prefault(' + genObjectDefaultInline(val) + ')' + comma);
+          if (Object.keys(val).length === 0) {
+            // ⚠️模板2修复：空对象（对象变量: {}）按 StageDog 规范生成动态键 record
+            // （数组索引难维护，物品栏/成就等可增删键对象优先 z.record），
+            // 原先生成 z.object({}).prefault({}) 属无效兜底
+            lines.push(padStr + escapeKey(key) + ": z.record(z.string(), z.string())" + comma);
+          } else {
+            lines.push(padStr + escapeKey(key) + ': z.object({');
+            lines = lines.concat(genObjectLines(val, indent + 2));
+            lines.push(padStr + '}).prefault(' + genObjectDefaultInline(val) + ')' + comma);
+          }
         } else {
           lines.push(padStr + escapeKey(key) + ': ' + genValueZod(key, val) + comma);
         }
@@ -6508,26 +6532,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return '---\n<status_current_variables>\nnull\n</status_current_variables>';
   }
 
-  // 从条目数组中解析 InitVar 内容，用于派生与本卡 schema 字段匹配的 JSON Patch 示例路径
-  // 解决 normalizeVarOutputFormatContent 缺 parsedInit 参数导致 fallback 路径覆盖修复的问题
-  function _getParsedInitForEntries(entries) {
-    if (!entries || !entries.length) return null;
-    for (var i = 0; i < entries.length; i++) {
-      var e = entries[i];
-      var c = String(e.comment || e.name || '').toLowerCase();
-      if (c.indexOf('[initvar]') >= 0 && e.content && String(e.content).trim()) {
-        var parsed = parseInitVar(e.content);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
-      }
-    }
-    return null;
-  }
+  // ⚠️已删除：_getParsedInitForEntries —— 模板5为完全固定格式（不按本卡 schema 动态生成
+  // JSON Patch 示例路径），解析 InitVar 的需求已随 fixVarOutputFormatPaths 一并移除
 
   // ===== 🧹 规范化变量输出格式/变量输出格式强调条目 content =====
-  // 这两个条目的 content 是固定 YAML 模板，AI 不应修改。
+  // 这两个条目的 content 是固定 YAML 模板（用户模板5/6），AI 不应修改。
   // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
-  // parsedInit 参数保留兼容（当前模板为固定英文模板，不再使用本卡 schema 字段动态生成路径）
-  function normalizeVarOutputFormatContent(comment, content, parsedInit) {
+  function normalizeVarOutputFormatContent(comment, content) {
     var c = (comment || '').toLowerCase();
     var isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
     if (!isFormat) return content;
@@ -6535,7 +6546,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (c.indexOf('变量输出格式强调') >= 0) {
       return generateVarOutputEmphasis();
     }
-    return generateVarOutputFormat(parsedInit);
+    return generateVarOutputFormat();
   }
 
   // ===== MVU 条目内容自动生成 =====
@@ -6546,14 +6557,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ⚠️用户规范：InitVar 只含核心字段（不写 _/$ 开头的只读/派生系统变量占位）
   //  - _开头只读系统变量 → 改由 zod 脚本通过 .prefault() 自动生成，保持初始 YAML 干净
   //  - $开头派生显示字段 → 改由 zod 的 .transform(data => { ... return data }) 自动派生
-  // 格式：世界(时间/地点) + 每个角色的好感度/状态 等核心字段（属性数值用 50 作为标准默认值，zod prefault 管理）
+  // ⚠️模板2标准顺序：角色名在前、世界在后（变量名1: 0 / 变量名2: false / 对象变量: {} / 世界: 当前日期+当前时间）
   function generateInitVarYaml(charNames) {
     // ⚠️纯净初始态：不包含 stat_data 根键；不包含 _/$ 开头字段（由 zod prefault/transform 生成）
-    const lines = [
-      '世界:',
-      '  当前日期: 2025-07-26',
-      '  当前时间: 17:36'
-    ];
+    const lines = [];
     (charNames || []).forEach(function(name) {
       lines.push(name + ':');
       lines.push('  好感度: 0');
@@ -6561,12 +6568,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (name === '主角') lines.push('  物品栏: {}');
     });
     // 如果没有主角，补一个主角最小核心字段
-    if (charNames && charNames.indexOf('主角') < 0) {
+    if (!charNames || charNames.indexOf('主角') < 0) {
       lines.push('主角:');
       lines.push('  好感度: 0');
       lines.push('  状态: 正常');
       lines.push('  物品栏: {}');
     }
+    // 世界字段固定放最后（对齐模板2）
+    lines.push('世界:');
+    lines.push('  当前日期: 2025-07-26');
+    lines.push('  当前时间: 17:36');
     return lines.join('\n');
   }
 
@@ -6575,56 +6586,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return '---\n<status_current_variables>\nnull\n</status_current_variables>';
   }
 
-  // 生成变量分段 EJS 模板内容（动态根据好感度发送不同提示）
-  // 通过 getvar() 读取 stat_data 变量值，按阈值切换提示词
-  function generateVarSegmentedPrompt(charNames) {
-    var lines = ['<% var data = getvar("stat_data") || {}; %>'];
-    (charNames || []).forEach(function(name) {
-      lines.push('');
-      lines.push('### ' + name + ' 好感度分段');
-      lines.push('<% var aff_' + name + ' = data["' + name + '"] ? data["' + name + '"].好感度 : 0; %>');
-      lines.push('<% if (aff_' + name + ' >= 80) { %>');
-      lines.push('- 【深爱】' + name + '视<user>为不可或缺的存在，情感深厚，行为中流露出强烈的依赖与眷恋');
-      lines.push('<% } else if (aff_' + name + ' >= 50) { %>');
-      lines.push('- 【好感】' + name + '对<user>有明显好感，互动中带着温柔与关注，但仍保持着适度的距离感');
-      lines.push('<% } else if (aff_' + name + ' >= 20) { %>');
-      lines.push('- 【熟识】' + name + '与<user>相识，互动自然，态度友好但尚未涉及情感层面');
-      lines.push('<% } else { %>');
-      lines.push('- 【陌生】' + name + '与<user>接触较少，关系尚浅，互动以礼貌和客气为主');
-      lines.push('<% } %>');
-    });
-    lines.push('');
-    lines.push('### 世界状态');
-    lines.push('<% if (getvar("stat_data.世界._当前剧情日") >= 3) { %>');
-    lines.push('- 【剧情已推进】当前故事已开展多日，角色关系与局势应有所变化');
-    lines.push('<% } else { %>');
-    lines.push('- 【开局阶段】故事刚刚开始，世界与角色关系处于初始状态');
-    lines.push('<% } %>');
-    return lines.join('\n');
-  }
+  // ⚠️已删除：generateVarSegmentedPrompt（变量分段/EJS 提示模板）——
+  // 不属于用户规定的 MVU 六大标准模板（结构脚本/初始变量/更新规则/变量列表/输出格式/格式强调），
+  // 且 EJS 分段提示属于8条工作流之外的额外条目，按规范全部移除
 
   // 生成变量更新规则内容（xr 函数）
-  // ⚠️规范对齐：string 省略 type；只有非string类型才写 type；使用 ${角色} 占位符（不动态生成具体角色名）
-  // ⚠️绝对零度原则：全中文 YAML；check 必须直接指出操作类型（delta/replace/insert/remove）
+  // ⚠️严格对齐用户模板3结构：
+  //   变量更新规则: → ${变量名}: → type（string省略） → ${其他合适字段仅当非常需要} → check列表
+  //   check 示例即用户模板原文："根据角色对行为的反应调整，单次不超过±5"
   function generateVarUpdateRule(charNames) {
-    // ⚠️固定模板：4 条 ${角色}.属性 规则；好感度有 type: number，其余为 string 省略 type
     const lines = [
       '---',
       '变量更新规则:',
       '  ${角色}.好感度:',
       '    type: number',
       '    check:',
-      '      - 当角色对{{user}}的行为产生正面或负面情绪反馈时更新',
-      '      - 优先使用 delta 操作，单次变动建议 ±(1~3)',
-      '  ${角色}.心情:',
-      '    check:',
-      '      - 2-4字简述当前情绪波动，使用 replace 更新',
+      '      - 根据角色对行为的反应调整，单次不超过±5',
       '  ${角色}.状态:',
       '    check:',
-      '      - 仅剧情本质推进时使用 replace 切换（正常/异常/濒死等）',
-      '  ${角色}.关系:',
-      '    check:',
-      '      - 仅关系本质性改变时使用 replace 更新，一次互动不足以越级'
+      '      - 仅剧情本质推进时更新（正常/异常/濒死等）'
     ];
     return lines.join('\n');
   }
@@ -6649,6 +6629,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     text = text.replace(/(^|\n)(\s*)stat_data\./g, '$1$2');
     // 移除 string 变量的 type: string 行（规范要求 string 类型省略 type 字段）
     text = text.replace(/^[ \t]*type\s*:\s*string[ \t]*\r?\n?/gm, '');
+    // ⚠️清理孤立键：type:string 行删除后空悬的变量名（如"主角.心情:"后面直接是下一个同级键）。
+    // 判定：任意缩进的键行，若下一个非空行的缩进不深于本键 → 无子内容，属孤立键。
+    // 根键"变量更新规则:"（缩进0）始终保留
+    var _il = text.split('\n');
+    var _iout = [];
+    for (var _ii = 0; _ii < _il.length; _ii++) {
+      var _cur = _il[_ii];
+      var _km = _cur.match(/^(\s+)(\S[^\n]*):\s*$/);   // 有缩进的键行（跳过根键/---）
+      if (_km) {
+        var _next = '';
+        for (var _nj = _ii + 1; _nj < _il.length; _nj++) {
+          if (_il[_nj].trim() !== '') { _next = _il[_nj]; break; }
+        }
+        if (_next) {
+          var _ni = (_next.match(/^(\s*)/))[1].length;
+          if (_ni <= _km[1].length) { continue; }   // 下一行不深于本键 → 孤立键，删除
+        }
+      }
+      _iout.push(_cur);
+    }
+    text = _iout.join('\n');
     // 清理因删除行可能产生的多余空行（连续 3 个及以上换行压成 2 个）
     text = text.replace(/\n{3,}/g, '\n\n');
     // check 单行字符串转列表：将 "  check: 某段文字" 转为 "  check:\n      - 某段文字"
@@ -6711,7 +6712,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 生成变量输出格式内容
   // ⚠️完全固定英文模板，原封不动输出（不要修改字段、不要加注释、不要替换占位符、不要动态生成路径示例）
   // ⚠️使用 ${...} 占位符，路径示例均为占位符（如 ${/path/to/variable}），不根据本卡 schema 动态生成
-  function generateVarOutputFormat(parsedInit) {
+  // ⚠️已删除 fixVarOutputFormatPaths/derivePatchExamples：模板5属"完全固定格式"，
+  //   任何按本卡 schema 动态改写示例路径的行为都违反规范，AI 照抄模板即可
+  function generateVarOutputFormat() {
     return ['---',
 '变量输出格式:',
 '  rule:',
@@ -6743,77 +6746,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 '    ]',
 '    </JSONPatch>',
 '    </UpdateVariable>'].join('\n');
-  }
-
-  // 从解析后的 InitVar 派生与本卡 schema 字段匹配的 JSON Patch 示例
-  // 选取：一个数值字段(delta)、一个字符串字段(replace)、一个对象/数组字段(insert/remove，若有)
-  function derivePatchExamples(parsedInit) {
-    var fallback = {
-      pathHint: '/世界/当前时间',
-      lines: [
-'      { "op": "delta", "path": "/主角/好感度", "value": 5 },',
-'      { "op": "replace", "path": "/世界/当前地点", "value": "天台" },',
-'      { "op": "insert", "path": "/主角/物品栏/新物品", "value": { "描述": "...", "数量": 1 } },',
-'      { "op": "remove", "path": "/主角/物品栏/旧物品" },',
-'      { "op": "move", "from": "/主角/物品栏/钥匙", "to": "/角色A/物品栏/钥匙" }'
-      ]
-    };
-    if (!parsedInit || typeof parsedInit !== 'object') return fallback;
-
-    var numPath = null, strPath = null, objPath = null, objKey = null;
-    var topKeys = Object.keys(parsedInit);
-    for (var i = 0; i < topKeys.length && (!numPath || !strPath || !objPath); i++) {
-      var cat = topKeys[i];
-      if (cat.charAt(0) === '_' || cat.charAt(0) === '$') continue;
-      var inner = parsedInit[cat];
-      if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
-        if (!numPath && typeof inner === 'number') numPath = '/' + cat;
-        else if (!strPath && typeof inner === 'string') strPath = '/' + cat;
-        continue;
-      }
-      var subKeys = Object.keys(inner);
-      for (var j = 0; j < subKeys.length && (!numPath || !strPath || !objPath); j++) {
-        var sk = subKeys[j];
-        if (sk.charAt(0) === '_' || sk.charAt(0) === '$') continue;
-        var sv = inner[sk];
-        var path = '/' + cat + '/' + sk;
-        if (!numPath && typeof sv === 'number') numPath = path;
-        else if (!strPath && typeof sv === 'string') strPath = path;
-        else if (!objPath && sv && typeof sv === 'object') { objPath = path; objKey = sk; }
-      }
-    }
-    if (!numPath && !strPath) return fallback;
-
-    var lines = [];
-    if (numPath) lines.push('      { "op": "delta", "path": "' + numPath + '", "value": 5 },');
-    if (strPath) lines.push('      { "op": "replace", "path": "' + strPath + '", "value": "示例值" },');
-    if (objPath) {
-      lines.push('      { "op": "insert", "path": "' + objPath + '/新条目", "value": { "描述": "...", "数量": 1 } },');
-      lines.push('      { "op": "remove", "path": "' + objPath + '/旧条目" },');
-      lines.push('      { "op": "move", "from": "' + objPath + '/条目A", "to": "/另一分类/' + (objKey || '条目') + '" }');
-    } else {
-      var moveSrc = numPath || strPath;
-      var moveDst = strPath || numPath;
-      lines.push('      { "op": "move", "from": "' + moveSrc + '", "to": "' + moveDst + '_新" }');
-    }
-    if (lines.length > 0) lines[lines.length - 1] = lines[lines.length - 1].replace(/,\s*$/, '');
-    return { pathHint: (numPath || strPath || '/分类/字段'), lines: lines };
-  }
-
-  // ⚠️修正 AI 生成的变量输出格式的示例路径，使其与本卡 schema 字段匹配
-  // 解决 AI 照抄模板路径（/主角/好感度 等）导致 JSON Patch 静默失败的问题
-  // 注意：此函数保留 AI 原有内容，仅替换 JSONPatch 数组内的示例路径；与 normalizeVarOutputFormatContent（强制重建模板）不同
-  function fixVarOutputFormatPaths(content, parsedInit) {
-    if (!content || !content.trim()) return generateVarOutputFormat(parsedInit);
-    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
-    var examples = derivePatchExamples(parsedInit);
-    // 定位 <JSONPatch> 到 </JSONPatch> 区间，整体替换数组内容为本卡字段示例
-    text = text.replace(/(<JSONPatch>\s*\[)([\s\S]*?)(\s*\]\s*<\/JSONPatch>)/, function(m, head, body, tail) {
-      return head + '\n' + examples.lines.join('\n') + '\n    ' + tail.trim();
-    });
-    // 统一 rule 中英文混杂为中文
-    text = text.replace(/rule:\s*The following must be inserted[^\n]*/i, 'rule: 必须在回复末尾输出更新分析与更新指令，不可遗漏');
-    return text;
   }
 
   // 生成变量输出格式强调内容
@@ -7638,7 +7570,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _sanitizeContent = normalizeVarListContent(_sanitizeContent);
         }
         if (_sanitizeCore === '变量输出格式' || _sanitizeCore === '变量输出格式强调') {
-          _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent, _getParsedInitForEntries(arr));
+          _sanitizeContent = normalizeVarOutputFormatContent(_sanitizeComment, _sanitizeContent);
         }
         if (_sanitizeCore === '变量更新规则') {
           _sanitizeContent = normalizeVarUpdateRuleContent(_sanitizeContent);
@@ -7915,24 +7847,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var rawExtensions = cd.extensions || v3Data.extensions || {};
     // 从角色卡数据提取角色名列表，用于 MVU 条目内容自动生成
     var charNames = extractCharNames(cd, rawEntries);
-    // ⚠️预扫描 InitVar 内容：用于派生与本卡 schema 字段匹配的 JSON Patch 示例路径
-    // 解决 AI 照抄模板路径（/主角/好感度）导致 JSON Patch 静默失败、变量永远不更新的致命问题
-    var _preParsedInit = null;
-    for (var _pi = 0; _pi < rawEntries.length; _pi++) {
-      var _pc = (rawEntries[_pi].comment || '').toLowerCase();
-      if (_pc.indexOf('[initvar]') >= 0 && rawEntries[_pi].content && rawEntries[_pi].content.trim()) {
-        _preParsedInit = parseInitVar(rawEntries[_pi].content);
-        break;
-      }
-    }
-    if (!_preParsedInit) _preParsedInit = parseInitVar(generateInitVarYaml(charNames));
     // ===== 预填充：自动填充 MVU 条目空内容（独立步骤，确保检测和schema生成使用填充后的数据）=====
+    // ⚠️六大标准模板对齐：InitVar/变量列表/更新规则/输出格式/格式强调；变量分段(EJS)已按规范移除
     var filledEntries = rawEntries.map(function(e, i) {
       var comment = e.comment || ('条目' + (i + 1));
       var commentLower = comment.toLowerCase();
       var isInitVar = commentLower.indexOf('[initvar]') >= 0;
       var isVarList = comment.indexOf('变量列表') >= 0;
-      var isVarSegmented = comment.indexOf('变量分段') >= 0 || comment.indexOf('分段提示') >= 0 || comment.indexOf('EJS') >= 0;
       var isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
       var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
       var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
@@ -7940,23 +7861,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (!outContent || outContent.trim() === '') {
         if (isInitVar) outContent = generateInitVarYaml(charNames);
         else if (isVarList) outContent = generateVarListContent();
-        else if (isVarSegmented) outContent = generateVarSegmentedPrompt(charNames);
         else if (isVarRule) outContent = generateVarUpdateRule(charNames);
-        else if (isVarFormat) outContent = generateVarOutputFormat(_preParsedInit);
+        else if (isVarFormat) outContent = generateVarOutputFormat();
         else if (isVarFormatEmphasis) outContent = generateVarOutputEmphasis();
       } else if (isVarList) {
         outContent = normalizeVarListContent(outContent);
       } else if (isInitVar && outContent) {
         // ⚠️防御性规范化：剥离 AI 误写的 stat_data 根键、过滤 _/$ 只读字段
         outContent = normalizeInitVarContent(outContent);
-        // InitVar 规范化后同步更新预解析结果，确保后续格式条目使用最新字段
-        _preParsedInit = parseInitVar(outContent);
       } else if (isVarRule && outContent) {
         // ⚠️防御性规范化：补全根节点、剥离 stat_data. 前缀、check 转列表
         outContent = normalizeVarUpdateRuleContent(outContent);
-      } else if (isVarFormat && outContent) {
-        // ⚠️防御性规范化：修正 JSON Patch 示例路径与本卡 schema 字段匹配，防止 AI 照抄模板路径
-        outContent = fixVarOutputFormatPaths(outContent, _preParsedInit);
+      } else if ((isVarFormat || isVarFormatEmphasis) && outContent) {
+        // ⚠️防御性规范化：模板5/6为完全固定格式，被 AI 改动即强制重建
+        outContent = normalizeVarOutputFormatContent(comment, outContent);
       }
       return {
         id: e.id || (i + 1),
@@ -7998,7 +7916,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // [mvu_update]变量输出格式
       if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0 && (e.comment || '').indexOf('强调') < 0; })) {
-        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(_preParsedInit), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式', content: generateVarOutputFormat(), constant: true, selective: false, insertion_order: 100, enabled: true, position: 4, use_regex: true, extensions: {} });
+        _idx++;
+      }
+      // ⚠️迭代：补齐模板6 [mvu_update]变量输出格式强调（默认 enabled=false——
+      // 仅在测试发现 AI 不输出 <UpdateVariable> 块时才手动启用，六大模板缺一不可）
+      if (!mvuEntryExists(function(e) { return (e.comment || '').indexOf('变量输出格式强调') >= 0; })) {
+        _toAppend.push({ id: _idx + 1, keys: [], secondary_keys: [], comment: '[mvu_update]变量输出格式强调', content: generateVarOutputEmphasis(), constant: true, selective: false, insertion_order: 100, enabled: false, position: 4, use_regex: true, extensions: {} });
         _idx++;
       }
       if (_toAppend.length) {
@@ -8043,8 +7967,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 注意：空内容填充已移至预填充步骤，此处仅保留类型检测用于 enabled 逻辑
       var commentLower = comment.toLowerCase();
       var isInitVar = commentLower.indexOf('[initvar]') >= 0;
-      var isVarList = comment.indexOf('变量列表') >= 0;
-      var isVarSegmented = comment.indexOf('变量分段') >= 0 || comment.indexOf('分段提示') >= 0 || comment.indexOf('EJS') >= 0;
       var isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
       var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
       var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
@@ -8120,8 +8042,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var hasVarList = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量列表') >= 0; });
     var hasVarUpdate = filledEntries.some(function(e) { return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量更新规则') >= 0; });
     var hasVarFormat = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量输出格式') >= 0; });
-    var hasVarSegmented = filledEntries.some(function(e) { return (e.comment || '').indexOf('变量分段') >= 0 || (e.comment || '').indexOf('分段提示') >= 0 || (e.comment || '').toLowerCase().indexOf('ejs') >= 0; });
-    var hasMVUEntries = !!(hasInitVar && (hasVarList || hasVarUpdate || hasVarFormat || hasVarSegmented));
+    var hasMVUEntries = !!(hasInitVar && (hasVarList || hasVarUpdate || hasVarFormat));
     // 宽泛匹配：只要存在任意 MVU 核心条目（即使无 [InitVar]）也视为 MVU 卡
     var hasAnyMVU = hasMVUEntries || filledEntries.some(function(e) { return isMVUEntry(e.comment || ''); });
     // 最终使用宽泛匹配结果，确保只要有任意 MVU 条目就注入脚本
@@ -12202,7 +12123,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
             if (_cleanedContent && (cleanComment.indexOf('变量输出格式') >= 0)) {
-              _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent, _getParsedInitForEntries((cd.character_book && cd.character_book.entries) || []));
+              _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent);
             }
             // 变量更新规则条目：规范化缩进/range格式/移除string的type字段
             if (_cleanedContent && cleanComment.indexOf('变量更新规则') >= 0) {
