@@ -1749,7 +1749,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**【通用多阶段状态变量生成指导】**：\n' +
     '- 适用场景：好感度/关系阶段、剧情进度/章节分支、系统模式/状态切换、属性等级/境界突破 等任意需要分阶段/分档位/分状态的变量体系。\n' +
     '- 设计流程（仅用户明确要求分阶段时执行）：①阶段划分：确认阶段数量、每个阶段的触发阈值/条件、阶段命名；②字段设计：核心判定变量、阶段标记变量、只读派生变量（$开头，AI只读不更新）；③切换规则：阶段跳转的触发条件、联动变更的字段、边界兜底；④注入逻辑（可选）：不同阶段是否注入不同的世界书内容/提示规则。\n' +
-    '- 输出规范（仅用户明确要求分阶段时输出）：①变量结构中新增阶段相关字段定义（派生字段统一用$前缀）；②初始变量中设置开局默认阶段；③更新规则中补充阶段判定逻辑、边界约束、联动变更规则；④如需动态注入内容，配套生成EJS控制器条目或injectPrompts脚本条目。\n' +
+    '- 输出规范（仅用户明确要求分阶段时输出）：①变量结构中新增阶段相关字段定义（派生字段统一用$前缀）；②初始变量中设置开局默认阶段；③更新规则中补充阶段判定逻辑、边界约束、联动变更规则；④如需动态注入内容，请切换到MVU变量状态栏Tab处理。\n' +
     '- 通用约束（多阶段严格执行）：阶段阈值边界清晰，无重叠无遗漏；阶段切换必须有明确触发条件，禁止无理由跳转；派生阶段字段用$开头标记为AI只读，由脚本/zod transform自动计算；阶段变更必须同步更新关联状态，保持数据一致性。\n\n' +
     '=== ⚠️⚠️⚠️ 内容尺度控制（最高优先级，违反将导致任务失败） ===\n' +
     '1. **默认全年龄向**：除非用户明确要求NSFW/成人/色情/暗黑等内容，否则所有内容必须保持全年龄向\n' +
@@ -1827,15 +1827,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 条目前缀：<叙事背景>、<故事发展>、<文化与习俗>、<历史事件>\n\n' +
     '**第三部分：1套动态适配系统 + 1套变量系统**\n\n' +
     '### 8. 动态适配系统\n' +
-    '- ST能力：<动态适配>多开局 + depth_prompt新手引导 + regex_scripts + MVU内置宏变量\n' +
+    '- ST能力：<动态适配>多开局 + depth_prompt新手引导 + MVU内置宏变量\n' +
     '- 内容：\n' +
     '  1. 多开局分支：3个不同身份/难度的备用开场白\n' +
     '  2. 渐进引导：前10轮自动注入新手提示，达到深度后自动消失\n' +
     '  3. 变量模板：全内容适配ST原生宏变量（{{user}}/{{random:A,B}}/{{roll:XdY}}/{{date}}/{{time}}）\n' +
-    '  4. 状态正则：基础状态自动同步脚本\n' +
     '- 条目前缀：<动态适配>、<引导机制>、<互动选项>、<状态栏>\n\n' +
     '### 9. MVU变量系统（MagVarUpdate zod，进阶可选）【改进19：结构化分段（弱模型召回）】\n' +
-    '- 【总览】8条工作流（第1条zod脚本 + 第2-7条世界书条目 + 第8条状态栏正则）+ 三条联动机制 + 九条铁则（写卡器仅自动注入 bundle.js/正则1-5；其余8条MVU内容全部由AI在MVU Tab按9.1.6工作流一条一条生成）\n' +
+    '- 【总览】8条工作流（第1条zod脚本 + 第2-7条世界书条目 + 第8条状态栏正则）+ 九条铁则（写卡器仅自动注入 bundle.js/正则1-5；其余8条MVU内容全部由AI在MVU Tab按9.1.6工作流一条一条生成）\n' +
     '- 【Tab隔离】状态栏生成/正则6/8条MVU条目已迁移至「MVU变量状态栏」Tab，本Tab（角色卡生成）不生成。如需生成，请提示用户切换Tab。\n' +
     '- 【灰色模式】本Tab可在普通世界书条目中讨论/规划变量结构（如"变量设计说明""schema草案"），但带[InitVar]/[mvu_update]/StatusPlaceHolderImpl/<UpdateVariable>/format_message_variable/stat_data等功能性标记的真实MVU条目仍会被拦截——这些必须到MVU Tab生成。\n' +
     '- 【状态栏实现二选一】简单项目=【写卡器标准原生方案】（MVU Tab的Step 1-7流程，教的就是这个）；复杂大型界面=【StageDog官方Vue3+Pinia组件化方案】（需webpack打包，参考示例但不在本流程）。绝对禁止混用！\n' +
@@ -1877,7 +1876,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       ⚠️ zod 已 .transform(v => _.clamp(v, min, max)) 时不要写 range/category（zod已保证合法值）\n' +
     '       ⚠️ zod 已派生 $XXX阶段 时不要写 category（阶段由脚本自动维护）\n' +
     '     · 【合并同类型规则以省 token】\n' +
-    '       - 固定键合并：z.object/z.record(z.enum(...)) 的键永远存在，更新规则相似时合并为 ${键1|键2|键3}\n' +
+    '       - 固定键合并：固定键对象的键永远存在，更新规则相似时合并为 ${键1|键2|键3}\n' +
     '         · 例：主角.能力面板.力量/敏捷/体质/感知/意志/魅力 → 主角.能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值\n' +
     '         · 同理适用于 ${变量}.主角评价 这类共通评价字段\n' +
     '       - 动态键合并：z.record(z.string())/z.partialRecord(z.enum(...)) 的键可能为空或多种，路径写父对象，键放进 type 的 index signature\n' +
@@ -1908,75 +1907,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '9.1.4b <状态栏>占位符提醒（对应第7条）：世界书条目（constant=true, depth=0）\n' +
     '     · 用途：提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>，状态栏正则(第8条)会替换它为状态栏HTML\n' +
     '     · 内容固定：---\\n<状态栏占位符提醒>\\n  - 每条回复的末尾必须输出 <StatusPlaceHolderImpl/>，这是状态栏渲染的锚点\\n  - 不要在回复中间输出此标签，只在最末尾输出一次\n' +
-    '9.1.5 变量结构脚本（对应第1条）：tavern_helper.scripts脚本（AI在MVU Tab按9.1.6工作流一条一条生成），用zod 4库定义变量结构并registerMvuSchema注册\n' +
-    '     · 创作流程（严格按3步执行，不要跳步）：\n' +
-    '       第一步：了解需求，向用户询问\n' +
-    '         1) 这是什么类型的角色卡/世界观？（角色扮演/模拟经营/军事模拟等）\n' +
-    '         2) 需要追踪哪些主要内容？——角色（主角/配角/NPC）、系统变量（时间/日期/金钱等）、每角色追踪字段（好感度/位置/状态等）\n' +
-    '         3) 哪些部分需要限定值？——数值范围/文本格式、是否可加新角色、哪些对象可增删键（物品栏/成就/技能）、是否限对象键数量\n' +
-    '       第二步：确认结构，用自然语言列出结构大纲让用户确认\n' +
-    '         顶层结构：┬ 系统变量（日期/时间/...）├ 角色1（基础属性/...）├ 角色2 └ ...\n' +
-    '       第三步：按zod 4规范编写变量结构.js脚本（严格遵循下面的zod要求和头尾模板）\n' +
-    '     · zod 4 额外zod要求（强制遵守）：\n' +
-    '       - 库：`z` from zod 4.x（只用4.x API！）；`_` from lodash；两库默认可用，不要 import；不要用 z.passthrough/z.strict（不存在）\n' +
-    '       - 幂等：Schema.parse(Schema.parse(input)) === Schema.parse(input)；z.transform 谨慎写，fn 只能接 output，**不可用 context**\n' +
-    '       - 数值：z.coerce.number()（非 z.number()，防AI把数值更新成文本）；boolean 直接 z.boolean()，不要 z.coerce.boolean()\n' +
-    '       - 选对象不选数组：用 物品栏: z.record(z.string().describe(\'物品名\'), z.object({描述:z.string(), ...})) 而非 z.array(...) （数组下标难维护）\n' +
-    '       - 对象 5 种场景：\n' +
-    '         (a) 固定必填键+同类型值：z.record(z.enum([\'上装\',\'下装\']), z.string())\n' +
-    '         (b) 固定可选键+同类型值：z.partialRecord(z.enum([...]), 值类型)\n' +
-    '         (c) 动态可选键+同类型值：z.record(z.string(), 值类型)\n' +
-    '         (d) 固定必填键+不同类型值：z.object({ key1: 类型1, key2: 类型2 })\n' +
-    '         (e) 部分必填+动态同类型：z.intersection(z.object({必填字段}), z.record(z.string(), 值类型))\n' +
-    '       - 可清除对象（会被 remove op 删的）：z.object({字段: 类型.prefault(...), ...}).prefault({})，**不要** z.object({...}).optional()\n' +
-    '       - 约束优先 transform 而不是 min/max：clamp(v,0,100) 而不是 .min(0).max(100)（超范围用户期望部分生效而非整体丢弃）。键上限按插入时间清旧：_(data).entries().takeRight(10)\n' +
-    '       - 默认值：.prefault() 优先于 .default()；复合类型 prefault → 所有子字段也必须 prefault；其他情况不要随便 prefault\n' +
-    '       - describe：仅字段名不能自解释时（如 z.record 的 key 类型）才用；不要画蛇添足\n' +
-    '       - 插入顺序管理：按插入时间清/取 → _(data).entries()；需排序追踪 → 加 $time: z.coerce.number().prefault(() => Date.now())\n' +
-    '       - DRY：相同 schema 直接在 export const Schema = z.object({...}) 内复用，不额外定义中间量\n' +
-    '       - 特殊格式字符串：z.templateLiteral([z.literal(\'D\'), z.coerce.number(), ...]) 优先于正则/手动解析\n' +
-    '     · 既有规则（继续严格执行）：\n' +
-    '       - 范围限制用 .transform(v => _.clamp(v, 0, 100))（非 .min().max()）\n' +
-    '       - .transform限制：fn 只能接 output，不可用 context；例：z.object({好感度:z.coerce.number()}).transform(d=>({好感度:_.clamp(d.好感度,0,100)}))\n' +
-    '       - .prefault限制：value 必须是该 schema 的合法 input；可为值/函数（如 () => Date.now()）\n' +
-    '       - .extend限制：只有 z.object/z.looseObject/z.strictObject 能 extend；z.object(...).prefault({}) 不能再 extend\n' +
-    '       - 枚举限制用 z.enum([\'值1\',\'值2\',...])；联合类型用 z.union([z.literal(\'待初始化\'), z.coerce.number()])\n' +
-    '     · 三条命名铁律（严格执行）：\n' +
-    '       1) 字段用中文，禁止中英混杂\n' +
-    '       2) 层级：一级=大分类(世界/角色名/主角/系统)，二级=属性，三级=子属性；禁止平铺（"角色_白娅_好感度"）；深度≤4\n' +
-    '       3) 前缀：_开头=AI只读不更新；$开头=派生显示专用字段（zod transform生成，populateCharacterData显示、AI不更新）；无前缀=普通可读写\n' +
-    '     · 头尾模板（必须原封不动抄，不要改 import URL 和 registerMvuSchema 调用）：\n' +
-    '       文件头：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
-    '       中段：export const Schema = z.object({ ...你的schema... });\n' +
-    '       文件尾：$(() => { registerMvuSchema(Schema); })\n' +
-    '     · transform 后处理可实现：称号数量依存度绑定、物品数量<=0自动过滤、派生$阶段字段等动态规则\n' +
-    '     · 完整示例（按此格式输出为```js代码块）：\n' +
-    '       import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
-    '       export const Schema = z.object({\n' +
-    '         世界: z.object({\n' +
-    '           当前时间: z.string(),\n' +
-    '           当前地点: z.string(),\n' +
-    '           近期事务: z.record(z.string().describe(\'事务名\'), z.string().describe(\'事务描述\')),\n' +
-    '         }),\n' +
-    '         白娅: z.object({\n' +
-    '           依存度: z.coerce.number().prefault(0).transform(v => _.clamp(v, 0, 100)),\n' +
-    '           着装: z.record(z.enum([\'上装\',\'下装\',\'内衣\',\'袜子\',\'鞋子\',\'饰品\']), z.string().describe(\'服装描述\')),\n' +
-    '           称号: z.record(z.string().describe(\'称号名\'), z.object({效果: z.string(), 自我评价: z.string()})),\n' +
-    '         }).transform(data => ({ ...data, 称号: _(data.称号).entries().takeRight(Math.ceil(data.依存度/10)).fromPairs().value() })),\n' +
-    '         主角: z.object({\n' +
-    '           物品栏: z.record(z.string().describe(\'物品名\'), z.object({描述: z.string(), 数量: z.coerce.number()}))\n' +
-    '             .transform(d => _.pickBy(d, ({数量}) => 数量 > 0)),\n' +
-    '         }),\n' +
-    '       });\n' +
-    '       $(() => { registerMvuSchema(Schema); })\n' +
-    '     · 注意事项：①变量名可用中文；②此脚本只是第1条变量结构，还需按9.1.6工作流逐条生成第2-8条（每条停下等"继续"）；③写MVU Tab时，脚本输出后给用户一句："已生成第1条，说\'继续\'生成第2条[InitVar]初始变量"\n' +
     '\n' +
     '## 9.1.6 MVU变量条目生成工作流（⚠️逐条生成，禁止一次性塞全部）\n' +
     '     · 【两阶段总览】\n' +
     '       Phase A（前7条）：第①-⑦条MVU条目，逐条生成，每条停下等"继续"\n' +
     '       Phase B（第8条）：前7条全部完成后，才进入状态栏HTML制作（Step2-6共5模块）\n' +
     '     · 【8条固定顺序（严格按此顺序，不能跳步）】\n' +
-    '       第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema）—— 见 9.1.5\n' +
+    '       第1条：变量结构脚本 —— 由MVU变量状态栏Tab生成\n' +
     '       第2条：[InitVar]初始变量（世界书条目，enabled=false）—— 依据第1条 schema 生成 YAML，见 9.1.1\n' +
     '       第3条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条 schema 生成 check/type/range，见 9.1.3\n' +
     '       第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容，见 9.1.2\n' +
@@ -2001,7 +1938,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '              · 没有 → 帮用户在第1条中**新增**对应字段（如 上装/下装/丝袜/鞋子），同时在第2条里补默认值；\n' +
     '              · 有了 → 跳过新增，直接进入步骤B；\n' +
     '       步骤B：变量结构改了，所有依赖 schema 的关联条目必须**一条一条**跟着改完（不能只改一条就停）：\n' +
-    '              · 第1条 变量结构脚本（zod schema）—— 加字段；\n' +
+    '              · 第1条 变量结构脚本 —— 加字段；\n' +
     '              · 第2条 [InitVar]初始变量 —— 加默认值；\n' +
     '              · 第3条 [mvu_update]变量更新规则 —— 加 check/type/range；\n' +
     '              · 第4/5/6/7条 —— 原样不动（固定 YAML / 固定内容）；\n' +
@@ -2009,47 +1946,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '       步骤C：每改完一条，写卡器后台立即写入 cardData 并 renderPreview，用户实时看到结果；\n' +
     '       步骤D：8 条全部改完后，告诉用户"全部关联条目已更新，可在预览查看，确认无误后点写入酒馆"；\n' +
     '       ⚠️【防漏铁律】哪怕用户只说"加一个字段"，也必须把第1/2/3/8条全部改完（第4/5/6/7条原样保留），少一条都会导致状态栏显示不全或变量更新失败\n' +
-    '\n' +
-    '## 9.2 三条联动机制\n' +
-    '9.2.1 酒馆助手脚本API（StageDog标准，状态栏渲染+事件响应6条）：\n' +
-    '     · 变量读取（状态栏渲染推荐）：优先getVariables({type:"message", message_id:"latest"})，fallback getAllVariables()；用_.get(res,"stat_data",{})取根。UI用消息级scope，不要直接Mvu.getVar（有时序失效问题）\n' +
-    '     · 通用读取：Mvu.getVar("stat_data") / Mvu.getMvuData() / Mvu.getVar("stat_data.角色.好感度")\n' +
-    '     · 写入：Mvu.setVar("stat_data.角色.好感度", 80) / Mvu.patchVar([{op:"replace",...}])\n' +
-    '     · StageDog标准两步就绪：先await waitGlobalInitialized("Mvu")，再while+setTimeout每秒_.has(getVariables({type:"message"}),"stat_data")（最多15秒）——此为waitUntil模式\n' +
-    '     · 顶层入口（StageDog标准）：$(async function(){ try { ...逻辑... } catch(e){console.warn(e)} }) —— jQuery ready+async，顶层不用errorCatched（仅pinia store内部setup用）\n' +
-    '     · 主同步（defineMvuDataStore标准策略）：setInterval(刷新函数,2000)每2秒轮询；事件VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED仅作加分兜底，UI不得依赖\n' +
-    '9.2.2 【改进14：新增 injectPrompts 立即事件（StageDog原生阈值触发最强模式）】\n' +
-    '     · 作用：变量阈值命中时，动态注入/撤回 system prompt，直接改变AI行为（比EJS更精准、可堆叠、可独立启用禁用）\n' +
-    '     · 用法：放在tavern_helper.scripts局部脚本中：\n' +
-    '       $(async () => { injectPrompts([{ \n' +
-    '         id: "冲动啊，请平息吧",\n' +
-    '         position: "none", depth: 0, role: "system", should_scan: true,\n' +
-    '         filter: () => _.get(getAllVariables(), "stat_data.白娅.依存度") === 0,\n' +
-    '         content: "【【冲动啊，请平息吧】】：此时白娅正处于自我毁灭边缘，她的一切行为都带有自毁倾向、拒绝沟通、攻击性强的语义。",\n' +
-    '       }]); });\n' +
-    '     · 典型场景：依存度=0→注入"你正自我毁灭"；好感度≥80→注入"你完全信任主角"；拥有稀有道具→注入特殊行为提示\n' +
-    '     · 与EJS动态模板对比：\n' +
-    '       - EJS改的是世界书条目里的静态内容（字符串替换），适合按阶段改角色人设/称呼段落\n' +
-    '       - injectPrompts改的是system prompt（按阈值启停、可堆叠、可独立禁用），适合行为模式/临时规则/特殊触发的动态注入\n' +
-    '       - 两者可叠加使用\n' +
-    '9.2.3 EJS动态模板（可选，按变量值分段修改世界书条目里的静态内容）：\n' +
-    '     · 使用 getvar("stat_data.角色.好感度") 按阈值分段\n' +
-    '     · 示例：<% if (getvar("stat_data.白娅.好感度") >= 50) { %>温柔依赖模式<% } %>\n' +
-    '     · 分段建议：≥80深爱 / ≥50好感 / ≥20熟识 / <20陌生\n' +
-    '     · 典型场景：按好感度/剧情日切换角色语气、称呼、行为段落\n' +
-    '\n' +
-    '## 9.3 正则与占位符流水线（写卡器自动注入正则1-5 + AI生成正则6）\n' +
-    '9.3.1 正则1-5（写卡器自动注入，AI不用管）：\n' +
-    '     · 正则1（promptOnly）：从提示词移除<Analysis>段\n' +
-    '     · 正则2（promptOnly, minDepth=4）：移除旧消息<UpdateVariable>段，仅保留最近2楼\n' +
-    '     · 正则3（markdownOnly）：美化已完成的<UpdateVariable>折叠显示\n' +
-    '     · 正则4（markdownOnly）：美化正在输出的<UpdateVariable>流式动画\n' +
-    '     · 正则5（promptOnly）：从提示词移除<StatusPlaceHolderImpl/>占位符\n' +
-    '9.3.2 <状态栏>占位符提醒条目（AI在MVU Tab按9.1.6工作流一条一条生成，constant=true常驻）：提醒AI每条消息底部输出<StatusPlaceHolderImpl/>\n' +
-    '9.3.3 正则6【AI必须生成】：[美化]MVU状态栏（markdownOnly=true, promptOnly=false）\n' +
-    '     · findRegex = /<StatusPlaceHolderImpl\\/>/g；replaceString = 用```包裹的完整HTML状态栏（MVU Tab Step 2-6共5槽位拼接）\n' +
-    '     · 三版正则区分：promptOnly只改发给AI的提示词；markdownOnly只改显示渲染；全局版（无标记）改所有内容\n' +
-    '9.3.4 状态栏占位符4层流水线：开场白自动追加→提醒条目触发AI自觉写→正则5从提示词移除→正则6显示时替换成HTML\n' +
     '\n' +
     '## 9.4 初始化与更新铁则\n' +
     '9.4.1 变量初始化（两种方式）：\n' +
@@ -2061,27 +1957,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     · 路径：/白娅/依存度（相对stat_data内部，不是/stat_data/白娅/依存度）；JSON Patch的根是stat_data内部\n' +
     '     · AI绝对不得修改 _ 开头的只读字段；$开头的派生显示字段AI不写（由zod transform自动生成）\n' +
     '9.4.3 MVU条目前缀规范（六大标准模板）：[InitVar]初始变量 / 变量列表 / [mvu_update]变量更新规则 / [mvu_update]变量输出格式 / [mvu_update]变量输出格式强调 / 变量结构脚本(zod)\n\n' +
-    '## 9.5 🔧 MVU常见问题标准排查流程（改进22）\n' +
-    '【"状态栏没有显示/空白"按此顺序查不跳步】：\n' +
-    '  1. first_mes末尾有没有 <StatusPlaceHolderImpl/>（开场白注入生效没）\n' +
-    '  2. 世界书里有没有 <状态栏>占位符提醒 条目且 enabled=true constant=true\n' +
-    '  3. regex_scripts 里有没有**两条** StatusPlaceHolderImpl（正则5 promptOnly隐藏 + 正则6 markdownOnly美化）\n' +
-    '  4. 正则6 findRegex是不是 /<StatusPlaceHolderImpl\\/>/g 且 markdownOnly=true promptOnly=false\n' +
-    '  5. 浏览器Console搜 [statusbar] init failed → 看报错（最常见是 while 循环找不到stat_data=InitVar没加载或zod字段名对不上）\n' +
-    '  6. 控制台执行 getVariables({type:"message"}) → 有没有stat_data：\n' +
-    '     · 没有 = MVU没初始化 → 查 bundle.js / zod 脚本\n' +
-    '     · 有 = populateCharacterData逻辑问题\n' +
-    '  7. getAllVariables().stat_data 有值但上条没值 = 消息级scope没同步 → 查 Step 6 while循环 _waitCount < 15（MVU初始化慢）\n' +
-    '【"变量没更新/AI写完<UpdateVariable>数值没变"按此顺序查】：\n' +
-    '  1. JSON Patch路径对不对：/白娅/好感度，不是/stat_data/白娅/好感度（根是stat_data内部）\n' +
-    '  2. 操作对不对：number增减用delta不是replace；对象整替换用replace；数组尾插用 insert path="/xxx/-"\n' +
-    '  3. zod里该字段是不是 _ 开头（只读，AI写了被丢弃）\n' +
-    '  4. Console搜 Mvu.events → VARIABLE_UPDATE_ENDED 触没触发，前后值分别是什么\n\n' +
     '=== ST完整参数体系（必须正确使用） ===\n\n' +
     '**触发精准类**：\n' +
     '- keys：主关键词，任意一个命中即触发\n' +
-    '  - 支持纯文本（逗号分隔）和正则表达式（用/包裹，如/weather|rain/i）\n' +
-    '  - 中文场景建议使用use_regex=true实现更灵活的匹配\n' +
     '  - 每条目建议3-8个触发词，覆盖主要变体说法\n' +
     '- secondary_keys：次级关键词，与主关键词组合实现「与逻辑」触发\n' +
     '  - selectiveLogic=0 (AND_ANY)：主键命中 + 任一次级键命中 → 触发\n' +
@@ -2089,7 +1967,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  - selectiveLogic=2 (NOT_ANY)：主键命中 + 次级键都不命中 → 触发\n' +
     '  - selectiveLogic=1 (NOT_ALL)：主键命中 + 次级键不全命中 → 触发\n' +
     '  - 典型用法：场景限定（"战斗" + "受伤"）、角色限定（"对话" + "NPC名"）\n' +
-    '- use_regex：启用正则匹配，优先级最高\n' +
     '- match_whole_words：全词匹配，仅英文生效，中文场景禁用（设为null）\n' +
     '- scan_depth：限制关键词扫描的历史消息深度\n' +
     '  - 常驻规则设为0（不扫描历史）\n' +
@@ -2244,26 +2121,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- match_creator_notes：匹配创作者笔记\n' +
     '  - 以上match_*字段：设为true时，除了扫描消息，还扫描对应角色卡字段\n' +
     '  - 典型用法：让某些条目在角色卡描述包含特定关键词时也触发\n\n' +
-    '**正则触发键（高级功能，极大增强触发灵活性）**：\n' +
-    '- keys数组中的元素如果是 /pattern/flags 格式，会被当作正则表达式匹配\n' +
-    '  - 支持完整JavaScript正则语法：g(全局), i(忽略大小写), s(点匹配换行), m(多行), u(Unicode)\n' +
-    '  - 普通键用逗号分隔（不支持逗号），正则键可包含逗号，作为独立key输入\n' +
-    '  - 例：keys=["修炼", "/境界|修为/i", "/(练气|筑基|金丹).*期/"]\n' +
-    '\n' +
-    '- 高级Per-Message匹配（精确控制谁触发）：\n' +
-    '  - ST在每条消息前添加 \\x01角色名: 前缀，可用正则精确匹配特定说话者\n' +
-    '  - 只匹配用户说的话：/\\x01{{user}}:[^\\x01]*?关键词/i\n' +
-    '  - 只匹配AI说的话：/\\x01{{char}}:[^\\x01]*?关键词/i\n' +
-    '  - 匹配任意角色：/\\x01[^\\x01]*?:[^\\x01]*?关键词/i\n' +
-    '  - 例：只在用户提到"系统"时触发：keys=["/\\x01{{user}}:[^\\x01]*?系统/i"]\n' +
-    '  - 例：只在AI描述天气时触发：keys=["/\\x01{{char}}:[^\\x01]*?(下雨|晴天|下雪)/i"]\n' +
-    '\n' +
-    '- 正则触发键设计原则：\n' +
-    '  - 优先用普通关键词，复杂场景再用正则（性能考虑）\n' +
-    '  - 正则尽量精确，避免过度匹配\n' +
-    '  - 捕获组不影响触发，仅用于匹配判断\n' +
-    '  - 中文场景建议加i标志（不影响中文但更安全）\n' +
-    '  - 需要区分说话者时用\\x01前缀方案\n\n' +
     '**其他字段**：\n' +
     '- comment：条目备注/标题，仅UI显示，不参与触发逻辑\n' +
     '  - 强烈建议使用规范前缀命名（见下方命名规范）\n' +
@@ -2322,442 +2179,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · 玩家选选项后，<动态适配>分支开局条目（keys含"实验楼/体育馆"）被蓝灯绿灯/关键词激活\n' +
     '  · 激活后用 <UpdateVariable><initvar>YAML</initvar></UpdateVariable> 覆盖 MVU 初始变量，实现多开局\n' +
     '\n' +
-    '**regex_scripts**：\n' +
-    '- 自动生成基础状态同步正则脚本\n' +
-    '- 无需插件实现动态状态栏、格式化、内容替换等功能\n' +
-    '- 正则脚本按顺序执行，前一个的输出是后一个的输入\n' +
-    '- **脚本类型**：\n' +
-    '  · Global脚本：全局生效，保存在settings.json，适用于所有角色卡\n' +
-    '  · Scoped脚本：仅对当前角色卡生效，保存在角色卡数据中\n' +
-    '  · 生成角色卡时使用Scoped脚本（保存在extensions.regex_scripts中）\n' +
-    '- **脚本执行顺序**：按脚本列表顺序执行，前一个的输出是后一个的输入\n' +
-    '- **Ephemerality临时性设置**（控制是否写入聊天文件）：\n' +
-    '  · promptOnly=true：只修改发送给模型的提示词，不改变显示，不写入聊天文件\n' +
-    '    用途：偷偷给模型加规则/改格式，用户看不到变化\n' +
-    '  · 默认（都不设置）：直接修改聊天内容，显示和模型一致，永久保存\n' +
-    '  · 注意：promptOnly模式用户和模型看到的内容不同，需谨慎使用\n\n' +
-    '**完整字段说明**：\n' +
-    '- scriptName：脚本名称（仅UI显示，不影响功能）\n' +
-    '- findRegex：查找的正则表达式，格式为 /pattern/flags\n' +
-    '  - 支持JavaScript正则语法，可用标志：g(全局), i(忽略大小写), s(点匹配换行), m(多行), u(Unicode)\n' +
-    '  - 捕获组：用 $1, $2... 在replaceString中引用匹配的分组\n' +
-    '  - 命名组：(?<name>pattern) 用 $<name> 引用\n' +
-    '- replaceString：替换为的内容\n' +
-    '  - 支持 $1-$9 引用捕获组\n' +
-    '  - 支持 $& 引用整个匹配\n' +
-    "  - 支持 $` 引用匹配前的文本，$' 引用匹配后的文本\\n" +
-    '  - 支持 {{match}} 宏引用整个匹配（与$&等效，但更直观）\n' +
-    '  - 当substituteRegex>0时，支持ST宏变量（{{user}}, {{char}}, {{random:A,B}}, {{roll:XdY}}等）\n' +
-    '- trimStrings：要移除的字符串数组（在替换后执行）\n' +
-    '  - 常用于清理多余的换行、空格、特定标记\n' +
-    '  - 按数组顺序逐个移除\n' +
-    '- placement：应用位置数组（可多选）\n' +
-    '  - 0 = User Input（用户输入）：处理用户发送的消息\n' +
-    '  - 1 = AI Response（AI回复）：处理AI生成的回复\n' +
-    '  - 2 = Slash Commands（斜杠命令）：处理/命令的输出\n' +
-    '  - 3 = World Info（世界信息）：处理世界书条目内容\n' +
-    '  - 4 = Reasoning（推理内容）：处理推理模型的推理过程\n' +
-    '  - 常用组合：状态栏格式化用[0,1]，世界书处理用[3]\n' +
-    '- disabled：是否禁用（true=禁用，false=启用）\n' +
-    '- markdownOnly：仅处理Markdown内容（不处理纯文本）\n' +
-    '  - 适合处理加粗、列表等markdown格式\n' +
-    '- promptOnly：仅在发送到模型的提示词中生效（不改变显示）\n' +
-    '  - 适合偷偷修改提示词结构，用户看不到变化\n' +
-    '- runOnEdit：编辑消息时是否重新执行\n' +
-    '  - 建议状态栏类脚本设为true\n' +
-    '- substituteRegex：宏替换模式\n' +
-    '  - 0 = 不替换宏：findRegex和replaceString中的宏保持原样\n' +
-    '  - 1 = 原始替换：在正则执行前替换宏变量\n' +
-    '  - 2 = 转义替换：替换宏并转义特殊字符（推荐用于宏作为模式的一部分时）\n' +
-    '  - 典型用法：要匹配{{char}}的名字时用2，replaceString中用{{user}}时用1\n' +
-    '- minDepth / maxDepth：生效深度范围（null=不限制）\n' +
-    '  - minDepth：从第几条消息开始生效（0=最新消息）\n' +
-    '  - maxDepth：最多到第几条消息\n' +
-    '  - 适合渐进式提示（如前N轮显示引导，之后自动消失）\n' +
-    '  - minDepth=-1或空白：Unlimited，也会影响Continue操作的续写消息\n' +
-    '  - 系统提示和工具提示不受深度设置影响\n' +
-    '- 临时性/Ephemerality设置（控制是否写入聊天文件）：\n' +
-    '  - promptOnly=true：只修改发送给模型的提示词，不改变显示，也不写入聊天文件\n' +
-    '    · 用途：偷偷给模型加规则/改格式，用户看不到变化\n' +
-    '    · 对应官方Alter Outgoing Prompt选项\n' +
-    '  - 两个都不设置（默认）：直接修改聊天文件内容，显示和模型看到的一致，修改永久保存\n' +
-    '  - 注意：promptOnly模式下，用户看到的和模型收到的内容不一样，需谨慎使用\n' +
-    '- 正则标志（flags）：写在findRegex的//后面，如/pattern/gi\n' +
-    '  - g：全局匹配（匹配所有，不只第一个），绝大多数情况都要加\n' +
-    '  - i：忽略大小写，中文场景建议加（不影响中文但更安全）\n' +
-    '  - s：dotAll模式，.可以匹配换行符（多行内容匹配时用）\n' +
-    '  - m：多行模式，^和$匹配每行的开头结尾\n' +
-    '  - u：Unicode模式，正确处理Unicode字符\n\n' +
-    '**常用场景示例**：\n' +
-    '  1. 状态栏格式化：\n' +
-    '     findRegex="/<status>([\\s\\S]*?)</status>/gi"\n' +
-    '     replaceString="\\n**【状态面板】**\\n$1\\n"\n' +
-    '     placement=[0,1], runOnEdit=true\n' +
-    '  2. 行动标签格式化：\n' +
-    '     findRegex="/<action>([\\s\\S]*?)</action>/gi"\n' +
-    '     replaceString="\\n*【行动】$1*\\n"\n' +
-    '     placement=[0,1]\n' +
-    '  3. 数值高亮：\n' +
-    '     findRegex="/(\\d+)(点|级|年|%|元|层|阶)/gi"\n' +
-    '     replaceString="**$1$2**"\n' +
-    '     placement=[0,1]\n' +
-    '  4. 表情符号转换：\n' +
-    '     findRegex="/\\[(微笑|大笑|哭泣|愤怒|思考|惊讶)\\]/gi"\n' +
-    '     replaceString="$1"\n' +
-    '     placement=[0,1]\n' +
-    '  5. 括号内容加粗：\n' +
-    '     findRegex="/\\(([^)]{3,40})\\)/gi"\n' +
-    '     replaceString="**($1)**"\n' +
-    '     placement=[0,1]\n' +
-    '  6. 世界书内容模板替换：\n' +
-    '     findRegex="/\\{\\{playerName\\}\\}/gi"\n' +
-    '     replaceString="{{user}}"\n' +
-    '     placement=[3], substituteRegex=0\n' +
-    '  7. 新手引导（仅前5轮）：\n' +
-    '     findRegex="/^(.*)$/m"\n' +
-    '     replaceString="$1\\n\\n💡 提示：输入\\\"help\\\"查看指令列表"\n' +
-    '     placement=[1], minDepth=0, maxDepth=4\n' +
-    '  8. 用户输入规范化：\n' +
-    '     findRegex="/^[\\s\\S]*?玩家说[:：]\\s*/i"\n' +
-    '     replaceString=""\n' +
-    '     placement=[0], trimStrings=["\\n\\n"]\n' +
-    '  9. 关键词加粗强调（用{{match}}宏）：\n' +
-    '     findRegex="/(修炼|突破|渡劫|法宝)/gi"\n' +
-    '     replaceString="**{{match}}**"\n' +
-    '     placement=[0,1]\n' +
-    '  10. 世界书模板变量替换（placement=[3]）：\n' +
-    '      findRegex="/\\{\\{玩家名\\}\\}/gi"\n' +
-    '      replaceString="{{user}}"\n' +
-    '      placement=[3], substituteRegex=1\n' +
-    '  11. 仅给模型看的隐藏提示（promptOnly=true）：\n' +
-    '      findRegex="/(.*)/s"\n' +
-    '      replaceString="$1\\n\\n[隐藏规则：回复时必须包含状态面板]"\n' +
-    '      placement=[1], promptOnly=true\n' +
-    '  12. 敏感词过滤：\n' +
-    '      findRegex="/(敏感词1|敏感词2)/gi"\n' +
-    '      replaceString="***"\n' +
-    '      placement=[0,1]\n' +
-    '  13. HTML/CSS样式注入（彩色标签）：\n' +
-    '      findRegex="/<status>([\\s\\S]*?)</status>/gi"\n' +
-    '      replaceString="<div style=\\"background:#1a1a2e;padding:8px 12px;border-radius:8px;border-left:4px solid #e94560;color:#e0e0e0;\\">$1</div>"\n' +
-    '      placement=[1]\n' +
-    '      注意：需要在用户设置中关闭"Show <tags> in responses"\n' +
-    '  14. STscript布尔判断（配合斜杠命令）：\n' +
-    '      findRegex="/<action>([^<]+)</action>/gi"\n' +
-    '      replaceString="ACTION_MATCH_FOUND"\n' +
-    '      disabled=true（默认禁用，通过STscript按需触发）\n' +
-    '      用途：在STscript中判断是否匹配成功，执行条件分支\n' +
-    '  15. MVU-移除旧变量更新(提示词)（AI输出，仅格式提示词，minDepth=4）：\n' +
-    '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
-    '      replaceString=""\n' +
-    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true, minDepth=4\n' +
-    '      用途：只从depth>=4的旧消息提示词中移除<UpdateVariable>段，保留最近2楼让AI看到变量更新历史\n' +
-    '  16. MVU-移除变量更新(显示)（AI输出，仅格式显示）：\n' +
-    '      findRegex="/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm"\n' +
-    '      replaceString=""\n' +
-    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false\n' +
-    '      用途：从所有消息的显示中移除<UpdateVariable>段，用户不需要看到变量更新代码\n' +
-    '  17. MVU-对AI隐藏状态栏（AI输出，仅格式提示词）：\n' +
-    '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    '      replaceString=""\n' +
-    '      placement=[2]（AI输出）, markdownOnly=false, promptOnly=true\n' +
-    '      用途：不让模型看到状态栏占位符，避免干扰生成（注意：不勾选仅格式显示）\n' +
-    '  18. MVU-状态栏美化显示（AI输出，仅格式显示）【⚠️此正则必须由AI根据用户需求生成，显示所有可见变量】【StageDog标准】：\n' +
-    '      findRegex="/<StatusPlaceHolderImpl\\/>/g"\n' +
-    "      replaceString=\"```\\n<body>\\n<head>\\n  <style>全局样式(CSS变量配色)</style>\\n  <script src=\\\"https://cdn.jsdelivr.net/npm/...statusbar...\\\"><\\/script>\\n</head>\\n<body>\\n  页面DOM结构\\n  <script type=\"module\">异步等待MVU+递归遍历stat_data渲染</script>\\n</body>\\n```\"\n" +
-    '      placement=[2]（AI输出）, markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0, minDepth=null, maxDepth=null\n' +
-    '      用途：在渲染阶段将占位符替换为完整HTML状态栏，递归遍历stat_data所有可见变量动态渲染\n' +
-    "      注意（StageDog标准铁则）：\n" +
-    "      · HTML结构：无<!doctype html>、无<html>根；直接<head>+<body>；<script type=\\\"module\\\">放<body>末尾\n" +
-    "      · 包裹格式：replaceString用纯```代码块包裹（禁止```html标记）\n" +
-    "      · 加载方式：优先 $('body').load('https://cdn.jsdelivr.net/gh/用户/仓库@分支/状态栏/index.html') 独立文件方案；内嵌HTML仅作fallback\n" +
-    "      · runOnEdit=false（StageDog标准，避免编辑消息时重复执行）\n" +
-    '      ⚠️生成前引导流程（按需询问，不强制一步步；用户明确要"直接生成"时可跳过询问）：\n' +
-    '        第1步：请用户提供MVU变量结构脚本（zod schema代码块），识别变量路径/核心字段/数据组织方式\n' +
-    '        第2步：询问用户想显示哪些变量（可按类别分组：核心状态/世界状态/角色状态等）\n' +
-    '        第3步：询问UI风格（简约黑色卡片/赛博朋克霓虹/古风水墨/科幻全息/游戏UI仪表盘/极简线条，或"简单就行"），按用户要求自由设计\n' +
-    '        第4步：进入代码生成（⚠️使用下方的5步分模块流程；⚠️严格每次只生成一个模块，禁止一次生成多个模块，禁止一口气生成完整状态栏）\n' +
-    '\n' +
-    '      ╔══════════════════════════════════════════════════════════════╗\n' +
-    '      ║  ⚠️核心机制：写卡器后台管理 + 5个空槽位 + 逐个填入 + 拼接合并  ║\n' +
-    '      ║  设计目标：让最弱的模型也能分步骤生成最好的状态栏             ║\n' +
-    '      ║  核心原理：像角色卡一样在后台写入，写卡器维护HTML模板框架     ║\n' +
-    '      ║  5个槽位（Step 2-6）一开始全是空的，AI生成哪个就填哪个       ║\n' +
-    '      ║  ⚠️铁律：写卡器知道当前在生成哪个Step，AI只需输出代码块       ║\n' +
-    '      ║  ⚠️铁律：不需要输出 /* === Step N === */ 标记，写卡器自动识别 ║\n' +
-    '      ║  ⚠️铁律：一次回答只输出一个代码块（当前Step的代码）           ║\n' +
-    '      ║  ⚠️铁律：禁止输出其他代码块（条目JSON/脚本/statusblock等）    ║\n' +
-    '      ║  ⚠️铁律：5个模块全部填满后才拼接保存，确保状态栏完整可用     ║\n' +
-    '      ║  ⚠️铁律：修改模块时先清空对应槽位再重新填入                   ║\n' +
-    '      ╚══════════════════════════════════════════════════════════════╝\n' +
-    '\n' +
-    '      【机制1：后台填入式收集（像角色卡一样在后台写入）】\n' +
-    '      写卡器后台维护一个HTML模板框架，有5个空槽位（Step 2-6）。\n' +
-    '      写卡器知道当前在生成哪个Step，会通过提示词告诉AI"当前Step: N - XXX"。\n' +
-    '      AI只需输出当前Step的代码块（一个```代码块），写卡器自动提取并填入对应槽位。\n' +
-    '      ⚠️不需要输出 `/* === Step N: 标题 === */` 标记——写卡器自己知道当前是哪个Step\n' +
-    '      ⚠️不需要输出多个代码块——写卡器只提取第一个代码块填入当前槽位\n' +
-    '      ⚠️如果模块重复（重新生成同一个Step），直接替换槽位中的旧代码\n' +
-    '      ⚠️生成模块前必须与已有模块对照、相互印证，确保可行：\n' +
-    '        - 生成Step 3骨架前，对照Step 1变量表的路径和分组，确保每个变量都有对应节点+唯一id\n' +
-    '        - 生成Step 4样式前，对照Step 3骨架的class命名/id命名，确保选择器一一对应\n' +
-    '        - 生成Step 5 populateCharacterData前，对照Step 1变量表的路径，确保_.get根路径为"stat_data"与InitVar一致；对照Step 3骨架的id命名，确保$(\'#id\')选择器一一对应\n' +
-    '        - 生成Step 6入口前，对照Step 5的populateCharacterData函数名，确保init调用正确\n' +
-    '      ⚠️各Step代码块用 ``` 包裹，写卡器自动提取拼接，不需要AI输出完整HTML\n' +
-    '      ⚠️写卡器会在每轮对话后显示收集进度（✅已收集/⬜还缺），并提示下一步该生成什么\n' +
-    '      ⚠️完整性保障：5个模块（Step 2-6）全部收集完毕后，写卡器才会自动拼接保存到角色卡\n' +
-    '         缺任何一个模块都不会保存，避免生成残缺不可用的状态栏\n' +
-    '         修改时旧状态栏保持不变，直到新模块全部收集完毕才覆盖\n' +
-    '\n' +
-    '      ▶ Step 0（最重要一步）：了解用户的初始变量结构\n' +
-    '        仔细阅读用户的变量结构脚本（zod Schema）和 [InitVar] 初始变量，识别：\n' +
-    '          · 变量路径是什么？（例：角色.络络.好感度 → 实际 _.get 路径 stat_data.络络.好感度）\n' +
-    '          · 有哪些核心字段需要显示？（_前缀只读跳过；$前缀派生显示字段需保留；其他全显示）\n' +
-    '          · 数据是怎么组织的？（对象/数组/嵌套层级，决定渲染方式）\n' +
-    '        问用户：①要追踪哪些核心变量？②什么 UI 风格？（卡片/列表/进度条/Tab 等）③有没有特殊显示需求？\n' +
-    '        交付：用自然语言复述变量结构 + 确认用户想要的 UI 风格，问"理解对吗？可以进 Step 1 变量盘点吗？"\n' +
-    '        结尾给用户的提示：简单告诉用户"下一步是 Step 1 变量盘点表，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 1：变量盘点表（纯文本，非代码，先理清思路）【改进9：扩展7列】\n' +
-    '        产出：表格（7列，顺序固定） | 变量路径 | 类型 | 派生规则（如有） | 空值兜底 | 是否跳过（_/$开头需明确） | 显示格式 | 分组 | 显示名 |\n' +
-    '        范围：从用户zod schema提取所有字段。不要直接跳过_/$开头的——先看【是否跳过】列再决定：\n' +
-    '          · _前缀（如_当前回合）：AI只读不更新，跳过渲染=是\n' +
-    '          · $前缀但派生显示专用（如$依存度阶段）：AI不更新，但populateCharacterData要**显示**→跳过渲染=否\n' +
-    '          · $前缀纯元数据（如$time自动时间戳）：AI不更新也不显示→跳过渲染=是\n' +
-    '        【派生规则列】：抄zod里的transform逻辑（如"物品栏：_.pickBy(d,({数量})=>数量>0)"、"依存度阶段：按<20消极/<40疏离/<60平淡/<80信任/>80完全"）\n' +
-    '        【空值兜底列】：如果zod做了过滤（如物品栏被pickBy数量>0），可能是空对象{}，此处写"背包为空"/"暂无"等文字\n' +
-    '        【显示格式列】（4选1）：\n' +
-    '          · number 类型：数字 / 进度条 / 进度条+派生阶段（优先，能和$阶段字段联动）\n' +
-    '          · string/boolean/array：保持默认\n' +
-    '        类型识别：number/boolean/string/array/object\n' +
-    '        示例（扩展7列）：\n' +
-    '          | stat_data.白娅.好感度 | number | zod已做clamp(0,100) | — | 否 | 进度条+阶段 | 白娅·状态 | 好感度 |\n' +
-    '          | stat_data.白娅.$好感度阶段 | string | 派生：<20消极/<40疏离/<60平淡/<80信任 | — | 否 | 文本 | 白娅·状态 | 阶段 |\n' +
-    '          | stat_data.白娅.着装.上装 | string | — | "未穿" | 否 | 文本 | 白娅·着装 | 上装 |\n' +
-    '          | stat_data.世界.时间 | string | — | "初始时间" | 否 | 文本 | 世界状态 | 时间 |\n' +
-    '          | stat_data.主角.物品栏 | object | _.pickBy({数量}>0)；空对象显示"背包为空" | "背包为空" | 否 | 分组显示 | 物品栏 | 背包 |\n' +
-    '          | stat_data._当前回合 | number | _前缀只读 | — | 是 | — | 系统 | 当前回合 |\n' +
-    '        用途：后续Step 2-6全部基于此表，路径/类型/显示格式/是否跳过不得偏离\n' +
-    '        交付：展示7列表格，问"这些变量都对吗？显示格式/分组要调整的告诉我"\n' +
-    '        结尾给用户的提示：输出后简单告诉用户"下一步是Step 2配色，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 2：配色方案（仅CSS :root变量块）\n' +
-    '        产出：仅一段 `:root { --xxx: 颜色; }`，不含任何选择器规则\n' +
-    '        内容：根据UI风格定主色/辅色/背景/文字/边框/成功/警告/危险等变量\n' +
-    '        示例：\n' +
-    '          :root {\n' +
-    '            --card-bg: rgba(20,20,30,0.85);\n' +
-    '            --accent-blue: #93c5fd;\n' +
-    '            --text-main: #e2e8f0;\n' +
-    '            --progress-bar-bg: rgba(148,163,184,0.2);\n' +
-    '            --progress-bar-fill: var(--accent-blue);\n' +
-    '          }\n' +
-    '        交付：展示配色，问"配色OK吗？"\n' +
-    '        结尾给用户的提示：简单告诉用户"下一步Step 3骨架，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 3：HTML结构骨架（仅外层骨架，无CSS无JS）【用户模板标准：每个变量需写唯一id】\n' +
-    '        产出：纯DOM外层骨架代码块（用```html或纯```包裹都可，写卡器均可识别）\n' +
-    '        规则（用户模板标准实现模式 —— 与旧递归renderTree模式完全不同）：\n' +
-    '          · 【固定结构层放宽允许】在 render-root 外部，允许追加以下**非变量驱动的固定层**（写死内容即可）：\n' +
-    '              - .status-header：顶部角色名字头像条、剧情日/时间显示条\n' +
-    '              - .status-tabs：Tab导航栏（像官方参考TabNav组件那样做"状态/背包/关系/日志"切换）\n' +
-    '              - .status-footer：底部操作栏（重置按钮等，一般不加）\n' +
-    '          · 【用户模板铁律】每个需要显示的变量必须在body中有**唯一的id**（如 id="affinity-val"、id="items-list"、id="weapon" 等）\n' +
-    '          · 【用户模板铁律】populateCharacterData 中用 $(\'#id\').text(value) / $(\'#id\').html(html) 逐变量填充，所以 Step3 必须预先把id写好\n' +
-    '          · 不要预先写任何 stat-item/class=category-title 这类动态生成的class（这些是旧递归renderTree模式遗留的）\n' +
-    '          · 不写style属性、不写script\n' +
-    '        · 三层核心骨架必须保留（不可缺）：.mvu-status-card > .card-body[id=render-root] > .loading-state （加载占位）\n' +
-    '        · 【页面支撑铁律（用户规范补充）】\n' +
-    '          - 页面必须有外部支撑，主体内容**禁止**使用 position:absolute 等脱离文档流的样式\n' +
-    '          - 页面整体应适配容器宽度，**不产生横向滚动条**\n' +
-    '          - 如果样式更适合卡片形状，则**不要有背景颜色**（除非用户明确要求）\n' +
-    '        示例片段（含唯一id写法，用户模板标准）：\n' +
-    '          <div class="mvu-status-card">\n' +
-    '            <div class="status-tabs">/* 固定Tab导航：状态/背包/关系/日志 */\n' +
-    '              <span class="tab active">状态</span><span class="tab">背包</span><span class="tab">关系</span>\n' +
-    '            </div>\n' +
-    '            <div class="card-body" id="render-root">\n' +
-    '              <div class="char-section">\n' +
-    '                <div class="stat-row"><span>好感度</span><span id="affinity-val">--</span></div>\n' +
-    '                <div class="stat-row"><span>阶段</span><span id="phase-val">--</span></div>\n' +
-    '                <ul id="items-list"><!-- populateCharacterData中用 .html() 填充背包列表 --></ul>\n' +
-    '              </div>\n' +
-    '            </div>\n' +
-    '          </div>\n' +
-    '        交付：展示骨架，问"结构OK吗？每个变量的id写对了吗？固定层（header/tabs/footer）需要加减的告诉我"\n' +
-    '        结尾给用户的提示：简单告诉用户"下一步Step 4样式，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 4：CSS样式表（仅<style>内规则，不含:root，不含HTML）\n' +
-    '        产出：基于标准实现模式写所有选择器规则，引用Step 2的CSS变量\n' +
-    '        必含类名（根据Step 3的骨架调整：如果Step3有.status-tabs，Step4就必须有.status-tabs选择器；如果有.nested-group也要有）：\n' +
-    '          核心必含：.mvu-status-card/.category-title/.stat-grid/.nested-group(嵌套对象左侧虚线缩进容器)/.stat-item/.stat-label/.stat-value/.value-number/.value-true/.value-false/.value-text/.loading-state/.flash-update/层级缩进.indent-1~4\n' +
-    '          显示格式可选：.progress-bar(进度条容器背景)+.progress-bar-fill(进度条fill)\n' +
-    '          固定结构层可选（如有）：.status-header/.status-tabs/.status-footer 及对应交互态.active\n' +
-    '        ⚠️布局约束（强制）：禁用vh（用width+aspect-ratio）、避min-height/overflow:auto、禁position:absolute、适配容器宽度、卡片状不要背景色（除非用户明确要求）\n' +
-    '        交付：展示样式，问"样式OK吗？要调字号/间距/配色告诉我"\n' +
-    '        结尾给用户的提示：简单告诉用户"下一步Step 5渲染函数，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 5：populateCharacterData（仅JS function，变量读取+逐变量填充合并为单槽位）\n' +
-    '        产出：`function populateCharacterData() { ... }` 函数（用户模板标准：直接 getAllVariables + 逐变量 $(\'#id\').text() 填充）\n' +
-    '        规则（用户模板标准实现模式，禁止用 loadVars/renderVars 双函数模式，禁止用_getVars helper和renderTree递归）：\n' +
-    '          · 直接 getAllVariables() 读变量（不再用getVariables消息级scope+fallback，不再用_getVars helper）\n' +
-    '          · 用 _.get(all_variables, "stat_data.xxx", 默认值) 逐变量读取（根路径与InitVar YAML根字段一致，所有路径必须以stat_data.开头）\n' +
-    '          · 【注释规范（用户铁律）】仅能使用 /*注释*/，**禁止使用 // 注释**（否则可能渲染失败）\n' +
-    '          · 【DOM操作（用户铁律）】使用 jquery（如 $(\'#id\').text(value)）逐变量手动填充（body内每个变量有唯一id）\n' +
-    '          · 逐变量填充模式（用户模板标准）：\n' +
-    '              - 普通变量：const v = _.get(all_variables, \'stat_data.xxx\', \'N/A\'); $(\'#id\').text(v);\n' +
-    '              - 数组变量：const items = _.get(all_variables, \'stat_data.背包\', []); const html = items.map(i => `<li>${i}</li>`).join(\'\'); $(\'#items-list\').html(html);\n' +
-    '              - 对象变量：const npcs = _.get(all_variables, \'stat_data.NPCs\', {}); Object.entries(npcs).forEach(([name, data]) => { ... });\n' +
-    '              - 嵌套对象（推荐可选链）：const user = _.get(all_variables, \'stat_data.用户信息\', {}); const weapon = user.法宝?.本命法宝 || \'无\';\n' +
-    '          · 禁止Mvu.getVar，禁止用renderTree递归渲染\n' +
-    '        示例（用户模板标准 populateCharacterData）：\n' +
-    '          function populateCharacterData() {\n' +
-    '            const all_variables = getAllVariables();\n' +
-    '            // 注意：所有变量路径必须以 \'stat_data.\' 开头\n' +
-    '            const variable1 = _.get(all_variables, \'stat_data.xxx\', \'N/A\');\n' +
-    '            $(\'#id1\').text(variable1);\n' +
-    '            const items = _.get(all_variables, \'stat_data.背包\', []);\n' +
-    '            const html = items.map(i => `<li>${i}</li>`).join(\'\');\n' +
-    '            $(\'#items-list\').html(html);\n' +
-    '          }\n' +
-    '        交付：展示populateCharacterData函数，简要说明变量读取策略（直接getAllVariables+逐变量填充）\n' +
-    '        结尾给用户的提示：简单告诉用户"下一步Step 6入口，说继续"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 6：异步入口+事件绑定（仅JS入口代码，用户模板标准：eventOn事件驱动+errorCatched入口）\n' +
-    '        产出（完整入口代码块）——【用户铁律：init 函数用 errorCatched 包装后放入 $(() => {})】：\n' +
-    '          async function init() {\n' +
-    '            /* 1. 等MVU框架挂载（用户铁律：入口必须 await waitGlobalInitialized(\'Mvu\')）*/\n' +
-    '            await waitGlobalInitialized(\'Mvu\');\n' +
-    '            /* 2. 首次渲染 */\n' +
-    '            populateCharacterData();\n' +
-    '            /* 3. 事件驱动刷新（用户模板标准：eventOn事件驱动，不再用setInterval轮询） */\n' +
-    '            eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => {\n' +
-    '              populateCharacterData();\n' +
-    '            });\n' +
-    '            /* 4. 折叠交互 */\n' +
-    '            $(\'.section-header\').on(\'click\', function () {\n' +
-    '              toggleSection($(this));\n' +
-    '            });\n' +
-    '          }\n' +
-    '          $(errorCatched(init));\n' +
-    '        规则（用户模板标准 + 用户铁律合并）：\n' +
-    '          · 【用户铁律】init 函数经过 errorCatched 包装后放入 $(() => {}) 中，即 $(errorCatched(init))\n' +
-    '          · 【用户铁律】入口必须 await waitGlobalInitialized(\'Mvu\')；除 waitGlobalInitialized 外，**禁止使用 Mvu 做任何事**（Mvu.watch/Mvu.observe 等接口并不存在）\n' +
-    '          · 主同步机制（用户模板标准）：eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => { populateCharacterData(); }) 事件驱动刷新；禁止setInterval轮询\n' +
-    '          · 【用户铁律】可直接使用 jquery/jqueryui/lodash/yaml/zod/toastr，无需额外导入\n' +
-    '          · 【用户铁律】变量从全局 getAllVariables() 获取，populateCharacterData 内用 _.get(all_variables, "stat_data.xxx") 逐变量读取\n' +
-    '        交付：展示完整入口代码，问"eventOn事件驱动+errorCatched入口OK吗？"\n' +
-    '        结尾给用户的提示：简单告诉用户"完成，自查"即可，不要装饰符号、表情、分隔线\n' +
-    '\n' +
-    '      ▶ Step 7：拼接合并+自查（最后一步，仅确认不输出代码）\n' +
-    '        ⚠️重要：拼接由写卡器自动完成，AI不需要重新输出完整HTML！\n' +
-    '        AI只需确认各Step模块已就绪，写卡器会自动提取各Step代码块并拼接成完整HTML保存。\n' +
-    '        这样各模块可以任意大，拼接不受AI单次输出长度限制。\n' +
-    '        AI在Step 7需要做的：\n' +
-    '          ① 确认 Step 2-6 的代码块都已输出（写卡器自动识别各Step代码块，无需 /* === Step N === */ 标记）\n' +
-    '          ② 模块间交叉对照自查（发现问题回到对应Step修正——但每次只能重新输出一个Step）：\n' +
-    '            a. HTML结构：Step 3产出完整<!doctype html>文档，body内每个变量有唯一id\n' +
-    '            b. 注释规范：全文无 // 注释，仅 /* */（用户铁律，否则可能渲染失败）\n' +
-    '            c. DOM规范：populateCharacterData 中用 jquery $(\'#id\').text(value) 逐变量填充（用户模板标准）\n' +
-    '            d. 变量路径：直接 getAllVariables() 读变量（不再用_getVars helper）；_.get 根路径为 "stat_data" 与InitVar一致\n' +
-    '            e. 类型安全：typeof number检测、布尔✓/✕、跳过_/$变量\n' +
-    '            f. 异步就绪（用户铁律）：Step 6 入口必须 await waitGlobalInitialized(\'Mvu\')；init 函数用 errorCatched 包装后放入 $(() => {})，即 $(errorCatched(init))\n' +
-    '            g. 用户模板同步机制：Step 6用 eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) 事件驱动刷新（不再用setInterval轮询）\n' +
-    '            h. 布局安全：无vh单位（用width+aspect-ratio）、无position:absolute、无min-height/overflow:auto、适配容器宽度不横向滚动、卡片状不要背景色（除非用户明确要求）\n' +
-    '            i. 隐藏接口：除 waitGlobalInitialized(\'Mvu\') 外，未使用 Mvu.watch/Mvu.observe 等不存在的接口\n' +
-    '            j. ⚠️模块间一致性对照（核心）：\n' +
-    '               - Step 3的id命名 vs Step 5的populateCharacterData中$(\'#id\')选择器 → 必须一一对应\n' +
-    '               - Step 5的populateCharacterData函数 vs Step 6中init函数调用populateCharacterData() → 函数名必须一致\n' +
-    '               - Step 2的CSS变量名 vs Step 5的className引用 → 必须完全一致\n' +
-    '               - Step 3的class命名 vs Step 4的选择器 → 必须一一对应\n' +
-    '               - Step 1的变量路径 vs Step 5的_.get路径 → 必须完全一致\n' +
-    '               - Step 6 的 init 函数 vs $(errorCatched(init)) 调用 → 命名必须一致\n' +
-    '          ③ 告知用户"写卡器已自动拼接保存，可点预览查看效果"\n' +
-    '        ⚠️禁止在Step 7重新输出各模块代码——写卡器会自动从之前各Step的代码块中提取拼接\n' +
-    '        ⚠️Step 7不输出任何代码块，仅做文字确认和自查报告\n' +
-    '\n' +
-    '      【机制3：AI触发状态栏预览命令】\n' +
-    '        当AI需要向用户展示当前已收集的状态栏效果时，在消息中输出 `<preview_statusbar>` 标记。\n' +
-    '        写卡器会自动检测此标记，用当前已收集的模块拼接成完整HTML并在聊天界面中直接渲染。\n' +
-    '        这样AI不需要在消息中输出冗长的HTML代码，用户也能实时看到效果。\n' +
-    '        使用时机：模块收集完成后、用户说"让我看看""预览一下""效果如何"时。\n' +
-    '\n' +
-    '      【机制4：按语义精准修改】（清空→逐个重新填入）\n' +
-    '      当用户要求修改时，AI先识别涉及哪些Step，然后：\n' +
-    '        ① 先输出清空标记 `<clear_statusbar>N1,N2,N3</clear_statusbar>`（N为Step号，逗号分隔）\n' +
-    '           写卡器会立即清空这些槽位，旧状态栏保持不变直到新模块全部完成\n' +
-    '        ② 然后在同一个回答中生成第一个需要修改的模块代码块（⚠️只能一个）\n' +
-    '        ③ 后续模块等用户说"继续"后逐个生成\n' +
-    '      写卡器会自动将新代码填入对应槽位，不需要AI输出Step标记\n' +
-    '      示例：\n' +
-    '        · 用户说"改配色" → 清空Step 2 → 生成新的Step 2配色代码块\n' +
-    '          AI输出：<clear_statusbar>2</clear_statusbar> + ```css代码块\n' +
-    '        · 用户说"换UI风格" → 清空Step 2+3+4 → 先生成Step 2，提醒"接下来需改Step 3和4，请说继续"\n' +
-    '          AI输出：<clear_statusbar>2,3,4</clear_statusbar> + Step 2的```css代码块\n' +
-    '        · 用户说"渲染逻辑有bug" → 清空Step 6 → 生成新的Step 6代码块\n' +
-    '          AI输出：<clear_statusbar>6</clear_statusbar> + Step 6的```javascript代码块\n' +
-    '      ⚠️修改前必须与已有模块对照、相互印证，确保修改后的模块与其他模块兼容\n' +
-    '      ⚠️修改时同样禁止输出多个代码块，回答中只能有当前修改的那一个Step的代码块\n' +
-    '      ⚠️禁止"因为改一处就重写全部5步"——这是失败模式，会浪费token且引入新bug\n' +
-    '      ⚠️修改后5个模块重新齐全时，写卡器自动拼接覆盖旧状态栏\n' +
-    '\n' +
-    '      【机制5：弱模型友好设计 + 完整性保障】\n' +
-    '        · 每个Step都有明确示例，弱模型可直接套模板\n' +
-    '        · 每个Step职责单一，代码量按需决定（简单状态栏每个Step可≤30行；超大型/复杂状态栏单个Step可上百行，不设上限）\n' +
-    '        · 用户要"分步骤看"时，每步交付后停下等用户确认，避免长上下文丢失\n' +
-    '        · ⚠️每次只做一个Step，禁止一次做多个——弱模型上下文短，单模块输出质量更高\n' +
-    '        · Step 1是纯文本表格，不涉及代码，让弱模型先理清变量结构\n' +
-    '        · Step 7由写卡器自动拼接，AI不需要重新输出代码，避免输出长度限制\n' +
-    '        · 超大型状态栏建议：把变量按模块分组（核心状态/世界状态/角色关系/物品栏/技能栏/任务进度等），每个模块独立成块，便于扩展\n' +
-    '        · ⚠️每个Step生成前，AI需在文字中简述"我将对照Step X的XXX来确保一致"，然后再输出代码块\n' +
-    '        · ⚠️不管小型还是大型状态栏，都必须走完Step 2-6全部5个模块\n' +
-    '        · ⚠️5个模块全部齐全后写卡器自动拼接保存，确保最终状态栏结构完整、样式完整、逻辑完整\n' +
-    '        · ⚠️大型状态栏的优势：每个Step可以写很多代码（上百行），不受单次输出限制，复杂度由Step内部承担\n' +
-    '\n' +
-    '      ⚠️通用关键实现要求（每个Step都适用，用户模板标准对齐）：\n' +
-    '        · 可用库：jquery、jqueryui、lodash、yaml、zod、toastr（无需import，直接使用）\n' +
-    '        · 读变量（用户模板标准）：直接 getAllVariables() 读变量（不再用_getVars helper）；_.get(all_variables,"stat_data.xxx",默认值)逐变量读取；禁止Mvu.getVar（有时序失效问题）\n' +
-    '        · 异步就绪：await waitGlobalInitialized(\'Mvu\') 等MVU就绪即可\n' +
-    '        · DOM操作：逐变量 $(\'#id\').text(value) 手动填充（用户模板标准），body内每个变量有唯一id\n' +
-    '        · 主同步机制（用户模板标准）：eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => { populateCharacterData(); }) 事件驱动刷新；禁止setInterval轮询；禁止Mvu.watch/observe等不存在的接口\n' +
-    '        · 顶层入口（用户模板标准）：$(errorCatched(init)) —— init函数经errorCatched包装后放入$(() => {})\n' +
-    '        · 注释：只能用 /* 注释 */，禁止 // 注释（会导致渲染失败）\n' +
-    '        · 逐变量填充：populateCharacterData() 中逐变量 $(\'#id\').text(value) 手动填充（不再用renderTree递归）\n' +
-    '        · 跳过隐藏变量：key以 _ 或 $ 开头的跳过\n' +
-    '        · 严格类型检测：typeof val === "number" 才画value-number/进度条（不要把字符串当数字）\n' +
-    '        · 布尔✓/✕：value-true✓ / value-false✕ 分色（不要用✅❌表情）\n' +
-    '        · script标签：type="module" 支持顶层async/await；<head>内放置（StageDog模板标准）\n' +
-    '      ⚠️CSS/布局约束（避免渲染异常）：\n' +
-    '        · 禁用vh等受宿主高度影响的单位，用width+aspect-ratio让高度随宽度自适应\n' +
-    '        · 避免 min-height、overflow:auto 等会强制撑高父容器的元素\n' +
-    '        · 主体内容禁用 position:absolute 等脱离文档流的样式（页面必须有外部支撑）\n' +
-    '        · 页面整体适配容器宽度，不产生横向滚动条\n' +
-    '        · 卡片形状优先：除非用户明确要求，不要加背景颜色\n\n' +
-    '**高级场景与设计模式**：\n' +
-    '- 模式1：管道式处理（多脚本串联）\n' +
-    '  · 前一个脚本的输出是后一个的输入，按顺序执行\n' +
-    '  · 例：脚本1提取状态栏 → 脚本2格式化样式 → 脚本3添加图标\n' +
-    '  · 优势：每个脚本职责单一，易于调试和复用\n' +
-    '- 模式2：条件逻辑判断（配合STscript/Quick Replies）\n' +
-    '  · 设置disabled=true的脚本，通过STscript或斜杠命令按需触发\n' +
-    '  · replaceString中放唯一标记值，用于判断匹配是否成功\n' +
-    '  · 可实现：如果文本包含X，则执行Y操作\n' +
-    '- 模式3：HTML/CSS样式注入\n' +
-    '  · replaceString中包含HTML标签和style样式\n' +
-    '  · 需要用户设置中关闭"Show <tags> in responses"\n' +
-    '  · 可实现：彩色文字、边框、背景色、浮动元素等\n' +
-    '  · 例：把特定关键词变成红色带边框的标签样式\n' +
-    '- 模式4：世界书内容后处理（placement=[3]）\n' +
-    '  · 在世界书条目注入提示词前，对内容进行替换/格式化\n' +
-    '  · 可实现：模板变量替换、统一格式调整、内容裁剪\n' +
-    '  · 注意：需要"Alter Outgoing Prompt"开启（或两个ephemerality都不选）\n\n' +
-    '**设计原则**：\n' +
-    '- 每个脚本只做一件事，功能单一化\n' +
-    '- 注意执行顺序，后执行的会覆盖前面的结果\n' +
-    '- 正则尽量精确，避免误匹配\n' +
-    '- 使用非贪婪匹配 (.*?) 避免匹配过多\n' +
-    '- 中文场景建议开启i标志（忽略大小写对中文无影响，但更安全）\n' +
-    '- 复杂替换考虑拆分成多个简单脚本\n\n' +
     '**personality/scenario**：\n' +
     '- 强制留空（世界模式）\n\n' +
     '=== 输出格式（:::操作块协议，严禁用```json代码块） ===\n' +
@@ -2801,7 +2222,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- <故事发展>：主线故事、支线故事、关键事件、结局类型\n' +
     '- <文化与习俗>：文化背景、社会习俗、节日庆典\n' +
     '- <历史事件>：重要历史事件、时代变迁\n' +
-    '- <动态适配>：多开局分支、渐进引导、变量模板、状态正则\n' +
+    '- <动态适配>：多开局分支、渐进引导、变量模板\n' +
     '- <引导机制>：互动引导策略、信息释放节奏\n' +
     '- <互动选项>：动态互动选项的生成逻辑\n' +
     '- <状态栏>：定义<status>等标签的输出格式模板\n' +
@@ -2878,14 +2299,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- 效果：简单关键词触发通用规则（低order），复杂关键词触发高级规则（高order胜出）\n' +
     '- 例：组"战斗系统"，order=100的"基础战斗规则"（keys=["战斗"]），order=200的"高级战斗规则"（keys=["战斗","技能"]）\n' +
     '  只提"战斗"时触发基础版，提到"战斗+技能"时触发高级版（更具体）\n\n' +
-    '**模式4：说话者精准触发（Per-Speaker Triggers）**\n' +
-    '- 原理：用正则键 + \\x01分隔符 精确匹配特定角色说的话\n' +
-    '- 用户触发型：keys=["/\\x01{{user}}:[^\\x01]*?指令关键词/i"]\n' +
-    '  用于：用户输入特定指令时注入规则（如用户说"查看状态"时注入状态栏格式）\n' +
-    '- AI触发型：keys=["/\\x01{{char}}:[^\\x01]*?描述关键词/i"]\n' +
-    '  用于：AI生成特定内容后补充上下文（如AI提到战斗结果时注入伤害计算规则）\n' +
-    '- 优势：避免双向误触发，只在需要的说话方向上生效\n\n' +
-    '**模式5：模块化Outlet布局（Modular Outlets）**\n' +
+    '**模式4：模块化Outlet布局（Modular Outlets）**\n' +
     '- 原理：用position=7 (Outlet) 将内容分类到不同命名出口，在Prompt Manager中自由组合布局\n' +
     '- 常见出口命名：\n' +
     '  · lore_header：世界观头部信息（放在最前）\n' +
@@ -2894,14 +2308,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · footer_notes：页脚补充说明\n' +
     '- 优势：解耦内容和位置，调整布局无需改条目内容\n' +
     '- 注意：角色卡内置的Outlet需用户手动在Prompt Manager中放置{{outlet::xxx}}宏才生效\n\n' +
-    '**模式6：分组评分精准匹配（Group Scoring）**\n' +
+    '**模式5：分组评分精准匹配（Group Scoring）**\n' +
     '- 原理：use_group_scoring=true，按键匹配数量自动选择最相关的条目\n' +
     '- 结构：同group多条目，keys数量/具体度递增\n' +
     '- 效果：用户说的关键词越具体，匹配到的条目越精准\n' +
     '- 例：组"地点"，条目A keys=["城镇"]（1分），条目B keys=["城镇","黑铁城"]（2分），条目C keys=["城镇","黑铁城","酒馆"]（3分）\n' +
     '  用户说"黑铁城的酒馆"时，条目C匹配分最高胜出，提供最精准的信息\n\n' +
     '**世界书性能优化最佳实践**：\n' +
-    '- 优先用普通关键词，正则键仅在必要时使用（正则有性能开销）\n' +
     '- 合理设置scan_depth：不需要扫描历史的设为0（如常驻条目）\n' +
     '- 叙事类条目用probability降低触发频率，节省token\n' +
     '- 实体类条目开启prevent_recursion，防止递归风暴\n' +
@@ -2917,54 +2330,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '6. Outlet未放置宏：设了position=7但用户没在Prompt Manager放{{outlet::xxx}}→ 内容不显示\n' +
     '7. Outlet嵌套：在WI条目内容里放{{outlet::xxx}}宏→ 不支持，可能导致死循环\n' +
     '8. sticky和cooldown同时用：sticky让条目持续，cooldown让条目间歇→ 逻辑冲突，不要同时设\n' +
-    '9. 正则缺少g标志：findRegex写了复杂正则但没加g→ 只替换第一个匹配，后续不生效\n' +
-    '10. 扫描深度过大：scan_depth=100→ 每次生成都扫描全部历史，严重影响性能\n' +
-    '11. 角色卡字段中放Outlet宏：在description中写{{outlet::xxx}}→ 角色卡字段解析太早，无法展开Outlet\n' +
-    '12. 分组未设group_weight：同组多条目都用默认权重100→ 随机选择无差异，失去分组意义\n\n' +
-    '**🔗 世界书与正则脚本协同工作**：\n' +
-    '- 正则脚本可通过 placement=[4] (World Info) 处理世界书条目注入前的内容\n' +
-    '- placement 值定义：1=用户输入, 2=AI输出, 3=斜杠命令, 4=世界书\n' +
-    '- 典型协同场景：\n' +
-    '  1. 模板变量替换：WI条目中写{{玩家名}}，用正则替换为{{user}}\n' +
-    '     findRegex="/\\{\\{玩家名\\}\\}/gi", replaceString="{{user}}", placement=[4], substituteRegex=1\n' +
-    '  2. 统一格式化：WI条目内容风格不统一时，用正则自动调整格式\n' +
-    '     如自动给所有"规则:"开头的行加粗：findRegex="/^(规则[:：].*)$/gm", replaceString="**$1**", placement=[4]\n' +
-    '  3. 敏感内容过滤：WI条目中包含需要过滤的词汇\n' +
-    '     findRegex="/(禁词)/gi", replaceString="***", placement=[4]\n' +
-    '  4. 动态状态注入：WI触发后，用正则在AI回复中检测并格式化状态信息\n' +
-    '     WI条目注入"战斗规则" → 正则在AI回复中格式化战斗结果\n' +
-    '- 注意事项：\n' +
-    '  · placement=[4]的正则需要"Alter Outgoing Prompt"开启（即promptOnly不单独勾选）\n' +
-    '  · 正则处理WI内容的执行顺序：WI条目注入 → 正则处理 → 最终提示词组装\n' +
-    '  · 一个正则脚本可同时处理多个位置（如placement=[1,2,4]）\n\n' +
-    '**🔗 MVU变量系统设计模式（MagVarUpdate zod，进阶可选）**：\n' +
-    '- 模式1：分层变量结构\n' +
-    '  · 原理：按角色/世界/物品等分类用YAML缩进嵌套，如 白娅:\\n  依存度: 35\\n  着装:\\n    上装: 校服\n' +
-    '  · 优势：结构清晰，LLM更容易理解变量归属和关系，引导更准确的变量更新\n' +
-    '  · 注意：YAML用缩进表示层级，冒号后空格建立从属；数值/文本/真假值三种基本类型\n' +
-    '- 模式2：开局变量初始化\n' +
-    '  · 原理：在<动态适配>分支开局世界书条目(selective=true, keys=["选择","开局","路线"])中加入<UpdateVariable><initvar>块，覆盖[InitVar]默认值\n' +
-    '  · 格式：<UpdateVariable>\\n<initvar>\\n白娅:\\n  依存度: 15\\n</initvar>\\n</UpdateVariable>\n' +
-    '  · 用途：不同开局有不同的初始变量（如不同身份有不同道具/属性）\n' +
-    '- 模式3：变量驱动的分段内容\n' +
-    '  · 原理：用提示词模板语法 + getvar("stat_data") 实现根据变量值显示不同内容\n' +
-    '  · 格式：<% if (getvar("stat_data.白娅.依存度") >= 50) { %>...<% } %>\n' +
-    '  · 注意：第一个if用 typeof 检查变量是否初始化完成，避免模板报错\n' +
-    '- 模式4：状态栏占位符\n' +
-    '  · 原理：变量输出格式定义AI输出<StatusPlaceHolderImpl/>，正则替换为状态栏HTML\n' +
-    '  · 用途：状态栏自动显示当前变量值，无需AI输出完整状态栏文本\n' +
-    '- 模式5：变量更新回调（高阶，需JS能力）\n' +
-    '  · 原理：监听 mag_variable_updated / mag_variable_update_ended 事件\n' +
-    '  · 用途：LLM忘记更新时自动补全（如日期自动+1）、触发特殊逻辑\n' +
-    '  · 参考：MagVarUpdate example_src\n' +
-    '- MVU zod安装清单：\n' +
-    '  1. MVU本体脚本：import \'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js\'【写卡器自动注入】\n' +
-    '  2. 世界书调用脚本(WTC)：用 <observed_piece class="剧情/设定"> 包裹世界书内容，让AI区分剧情与设定【AI按需在MVU Tab生成】\n' +
-    '  3. 变量结构脚本：zod 4 schema + registerMvuSchema 注册【AI在MVU Tab按9.1.5/9.1.6工作流一条一条生成】\n' +
-    '  4. 正则脚本：正则1-5由写卡器自动注入（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）；正则6（美化状态栏）⚠️必须由AI在MVU Tab按9.1.6工作流生成\n' +
-    '  5. 开场白占位符：<StatusPlaceHolderImpl/> 自动追加到 first_mes【写卡器自动注入】\n' +
-    '  6. <状态栏>占位符提醒条目：constant=true常驻世界书条目，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>【AI在MVU Tab按9.1.6工作流一条一条生成】\n' +
-    '  7. 世界书条目（第2-7条，AI在MVU Tab按9.1.6工作流逐条生成）：[InitVar]初始变量 + [mvu_update]变量更新规则 + 变量列表 + [mvu_update]变量输出格式 + [mvu_update]变量输出格式强调 + <状态栏>占位符提醒\n\n' +
+    '9. 扫描深度过大：scan_depth=100→ 每次生成都扫描全部历史，严重影响性能\n' +
+    '10. 角色卡字段中放Outlet宏：在description中写{{outlet::xxx}}→ 角色卡字段解析太早，无法展开Outlet\n' +
+    '11. 分组未设group_weight：同组多条目都用默认权重100→ 随机选择无差异，失去分组意义\n\n' +
     '**📚 Lore插入策略（多源排序）**：\n' +
     '- 当角色卡有内置世界书(character_book)且用户有全局世界书时，两者按以下策略合并：\n' +
     '  1. Sorted Evenly（默认）：所有来源条目按insertion_order统一排序，忽略来源\n' +
@@ -3003,43 +2371,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '**步骤6：做动态适配**（动态适配系统）\n' +
     '- 设计多开局分支（<动态适配>分支开局 + MVU initvar 覆盖 + 第一条消息内嵌分支选择提示）\n' +
     '- 设计渐进引导（depth_prompt）\n' +
-    '- 设计状态同步（regex_scripts）\n' +
     '- 设计互动选项和引导机制\n' +
     '- 生成<动态适配>、<引导机制>、<互动选项>条目\n\n' +
     '**步骤7：配变量系统**（MVU变量系统，进阶可选）\n' +
     '- 确定是否需要MVU变量系统（如需复杂状态管理、好感度系统等）\n' +
     '- 设计变量结构（按角色/物品/状态分层嵌套，按8条工作流逐条生成，详见9.1.6）\n' +
     '- 正则1-5（思维链移除/变量更新截断/变量美化×2/状态栏隐藏）和开场白占位符由写卡器自动注入，无需生成\n' +
-    '- ⚠️【重中之重】生成正则6（美化状态栏）：必须按以下UI/UX规范+StageDog标准生成，美观度对齐参考卡片，严禁敷衍：\n' +
-    '  · 【配置固定StageDog标准】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0\n' +
-    "  · 【包裹格式StageDog标准】replaceString用纯```代码块包裹（禁止```html标记）；HTML无<!doctype html>、无<html>根；<head>(style+script type=module)+<body>结构\n" +
-    '  · 【读变量StageDog标准】优先getVariables({type:"message",message_id:"latest"}) + try/catch fallback getAllVariables()；_getVars() helper封装；用_.get(res,"stat_data",{})取根（禁止Mvu.getVar有时序失效）\n' +
-    '  · 【异步等待StageDog标准两步走】①await waitGlobalInitialized("Mvu")；②while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒，StageDog waitUntil模式）\n' +
-    "  · 【顶层入口StageDog标准】$(async function(){ try { ... } catch(err){ fallbackUI } }) —— jQuery ready + async；顶层禁止errorCatched（仅pinia内部setup可用）\n" +
-    '  · 【主同步机制StageDog标准】setInterval(refreshStatus, 2000) 每2秒轮询；Mvu.events.VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED事件仅作加分兜底，UI不得依赖事件\n' +
-    '  · 【配色主题（核心！必须用CSS变量）】建议用低饱和柔色系（深色毛玻璃/浅色系二选一），:root定义变量便于换主题：\n' +
-    '    - 深色毛玻璃主题（推荐）：--card-bg: rgba(30,35,45,0.82); backdrop-filter: blur(6px); 搭配 --accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
-    '    - 浅色舒适主题：--card-bg: linear-gradient(145deg,#f7f9fc,#eef2f7); 搭配柔和主色蓝/紫/绿色系\n' +
-    '  · 【布局结构（核心！严禁平铺直叙）】：\n' +
-    '    - 必须用 CSS Grid 响应式布局：.stat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 16px; }\n' +
-    '    - 分类标题：.category-title { font-weight:600; 带▸图标 + border-bottom分隔线; 区分不同对象分组 }\n' +
-    '    - 层级缩进：.indent-1/2/3/4 { padding-left: 8px/20px/32px/44px; } 按嵌套深度缩进\n' +
-    '    - 单行项：.stat-item  flex + justify-content: space-between + align-items: flex-start + gap:8px + hover背景高亮(.hover-bg)\n' +
-    '  · 【逐变量填充规范（用户模板标准核心！废弃递归renderTree）】：\n' +
-    '    - function populateCharacterData() { const all_variables = getAllVariables(); const data = _.get(all_variables, "stat_data", {}); ... }\n' +
-    '    - 过滤：_开头和$开头的字段为只读/派生字段，populateCharacterData 中跳过（不为其写填充逻辑）\n' +
-    '    - 逐变量点对点填充：const val = _.get(data, "路径.字段", 默认值); $(\'#id\').text(val); —— 每个变量对应Step3骨架中唯一id\n' +
-    '    - 数值typeof==="number" → $(\'#id\').text(val); 可配合 $(\'#id-bar\').css("width", val + "%") 做进度条\n' +
-    '    - 布尔typeof==="boolean" → $(\'#id\').text(val ? "✓" : "✕")（绿/红分色，不用emoji✅❌）\n' +
-    '    - 数组Array.isArray(value) → items.map(it => `<li>${it}</li>`).join("") → $(\'#id\').html(html)\n' +
-    '    - 其他字符串/null/undefined → $(\'#id\').text(String(val))\n' +
-    '  · 【动效（点睛）】：\n' +
-    '    - 加载中：.loading-state text-align:center + @keyframes breathe 呼吸动画（opacity 0.5↔0.9）\n' +
-    '    - 刷新：.flash-update + @keyframes fadeIn（opacity 0.6→1） + setTimeout 300ms 移除class\n' +
-    '    - hover过渡：transition: background/color 等加 0.2s ease\n' +
-    '  · 【类型检测】严格 typeof value === "number" 严格检测，禁止字符串数字判断\n' +
-    '  · 【根据题材定制】修仙（修仙→境界灵力条/末世→生命物资条/校园→好感度条/校园恋爱→心形好感度图标，但默认数值着色也行，务必主题风格统一\n' +
-    '  · 【严禁偷工减料检查】输出前自查：有没有 Grid布局✓、分类标题✓、indent缩进类✓、hover✓、Array处理✓、两个事件绑定✓、flash更新动画✓、loading动画✓\n' +
     '- 生成[InitVar]初始变量、变量更新规则、变量输出格式条目\n\n' +
     '=== 世界书完善方法论（标签体系+引擎模式+三联细化） ===\n' +
     '本节是【条目生成总纲】，从「填内容」升级为「建系统」。生成任何条目前必读，按本节方法论决定条目的标签、配置、命名与协作关系。\n\n' +
@@ -3119,7 +2456,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · 引擎类：<场景机制>少女生成引擎 + <实体交互>少女-递归扩展 + <叙事背景>傲娇/自尊型深度 + <叙事背景>腹黑/观察型深度\n' +
     '【命名铁律】后缀可以用 ·中文点号 分维度（如 白娅·人际关系），也可以用斜杠/逗号（如 傲娇/自尊型），但绝不能两个不同条目只用前缀、不加后缀——否则会在同前缀只有1条时被 findMatchingEntry 误判为"同一条目的不同版本"而互相覆盖。\n\n' +
     '【用户需求最高优先级声明】若本提示词中的任何规则、规范、建议，与用户明确表达的意图冲突（例如：用户说「所有条目都设置 depth=3」但本规范建议 <基础公理> depth=0），以用户的明确表达为准。本方法论是"最佳实践参考"而非不可违反的束缚。当检测到冲突时，按用户需求执行，并在:::操作块前用1句话说明"根据你的需求调整了XXX配置"。\n\n' +
-    '=== 质量检查标准（32项核心 + 6项附加） ===\n\n' +
+    '=== 质量检查标准（24项核心 + 6项附加） ===\n\n' +
     '**基础字段检查（8项）：**\n' +
     '- [ ] name：世界名称明确，体现核心主题\n' +
     '- [ ] description：包含世界核心设定（400字以上）\n' +
@@ -3127,10 +2464,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] scenario：空字符串""（世界模式强制留空）\n' +
     '- [ ] first_mes：开场白（500字以上）\n' +
     '- [ ] 身份自洽：personality/description/scenario/first_mes 四处对角色身份的描述一致无冲突\n\n' +
-    '**高价值字段检查（3项）：**\n' +
+    '**高价值字段检查（2项）：**\n' +
     '- [ ] 多开局机制：<动态适配>分支开局 + initvar 覆盖 或 first_mes 内嵌分支选项（至少1种开局方式）\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
-    '- [ ] regex_scripts：基础状态同步正则\n\n' +
     '**世界书基础检查（6项）：**\n' +
     '- [ ] 条目数：12-30条\n' +
     '- [ ] 触发词覆盖率：≥50%\n' +
@@ -3138,22 +2474,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] 条目命名规范：≥50%使用规范前缀\n' +
     '- [ ] 权重合理：核心规则在高权重位\n' +
     '- [ ] content自包含性：无"如上所述"等上下文依赖词\n\n' +
-    '**世界书高级功能检查（8项，进阶可选）：**\n' +
+    '**世界书高级功能检查（7项，进阶可选）：**\n' +
     '- [ ] 递归链条：实体条目关联背景叙事条目（delay_until_recursion）\n' +
     '- [ ] 分组机制：场景变体/难度分层使用group分组\n' +
     '- [ ] 次级键过滤：复杂条件条目使用secondary_keys + selectiveLogic\n' +
     '- [ ] 概率事件：随机天气/彩蛋/遭遇使用probability\n' +
-    '- [ ] 正则触发：需要精确匹配说话者时使用\\x01正则键\n' +
     '- [ ] 组评分：大分组条目使用use_group_scoring提升精准度\n' +
     '- [ ] sticky/cooldown冲突：不同时在一条目设置两者\n' +
     '- [ ] position配置：constant条目position≤1，position=6/7需配对应字段\n\n' +
-    '**正则脚本检查（6项）：**\n' +
-    '- [ ] 脚本功能单一：每个脚本只做一件事\n' +
-    '- [ ] 正则标志正确：全局匹配加g，中文场景加i\n' +
-    '- [ ] 非贪婪匹配：使用.*?避免过度匹配\n' +
-    '- [ ] placement配置：至少设置1个应用位置\n' +
-    '- [ ] substituteRegex范围：在0-2范围内\n' +
-    '- [ ] runOnEdit：状态栏类脚本建议开启\n\n' +
     '**运行效果检查（3项）：**\n' +
     '- [ ] 常驻Token总量：≤500\n' +
     '- [ ] 递归安全：实体类条目开启prevent_recursion\n' +
@@ -3166,46 +2494,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] 常驻条目group冲突检测\n' +
     '- [ ] Outlet限制检查（如有）\n\n' +
     '**MVU变量系统检查（8条工作流，进阶可选，详见9.1.6）：**\n' +
-    '- [ ] 第1条 变量结构脚本：tavern_helper.scripts中存在zod Schema + registerMvuSchema注册\n' +
+    '- [ ] 第1条 变量结构脚本：tavern_helper.scripts中存在zod Schema\n' +
     '- [ ] 第2条 [InitVar]初始变量：条目存在，YAML格式合法，enabled=false，字段与第1条schema一致\n' +
     '- [ ] 第3条 [mvu_update]变量更新规则：依据schema生成check/type/range，含$_只读约束\n' +
     '- [ ] 第4条 变量列表：标签内为 null\n' +
     '- [ ] 第5条 [mvu_update]变量输出格式：固定YAML，含<UpdateVariable>+<Analysis>+<JSONPatch>5种操作\n' +
     '- [ ] 第6条 [mvu_update]变量输出格式强调：固定YAML，默认enabled=false\n' +
     '- [ ] 第7条 <状态栏>占位符提醒：提醒AI每条回复底部输出<StatusPlaceHolderImpl/>\n' +
-    '- [ ] 第8条 正则6状态栏HTML：regex_scripts中findRegex=StatusPlaceHolderImpl，markdownOnly=true\n' +
+    '- [ ] 第8条 正则6状态栏HTML：regex_scripts中存在状态栏美化脚本（markdownOnly=true）\n' +
     '注：写卡器导出时**仅自动注入** bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/变量美化×2/状态栏隐藏)、开场白末尾<StatusPlaceHolderImpl/>占位符；\n' +
     '   其余8条MVU内容**必须全部由AI在MVU Tab按9.1.6工作流一条一条生成**：①变量结构脚本(zod 4 schema) ②[InitVar]初始变量 ③[mvu_update]更新规则 ④变量列表 ⑤[mvu_update]输出格式 ⑥[mvu_update]输出格式强调 ⑦<状态栏>占位符提醒条目 ⑧正则6(美化状态栏HTML)\n\n' +
-    '=== MVU 酒馆助手脚本 API ===\n\n' +
-    '**脚本侧变量约定**：\n' +
-    '- 变量名以 `_` 开头：AI 不可更新（仅脚本能改），如 `_internal_state`\n' +
-    '- 变量名以 `$` 开头：AI 不可见（不发给 AI），如 `$secret_flag`\n\n' +
-    '**MVU 事件系统**：\n' +
-    '- `Mvu.events.VARIABLE_INITIALIZED`：变量初始化完成（仅新开聊天时触发）\n' +
-    '- `Mvu.events.VARIABLE_UPDATE_STARTED`：变量更新开始\n' +
-    '- `Mvu.events.COMMAND_PARSED`：变量更新命令解析完成（可修复命令）\n' +
-    '- `Mvu.events.VARIABLE_UPDATE_ENDED`：变量更新结束（可做后处理）\n' +
-    '- `Mvu.events.BEFORE_MESSAGE_UPDATE`：变量存入楼层前\n\n' +
-    '**核心 API**：\n' +
-    '- `Mvu.getMvuData({type, message_id})`：获取指定楼层的变量数据\n' +
-    '- `Mvu.replaceMvuData(data, {type, message_id})`：写回变量到楼层\n' +
-    '- `Mvu.parseMessage(text, data)`：解析文本中的<JSONPatch>更新命令\n' +
-    '- `Mvu.getVar(path)`：获取当前变量路径值\n' +
-    '- `injectPrompts([...])`：注入仅用于绿灯激活的提示词（含 filter 条件）\n\n' +
-    '**典型脚本示例**：\n' +
-    '```javascript\n' +
-    'await waitGlobalInitialized("Mvu");\n' +
-    '// 监听变量更新结束，限制好感度单次变动幅度\n' +
-    'eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, (new_vars, old_vars) => {\n' +
-    '  const old_val = _.get(old_vars, "stat_data.白娅.依存度");\n' +
-    '  _.update(new_vars, "stat_data.白娅.依存度", v => _.clamp(v, old_val - 3, old_val + 3));\n' +
-    '});\n' +
-    '// 用变量值激活绿灯\n' +
-    'eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, vars => {\n' +
-    '  const val = _.get(vars, "stat_data.白娅.依存度");\n' +
-    '  injectPrompts([{id:"激活-依存度", content:"白娅阶段" + (val<40?"二":val<60?"三":val<80?"四":"五"), position:"none", depth:0, role:"system", should_scan:true}]);\n' +
-    '});\n' +
-    '```\n\n' +
     '=== 状态栏格式（9体系） ===\n\n' +
     '<statusblock>\n' +
     '### 📊 信息完整度 XX%\n\n' +
@@ -5125,7 +4423,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 注入实际质检结果（防止AI虚报进度）—— 在角色卡Tab中，质检不统计MVU条目
     var qcBlock = '';
     if (cd) {
-      var qcResults = runQualityCheck(cd);
+      // 角色卡Tab：过滤掉正则脚本类质检项（正则/脚本内容已从本Tab提示词链路移除，不再发给AI）
+      var qcResults = runQualityCheck(cd).filter(function(r) {
+        if (r.category === '正则脚本') return false;
+        if (r.name === 'regex_scripts 状态同步正则') return false;
+        if (r.name === '正则触发键') return false;
+        return true;
+      });
       var passed = qcResults.filter(function(r) { return r.pass; });
       var failed = qcResults.filter(function(r) { return !r.pass; });
       var entries = (cd.character_book || {}).entries || [];
@@ -5265,20 +4569,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function filterOutMvuSectionsFromSysPrompt(originalPrompt) {
     if (!originalPrompt) return originalPrompt;
     // 通过关键词过滤掉MVU专属的大型段落：
-    // 1. 示例14-18（MVU正则脚本相关示例）
-    // 2. 状态栏美化显示 以及 后面的 Step 1-8 状态栏生成流程
-    // 3. 机制1~机制5（状态栏填入式收集的机制）
-    // 4. 条目命名规范中 [InitVar]/变量列表/变量更新规则/变量输出格式/<状态变量输出>/<状态栏>
-    // 5. 条目配置规范中 MVU 相关行
+    // （正则脚本文档/示例、状态栏Step生成流程、MVU脚本API等已从SYS_PROMPT源头删除，无需运行时过滤）
+    // 1. 条目命名规范中 [InitVar]/变量列表/变量更新规则/变量输出格式/<状态变量输出>
+    // 2. 条目配置规范中 MVU 相关行
+    // 3. MVU变量系统设计模式区块（模式1-5 + zod安装清单）
+    // 4. 步骤7：配变量系统区块
     // 简单起见，用分段+正则过滤掉关键词区域
     var p = originalPrompt;
-    // 移除 "15. MVU-移除旧变量更新..." 到 "高级场景与设计模式" 前的所有内容
-    // ⚠️ 从 15. 开始（原先从 16. 开始导致 15 号 MVU 示例泄漏到角色卡 Tab）
-    // 先移除 15~18 号 MVU 专属正则示例以及后面到 "高级场景与设计模式" 前的一大段状态栏生成流程
-    var mvuStartPattern = /15\.\s*MVU-移除旧变量更新\(提示词\)[\s\S]*?高级场景与设计模式/;
-    if (mvuStartPattern.test(p)) {
-      p = p.replace(mvuStartPattern, '【MVU状态栏相关内容已剥离 - 请在MVU变量状态栏Tab查看】\n\n**高级场景与设计模式**');
-    }
     // 条目命名规范中移除7个MVU相关条目前缀说明
     // ⚠️ 宽松锚点：SYS_PROMPT 实际文本为 "- [InitVar]初始变量（第2条）：MVU变量系统..."
     // （原先正则要求字面 ":MVU变量系统" 无（第N条）编号，导致永不匹配、MVU条目说明泄漏）
@@ -5294,12 +4591,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 注5、注6（MVU相关的注）也删掉
     p = p.replace(/注5：\[InitVar\].*?\n/g, '注5：【MVU相关注已剥离】\n');
     p = p.replace(/注6：MVU脚本.*?\n/g, '注6：【MVU相关注已剥离】\n');
-    /* 改进B：过滤"高级场景与设计模式"之后的MVU设计模式区块（模式1-5 + zod安装清单，否则泄漏到角色卡Tab） */
-    var mvuDesignPattern = /\*\*🔗 MVU变量系统设计模式[\s\S]*?(?=\*\*📚 Lore插入策略)/;
-    if (mvuDesignPattern.test(p)) {
-      p = p.replace(mvuDesignPattern, '【MVU设计模式与安装清单已剥离 - 请在MVU变量状态栏Tab查看】\n\n');
-    }
-    /* 改进B：过滤"步骤7：配变量系统"区块（正则6详细生成规则等，含StatusPlaceHolderImpl） */
+    /* 注：MVU变量系统设计模式区块（模式1-5 + zod安装清单）已从SYS_PROMPT源头删除，无需运行时过滤 */
+    /* 改进B：过滤"步骤7：配变量系统"区块（变量系统配置说明，MVU Tab专属） */
     // ⚠️ 前瞻补全为三个等号（(?==== ...)）：实际标题为 "=== 质量检查标准"，原先两个等号会在
     // 标题第一个 = 处提前截断，替换后标题被腐蚀成 "== 质量检查标准"
     var mvuStep7Pattern = /\*\*步骤7：配变量系统\*\*[\s\S]*?(?==== 质量检查标准)/;
@@ -11670,7 +10963,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         setEnabled(false);
         addTyping();
         try {
-          var analyzePrompt = SYS_PROMPT +
+          var analyzePrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT) +
             '\n\n=== AI分析指令 ===\n' +
             '请全面分析当前角色卡内容，完成以下任务：\n' +
             '1. 评估每个体系的完成度（0-100），输出到```json代码块\n' +
@@ -13058,7 +12351,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '- personality/scenario：内容自由（纯世界模式可留空，角色模式建议填写）\n' +
             '- 多开局机制：使用 <动态适配> 分支开局条目，或在开场白内嵌互动选项（二选一或组合）\n' +
             '- extensions.depth_prompt：新手引导（depth=0，可选）\n' +
-            '- extensions.regex_scripts：按需生成通用正则（如行动标签、关键词高亮），禁止MVU相关正则\n' +
             '- character_book.entries：不限数量，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条字数自由\n' +
             '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
             '=== 已有内容（参考，不要丢失） ===\n' +
@@ -13244,10 +12536,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ========== Tab 隔离：角色卡Tab 质检不检查 MVU 相关内容 ==========
         var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
         var results = runQualityCheck(cardData);
-        // 角色卡Tab：过滤掉 MVU变量系统 分类和正则脚本中MVU相关的检查项
+        // 角色卡Tab：过滤掉 MVU变量系统 分类和正则脚本相关检查项（正则/脚本已从本Tab移除，由MVU Tab负责）
         if (__tab === 'card') {
           results = results.filter(function(r) {
             if (r.category === 'MVU变量系统') return false;
+            if (r.category === '正则脚本') return false;
+            if (r.name === 'regex_scripts 状态同步正则') return false;
+            if (r.name === '正则触发键') return false;
             if (r._mvuOnly) return false;  // 标记为MVU专属的检查项
             return true;
           });
@@ -13264,9 +12559,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
             '<div class="modal-body" style="margin-top:10px">';
         var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
-        // 角色卡Tab 隐藏 MVU变量系统 分类
+        // 角色卡Tab 隐藏 MVU变量系统 和 正则脚本 分类
         if (__tab === 'card') {
-          categories = categories.filter(function(c) { return c !== 'MVU变量系统'; });
+          categories = categories.filter(function(c) { return c !== 'MVU变量系统' && c !== '正则脚本'; });
         }
         var catColors = { '基础字段': '#a16207', '高价值字段': '#ca8a04', '世界书': '#15803d', '世界书高级': '#7c3aed', '正则脚本': '#ca8a04', '运行效果': '#ca8a04', 'MVU变量系统': '#2563eb', '附加检查': '#667085' };
         categories.forEach(function(cat) {
@@ -13641,7 +12936,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // === 高价值字段 ===
           '多开局机制（不限形式）': { field: 'entries', instr: '问题：缺少多开局分支机制\n影响：重玩价值低，开局体验单一\n修复：用 <动态适配>分支开局世界书条目(selective=true, keys含选择关键词) + MVU initvar 覆盖，或在 first_mes 末尾内嵌分支选择提示（二选一或组合）。alternate_greetings 由写卡器自动管理兼容。' },
           'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效，可选）' },
-          'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本（按需生成）\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：按需生成实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换等（数量自由）' },
           // === 世界书基础 ===
           '世界书条目（不限数量）': { field: 'entries', instr: '问题：世界书条目数为0\n影响：完全没有条目内容承载设定\n修复：至少创建1条世界书条目，数量不限（自由增减，按创作进度自然增加），覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块' },
           '触发词覆盖率 ≥50%': { field: 'entries', instr: '问题：触发词覆盖率不足50%\n影响：触发条目无法被正确激活\n修复：为≥50%的条目设置精准 keys 触发词，避免泛用词（如"的""是"）' },
@@ -13654,17 +12948,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '分组机制：group分组': { field: 'entries', instr: '问题：未使用group分组\n影响：场景变体/难度分层无法互斥\n修复：为场景变体/难度分层/时间分支设置 extensions.group 分组（同组仅注入1条实现互斥）' },
           '次级键过滤：secondary_keys + selectiveLogic': { field: 'entries', instr: '问题：未使用次级键过滤\n影响：复杂条件触发不精准\n修复：为复杂条件条目设置 secondary_keys 配合 extensions.selectiveLogic（0=AND_ANY,1=NOT_ALL,2=NOT_ANY,3=AND_ALL）' },
           '概率事件：probability < 100': { field: 'entries', instr: '问题：未使用概率触发\n影响：缺少随机性与惊喜感\n修复：为随机天气/彩蛋/遭遇条目设置 extensions.useProbability=true 且 extensions.probability<100' },
-          '正则触发键': { field: 'entries', instr: '问题：未使用正则触发键\n影响：无法精确匹配说话者\n修复：为需要精确匹配的条目使用正则键，如 keys:["/^\\\\x01{{user}}:.*?/i"]' },
           '组评分 use_group_scoring': { field: 'entries', instr: '问题：未使用组评分\n影响：大分组匹配精准度不足\n修复：为大分组条目开启 extensions.use_group_scoring=true' },
           'sticky/cooldown冲突检查': { field: 'entries', instr: '问题：条目同时设置sticky和cooldown\n影响：逻辑冲突（sticky持续存在 vs cooldown间歇触发）\n修复：移除其中一个，按需保留单一机制' },
           'position配置合理性': { field: 'entries', instr: '问题：position配置有误\n影响：注入位置异常\n修复：constant条目 extensions.position≤1；position=6需配depth+role；position=7需配outlet_name' },
-          // === 正则脚本 ===
-          '脚本功能单一': { field: 'regex_scripts', instr: '问题：正则脚本功能混合\n影响：难以维护与调试\n修复：每个脚本只做一件事，复杂替换拆分成多个简单脚本' },
-          '正则标志正确（g全局匹配）': { field: 'regex_scripts', instr: '问题：findRegex缺少g标志\n影响：只替换第一个匹配\n修复：findRegex 包含g标志（如/pattern/gi），中文场景加i' },
-          '非贪婪匹配（.*?）': { field: 'regex_scripts', instr: '问题：使用贪婪匹配.*或.+\n影响：匹配过多内容\n修复：改用.*?或.+?非贪婪匹配' },
-          'placement配置检查': { field: 'regex_scripts', instr: '问题：未设置placement\n影响：脚本不知在哪个位置执行\n修复：设置placement数组，[0]=用户输入、[1]=AI回复、[0,1]=两者都处理' },
-          'substituteRegex范围（0-2）': { field: 'regex_scripts', instr: '问题：substituteRegex超出0-2范围\n影响：宏替换行为异常\n修复：设为0(不替换宏)/1(原始替换)/2(转义替换)，一般用1' },
-          '状态栏/MVU脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏/MVU脚本开启了runOnEdit（违反StageDog标准）\n影响：编辑消息时重复执行脚本，状态栏闪烁或初始化异常\n修复：MVU/状态栏/思维链/变量美化类脚本设置 runOnEdit=false（对齐tavern_helper_template标准）' },
           // === 运行效果 ===
           '常驻Token估算（仅供参考，不限量）': { field: 'entries', instr: '问题：常驻Token量仅供参考（不硬性限制）\n影响：AI失忆时再考虑精简\n修复：常驻内容>2000Token，如遇AI失忆可考虑精简部分；否则自由掌握，仅参考' },
           '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
@@ -13721,7 +13007,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           { key: 'system_prompt', label: '⚡ 系统指令' },
           { key: 'alternate_greetings', label: '🎭 备用开局' },
           { key: 'depth_prompt', label: '🎮 新手引导' },
-          { key: 'regex_scripts', label: '🔄 状态正则' },
           { key: 'entries', label: '📖 世界书条目' }
         ];
         selectedOptFields = [];
@@ -13780,7 +13065,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         try {
           var cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
-          var optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书、正则脚本规范。请针对指定字段优化角色卡。\n\n' +
+          var optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书规范。请针对指定字段优化角色卡。\n\n' +
             '=== 任务目标 ===\n' +
             '只优化以下字段，其他字段保持不变：' + selectedOptFields.join(', ') + '\n\n' +
             (customReq ? '=== 用户额外要求 ===\n' + customReq + '\n\n' : '') +
@@ -13804,20 +13089,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '【depth_prompt 新手引导】\n' +
             '- prompt：新手引导内容，教玩家如何互动（可选）\n' +
             '- depth：默认0（表示对所有玩家生效）\n\n' +
-            '【regex_scripts 状态同步正则】\n' +
-            '- 数量：按需生成，自由掌握\n' +
-            '- 格式规范：\n' +
-            '  * findRegex：/模式/flags格式（必须包含g全局匹配，中文加i忽略大小写）\n' +
-            '  * replaceString：支持$1-$9捕获组、{{match}}宏、$&完整匹配\n' +
-            '  * placement：[0]=用户输入，[1]=AI回复，[0,1]=两者都处理\n' +
-            '  * substituteRegex：0=不替换宏，1=原始替换，2=转义替换（一般用1）\n' +
-            '  * runOnEdit：true=编辑消息时重新执行；MVU/状态栏/变量美化类脚本必须设为false（StageDog标准，避免编辑消息时重复执行）\n' +
-            '  * scriptName：简短描述脚本功能\n' +
-            '- 常用场景：\n' +
-            '  * 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
-            '  * 行动标签：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
-            '  * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
-            '  * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n\n' +
             '【entries 世界书条目】\n' +
             '- 数量：不限（自由增减，按创作进度自然增长）\n' +
             '- 命名规范：使用<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>等前缀\n' +
@@ -13863,23 +13134,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
             '   - AI 输出示例：{ "op": "replace", "path": "/stat_data/主角/体力值", "value": 80 }, { "op": "delta", "path": "/stat_data/同桌/好感度", "value": 5 }\n' +
             '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<状态栏>占位符提醒条目、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
-            '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范+StageDog标准生成，美观度对齐参考卡片，严禁敷衍：\n' +
-            '  · 【配置固定StageDog标准】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=false, substituteRegex=0\n' +
-            "  · 【包裹格式StageDog标准】完整HTML结构（无<!doctype html>、无<html>根）：head(style)+body(script type=module)；replaceString用纯```代码块包裹（禁止```html标记）\n" +
-            '  · 【读变量StageDog标准】优先getVariables({type:"message",message_id:"latest"})，try/catch fallback getAllVariables()，封装_getVars() helper；_.get(res,"stat_data",{})取根（禁止Mvu.getVar有时序失效）\n' +
-            '  · 【异步等待StageDog标准两步走】①await waitGlobalInitialized("Mvu")；②while+setTimeout每秒轮询_.has(_getVars(),"stat_data")（最多15秒）\n' +
-            "  · 【顶层入口+主同步】入口用$(async function(){try/catch})，禁止顶层errorCatched；同步用setInterval(刷新,2000)（StageDog主机制）；事件仅try/catch包裹作加分兜底\n" +
-            '  · 【逐变量填充规范（用户模板标准核心！废弃递归renderTree）】function populateCharacterData() { const all_variables = getAllVariables(); const data = _.get(all_variables, "stat_data", {}); ... } 跳过 _/$ 开头字段\n' +
-            '    - typeof==="number" → $(\'#id\').text(val); 可配合进度条；布尔值 → $(\'#id\').text(val?"✓":"✕")（绿/红分色，不用emoji✅❌）\n' +
-            '    - 逐变量点对点填充：const val = _.get(data, "路径.字段", 默认值); $(\'#id\').text(val); —— 每个变量对应Step3骨架中唯一id\n' +
-            '    - 数组 Array.isArray(value) → items.map(it=>`<li>${it}</li>`).join("") → $(\'#id\').html(html)；其他 → $(\'#id\').text(String(val))\n' +
-            '  · 【配色（核心！必须用CSS变量）】推荐低饱和柔色系：深色毛玻璃主题 --card-bg:rgba(30,35,45,0.82);backdrop-filter:blur(6px); 配--accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
-            '  · 【布局（核心！严禁平铺直叙）】必须用Grid响应式：.stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:4px 16px; }\n' +
-            '    - .category-title 分类标题（font-weight:600 + 分隔线 + ▸）\n' +
-            '    - .indent-1/2/3/4 { padding-left:8/20/32/44px } 按嵌套深度缩进\n' +
-            '    - .stat-item flex+justify-content:space-between + align-items:flex-start + gap:8px + .hover-bg 高亮\n' +
-            '  · 【动效（点睛）】.loading-state 文本居中 + @keyframes breathe呼吸动画(opacity 0.5↔0.9)；.flash-update + @keyframes fadeIn(0.6→1) + setTimeout 300ms 移除；transition: 0.2s ease\n' +
-            '  · 【输出前必查自查清单】Grid布局✓、分类标题✓、indent缩进类✓、hover高亮✓、Array处理✓、两个事件绑定✓、flash更新动画✓、loading动画✓\n\n' +
             '=== 输出格式 ===\n' +
             '只输出```json代码块，包含优化后的字段。\n' +
             '规则：\n' +
@@ -13911,16 +13165,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               t += '\n⚠️ 删除写法示例：\n';
               t += '  { "_action":"delete", "comment":"' + (entries[0] ? entries[0].comment : '精确comment') + '" }\n';
               t += '⚠️ 修改写法：保持 comment 完全与上面一致，或先 _action:delete 再新增新comment条目\n\n';
-              return t;
-            })() : '') +
-            (selectedOptFields.indexOf('regex_scripts') >= 0 ? (function() {
-              var rx = ((cardData.extensions || {}).regex_scripts || []);
-              if (!rx.length) return '';
-              var t = '=== 🔧 regex_scripts 精确标识清单 ===\n';
-              rx.forEach(function(r, i) {
-                t += '  ' + (i+1) + '. id=' + (r.id||'(无)') + '  scriptName=' + (r.scriptName||'(无)') + '  findRegex=' + (r.findRegex||'(无)') + '\n';
-              });
-              t += '删除写法：{ "_action":"delete", "id":"..." } 或 { "_action":"delete", "scriptName":"..." }\n\n';
               return t;
             })() : '') +
             '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
