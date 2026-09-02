@@ -10095,33 +10095,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return false;
           var state = JSON.parse(raw);
-          if (!state) return false;
-          // 1) 角色卡数据：name / description / entries / first_mes 任一非空即算
-          if (state.cardData) {
-            var cd = state.cardData;
-            var hasName = cd.name && cd.name.length > 0;
-            var hasDesc = cd.description && cd.description.length > 0;
-            var hasEntries = cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0;
-            var hasFirstMes = cd.first_mes && cd.first_mes.length > 0;
-            if (hasName || hasDesc || hasEntries || hasFirstMes) return true;
-          }
-          // 2) 聊天记录：任一 Tab 有历史消息即算
-          //（修复：只在MVU Tab聊过天/还没生成卡字段时，按钮也必须显示）
-          if (state.chatSessions && typeof state.chatSessions === 'object') {
-            var cm = state.chatSessions.card && state.chatSessions.card.messages;
-            var mm = state.chatSessions.mvu && state.chatSessions.mvu.messages;
-            if ((cm && cm.length > 0) || (mm && mm.length > 0)) return true;
-            // MVU Tab 已有状态栏模块数据也算
-            var mods = state.chatSessions.mvu && state.chatSessions.mvu.modules;
-            if (mods) {
-              for (var mk in mods) {
-                if (mods[mk]) return true;
-              }
-            }
-          }
-          // 3) 旧版存档格式：顶层 messages
-          if (state.messages && state.messages.length > 0) return true;
-          return false;
+          // 放宽条件：有 name 或有 entries 或有 description 都算有数据
+          if (!state || !state.cardData) return false;
+          var cd = state.cardData;
+          var hasName = cd.name && cd.name.length > 0;
+          var hasDesc = cd.description && cd.description.length > 0;
+          var hasEntries = cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0;
+          return hasName || hasDesc || hasEntries;
         } catch(e) { return false; }
       }
 
