@@ -998,6 +998,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
+        // ===== HTML独立版分支：本窗口就是壳页面（由 时之写卡器.html 以同源iframe进酒馆）=====
+        // 不再内建iframe，直接把样式注入自身document后交付（样式只注入一次）
+        if (window.__CARD_WRITER_HTML__) {
+          if (!document.getElementById(SCRIPT_ID + '-inline-style')) {
+            var _s = document.createElement('style');
+            _s.id = SCRIPT_ID + '-inline-style';
+            _s.textContent = IFRAME_CSS;
+            document.head.appendChild(_s);
+          }
+          resolve(document);
+          return;
+        }
         var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
         var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
         if (old) old.remove();
@@ -1038,7 +1050,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   function closeModal() {
-    try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
+    try {
+      // ===== HTML独立版分支：从酒馆父页面移除壳iframe（壳iframe id 与内建iframe相同，复用同一移除逻辑）=====
+      if (window.__CARD_WRITER_HTML__) {
+        try { if (window.parent && window.parent !== window) { var _pm = window.parent.document.getElementById(SCRIPT_ID + '-modal'); if (_pm) _pm.remove(); } } catch(_) {}
+        return;
+      }
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove();
+    } catch(e) {}
   }
 
   // ⚠️修复（卸载清理不完整）：openEditor 把 __cardData / __getChatSessions / __getCurrentMessages 等
@@ -14123,6 +14142,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (_btnEvtOff) { _btnEvtOff(); _btnEvtOff = null; }
       // ⚠️修复（卸载清理不完整）：释放 window.__* 编辑器访问器（持有整份 cardData + 双Tab聊天历史）
       _releaseEditorGlobals();
+      // ===== HTML独立版分支：壳iframe由 closeModal 移除，无浮动按钮/内建iframe需清理 =====
+      if (window.__CARD_WRITER_HTML__) return;
       var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
       var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
@@ -14138,7 +14159,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     window.addEventListener('pagehide', cleanupScriptArtifacts);
     tryInit();
   }
-  if (typeof $ !== 'undefined') {
+  // ===== HTML独立版分支：本页面就是壳（时之写卡器.html），跳过酒馆按钮注册，直接打开写卡器 =====
+  // 壳页面由加载器以同源iframe嵌入酒馆，酒馆API（generate/SillyTavern等）经 window.parent 照常可达
+  if (window.__CARD_WRITER_HTML__) {
+    var _htmlReady = function() { try { openEditor(); } catch(e) { console.error('[时之写卡器] HTML版启动失败:', e); } };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _htmlReady);
+    else _htmlReady();
+  } else if (typeof $ !== 'undefined') {
     $(scriptEntryPoint);
   } else if (typeof window !== 'undefined' && window.parent && typeof window.parent.$ !== 'undefined') {
     window.parent.$(scriptEntryPoint);

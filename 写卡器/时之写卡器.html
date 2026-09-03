@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>时之写卡器</title>
+  <!--
+    时之写卡器 · HTML壳
+    用法：本文件与 时之写卡器.js 放在酒馆用户公共目录（data/<用户>/user/public/），
+          由酒馆脚本库中的「时之写卡器加载器」以同源iframe方式加载。
+    注意：直接双击打开只能用UI和导出JSON，AI调用/写入酒馆需在酒馆环境内（同源iframe）才可用。
+  -->
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #f6f2ea; }
+  </style>
+</head>
+<body>
+  <script>
+    // 壳标志位：时之写卡器.js 检测到此标志后走HTML独立版分支（跳过酒馆按钮注册，直接渲染UI）
+    window.__CARD_WRITER_HTML__ = true;
+  </script>
+  <script src="./时之写卡器.js"></script>
+</body>
+</html>
