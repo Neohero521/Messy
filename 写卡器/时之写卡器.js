@@ -8010,6 +8010,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         items += '<div class="ws-dropdown-divider"></div>';
         items += '<div class="ws-dropdown-section">导入导出</div>';
+        items += '<div class="ws-dropdown-item" data-action="export-card" title="导出完整角色卡JSON（含世界书、正则、脚本，chara_card_v3格式）">' + svgIcon('fileExport', 15) + ' 导出角色卡JSON</div>';
         items += '<div class="ws-dropdown-item" data-action="export-log">' + svgIcon('fileExport', 15) + ' 导出聊天记录</div>';
         items += '<div class="ws-dropdown-item" data-action="import-card">' + svgIcon('download', 15) + ' 导入角色卡</div>';
         dropdown.innerHTML = items;
@@ -8050,6 +8051,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             dropdown.classList.remove('show');
             if (action === 'open-workspace') openWorkspacePanel();
             else if (action === 'switch-tab') switchTab(this.getAttribute('data-tab'));
+            else if (action === 'export-card') exportCardJson();
             else if (action === 'export-log') {
               var btn = doc.getElementById('exportLogBtn');
               if (btn) btn.click();
@@ -9849,6 +9851,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         curMsgs.push({ role: 'user', content: content });
         appendMsg('user', content, curMsgs.length - 1);
         saveToStorage();
+      }
+      /* 导出完整角色卡JSON（含世界书、正则、脚本）—— 复用 buildExportCard 装配逻辑，与「写入酒馆」数据一致 */
+      function exportCardJson() {
+        try {
+          if (!cardData.name || !cardData.name.trim()) {
+            showToast('请先确定世界/角色名称，再导出角色卡', 'warning');
+            return;
+          }
+          var exportCard = buildExportCard(cardData);
+          var json = JSON.stringify(exportCard, null, 2);
+          var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+          var url = URL.createObjectURL(blob);
+          var a = doc.createElement('a');
+          a.href = url;
+          // 文件名非法字符替换为下划线（/ \ : * ? " < > |）
+          var safeName = cardData.name.trim().replace(/[\\/:*?"<>|]/g, '_');
+          a.download = '角色卡_' + safeName + '_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+          doc.body.appendChild(a);
+          a.click();
+          doc.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('✅ 角色卡JSON已导出（含世界书、正则、脚本，chara_card_v3格式）', 'success');
+        } catch(err) {
+          console.error('[exportCardJson] error:', err);
+          showToast('❌ 导出失败：' + (err && err.message ? err.message : '未知错误'), 'error');
+        }
       }
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
       function exportChatLogs() {
