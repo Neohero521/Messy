@@ -14101,12 +14101,288 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     } catch(e) { return false; }
   }
 
+    // ============================================================================
+    // SECTION 11.5 动态悬浮图标（借鉴"狐神撫"悬浮宠物：呼吸动画·拖拽·位置记忆·缩放·右键菜单）
+    // ============================================================================
+    // ⚠️ FLOAT_ICON_URL 来自 Discord CDN，链接带 ex= 过期参数（约 2026-09-07 失效）。
+    //   失效后 img 加载失败会自动回退为 🦊 兜底图标，功能不受影响；
+    //   届时把新图床链接替换到下方常量即可恢复原图。
+    var FLOAT_ICON_URL = 'https://cdn.discordapp.com/attachments/1544912859811815454/1546163677428850708/mmexport1788704514544.webp?ex=6a9ec8a3&is=6a9d7723&hm=43c9a53a39e60e4bdab1748494e865805adaf96b78b9528a6cb05409c6b1e770&';
+    var FLOAT_ICON_KEY = 'szxq_float_icon_v1';
+    var FLOAT_ICON_BASE = 64;   // 100%缩放时的图标边长(px)
+    var _floatIconCleanups = [];  // 卸载清理句柄（DOM移除 + 父页面监听器注销）
+    var _floatIconActive = false; // 悬浮图标是否挂载成功（成功后旧兜底按钮不再叠加）
+
+  function addDynamicFloatIcon() {
+    try {
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var pWin = (window.parent && window.parent.document) ? window.parent : window;
+      // ---- 去重：脚本重载时清掉旧实例 ----
+      ['float-icon', 'float-menu', 'float-style'].forEach(function(suffix) {
+        var old = pDoc.getElementById(SCRIPT_ID + '-' + suffix);
+        if (old) old.remove();
+      });
+
+      // ---- 设置状态（位置/缩放/动画开关，localStorage持久化） ----
+      var st = { posX: null, posY: null, scale: 100, animEnabled: true };
+      try {
+        var rawFi = localStorage.getItem(FLOAT_ICON_KEY);
+        if (rawFi) {
+          var dFi = JSON.parse(rawFi);
+          if (dFi) {
+            if (typeof dFi.scale === 'number') st.scale = Math.max(40, Math.min(160, dFi.scale));
+            if (dFi.animEnabled !== undefined) st.animEnabled = !!dFi.animEnabled;
+            if (typeof dFi.posX === 'number') st.posX = dFi.posX;
+            if (typeof dFi.posY === 'number') st.posY = dFi.posY;
+          }
+        }
+      } catch (_) {}
+
+      function saveFi() {
+        try {
+          localStorage.setItem(FLOAT_ICON_KEY, JSON.stringify({
+            posX: st.posX, posY: st.posY, scale: st.scale, animEnabled: st.animEnabled
+          }));
+        } catch (_) {}
+      }
+
+      // ---- 注入样式（图标 + 右键菜单，深色玻璃风，z-index低于弹窗99999） ----
+      var styleEl = pDoc.createElement('style');
+      styleEl.id = SCRIPT_ID + '-float-style';
+      styleEl.textContent = ''
+        + '#' + SCRIPT_ID + '-float-icon{position:fixed;z-index:99990;width:64px;height:64px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));}'
+        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.60);background:#2a2119;box-shadow:0 6px 22px rgba(0,0,0,.30),0 0 16px rgba(240,150,80,.30);transition:box-shadow .25s ease,border-color .25s ease,transform .2s ease;}'
+        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;pointer-events:none;}'
+        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-emoji{line-height:1;pointer-events:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%;}'
+        + '#' + SCRIPT_ID + '-float-icon.szxq-fi-anim-on .szxq-fi-anim{animation:szxq-fi-breath 3.4s ease-in-out infinite;}'
+        + '#' + SCRIPT_ID + '-float-icon:hover .szxq-fi-anim{box-shadow:0 10px 30px rgba(0,0,0,.42),0 0 26px rgba(240,150,80,.45);border-color:rgba(255,235,210,.85);}'
+        + '#' + SCRIPT_ID + '-float-icon.szxq-fi-dragging{cursor:grabbing;}'
+        + '#' + SCRIPT_ID + '-float-icon.szxq-fi-dragging .szxq-fi-anim{transform:scale(1.08);}'
+        + '@keyframes szxq-fi-breath{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.05)}}'
+        + '#' + SCRIPT_ID + '-float-menu{position:fixed;z-index:99991;display:none;flex-direction:column;gap:2px;min-width:190px;padding:8px 4px;background:rgba(24,20,18,.96);border:1px solid rgba(240,150,80,.30);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 14px;border:none;background:transparent;border-radius:8px;color:#d8ccc2;font-size:12.5px;font-family:inherit;cursor:pointer;text-align:left;transition:background .15s ease,color .15s ease;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-item:hover{background:rgba(240,150,80,.18);color:#f5ded0;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-item.danger{color:#d08080;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-item.danger:hover{background:rgba(180,60,60,.25);color:#ffb0a0;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-divider{height:1px;background:rgba(255,255,255,.08);margin:4px 8px;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-scale{padding:6px 14px 10px;display:flex;flex-direction:column;gap:4px;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-scale label{font-size:11px;color:#a09088;display:flex;justify-content:space-between;align-items:center;cursor:default;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-scale .szxq-fm-val{color:#f0a070;font-weight:600;}'
+        + '#' + SCRIPT_ID + '-float-menu .szxq-fm-scale input[type=range]{width:100%;accent-color:#f09650;cursor:pointer;}';
+      pDoc.head.appendChild(styleEl);
+
+      // ---- 悬浮图标（wrap=定位层/拖拽热区，anim=呼吸动画层，img=图标本体） ----
+      var wrap = pDoc.createElement('div');
+      wrap.id = SCRIPT_ID + '-float-icon';
+      wrap.title = '时之写卡器 · 单击打开 / 拖拽移动 / 右键菜单 / 滚轮缩放';
+      wrap.setAttribute('aria-label', '时之写卡器悬浮图标');
+      var animLayer = pDoc.createElement('div');
+      animLayer.className = 'szxq-fi-anim';
+      var img = pDoc.createElement('img');
+      img.alt = '';
+      img.draggable = false;
+      img.referrerPolicy = 'no-referrer';
+      img.src = FLOAT_ICON_URL;
+      // 图标加载失败兜底（Discord链接过期等）→ 🦊表情，保证入口永不可用丢失
+      img.addEventListener('error', function() {
+        if (animLayer.querySelector('.szxq-fi-emoji')) return;
+        try { img.remove(); } catch (_) {}
+        var em = pDoc.createElement('div');
+        em.className = 'szxq-fi-emoji';
+        em.textContent = '🦊';
+        animLayer.appendChild(em);
+        applyScale();
+      });
+      animLayer.appendChild(img);
+      wrap.appendChild(animLayer);
+
+      // ---- 右键菜单 ----
+      var menu = pDoc.createElement('div');
+      menu.id = SCRIPT_ID + '-float-menu';
+      menu.setAttribute('role', 'menu');
+      menu.innerHTML = ''
+        + '<button class="szxq-fm-item" data-action="open"><span>✏️</span> 打开时之写卡器</button>'
+        + '<button class="szxq-fm-item" data-action="toggle-anim"><span>🎬</span> 动画 <span class="szxq-fi-state">开</span></button>'
+        + '<div class="szxq-fm-divider"></div>'
+        + '<div class="szxq-fm-scale">'
+        +   '<label>大小 <span class="szxq-fm-val">100%</span></label>'
+        +   '<input type="range" min="40" max="160" step="5" value="100">'
+        + '</div>'
+        + '<div class="szxq-fm-divider"></div>'
+        + '<button class="szxq-fm-item" data-action="reset-pos"><span>📍</span> 重置位置</button>'
+        + '<button class="szxq-fm-item danger" data-action="hide"><span>✕</span> 隐藏图标（刷新后恢复）</button>';
+      var slider = menu.querySelector('input[type=range]');
+      var scaleVal = menu.querySelector('.szxq-fm-val');
+      var animStateLabel = menu.querySelector('.szxq-fi-state');
+
+      pDoc.body.appendChild(wrap);
+      pDoc.body.appendChild(menu);
+
+      // ---- 位置/缩放应用（含视口钳制） ----
+      function applyPosition() {
+        var w = pWin.innerWidth || pDoc.documentElement.clientWidth || 0;
+        var h = pWin.innerHeight || pDoc.documentElement.clientHeight || 0;
+        var bw = wrap.offsetWidth || FLOAT_ICON_BASE;
+        var bh = wrap.offsetHeight || FLOAT_ICON_BASE;
+        if (st.posX == null || st.posY == null) { st.posX = w - bw - 24; st.posY = h - bh - 96; }
+        st.posX = Math.max(4, Math.min(w - bw - 4, st.posX));
+        st.posY = Math.max(4, Math.min(h - bh - 4, st.posY));
+        wrap.style.left = Math.round(st.posX) + 'px';
+        wrap.style.top = Math.round(st.posY) + 'px';
+      }
+      function applyScale() {
+        var s = st.scale / 100;
+        var px = Math.round(FLOAT_ICON_BASE * s);
+        wrap.style.width = px + 'px';
+        wrap.style.height = px + 'px';
+        var em = animLayer.querySelector('.szxq-fi-emoji');
+        if (em) em.style.fontSize = Math.round(px * 0.52) + 'px';
+        applyPosition();
+      }
+      function applyAnim() {
+        if (st.animEnabled) wrap.classList.add('szxq-fi-anim-on');
+        else wrap.classList.remove('szxq-fi-anim-on');
+        if (animStateLabel) animStateLabel.textContent = st.animEnabled ? '开' : '关';
+      }
+      function syncScaleUI() {
+        if (scaleVal) scaleVal.textContent = Math.round(st.scale) + '%';
+        if (slider) slider.value = st.scale;
+      }
+      function showMenu(x, y) {
+        menu.style.display = 'flex';
+        var r = menu.getBoundingClientRect();
+        var w = pWin.innerWidth, h = pWin.innerHeight;
+        var l = x, t = y;
+        if (l + r.width > w - 8) l = Math.max(8, w - r.width - 8);
+        if (t + r.height > h - 8) t = Math.max(8, h - r.height - 8);
+        menu.style.left = l + 'px';
+        menu.style.top = t + 'px';
+        applyAnim();
+        syncScaleUI();
+      }
+      function hideMenu() { menu.style.display = 'none'; }
+
+      // ---- 拖拽 + 单击打开（位移<4px视为单击；拖拽期间暂停呼吸动画避免transform冲突） ----
+      var drag = null;
+      function onDown(e) {
+        if (e.button === 2) return; // 右键留给菜单
+        var rect = wrap.getBoundingClientRect();
+        drag = { ox: e.clientX - rect.left, oy: e.clientY - rect.top, sx: e.clientX, sy: e.clientY, moved: false };
+        wrap.classList.add('szxq-fi-dragging');
+        wrap.classList.remove('szxq-fi-anim-on');
+        hideMenu();
+      }
+      function onMove(e) {
+        if (!drag) return;
+        if (Math.abs(e.clientX - drag.sx) > 4 || Math.abs(e.clientY - drag.sy) > 4) drag.moved = true;
+        var w = pWin.innerWidth, h = pWin.innerHeight;
+        var bw = wrap.offsetWidth || FLOAT_ICON_BASE, bh = wrap.offsetHeight || FLOAT_ICON_BASE;
+        st.posX = Math.max(4, Math.min(w - bw - 4, e.clientX - drag.ox));
+        st.posY = Math.max(4, Math.min(h - bh - 4, e.clientY - drag.oy));
+        wrap.style.left = Math.round(st.posX) + 'px';
+        wrap.style.top = Math.round(st.posY) + 'px';
+      }
+      function onUp() {
+        if (!drag) return;
+        var wasClick = !drag.moved;
+        drag = null;
+        wrap.classList.remove('szxq-fi-dragging');
+        applyAnim(); // 恢复呼吸动画
+        if (wasClick) {
+          try { openEditor(); } catch(err) { showToast('打开失败: ' + (err && err.message ? err.message : err), 'error'); }
+        } else {
+          saveFi();
+        }
+      }
+      wrap.addEventListener('pointerdown', function(e) { e.preventDefault(); onDown(e); });
+      pDoc.addEventListener('pointermove', onMove);
+      pDoc.addEventListener('pointerup', onUp);
+      pDoc.addEventListener('pointercancel', onUp);
+
+      // ---- 右键菜单 / 菜单外点击关闭 ----
+      wrap.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showMenu(e.clientX, e.clientY);
+      });
+      function onDocClick(e) {
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && !wrap.contains(e.target)) hideMenu();
+      }
+      pDoc.addEventListener('click', onDocClick);
+
+      // ---- 滚轮缩放 ----
+      wrap.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        st.scale = Math.max(40, Math.min(160, st.scale + (e.deltaY > 0 ? -4 : 4)));
+        applyScale();
+        syncScaleUI();
+        saveFi();
+      }, { passive: false });
+
+      // ---- 菜单项交互 ----
+      menu.addEventListener('click', function(e) {
+        var item = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+        if (!item) return;
+        var act = item.getAttribute('data-action');
+        if (act === 'open') {
+          hideMenu();
+          try { openEditor(); } catch(err) { showToast('打开失败: ' + (err && err.message ? err.message : err), 'error'); }
+        } else if (act === 'toggle-anim') {
+          st.animEnabled = !st.animEnabled;
+          applyAnim();
+          saveFi();
+        } else if (act === 'reset-pos') {
+          st.posX = null; st.posY = null;
+          applyPosition();
+          saveFi();
+          hideMenu();
+        } else if (act === 'hide') {
+          hideMenu();
+          wrap.style.display = 'none'; // 仅本次会话隐藏，刷新后恢复
+        }
+      });
+      slider.addEventListener('input', function() {
+        st.scale = Math.max(40, Math.min(160, parseFloat(slider.value) || 100));
+        applyScale();
+        syncScaleUI();
+        saveFi();
+      });
+
+      // ---- 视口变化时钳制位置 ----
+      function onResize() { applyPosition(); }
+      pWin.addEventListener('resize', onResize);
+
+      // ---- 初始化 ----
+      applyScale();
+      applyAnim();
+      syncScaleUI();
+
+      // ---- 注册卸载清理（DOM + 父页面监听器） ----
+      _floatIconCleanups.push(function() {
+        try {
+          pDoc.removeEventListener('pointermove', onMove);
+          pDoc.removeEventListener('pointerup', onUp);
+          pDoc.removeEventListener('pointercancel', onUp);
+          pDoc.removeEventListener('click', onDocClick);
+          pWin.removeEventListener('resize', onResize);
+          wrap.remove(); menu.remove(); styleEl.remove();
+        } catch (_) {}
+      });
+      _floatIconActive = true;
+      return true;
+    } catch(e) {
+      console.warn('[时之写卡器] 悬浮图标挂载失败，回退旧入口:', e);
+      return false;
+    }
+  }
+
   var retryCount = 0;
   var _initRetryTimer = null;   // ⚠️保存重试定时器句柄：pagehide 时取消，防止卸载后浮动按钮"复活"
   function tryInit() {
     if (registerButton()) { return; }
     if (retryCount < 10) { retryCount++; _initRetryTimer = setTimeout(tryInit, 500); }
-    else { addFloatingButton(); }
+    else if (!_floatIconActive) { addFloatingButton(); } // 悬浮图标已在时不再叠加旧兜底按钮
   }
   // ============================================================================
   // ===== 脚本入口 / 卸载清理：遵循 tavern-helper-template 脚本模板规范 =====
@@ -14128,6 +14404,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (btn) btn.remove();
       var md = pDoc.getElementById(SCRIPT_ID + '-modal');
       if (md) md.remove();
+      // 悬浮图标（SECTION 11.5）：移除DOM + 注销父页面监听器
+      while (_floatIconCleanups.length) {
+        try { _floatIconCleanups.pop()(); } catch (_) {}
+      }
+      _floatIconActive = false;
     } catch (_) {}
   }
 
@@ -14136,6 +14417,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 禁止使用 DOMContentLoaded（远程加载场景不会触发），禁止直接在顶层作用域执行 DOM 写入。
   function scriptEntryPoint() {
     window.addEventListener('pagehide', cleanupScriptArtifacts);
+    addDynamicFloatIcon(); // 动态悬浮图标（常驻入口：单击打开/拖拽/缩放/右键菜单）
     tryInit();
   }
   if (typeof $ !== 'undefined') {
