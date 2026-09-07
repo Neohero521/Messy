@@ -14104,12 +14104,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ============================================================================
     // SECTION 11.5 动态悬浮图标（借鉴"狐神撫"悬浮宠物：呼吸动画·拖拽·位置记忆·缩放·右键菜单）
     // ============================================================================
-    // ⚠️ FLOAT_ICON_URL 来自 Discord CDN，链接带 ex= 过期参数（约 2026-09-07 失效）。
-    //   失效后 img 加载失败会自动回退为 🦊 兜底图标，功能不受影响；
-    //   届时把新图床链接替换到下方常量即可恢复原图。
-    var FLOAT_ICON_URL = 'https://cdn.discordapp.com/attachments/1544912859811815454/1546163677428850708/mmexport1788704514544.webp?ex=6a9ec8a3&is=6a9d7723&hm=43c9a53a39e60e4bdab1748494e865805adaf96b78b9528a6cb05409c6b1e770&';
+    // 悬浮图标：jsDelivr 固定 commit 链接，永久有效（原图 384×580 竖版全身图）
+    var FLOAT_ICON_URL = 'https://cdn.jsdelivr.net/gh/Neohero521/Messy@3eeb1ac14e65bd33330b3fd38abf04f5c82939c0/mmexport1788704514544.webp';
     var FLOAT_ICON_KEY = 'szxq_float_icon_v1';
-    var FLOAT_ICON_BASE = 64;   // 100%缩放时的图标边长(px)
+    var FLOAT_ICON_BASE = 64;            // 100%缩放时的图标宽度(px)
+    var FLOAT_ICON_RATIO = 580 / 384;    // 图标宽高比（384×580），高度=宽度×此值
     var _floatIconCleanups = [];  // 卸载清理句柄（DOM移除 + 父页面监听器注销）
     var _floatIconActive = false; // 悬浮图标是否挂载成功（成功后旧兜底按钮不再叠加）
 
@@ -14150,12 +14149,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var styleEl = pDoc.createElement('style');
       styleEl.id = SCRIPT_ID + '-float-style';
       styleEl.textContent = ''
-        + '#' + SCRIPT_ID + '-float-icon{position:fixed;z-index:99990;width:64px;height:64px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));}'
-        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.60);background:#2a2119;box-shadow:0 6px 22px rgba(0,0,0,.30),0 0 16px rgba(240,150,80,.30);transition:box-shadow .25s ease,border-color .25s ease,transform .2s ease;}'
-        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim img{width:100%;height:100%;object-fit:contain;padding:2px;border-radius:50%;display:block;pointer-events:none;}'
-        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-emoji{line-height:1;pointer-events:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%;}'
+        + '#' + SCRIPT_ID + '-float-icon{position:fixed;z-index:99990;width:64px;height:97px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}'
+        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 6px 16px rgba(0,0,0,.45)) drop-shadow(0 0 10px rgba(240,150,80,.22));transition:filter .25s ease,transform .2s ease;}'
+        + '#' + SCRIPT_ID + '-float-icon .szxq-fi-anim img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;}'
         + '#' + SCRIPT_ID + '-float-icon.szxq-fi-anim-on .szxq-fi-anim{animation:szxq-fi-breath 3.4s ease-in-out infinite;}'
-        + '#' + SCRIPT_ID + '-float-icon:hover .szxq-fi-anim{box-shadow:0 10px 30px rgba(0,0,0,.42),0 0 26px rgba(240,150,80,.45);border-color:rgba(255,235,210,.85);}'
+        + '#' + SCRIPT_ID + '-float-icon:hover .szxq-fi-anim{filter:drop-shadow(0 10px 24px rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(240,150,80,.4));}'
         + '#' + SCRIPT_ID + '-float-icon.szxq-fi-dragging{cursor:grabbing;}'
         + '#' + SCRIPT_ID + '-float-icon.szxq-fi-dragging .szxq-fi-anim{transform:scale(1.08);}'
         + '@keyframes szxq-fi-breath{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.05)}}'
@@ -14179,20 +14177,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var animLayer = pDoc.createElement('div');
       animLayer.className = 'szxq-fi-anim';
       var img = pDoc.createElement('img');
-      img.alt = '';
+      img.alt = '时之写卡器';
       img.draggable = false;
       img.referrerPolicy = 'no-referrer';
       img.src = FLOAT_ICON_URL;
-      // 图标加载失败兜底（Discord链接过期等）→ 🦊表情，保证入口永不可用丢失
-      img.addEventListener('error', function() {
-        if (animLayer.querySelector('.szxq-fi-emoji')) return;
-        try { img.remove(); } catch (_) {}
-        var em = pDoc.createElement('div');
-        em.className = 'szxq-fi-emoji';
-        em.textContent = '🦊';
-        animLayer.appendChild(em);
-        applyScale();
-      });
       animLayer.appendChild(img);
       wrap.appendChild(animLayer);
 
@@ -14219,11 +14207,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       pDoc.body.appendChild(menu);
 
       // ---- 位置/缩放应用（含视口钳制） ----
+      var baseH = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO); // 默认高度兜底（布局未就绪时）
       function applyPosition() {
         var w = pWin.innerWidth || pDoc.documentElement.clientWidth || 0;
         var h = pWin.innerHeight || pDoc.documentElement.clientHeight || 0;
         var bw = wrap.offsetWidth || FLOAT_ICON_BASE;
-        var bh = wrap.offsetHeight || FLOAT_ICON_BASE;
+        var bh = wrap.offsetHeight || baseH;
         if (st.posX == null || st.posY == null) { st.posX = w - bw - 24; st.posY = h - bh - 96; }
         st.posX = Math.max(4, Math.min(w - bw - 4, st.posX));
         st.posY = Math.max(4, Math.min(h - bh - 4, st.posY));
@@ -14232,11 +14221,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       function applyScale() {
         var s = st.scale / 100;
-        var px = Math.round(FLOAT_ICON_BASE * s);
-        wrap.style.width = px + 'px';
-        wrap.style.height = px + 'px';
-        var em = animLayer.querySelector('.szxq-fi-emoji');
-        if (em) em.style.fontSize = Math.round(px * 0.52) + 'px';
+        var w = Math.round(FLOAT_ICON_BASE * s);
+        var h = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO * s); // 384×580 竖版全身图，高度按比例
+        wrap.style.width = w + 'px';
+        wrap.style.height = h + 'px';
         applyPosition();
       }
       function applyAnim() {
@@ -14276,7 +14264,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!drag) return;
         if (Math.abs(e.clientX - drag.sx) > 4 || Math.abs(e.clientY - drag.sy) > 4) drag.moved = true;
         var w = pWin.innerWidth, h = pWin.innerHeight;
-        var bw = wrap.offsetWidth || FLOAT_ICON_BASE, bh = wrap.offsetHeight || FLOAT_ICON_BASE;
+        var bw = wrap.offsetWidth || FLOAT_ICON_BASE, bh = wrap.offsetHeight || baseH;
         st.posX = Math.max(4, Math.min(w - bw - 4, e.clientX - drag.ox));
         st.posY = Math.max(4, Math.min(h - bh - 4, e.clientY - drag.oy));
         wrap.style.left = Math.round(st.posX) + 'px';
