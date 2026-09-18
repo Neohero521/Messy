@@ -3320,21 +3320,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  · 引擎类：<场景机制>少女生成引擎 + <实体交互>少女-递归扩展 + <叙事背景>傲娇/自尊型深度 + <叙事背景>腹黑/观察型深度\n' +
     '【命名铁律】后缀可以用 ·中文点号 分维度（如 白娅·人际关系），也可以用斜杠/逗号（如 傲娇/自尊型），但绝不能两个不同条目只用前缀、不加后缀——否则会在同前缀只有1条时被 findMatchingEntry 误判为"同一条目的不同版本"而互相覆盖。\n\n' +
     '【用户需求最高优先级声明】若本提示词中的任何规则、规范、建议，与用户明确表达的意图冲突（例如：用户说「所有条目都设置 depth=3」但本规范建议 <基础公理> depth=0），以用户的明确表达为准。本方法论是"最佳实践参考"而非不可违反的束缚。当检测到冲突时，按用户需求执行，并在:::操作块前用1句话说明"根据你的需求调整了XXX配置"。\n\n' +
-    '=== 质量检查标准（24项核心 + 6项附加） ===\n\n' +
-    '**基础字段检查（8项）：**\n' +
-    '- [ ] name：世界名称明确，体现核心主题\n' +
-    '- [ ] description：包含世界核心设定（400字以上）\n' +
-    '- [ ] personality：空字符串""（世界模式强制留空）\n' +
-    '- [ ] scenario：空字符串""（世界模式强制留空）\n' +
-    '- [ ] first_mes：开场白（500字以上）\n' +
-    '- [ ] 身份自洽：personality/description/scenario/first_mes 四处对角色身份的描述一致无冲突\n\n' +
+    '=== 质量检查标准（24项核心 + 5项附加） ===\n\n' +
+    '**基础字段检查（6项）：**\n' +
+    '- [ ] name：名称非空，简洁体现核心主题\n' +
+    '- [ ] description：描述非空（字数不限，自由掌握）\n' +
+    '- [ ] personality：角色模式建议填写核心性格；纯世界模式可留空（非强制）\n' +
+    '- [ ] scenario：非必填，核心情境可并入 description（字数不限）\n' +
+    '- [ ] first_mes：开场白非空（字数不限，必须完整文本，禁止占位符）\n' +
+    '- [ ] 身份自洽：personality/description/scenario/first_mes 四处身份描述一致无冲突；system_prompt 保持留空\n\n' +
     '**高价值字段检查（2项）：**\n' +
     '- [ ] 多开局机制：<动态适配>分支开局 + initvar 覆盖 或 first_mes 内嵌分支选项（至少1种开局方式）\n' +
     '- [ ] depth_prompt：新手引导内容（depth=0）\n' +
     '**世界书基础检查（6项）：**\n' +
-    '- [ ] 条目数：12-30条\n' +
+    '- [ ] 条目数：至少1条（数量不限，按创作进度自然增长）\n' +
     '- [ ] 触发词覆盖率：≥50%\n' +
-    '- [ ] 条目内容：≥250字/条\n' +
+    '- [ ] 条目内容：字数不限，完整自包含即可\n' +
     '- [ ] 条目命名规范：≥50%使用规范前缀\n' +
     '- [ ] 权重合理：核心规则在高权重位\n' +
     '- [ ] content自包含性：无"如上所述"等上下文依赖词\n\n' +
@@ -3347,16 +3347,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '- [ ] sticky/cooldown冲突：不同时在一条目设置两者\n' +
     '- [ ] position配置：constant条目position≤1，position=6/7需配对应字段\n\n' +
     '**运行效果检查（3项）：**\n' +
-    '- [ ] 常驻Token总量：≤500\n' +
+    '- [ ] 常驻Token总量：估算参考项（不卡通过；>2000 且 AI 失忆时再精简）\n' +
     '- [ ] 递归安全：实体类条目开启prevent_recursion\n' +
     '- [ ] 冷却防抖：场景类条目开启cooldown\n\n' +
-    '**附加检查（6项，不计入核心）：**\n' +
+    '**附加检查（5项，不计入核心）：**\n' +
     '- [ ] 触发词精准度：无"的""是"等泛用词\n' +
     '- [ ] 上下文占用估算：8k窗口≤60%\n' +
     '- [ ] 中文适配：match_whole_words未错误开启\n' +
-    '- [ ] 创作者备注≤100字\n' +
-    '- [ ] 常驻条目group冲突检测\n' +
-    '- [ ] Outlet限制检查（如有）\n\n' +
+    '- [ ] 创作者备注：自由记录（不卡通过）\n' +
+    '- [ ] 常驻条目group冲突检测\n\n' +
     '**MVU变量系统检查（8条工作流，进阶可选，详见9.1.6）：**\n' +
     '- [ ] 第1条 变量结构脚本：tavern_helper.scripts中存在zod Schema\n' +
     '- [ ] 第2条 [InitVar]初始变量：条目存在，YAML格式合法，enabled=false，字段与第1条schema一致\n' +
@@ -5500,13 +5499,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 注入实际质检结果（防止AI虚报进度）—— 在角色卡Tab中，质检不统计MVU条目
     var qcBlock = '';
     if (cd) {
-      // 角色卡Tab：过滤掉正则脚本类质检项（正则/脚本内容已从本Tab提示词链路移除，不再发给AI）
-      var qcResults = runQualityCheck(cd).filter(function(r) {
-        if (r.category === '正则脚本') return false;
-        if (r.name === 'regex_scripts 状态同步正则') return false;
-        if (r.name === '正则触发键') return false;
-        return true;
-      });
+      // 角色卡Tab：只注入角色卡口径质检项（24核心+5附加），正则/MVU专项不发给AI
+      var qcResults = getScopedQualityChecks(cd, 'card');
       var passed = qcResults.filter(function(r) {
         return r.pass;
       });
@@ -6093,7 +6087,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
   }
 
-  // ===== 质检规则（32项核心 + 6项附加 · 对齐官方文档） =====
+  // ===== 质检规则 =====
+  // 角色卡Tab 口径 = 24项核心 + 5项附加：
+  //   核心24 = 基础字段6 + 高价值字段2 + 世界书6 + 世界书高级7 + 运行效果3
+  //   附加5  = 触发词精准度 / 上下文占用 / 中文适配 / 创作者备注 / 常驻group冲突
+  // 仅 MVU Tab 追加：regex_scripts高价值1 + 正则触发键1 + 正则脚本6 + MVU变量系统6
   function runQualityCheck(cd) {
     var results = [];
     var desc = cd.description || '';
@@ -6110,7 +6108,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var dp = ext.depth_prompt || {};
     var rx = ext.regex_scripts || [];
 
-    // === 基础字段检查（8项） ===
+    // === 基础字段检查（6项） ===
     results.push({
       pass: name.length >= 1,
       category: '基础字段',
@@ -6146,20 +6144,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: '当前 ' + first.length + ' 字',
       fix: first.trim().length === 0 ? '请填写开场白内容（字数不限）' : '开场白已设置（字数不限，自由掌握）'
     });
-    // 身份自洽：personality / description / first_mes / scenario 四处核心身份无冲突
-    var idSelfConsistent = true;
-    if (personality && first) {
-      idSelfConsistent = true;
-    }
+    // 身份自洽：静态文本无法可靠判定冲突，作为信息项由 AI/人工在对话中把关
     results.push({
-      pass: idSelfConsistent,
+      pass: true,
       category: '基础字段',
       name: '身份自洽：四处身份描述一致',
-      desc: '描述/性格/场景/开场白 四处内容应互相呼应（系统身份无需手动写system_prompt，由写卡器自动提取）',
-      fix: !idSelfConsistent ? '四处身份描述可能冲突，请人工核对' : '身份描述自洽；system_prompt由写卡器自动提取，无需手动填写'
+      desc: '描述/性格/场景/开场白 四处内容应互相呼应（system_prompt 保持留空，身份写进 description/personality）',
+      fix: '保持四处身份描述一致即可；无需手动填写 system_prompt'
     });
 
-    // === 高价值字段检查（4项） ===
+    // === 高价值字段检查（角色卡口径2项；regex_scripts 项仅 MVU Tab 计入） ===
     // 多开局机制：<动态适配>分支开局 + initvar 或 first_mes 内嵌选项
     var multiOpenEntries = entries.filter(function(e) {
       return (e.comment || '').indexOf('<动态适配>') >= 0 || (e.comment || '').indexOf('分支开局') >= 0;
@@ -6234,7 +6228,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return (e.comment || '').indexOf('<近场强约束>') >= 0 || (e.comment || '').indexOf('<当前局势>') >= 0;
     }).length;
     results.push({
-      pass: hasHighWeightCore && nearConstraintCount >= 0,
+      pass: hasHighWeightCore,
       category: '世界书',
       name: '权重合理性：核心规则在高权重位',
       desc: '核心铁则条目: ' + coreIronRuleCount + ' | 近场强约束: ' + nearConstraintCount,
@@ -6256,7 +6250,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (nonSelfContainedEntries > 0 ? '条目内容必须自包含完整信息，禁止使用"如上所述""见上文"等依赖上下文的内容' : '内容自包含性良好')
     });
 
-    // === 世界书高级功能检查（8项） ===
+    // === 世界书高级功能检查（角色卡口径7项；「正则触发键」仅 MVU Tab 计入，共8项） ===
     // 递归链条：实体条目关联背景叙事条目（delay_until_recursion）
     var hasRecursionChain = entries.some(function(e) {
       var ext = e.extensions || {};
@@ -6510,7 +6504,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: noCooldownEntries > 0 ? '场景类条目建议开启cooldown=3防止内容刷屏' : '冷却防抖已配置'
     });
 
-    // === 附加检查（6项扩展，不计入核心32项） ===
+    // === 附加检查（5项，不计入核心24项；正则/MVU专项仅 MVU Tab 计入） ===
     var highRiskKeys = ['的', '是', '在', '有', '了', '和', '就', '都', '而', '及', '与', '一个', '一些', '什么', '如何', '怎么'];
     var riskyEntries = entries.filter(function(e) {
       var ks = e.keys || [];
@@ -6653,6 +6647,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
 
     return results;
+  }
+
+  // Tab 作用域过滤：质检弹窗与 buildPrompt 共用同一口径（原先两处各写一份过滤逻辑）
+  var QC_MVU_ONLY_CATEGORIES = {
+    '正则脚本': true,
+    'MVU变量系统': true
+  };
+  var QC_MVU_ONLY_NAMES = {
+    'regex_scripts 状态同步正则': true,
+    '正则触发键': true
+  };
+  function getScopedQualityChecks(cd, tab) {
+    var all = runQualityCheck(cd);
+    if (tab === 'mvu') return all;
+    return all.filter(function(r) {
+      return !QC_MVU_ONLY_CATEGORIES[r.category] && !QC_MVU_ONLY_NAMES[r.name] && !r._mvuOnly;
+    });
   }
 
   // ===== MVU 变量结构脚本生成 =====
@@ -8253,14 +8264,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var nextCharId = 1; // 下一个可用的角色id（从1开始，因为世界观可能先占）
     var NPCIdOffset = 0;
     // 预扫描：优先从comment提取所有候选：角色速览/世界观前缀/角色名/NPC名
-    var MVU_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
-    var isMVUEntry = function(c) {
-      return MVU_PREFIX_RE.test(c || '');
+    // 窄口径：仅 9.1.6 工作流核心条目参与 tag-id 的 mvu 分桶。
+    // 故意不复用顶层宽口径 isMVUEntry（后者还含阶段判定/派生字段/控制器等附加条目，
+    // 那些在 id 分配时应走普通世界观/NPC 分桶，过宽会把普通条目误分到 mvu 桶）。
+    var MVU_WORKFLOW_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
+    var isMvuWorkflowEntry = function(c) {
+      return MVU_WORKFLOW_PREFIX_RE.test(c || '');
     };
     // 预扫描：把所有comment按出现顺序分类
     var classified = entries.map(function(e, idx) {
       var c = String(e.comment || e.name || ('条目' + (idx + 1)));
-      if (isMVUEntry(c)) return {
+      if (isMvuWorkflowEntry(c)) return {
         idx: idx,
         type: 'mvu',
         name: '',
@@ -9379,7 +9393,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="welcome-features">' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('chat', 18) + '</div><div class="wf-copy"><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div></div>' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('chart', 18) + '</div><div class="wf-copy"><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div></div>' +
-          '<div class="wf-item"><div class="wf-icon">' + svgIcon('checkCircle', 18) + '</div><div class="wf-copy"><div class="wf-title">32项质检</div><div class="wf-desc">8基础+4高价值+6世界书+8世界书高级+6正则+3运行效果+6附加，专业达标</div></div></div>' +
+          '<div class="wf-item"><div class="wf-icon">' + svgIcon('checkCircle', 18) + '</div><div class="wf-copy"><div class="wf-title">24+5项质检</div><div class="wf-desc">6基础+2高价值+6世界书+7世界书高级+3运行效果+5附加，正则/MVU专项另计，专业达标</div></div></div>' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('wrench', 18) + '</div><div class="wf-copy"><div class="wf-title">AI优化</div><div class="wf-desc">质检未达标项一键AI优化，字段级对比</div></div></div>' +
           '</div>' +
           '<button class="start-btn" id="startBtn">' + svgIcon('play', 18) + ' 开始创作</button>' +
@@ -14338,7 +14352,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // （原逻辑已移除，AI 在生成状态栏相关条目时一并生成）
 
         if (injected.length > 0) {
-          console.log('[MVU Tab] 自动注入固定资产:', injected.join('、'));
           saveToStorage();
         }
         return injected;
@@ -14960,7 +14973,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (cardData.first_mes && cardData.first_mes.length >= 500) score += 15;
           else if (cardData.first_mes && cardData.first_mes.length >= 300) score += 8;
         }
-        if (cardData.system_prompt && cardData.system_prompt.length >= 20) score += 5;
+        // system_prompt 不参与评分：写卡器契约为留空，身份写入 description/personality
+        if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt) score += 3;
+        if ((cardData.personality || '').trim() || (cardData.scenario || '').trim()) score += 2;
         score += Math.min(entries.length * 5, 30);
         var mp = getModuleProgress();
         // 角色卡Tab：不把 init_var / var_update_rule 计入 doneCount
@@ -14998,18 +15013,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // ========== Tab 隔离：角色卡Tab 质检不检查 MVU 相关内容 ==========
         var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
-        var results = runQualityCheck(cardData);
-        // 角色卡Tab：过滤掉 MVU变量系统 分类和正则脚本相关检查项（正则/脚本已从本Tab移除，由MVU Tab负责）
-        if (__tab === 'card') {
-          results = results.filter(function(r) {
-            if (r.category === 'MVU变量系统') return false;
-            if (r.category === '正则脚本') return false;
-            if (r.name === 'regex_scripts 状态同步正则') return false;
-            if (r.name === '正则触发键') return false;
-            if (r._mvuOnly) return false; // 标记为MVU专属的检查项
-            return true;
-          });
-        }
+        var results = getScopedQualityChecks(cardData, __tab);
         var passCount = results.filter(function(r) {
           return r.pass;
         }).length;
@@ -15031,13 +15035,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<p style="font-size:.78em;color:#667085;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标' + (mvuResults.length > 0 ? ' · MVU ' + mvuPass + '/' + mvuResults.length + ' 项达标' : '') + ' · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
           '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass / coreResults.length * 100) + '%"></div></div>' +
           '<div class="modal-body" style="margin-top:10px">';
+        // 空分类（角色卡Tab下正则/MVU分类已被作用域过滤）在渲染时自动跳过
         var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
-        // 角色卡Tab 隐藏 MVU变量系统 和 正则脚本 分类
-        if (__tab === 'card') {
-          categories = categories.filter(function(c) {
-            return c !== 'MVU变量系统' && c !== '正则脚本';
-          });
-        }
         var catColors = {
           '基础字段': '#a16207',
           '高价值字段': '#ca8a04',
@@ -15070,7 +15069,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         h += '</div>' +
           '<div class="modal-actions">' +
           '<button class="btn btn-ghost" id="qcCloseBtn">关闭</button>' +
-          '<button class="btn btn-primary" id="qcOptBtn">🔧 一键优化未达标项</button>' +
+          '<button class="btn btn-primary" id="qcOptBtn">🔧 ' + ((results.length - passCount) === 0 ? '全部达标·自由优化' : '一键优化 ' + (results.length - passCount) + ' 项未达标') + '</button>' +
           '</div>' +
           '</div></div>';
         var tmp = doc.createElement('div');
@@ -15090,11 +15089,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var failedItems = results.filter(function(r) {
               return !r.pass;
             });
-            var failedNames = failedItems.map(function(r) {
-              return r.name;
-            });
-            var optInstructions = buildOptimizeInstructions(failedItems);
-            showOptimizeModal(failedNames.join('、'), optInstructions);
+            if (failedItems.length === 0) {
+              showToast('🎉 全部检查项已达标，可直接选择字段做自由优化', 'success');
+              showOptimizeModal();
+              return;
+            }
+            var plan = buildOptimizeInstructions(failedItems);
+            showOptimizeModal(plan.text, plan.fields);
+            if (plan.skipped.length > 0) {
+              showToast('另有 ' + plan.skipped.length + ' 项无自动优化指令，请按报告建议手动处理', 'warning', 4000);
+            }
           });
         }
       }
@@ -15597,6 +15601,56 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             field: 'entries',
             instr: '问题：场景类条目未设置cooldown\n影响：内容刷屏\n修复：为<场景机制>、<核心玩法>等条目设置 extensions.cooldown=3'
           },
+          // === 附加检查（角色卡Tab 5项中的可执行4项；创作者备注为信息项不会失败） ===
+          '触发词精准度（附加）': {
+            field: 'entries',
+            instr: '问题：部分条目使用了"的/是/在/有"等泛用关键词\n影响：关键词几乎每轮命中，条目在无关场景被错误激活、浪费token\n修复：把泛用词替换为领域专属词汇（人名/地名/专有名词/独特设定词）'
+          },
+          '上下文占用估算（附加）': {
+            field: 'entries',
+            instr: '问题：描述+开场白+全部条目内容估算超过8k窗口的60%\n影响：长对话中AI可用记忆空间被挤压，容易失忆\n修复：精简常驻(constant)条目与超长描述，把低频背景改为关键词触发条目'
+          },
+          '中文适配检测（附加）': {
+            field: 'entries',
+            instr: '问题：中文条目错误开启了 match_whole_words\n影响：整词匹配仅对英文生效，中文会触发异常\n修复：将这些条目的 match_whole_words 设为 false（条目级或 extensions 内都要关）'
+          },
+          '常驻条目group冲突检测（附加）': {
+            field: 'entries',
+            instr: '问题：多个常驻条目(constant=true)共享同一个非空 group\n影响：同组每轮仅注入1条，其余常驻规则被静默丢弃\n修复：清空这些常驻条目的 extensions.group（group互斥只用于非常驻的变体条目）'
+          },
+          // === 正则专项（仅 MVU Tab 报告出现） ===
+          'regex_scripts 状态同步正则': {
+            field: 'regex_scripts',
+            instr: '问题：缺少基础状态同步正则脚本\n影响：动态状态栏无法渲染\n修复：在 MVU Tab 按9.1.6工作流生成正则脚本（导出仅自动注入正则1-5，正则6状态栏HTML需AI生成）'
+          },
+          '正则触发键': {
+            field: 'entries',
+            instr: '问题：需要精确匹配说话者的条目未使用正则触发键\n影响：普通关键词无法区分说话者，触发不精准\n修复：需要时把 key 写成 /\\x01{{user}}:.../i 形式的正则键'
+          },
+          '脚本功能单一': {
+            field: 'regex_scripts',
+            instr: '问题：正则脚本疑似多功能混合（名称同时含状态/格式/替换等多个职能词）\n影响：单脚本职责过重，难以维护与排错\n修复：拆成多个简单脚本，每个脚本只做一件事'
+          },
+          '正则标志正确（g全局匹配）': {
+            field: 'regex_scripts',
+            instr: '问题：findRegex 缺少 g 标志\n影响：只替换第一个匹配，后续匹配残留\n修复：findRegex 结尾标志位加上 g（如 /pattern/gi）'
+          },
+          '非贪婪匹配（.*?）': {
+            field: 'regex_scripts',
+            instr: '问题：脚本使用 .*/.+ 贪婪匹配\n影响：容易跨段过度匹配、误吞内容\n修复：改用 .*? 或 .+? 非贪婪匹配'
+          },
+          'placement配置检查': {
+            field: 'regex_scripts',
+            instr: '问题：正则脚本未设置 placement\n影响：脚本不在任何阶段生效\n修复：设置至少1个 placement（如 [2,3] 在AI输出与显示阶段处理；按脚本用途选择）'
+          },
+          'substituteRegex范围（0-2）': {
+            field: 'regex_scripts',
+            instr: '问题：substituteRegex 超出 0-2 范围\n影响：宏替换行为未定义\n修复：设为 0(不替换宏)/1(原始替换)/2(转义替换) 之一'
+          },
+          'MVU/状态栏脚本runOnEdit': {
+            field: 'regex_scripts',
+            instr: '问题：MVU/状态栏类脚本未设置 runOnEdit=false\n影响：编辑历史消息时脚本重复执行\n修复：将该类脚本的 runOnEdit 设为 false（StageDog 标准）'
+          },
           // === MVU变量系统 ===
           'MVU四大核心条目完整': {
             field: 'entries',
@@ -15624,11 +15678,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         });
 
+        var skippedItems = failedItems.filter(function(it) {
+          return !instructionMap[it.name];
+        });
         // 输出结构化 Markdown，AI 可按字段定位与执行
         var lines = [];
         lines.push('# 待优化项清单（按字段分组）');
         lines.push('');
-        lines.push('共 ' + failedItems.length + ' 项未达标，需优化字段：' + Object.keys(groups).join('、'));
+        lines.push('共 ' + failedItems.length + ' 项未达标' + (skippedItems.length ? '，其中 ' + (failedItems.length - skippedItems.length) + ' 项可自动优化' : '') + '，涉及字段：' + Object.keys(groups).join('、'));
+        if (skippedItems.length) {
+          lines.push('（以下 ' + skippedItems.length + ' 项无自动优化指令，请按质检报告建议手动处理：' + skippedItems.map(function(it) {
+            return it.name;
+          }).join('、') + '）');
+        }
         lines.push('');
         Object.keys(groups).forEach(function(field) {
           lines.push('## 字段：' + field);
@@ -15644,13 +15706,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         lines.push('- 输出 JSON 代码块，只包含被优化的字段（entries/depth_prompt/regex_scripts 放顶层，不嵌套）');
         lines.push('- entries 优化时优先用相同 comment 覆盖现有条目，不足再新增');
         lines.push('- MVU 相关条目必须遵守：[InitVar] enabled=false，变量列表标签内必须为 null');
-        return lines.join('\n');
+        return {
+          text: lines.join('\n'),
+          fields: Object.keys(groups),
+          covered: failedItems.length - skippedItems.length,
+          skipped: skippedItems.map(function(it) {
+            return it.name;
+          })
+        };
       }
 
       // ===== 优化弹窗 =====
       var selectedOptFields = [];
 
-      function showOptimizeModal(presetReq, optInstructions) {
+      function showOptimizeModal(optInstructions, preselectFields) {
         if (!cardData.name && !cardData.description) {
           showToast('还没有内容可以优化哦', 'warning');
           return;
@@ -15668,8 +15737,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             label: '🎬 开场白'
           },
           {
-            key: 'system_prompt',
-            label: '⚡ 系统指令'
+            key: 'personality',
+            label: '🧬 个性性格'
           },
           {
             key: 'alternate_greetings',
@@ -15684,6 +15753,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             label: '📖 世界书条目'
           }
         ];
+        // 正则脚本仅 MVU Tab 可优化：正则1-5由导出自动注入、正则6在 MVU 工作流生成，角色卡Tab不暴露
+        var __optTab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : 'card';
+        if (__optTab === 'mvu') {
+          fields.push({
+            key: 'regex_scripts',
+            label: '🔣 正则脚本'
+          });
+        }
         selectedOptFields = [];
         var h = '<div class="modal" id="optModal">' +
           '<div class="modal-content">' +
@@ -15695,7 +15772,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         h += '</div>' +
           // ⚠️ XSS防御：textarea 经 innerHTML 注入，内容需转义（当前为静态QC文本，防止未来接入动态数据）
-          '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + escHtml(optInstructions || '') + escHtml(presetReq ? ('\n\n' + presetReq) : '') + '</textarea>' +
+          '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + escHtml(optInstructions || '') + '</textarea>' +
           '<div id="optProgress" style="display:none;text-align:center;padding:12px;color:var(--accent-deep);font-size:.85em"><span class="typing" style="display:inline"><span>●</span><span>●</span><span>●</span></span> AI正在优化...</div>' +
           '<div id="optResult" class="modal-body" style="display:none"></div>' +
           '<div class="modal-actions">' +
@@ -15722,6 +15799,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             var idx = selectedOptFields.indexOf(k);
             if (idx >= 0) selectedOptFields.splice(idx, 1);
             else selectedOptFields.push(k);
+          });
+        }
+        // 从质检弹窗进入：按未达标项所属字段自动勾选标签
+        if (Array.isArray(preselectFields)) {
+          preselectFields.forEach(function(k) {
+            var tag = doc.querySelector('.opt-field-tag[data-key="' + k + '"]');
+            if (tag && selectedOptFields.indexOf(k) < 0) {
+              tag.classList.add('selected');
+              selectedOptFields.push(k);
+            }
           });
         }
         doc.getElementById('startOptBtn').addEventListener('click', startOptimize);
@@ -15824,7 +15911,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '规则：\n' +
             '1. entries字段直接放在顶层，不需要嵌套在character_book中\n' +
             '2. depth_prompt和regex_scripts直接放在顶层，不需要嵌套在extensions中\n' +
-            '3. 只包含被优化的字段，其他字段不要输出\n' +
+            '3. 只包含被优化的字段，其他字段不要输出；禁止输出 system_prompt（身份写进 description/personality，写卡器不使用该字段）\n' +
             '4. 保持JSON格式正确，使用双引号\n' +
             '5. [InitVar] 条目的 enabled 必须为 false；变量列表 content 标签内必须为 null\n' +
             '6. ⚠️最关键：删除/替换条目必须使用下面「精确comment清单」里的字符串！不要自己编造comment！\n\n' +
@@ -15885,8 +15972,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   } else if (field === 'depth_prompt') {
                     var beforeDp = (cardData.extensions || {}).depth_prompt || {};
                     var afterDp = optimized.depth_prompt || {};
-                    beforeV = 'prompt: ' + (beforeDp.prompt || '') + '\ndepth: ' + (beforeDp.depth || 4);
-                    afterV = 'prompt: ' + (afterDp.prompt || '') + '\ndepth: ' + (afterDp.depth || 4);
+                    beforeV = 'prompt: ' + (beforeDp.prompt || '(空)') + '\ndepth: ' + (beforeDp.depth === undefined ? '(未设置)' : beforeDp.depth);
+                    afterV = 'prompt: ' + (afterDp.prompt || '(空)') + '\ndepth: ' + (afterDp.depth === undefined ? '(未设置)' : afterDp.depth);
                   } else if (field === 'regex_scripts') {
                     var beforeRx = (cardData.extensions || {}).regex_scripts || [];
                     var afterRx = optimized.regex_scripts || [];
@@ -15990,7 +16077,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                         });
                       }
                       // 其他字段：长度非空时才覆盖
-                      ['description', 'personality', 'scenario', 'first_mes', 'system_prompt', 'creator_notes'].forEach(function(f) {
+                      ['description', 'personality', 'scenario', 'first_mes', 'creator_notes'].forEach(function(f) {
                         if (optimized[f] && String(optimized[f]).trim().length > 10) {
                           if (cardData[f] !== optimized[f]) {
                             cardData[f] = optimized[f];
