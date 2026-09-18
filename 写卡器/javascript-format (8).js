@@ -103,11 +103,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(79,70,229,.18),transparent)}
 .topbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.font-ctrl{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,var(--surface-soft),var(--surface));border:1px solid var(--line-soft);border-radius:8px;padding:2px 5px;flex-shrink:0;transition:all .2s ease}
-.font-ctrl:hover{border-color:var(--accent-soft);box-shadow:0 2px 8px rgba(79,70,229,.06)}
-.font-ctrl .font-btn{height:26px;width:26px;font-size:.74em;font-weight:700;padding:0;color:var(--ink-soft);border:1px solid transparent;background:var(--surface);border-radius:6px;transition:all .18s ease;cursor:pointer}
-.font-ctrl .font-btn:hover:not(:disabled){background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border-strong)}
-.font-ctrl .font-size-label{font-size:.72em;color:var(--ink-soft);min-width:40px;text-align:center;font-weight:600}
 .topbar h1{font-size:.95em;color:var(--accent-deep);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:7px;flex-shrink:0;letter-spacing:.2px}
 .topbar h1 .topbar-ic{color:var(--accent);filter:drop-shadow(0 1px 2px rgba(79,70,229,.2))}
 .topbar .phase{font-size:.8em;color:var(--accent-text);background:linear-gradient(135deg,var(--accent-soft),rgba(79,70,229,.12));padding:4px 13px;border-radius:999px;font-weight:600;white-space:nowrap;flex-shrink:0;border:1px solid var(--accent-border);letter-spacing:.2px;box-shadow:0 1px 3px rgba(79,70,229,.08);transition:all .2s ease}
@@ -121,11 +116,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .icon-btn.icon-btn-square svg{width:16px;height:16px}
 .icon-btn.danger:hover:not(:disabled){background:linear-gradient(135deg,var(--surface),var(--terra-soft));color:var(--terra-text);border-color:var(--terra-border);box-shadow:0 3px 10px rgba(220,38,38,.1)}
 /* 通用按钮焦点环（无障碍）*/
-.quick-btn:focus-visible,.qa-mini:focus-visible,.ctx-mod:focus-visible,.icon-btn:focus-visible,.tab-btn:focus-visible,.pv-mini-btn:focus-visible,.btn-send:focus-visible,.btn:focus-visible,.close-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft-strong),0 0 0 1px var(--accent)}
+.quick-btn:focus-visible,.qa-mini:focus-visible,.ctx-mod:focus-visible,.icon-btn:focus-visible,.tab-btn:focus-visible,.pv-mini-btn:focus-visible,.btn-send:focus-visible,.btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft-strong),0 0 0 1px var(--accent)}
 .main{flex:1 1 0;display:flex;min-height:0;overflow:hidden}
 .chat-panel{flex:1.4 1 0;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);min-height:0;overflow:hidden;background:var(--bg)}
 .preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--surface-soft)}
-.chat-header{flex-shrink:0;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);font-size:.78em;color:var(--accent-deep);display:flex;align-items:center;gap:5px}
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:14px 14px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
@@ -225,7 +219,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-send.is-waiting .send-icon{display:none}
 .btn-send.is-waiting .send-spinner{display:block}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.chat-send-row{display:flex;gap:7px;margin-top:7px;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 17px;border:none;border-radius:var(--radius-sm);font-size:.8em;cursor:pointer;font-weight:600;transition:all .2s cubic-bezier(.4,0,.2,1);font-family:inherit;letter-spacing:.15px;position:relative;overflow:hidden}
 .btn svg{width:15px;height:15px;transition:transform .2s ease}
 .btn:hover:not(:disabled) svg{transform:scale(1.1)}
@@ -236,10 +229,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-success:hover:not(:disabled){background:linear-gradient(135deg,#15803d,#166534);box-shadow:0 6px 18px rgba(22,163,74,.28);transform:translateY(-1px)}
 .btn-ghost{background:linear-gradient(135deg,var(--surface-soft),var(--surface));color:var(--ink-soft);border:1px solid var(--line)}
 .btn-ghost:hover:not(:disabled){background:var(--surface);color:var(--accent-deep);border-color:var(--accent-soft);box-shadow:0 3px 10px rgba(79,70,229,.08);transform:translateY(-1px)}
-.btn-warn{background:linear-gradient(135deg,var(--amber),#a16207);color:#fff;box-shadow:0 4px 12px rgba(202,138,4,.2)}
-.btn-warn:hover:not(:disabled){background:linear-gradient(135deg,#a16207,#854d0e);box-shadow:0 6px 18px rgba(202,138,4,.28);transform:translateY(-1px)}
-.btn-danger{background:linear-gradient(135deg,var(--terra),#b91c1c);color:#fff;box-shadow:0 4px 12px rgba(220,38,38,.2)}
-.btn-danger:hover:not(:disabled){background:linear-gradient(135deg,#b91c1c,#991b1b);box-shadow:0 6px 18px rgba(220,38,38,.28);transform:translateY(-1px)}
 .preview-header{flex-shrink:0;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line-soft);font-size:.86em;color:var(--accent-deep);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .preview-header .pv-title{display:inline-flex;align-items:center;gap:6px;font-weight:600}
 .preview-header .pv-title svg{width:15px;height:15px;color:var(--accent)}
@@ -281,11 +270,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-section .pv-entry summary:hover .pv-entry-del{display:inline-flex}
 .pv-entry-del:hover{background:var(--terra-soft);color:var(--terra-text)}
 .pv-section .pv-entry .pv-entry-body{padding:0 12px 10px 12px}
-.pv-section .pv-entry-title{font-size:.84em;color:var(--accent-deep);font-weight:600;margin-bottom:3px}
 .pv-section .pv-entry-content{font-size:.82em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.65}
 .pv-section .pv-code{font-family:var(--font-mono);font-size:.8em;color:var(--ink);background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:260px;overflow:auto;transition:border-color .2s,box-shadow .2s}
 .pv-section .pv-code:hover{border-color:var(--accent-soft);box-shadow:inset 0 1px 3px rgba(79,70,229,.04)}
-.pv-section .pv-code.muted{color:var(--ink-soft);background:var(--surface-soft)}
 .pv-section .pv-tag{display:inline-flex;align-items:center;font-size:.76em;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,var(--accent-soft) 0%,rgba(79,70,229,.1) 100%);color:var(--accent-deep);border:1px solid var(--accent-border);margin:0 6px 6px 0;white-space:nowrap;font-weight:500;transition:all .18s ease;letter-spacing:.2px}
 .pv-section .pv-tag:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(79,70,229,.12)}
 .pv-section .pv-tag.off{color:var(--muted);background:linear-gradient(135deg,var(--surface-soft),var(--surface));border-color:var(--line-soft)}
@@ -313,12 +300,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .module-item.partial{color:var(--amber-text);background:linear-gradient(135deg,var(--amber-soft),rgba(202,138,4,.12));border:1px solid var(--amber-border);font-weight:500}
 .module-item.partial:hover{box-shadow:0 4px 12px rgba(202,138,4,.15)}
 .module-item.todo{color:var(--muted);background:var(--surface-soft);border:1px solid var(--line-soft)}
-.close-btn{width:32px;height:32px;border-radius:8px;background:var(--surface-soft);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
-.close-btn svg{width:16px;height:16px}
-.close-btn:hover{background:var(--terra-soft);color:var(--terra-text);border-color:var(--terra-border)}
 .json-modal,.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.32);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:100001}
-.json-modal-content,.modal-content{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-card)}
-.json-modal-content textarea{width:100%;flex:1;background:var(--surface-soft);border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink);font-family:var(--font-mono);font-size:.75em;padding:10px;resize:none;min-height:250px}
+.modal-content{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-card)}
 .modal-body{flex:1;overflow-y:auto;min-height:200px}
 .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;overflow:auto}
 .welcome h2{font-size:1.5em;color:var(--accent-deep);margin-bottom:14px;display:inline-flex;align-items:center;gap:9px;font-weight:700}
@@ -497,12 +480,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .import-tab{flex:1;padding:7px 9px;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);font-size:.75em;color:var(--ink-soft);cursor:pointer;text-align:center;transition:all .15s}
 .import-tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-deep)}
 
-.entry-detail{display:none;margin-top:6px;padding:9px;background:var(--surface-soft);border-radius:var(--radius-sm);font-size:.72em}
-.entry-detail.open{display:block}
-.entry-detail .ext-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
-.entry-detail .ext-item{text-align:center}
-.entry-detail .ext-item label{display:block;color:var(--muted);font-size:.68em;margin-bottom:2px}
-.entry-detail .ext-item input,.entry-detail .ext-item select{width:100%;padding:3px 4px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--radius-sm);color:var(--ink);font-size:.72em;text-align:center;outline:none}
 /* Tab 切换器（角色卡 / MVU）*/
 .tab-switcher{display:flex;gap:3px;padding:4px;background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface-sink) 100%);border:1px solid var(--line-soft);border-radius:10px;flex-shrink:0;box-shadow:inset 0 1px 3px rgba(15,23,42,.04)}
 .tab-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:none;border-radius:7px;font-size:.78em;color:var(--ink-soft);cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);font-weight:600;font-family:inherit;white-space:nowrap;position:relative}
@@ -573,7 +550,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .pv-section h3{font-size:.78em;margin-bottom:2px}
   .pv-section{padding:6px 10px}
   .pv-content{font-size:.72em;line-height:1.4}
-  .json-modal-content,.modal-content{padding:10px;max-height:90vh}
+.modal-content{padding:10px;max-height:90vh}
   .modal-body{max-height:60vh}
 }
 @media(orientation:landscape) and (max-height:600px){
@@ -587,7 +564,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .btn-send{width:34px;height:34px}
   .quick-actions{gap:3px;max-height:60px}
   .quick-btn{font-size:.68em;padding:3px 6px}
-  .pv-body{padding:6px}
   .pv-section{padding:4px 8px}
   .pv-section h3{font-size:.78em}
   .pv-content{font-size:.72em;line-height:1.4}
@@ -625,10 +601,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .topbar{padding:8px 12px;min-height:42px}
   .topbar h1{font-size:.88em}
   .topbar .phase{font-size:.68em}
-  /* 字体控件：小屏隐藏百分比标签，按钮稍紧凑，防止挤占顶栏 */
-  .font-ctrl{padding:1px 3px;gap:1px}
-  .font-ctrl .font-btn{height:24px;width:24px;font-size:.68em}
-  .font-ctrl .font-size-label{display:none}
   .topbar-right{gap:3px}
   /* 聊天气泡：手机端更宽，提升阅读体验 */
   .chat-messages{padding:10px 6px}
@@ -652,7 +624,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .pv-section{padding:10px 11px}
   .pv-section h3{font-size:.84em}
   .pv-section .pv-entry summary{padding:7px 9px}
-  .pv-section .pv-entry-title{font-size:.8em}
   .pv-section .pv-entry-content{font-size:.78em;line-height:1.55}
   .pv-section .pv-code{font-size:.76em;padding:7px}
   .pv-section .pv-tag{font-size:.74em;padding:2px 7px}
@@ -671,13 +642,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .opt-compare{grid-template-columns:1fr;gap:6px}
   .opt-pane{max-height:240px;font-size:.74em}
   /* 关闭按钮：避开刘海 */
-  .close-btn{top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:34px;height:34px;font-size:1.05em}
   /* 模块进度：手机端2列 */
   .module-progress{grid-template-columns:repeat(2,1fr);gap:6px}
   .module-item{font-size:.76em;padding:5px 6px}
   /* 模态框：手机端全屏化 */
-  .json-modal-content,.modal-content{width:96%;max-width:none;padding:12px;border-radius:10px;max-height:92vh}
-  .json-modal-content textarea{font-size:.78em;min-height:200px}
+.modal-content{width:96%;max-width:none;padding:12px;border-radius:10px;max-height:92vh}
   .modal-body{max-height:70vh}
   /* 群组管理：手机端紧凑 */
   .group-mgr-item{padding:6px 8px}
@@ -703,8 +672,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 @media(pointer:coarse){
   .quick-btn,.qa-mini,.btn,.pv-section .pv-mini-btn,.pv-book-name,.group-mgr-item .gm-toggle,.mobile-tab{cursor:default;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
   .quick-btn:active:not(:disabled),.qa-mini:active:not(:disabled),.btn:active:not(:disabled){transform:scale(.96);transition:transform .1s}
-  .close-btn{cursor:default}
-  .close-btn:active{transform:scale(.9) rotate(90deg)}
   .chat-msg .bubble a{-webkit-tap-highlight-color:rgba(91,141,184,.2)}
 }
 /* ===== 大屏平板/桌面端优化（≥769px）===== */
@@ -736,8 +703,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .cp-section-thinking .cp-section-body{color:var(--ink-soft);font-size:.85em;font-style:italic}
 .cp-section-content .cp-section-header{background:var(--sage-soft)}
 .cp-section-content .cp-section-label,.cp-section-content .cp-section-icon{color:var(--sage-text)}
-.cp-section-toolcall .cp-section-header{background:var(--amber-soft)}
-.cp-section-toolcall .cp-section-label,.cp-section-toolcall .cp-section-icon{color:var(--amber-text)}
 .cp-section-code .cp-section-body{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto}
 .cp-section-opblock .cp-section-header{background:var(--accent-soft)}
 .cp-section-opblock .cp-section-label,.cp-section-opblock .cp-section-icon{color:var(--accent-text)}
@@ -914,7 +879,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     close: 'M6 6l12 12M18 6L6 18',
     send: 'M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z',
     spinner: 'M21 12a9 9 0 1 1-6.219-8.56',
-    chevronDown: 'M6 9l6 6 6-6',
     arrowDown: 'M12 5v14M5 12l7 7 7-7',
     bolt: 'M13 2L3 14h7v8l10-12h-7V2z',
     download: 'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14',
@@ -932,7 +896,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8h.01M11 12h1v4h1',
     wrench: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.4-2.4 2.1-2.1z',
     trash: 'M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7',
-    copy: 'M9 3h9a2 2 0 0 1 2 2v9M5 7h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z',
     edit: 'M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
     save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
     refresh: 'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
@@ -952,16 +915,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     gauge: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 12l4-2M12 12l-3 4',
     sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z',
     play: 'M6 4l14 8-14 8V4z',
-    search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
     eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     fileExport: 'M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-4-5zM12 18v-6m0 0l-2 2m2-2l2 2',
     // 扩展图标（预览区/快捷动作专用）
     globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20',
-    tag: 'M20 12l-8 8-9-9V3h8l9 9zM7.5 7.5h.01',
     film: 'M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18',
     scroll: 'M8 3h11a2 2 0 0 1 2 2v3h-3M8 3H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h3M8 3v18M19 8v11a2 2 0 0 1-2 2H8M12 8h4M12 12h4',
-    skip: 'M5 4l10 8-10 8V4zM19 5v14',
-    palette: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM7 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM12 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8 13a4 4 0 0 0 8 0',
     layers: 'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
     circle: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
     user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
@@ -970,7 +929,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     code: 'M8 9l-3 3 3 3M16 9l3 3-3 3M14 5l-4 14',
     menu: 'M3 12h18M3 6h18M3 18h18',
     folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
-    dot: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
     // 头像菜单专用
     undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-4',
     image: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5L5 21',
@@ -1096,12 +1054,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ============================================================================
   // SECTION 3  卡片数据模板 + 世界书条目模板 + MVU 美化 HTML 模板
   // ============================================================================
-  // ===== 世界书名称生成 =====
-  function genBookName(worldName) {
-    if (!worldName || !worldName.trim()) return '世界设定集';
-    return worldName.trim() + ' · 世界书';
-  }
-
   // ===== 世界书条目模板（ST权重分层8体系 · 完整12项原生参数） =====
   // 参数体系：触发精准类(keys/secondary_keys/use_regex/match_whole_words/scan_depth)
   //          生效控制类(sticky/cooldown/delay) 递归安全类(prevent_recursion/exclude_recursion/delay_until_recursion)
@@ -2399,13 +2351,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       c.indexOf('联动变更') >= 0 || c.indexOf('只读字段') >= 0;
   }
 
-  // 判断是否为MVU核心条目（五大核心：[initvar]/变量列表/变量更新规则/变量输出格式/变量输出格式强调）
-  function isMVUCoreEntry(comment) {
-    var c = (comment || '').toLowerCase();
-    return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
-      c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0;
-  }
-
   // ST规范：转换 regex_scripts 格式（导入/导出共用）
   function normalizeRegexScripts(rxScripts) {
     if (!rxScripts || !Array.isArray(rxScripts)) return [];
@@ -2465,91 +2410,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (['叙事背景', '故事发展', '文化与习俗', '历史事件'].indexOf(prefixKey) >= 0) return '叙事';
     return '触发体系';
   }
-
-  const MODULE_SYSTEM = {
-    permanent: [{
-        key: 'axiom',
-        name: '基础公理',
-        icon: '🏛️',
-        weight: 35,
-        position: 0,
-        order: 250
-      },
-      {
-        key: 'soft_rules',
-        name: '交互软规则',
-        icon: '🤝',
-        weight: 30,
-        position: 1,
-        order: 150
-      },
-      {
-        key: 'core_rules',
-        name: '核心铁则',
-        icon: '🔐',
-        weight: 35,
-        order: 100
-      },
-    ],
-    trigger: [{
-        key: 'near_constraint',
-        name: '近场强约束',
-        icon: '🎯',
-        weight: 25,
-        position: 2,
-        depth: 2
-      },
-      {
-        key: 'scene_mechanics',
-        name: '场景机制',
-        icon: '⚔️',
-        weight: 25,
-        position: 1,
-        depth: 3
-      },
-      {
-        key: 'entity_interact',
-        name: '实体交互',
-        icon: '👥',
-        weight: 25,
-        position: 1,
-        depth: 3
-      },
-      {
-        key: 'narrative_bg',
-        name: '叙事背景',
-        icon: '📖',
-        weight: 25,
-        position: 4,
-        depth: 5
-      }
-    ],
-    dynamic: [{
-      key: 'dynamic_adapt',
-      name: '动态适配',
-      icon: '🔄',
-      weight: 100,
-      position: 1,
-      depth: 4
-    }],
-    variable: [{
-        key: 'init_var',
-        name: '初始变量',
-        icon: '📊',
-        weight: 100,
-        position: 0,
-        insertion_order: 100
-      },
-      {
-        key: 'var_update_rule',
-        name: '变量更新规则',
-        icon: '📝',
-        weight: 100,
-        position: 1,
-        insertion_order: 145
-      }
-    ]
-  };
 
   // ============================================================================
   // SECTION 4  写卡预设 + 系统提示词（注入到每一次 AI 请求的 system prompt）
@@ -3681,6 +3541,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ============================================================================
   // SECTION 5  条目匹配 + 智能合并引擎（mergePartial · 去重/删除屏障）
   // ============================================================================
+  // MVU 固定资产（bundle.js）：禁止 AI 删除/覆盖；按固定 id 或内容特征识别。
+  // mergePartial 与 applyOps 共用同一判定（原先两处各有一份相同实现）。
+  var MVU_FIXED_SCRIPT_IDS = {
+    '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)'
+  };
+  function isFixedMvuScript(scr) {
+    if (!scr) return false;
+    if (scr.id && MVU_FIXED_SCRIPT_IDS[scr.id]) return true;
+    var c = String(scr.content || '');
+    // 特征兜底：bundle.js / MagVarUpdate = MVU本体（唯一受保护的固定资产）
+    return c.indexOf('MagVarUpdate') >= 0 || c.indexOf('bundle.js') >= 0;
+  }
   // ===== 提取条目的规范前缀（用于智能匹配） =====
   function extractEntryPrefix(comment) {
     if (!comment) return '';
@@ -3701,40 +3573,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var neContent = (newEntry.content || '').trim();
     var nePrefix = extractEntryPrefix(neComment);
 
-    // 🐛修复-去括号：AI 一会儿给 comment 包⟦⟧/【】一会儿不包。统一剥去最外层的装饰括号对。
-    // 支持括号对：⟦⟧ 【】 「」 『』 ［］《》 〈〉 () [] {} <>（其中< >保留真实<角色>前缀那种内部尖括号不剥）
-    var stripOuterBrackets = function(s) {
-      if (!s) return '';
-      var r = String(s).trim();
-      for (var iter = 0; iter < 2; iter++) { // 最多剥2层嵌套，如 ⟦【xxx】⟧
-        var pairs = [
-          ['⟦', '⟧'],
-          ['【', '】'],
-          ['「', '」'],
-          ['『', '』'],
-          ['［', '］'],
-          ['《', '》'],
-          ['〈', '〉'],
-          ['(', ')'],
-          ['[', ']'],
-          ['{', '}']
-        ];
-        var matched = false;
-        for (var pi = 0; pi < pairs.length; pi++) {
-          var L = pairs[pi][0],
-            R = pairs[pi][1];
-          if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length - 1) === R) {
-            r = r.slice(1, -1).trim();
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) break;
-      }
-      return r;
-    };
     var normMatchKey = function(s) {
-      return stripOuterBrackets(s).trim().toLowerCase();
+      return _stripOuterBrackets(s).trim().toLowerCase();
     };
 
     // 辅助：提取 comment 去掉前缀后的后缀（去掉首尾空白和常见分隔符）
@@ -4882,19 +4722,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // ⚠️ MVU固定脚本白名单拦截：bundle.js（MVU本体）由写卡器自动注入，
             //   禁止AI写入cardData（避免导出时重复注入2份）
             //   允许AI修改：变量结构 (id=mvu-schema 或 name='变量结构' 或 含 mvu_zod)、WTC（世界书调用，AI按需生成）
-            var MVU_FIXED_SCRIPT_IDS = {
-              '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)'
-            };
-
-            function isFixedMvuScript(scr) {
-              if (!scr) return false;
-              if (scr.id && MVU_FIXED_SCRIPT_IDS[scr.id]) return true;
-              var sContent = String(scr.content || '');
-              // 特征兜底：bundle.js / MagVarUpdate = MVU本体（唯一受保护的固定资产）
-              if (sContent.indexOf('MagVarUpdate') >= 0 || sContent.indexOf('bundle.js') >= 0) return true;
-              return false;
-            }
-
             function isAllowedMvuScript(scr) {
               if (!scr) return false;
               if (scr.id === 'mvu-schema') return true;
@@ -5153,37 +4980,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       errors.push('triggerSlash: ' + e.message);
     }
     throw new Error('AI调用失败: ' + errors.join('; '));
-  }
-
-  // ====================================================================
-  // 旧「5步分模块状态栏系统」已废弃——状态栏统一使用单一模板 MVU_STATUS_BAR_TEMPLATE。
-  // 以下变量/常量/函数保留为空默认值的兼容占位（inert stubs），仅为避免尚未清理的旧引用抛
-  // ReferenceError；5步生成逻辑已全部移除，这些值永远保持空/未激活状态，不会影响实际行为。
-  // ====================================================================
-  var statusBarModules = {
-    step2: null,
-    step3: null,
-    step4: null,
-    step5: null,
-    step6: null
-  };
-  var statusBarCurrentStep = 0;
-  var statusBarMode = false;
-  var SB_STEP_DISPLAY_NAMES = {
-    step2: '配色方案',
-    step3: 'HTML骨架',
-    step4: 'CSS样式',
-    step5: 'populateCharacterData',
-    step6: '事件绑定+入口'
-  };
-  var SB_STEP_ORDER = [2, 3, 4, 5, 6];
-
-  function sbStepName(stepNum) {
-    return SB_STEP_DISPLAY_NAMES['step' + stepNum];
-  }
-
-  function findNextEmptyStep() {
-    return 7;
   }
 
   // ====================================================================
@@ -9383,7 +9179,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         window.__mvuDiscussMode = false;
         window.setMvuDiscussMode = function(on) {
           window.__mvuDiscussMode = !!on;
-          console.log('[Tab隔离] 灰色模式（变量结构讨论）' + (window.__mvuDiscussMode ? '已开启' : '已关闭'));
           return window.__mvuDiscussMode;
         };
       }
@@ -9395,26 +9190,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mode: 'normal' // 角色卡Tab专属模式：永远是 normal，永远不进入状态栏生成模式
         },
         mvu: {
-          messages: [], // MVU Tab独立聊天历史
-          // 以下字段为旧5步状态栏系统的兼容占位（已废弃，统一使用单一模板，始终保持空默认值）
-          currentStep: 0,
-          modules: {
-            step2: null,
-            step3: null,
-            step4: null,
-            step5: null,
-            step6: null
-          },
-          statusBarMode: false
+          messages: [] // MVU Tab独立聊天历史
         }
       };
-      // 兼容旧代码的独立变量别名：实际以 chatSessions 为准，切换Tab时同步
+      // 会话数组别名：实际以 chatSessions 为准，切换Tab时同步
       var cardMessages = chatSessions.card.messages;
       var mvuMessages = chatSessions.mvu.messages;
-      // 旧5步状态栏系统别名（已废弃，始终保持空默认值，仅为兼容尚未清理的旧引用）
-      var mvuTabStatusBarModules = chatSessions.mvu.modules;
-      var mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
-      var mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
       // ★ 向后兼容别名：旧代码各处仍直接引用 messages 变量（importCardData/loadFromStorage等）
       // 必须保留 var messages 声明，否则会报 "messages is not defined"
       var messages = chatSessions.card.messages;
@@ -9436,10 +9217,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // ★ 暴露到 window：让顶层作用域的 buildPrompt / callAIChat / calcProgress 等函数也能访问
       if (typeof window !== 'undefined') {
-        window.__tab_activeTab = activeTab;
-        window.__getActiveTab = function() {
-          return activeTab;
-        };
         window.__getCurrentTab = function() {
           return currentTab;
         };
@@ -9458,11 +9235,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mvuMessages = arr;
         };
       }
-      // 所有地方使用 messages 变量时，改为访问当前Tab的数组
-      Object.defineProperty(typeof window !== 'undefined' ? window : {}, '_dummy', {
-        value: 0
-      });
-      // 为了兼容现有代码，我们通过消息函数来路由，不直接覆盖messages引用
 
       var isGenerating = false;
       var cardGenerated = false;
@@ -9513,22 +9285,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (var ti = 0; ti < tabBtns.length; ti++) {
           tabBtns[ti].classList.toggle('active', tabBtns[ti].getAttribute('data-tab') === targetTab);
         }
-        // 更新 mod-focus / mod-dash / mvu-info-panel 显示筛选
-        var modFocus = doc.getElementById('modFocus');
-        if (modFocus) {
-          modFocus.classList.remove('card-only', 'mvu-only');
-          modFocus.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
-        }
-        var modDash = doc.getElementById('modDash');
-        if (modDash) {
-          modDash.classList.remove('card-only', 'mvu-only');
-          modDash.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
-        }
-        var mvuPanel = doc.getElementById('mvuInfoPanel');
-        if (mvuPanel) {
-          mvuPanel.classList.remove('card-only', 'mvu-only');
-          mvuPanel.classList.add(targetTab === 'card' ? 'card-only' : 'mvu-only');
-        }
         // ===== 3. 同步所有消息别名变量（cardMessages/mvuMessages/messages），保证所有引用都指向最新数组 =====
         cardMessages = chatSessions.card.messages;
         mvuMessages = chatSessions.mvu.messages;
@@ -9570,10 +9326,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ===== 5. 刷新所有UI =====
         updateProgress(); // ★ 重算进度百分比（Tab不同过滤规则不同）
         updateQuickActions(); // 快捷动作按钮
-        updateModFocus(); // ctx-bar 上下文操作条
+        updateCtxBar(); // ctx-bar 上下文操作条
         renderPreview(); // 右侧预览面板
-        renderModDash(); // 模块面板
-        renderMvuInfoPanel(); // MVU信息面板
+        scheduleCtxBarUpdate(); // ctx-bar 防抖再刷一次（合并后续成对刷新）
         // ===== 6. 更新输入框：切换Tab时清空残留内容 + 更新placeholder + 更新字符计数/发送按钮脉冲 =====
         var inputEl = doc.getElementById('chatInput');
         if (inputEl) {
@@ -9713,7 +9468,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         bindEvents();
         applyFontScale(_appFontScale);
         initWorkspaceMenu();
-        updateModFocus();
+        updateCtxBar();
         updateQuickActions();
         renderPreview();
         updateCharCount();
@@ -10425,17 +10180,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return '';
       }
 
-      function _wsDiffCount(oldT, newT) {
-        var diff = _wsDiff(oldT, newT);
-        var add = 0,
-          del = 0;
-        diff.forEach(function(r) {
-          if (r.kind === 'add') add++;
-          if (r.kind === 'del') del++;
-        });
-        return '+' + add + '/-' + del;
-      }
-
       function bindWsEditorEvents(container) {
         // 视图切换
         container.querySelectorAll('.ws-view-btn').forEach(function(btn) {
@@ -10816,13 +10560,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             handleQuickAction(action);
           });
         }
-        var modBtns = doc.querySelectorAll('.mod-focus-btn');
-        for (var j = 0; j < modBtns.length; j++) {
-          modBtns[j].addEventListener('click', function() {
-            var mod = this.getAttribute('data-mod');
-            handleModFocus(mod);
-          });
-        }
         // ctx-bar 模块按钮（updateCtxBar 内部已绑定，这里兜底）
         var ctxMods = doc.querySelectorAll('.ctx-mod');
         for (var cm = 0; cm < ctxMods.length; cm++) {
@@ -10830,7 +10567,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             ctxMods[cm].setAttribute('data-bound', '1');
             ctxMods[cm].addEventListener('click', function() {
               var mod = this.getAttribute('data-mod');
-              if (mod) handleModFocus(mod);
+              if (mod) handleQuickAction(mod);
             });
           }
         }
@@ -11139,21 +10876,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (var tbai = 0; tbai < tabBtnsAfter.length; tbai++) {
           tabBtnsAfter[tbai].classList.toggle('active', tabBtnsAfter[tbai].getAttribute('data-tab') === activeTab);
         }
-        var modFocusAfter = doc.getElementById('modFocus');
-        if (modFocusAfter) {
-          modFocusAfter.classList.remove('card-only', 'mvu-only');
-          modFocusAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
-        }
-        var modDashAfter = doc.getElementById('modDash');
-        if (modDashAfter) {
-          modDashAfter.classList.remove('card-only', 'mvu-only');
-          modDashAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
-        }
-        var mvuPanelAfter = doc.getElementById('mvuInfoPanel');
-        if (mvuPanelAfter) {
-          mvuPanelAfter.classList.remove('card-only', 'mvu-only');
-          mvuPanelAfter.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
-        }
         var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
         var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
           '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
@@ -11231,22 +10953,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mode: 'normal'
         };
         chatSessions.mvu = {
-          messages: [],
-          currentStep: 0,
-          modules: {
-            step2: null,
-            step3: null,
-            step4: null,
-            step5: null,
-            step6: null
-          },
-          statusBarMode: false
+          messages: []
         };
         cardMessages = chatSessions.card.messages;
         mvuMessages = chatSessions.mvu.messages;
-        mvuTabStatusBarModules = chatSessions.mvu.modules;
-        mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
-        mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
         // 全局 messages 兼容别名：默认回到角色卡 Tab（与首次打开时 L8220 一致）
         messages = chatSessions.card.messages;
 
@@ -11272,17 +10982,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           init_var: 0,
           var_update_rule: 0
         };
-        // 5. 旧 5 步状态栏状态同步归零（虽然已废弃，但避免旧代码读取残留值）
-        statusBarModules = {
-          step2: null,
-          step3: null,
-          step4: null,
-          step5: null,
-          step6: null
-        };
-        statusBarCurrentStep = 0;
-        statusBarMode = false;
-        // 6. 撤回快照 / AI 队列 归零
+        // 5. 撤回快照 / AI 队列 归零
         try {
           if (typeof cardDataSnapshots !== 'undefined') {
             cardDataSnapshots = {
@@ -11317,13 +11017,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 修复：必须作用到 iframe 内的 doc，而非外层 document
         var docEl = (doc && doc.documentElement) ? doc.documentElement : document.documentElement;
         if (docEl) docEl.style.setProperty('--app-font-scale', String(scale));
-        // 同步更新顶栏字体百分比标签（如果存在）
-        var label = doc ? doc.getElementById('fontSizeLabel') : document.getElementById('fontSizeLabel');
-        if (label) label.textContent = Math.round(scale * 100) + '%';
-        var decBtn = doc ? doc.getElementById('fontDec') : document.getElementById('fontDec');
-        var incBtn = doc ? doc.getElementById('fontInc') : document.getElementById('fontInc');
-        if (decBtn) decBtn.disabled = scale <= _MIN_FONT_SCALE + 0.001;
-        if (incBtn) incBtn.disabled = scale >= _MAX_FONT_SCALE - 0.001;
         // 同步更新下拉菜单中的字体控件（如果已打开）
         var wsLabel = doc ? doc.getElementById('wsFontSizeLabel') : null;
         var wsDecBtn = doc ? doc.getElementById('wsFontDec') : null;
@@ -11336,18 +11029,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function saveToStorage() {
         try {
-          // 每次保存前同步最新状态（chatSessions 是唯一真源，先从模块级变量回写）
-          if (activeTab === 'mvu') {
-            chatSessions.mvu.modules = statusBarModules;
-            chatSessions.mvu.currentStep = statusBarCurrentStep;
-            chatSessions.mvu.statusBarMode = statusBarMode;
-          }
-          // 同步别名引用
+          // 同步别名引用（chatSessions 是唯一真源）
           cardMessages = chatSessions.card.messages;
           mvuMessages = chatSessions.mvu.messages;
-          mvuTabStatusBarModules = chatSessions.mvu.modules;
-          mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
-          mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
 
           var state = {
             cardData: cardData,
@@ -11357,9 +11041,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             cardGenerated: cardGenerated,
             progress: progress,
             moduleProgress: moduleProgress,
-            statusBarModules: statusBarModules,
-            statusBarMode: statusBarMode,
-            statusBarCurrentStep: statusBarCurrentStep,
             fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
             timestamp: Date.now()
           };
@@ -11376,9 +11057,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 cardGenerated: cardGenerated,
                 progress: progress,
                 moduleProgress: moduleProgress,
-                statusBarModules: statusBarModules,
-                statusBarMode: statusBarMode,
-                statusBarCurrentStep: statusBarCurrentStep,
                 fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
                 timestamp: Date.now()
               };
@@ -11442,16 +11120,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 state.chatSessions.card || {}
               );
               chatSessions.mvu = Object.assign({
-                  messages: [],
-                  currentStep: 0,
-                  modules: {
-                    step2: null,
-                    step3: null,
-                    step4: null,
-                    step5: null,
-                    step6: null
-                  },
-                  statusBarMode: false
+                  messages: []
                 },
                 state.chatSessions.mvu || {}
               );
@@ -11469,24 +11138,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 mode: 'normal'
               };
               chatSessions.mvu = {
-                messages: (state.mvuMessages && Array.isArray(state.mvuMessages)) ? state.mvuMessages : [],
-                currentStep: state.mvuTabStatusBarCurrentStep || 0,
-                modules: state.mvuTabStatusBarModules || {
-                  step2: null,
-                  step3: null,
-                  step4: null,
-                  step5: null,
-                  step6: null
-                },
-                statusBarMode: state.mvuTabStatusBarMode || false
+                messages: (state.mvuMessages && Array.isArray(state.mvuMessages)) ? state.mvuMessages : []
               };
             }
-            // 同步别名引用（保持向后兼容）
+            // 同步别名引用
             cardMessages = chatSessions.card.messages;
             mvuMessages = chatSessions.mvu.messages;
-            mvuTabStatusBarModules = chatSessions.mvu.modules;
-            mvuTabStatusBarCurrentStep = chatSessions.mvu.currentStep;
-            mvuTabStatusBarMode = chatSessions.mvu.statusBarMode;
 
             // 当前Tab：优先 activeTab，其次 currentTab，默认回到角色卡Tab
             activeTab = state.activeTab || state.currentTab || 'card';
@@ -11518,41 +11175,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             };
             if (typeof state.fontScale === 'number') _appFontScale = state.fontScale;
 
-            // 状态栏：根据恢复的当前Tab决定加载哪一份
-            if (activeTab === 'mvu') {
-              // 当前在MVU Tab：加载 MVU Tab 专属状态栏状态（来自 chatSessions.mvu）
-              statusBarModules = chatSessions.mvu.modules;
-              statusBarMode = chatSessions.mvu.statusBarMode;
-              statusBarCurrentStep = chatSessions.mvu.currentStep;
-            } else {
-              // 当前在角色卡Tab：强制禁用状态栏生成模式（如果是新版数据有 chatSessions 对象的话）
-              if (state.chatSessions) {
-                statusBarModules = {
-                  step2: null,
-                  step3: null,
-                  step4: null,
-                  step5: null,
-                  step6: null
-                };
-                statusBarMode = false;
-                statusBarCurrentStep = 0;
-              } else if (state.statusBarModules) {
-                // 旧版数据：沿用 state.statusBarModules（向后兼容）
-                statusBarModules = state.statusBarModules;
-                statusBarMode = state.statusBarMode || false;
-                statusBarCurrentStep = state.statusBarCurrentStep || 0;
-              } else {
-                statusBarModules = {
-                  step2: null,
-                  step3: null,
-                  step4: null,
-                  step5: null,
-                  step6: null
-                };
-                statusBarMode = false;
-                statusBarCurrentStep = 0;
-              }
-            }
             return true;
           }
         } catch (e) {}
@@ -11598,28 +11220,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             arr.push(m);
             appendMsg(m.role, m.content, arr.length - 1);
           });
-          // 恢复 mod-dash 的 card/mvu-only 样式
-          var modDash = doc.getElementById('modDash');
-          if (modDash) {
-            modDash.classList.remove('card-only', 'mvu-only');
-            modDash.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
-          }
-          // 恢复 mvu-info-panel 的 card/mvu-only 样式
-          var mvuPanel = doc.getElementById('mvuInfoPanel');
-          if (mvuPanel) {
-            mvuPanel.classList.remove('card-only', 'mvu-only');
-            mvuPanel.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
-          }
           // 恢复Tab按钮激活态（renderChatUI 默认可能没有选中对应Tab）
           var tabBtns = doc.querySelectorAll('.tab-btn');
           for (var tbi = 0; tbi < tabBtns.length; tbi++) {
             tabBtns[tbi].classList.toggle('active', tabBtns[tbi].getAttribute('data-tab') === activeTab);
-          }
-          // 更新 mod-focus 显示筛选（Card/MVU-only）
-          var modFocus = doc.getElementById('modFocus');
-          if (modFocus) {
-            modFocus.classList.remove('card-only', 'mvu-only');
-            modFocus.classList.add(activeTab === 'card' ? 'card-only' : 'mvu-only');
           }
           // 更新输入框占位符和标题
           var inputEl = doc.getElementById('chatInput');
@@ -11636,24 +11240,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           updateProgress();
           updateQuickActions();
-          updateModFocus();
+          updateCtxBar();
           renderPreview();
-          renderModDash();
-          renderMvuInfoPanel();
+          scheduleCtxBarUpdate();
           showToast('已恢复上次创作进度（当前：' + (activeTab === 'card' ? '角色卡生成 Tab' : 'MVU变量状态栏 Tab') + '）', 'success');
         } else {
           showToast('没有找到保存的数据', 'warning');
         }
-      }
-
-      function handleModFocus(mod) {
-        // 复用 handleQuickAction 的精细提示词，保证点击仪表盘/模块按钮都能给出体系化指令
-        handleQuickAction(mod);
-      }
-
-      // ===== 上下文操作条：合并旧 mod-focus + mod-dash + mvu-info-panel =====
-      function updateModFocus() {
-        updateCtxBar();
       }
 
       function updateCtxBar() {
@@ -11794,13 +11387,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (var i = 0; i < modBtns.length; i++) {
           modBtns[i].addEventListener('click', function() {
             var mod = this.getAttribute('data-mod');
-            if (!mod) return;
-            // MVU 快捷动作直接派发
-            if (mod === 'start_sb' || mod === 'mvuPreview' || mod === 'init_var' || mod === 'var_update_rule') {
-              handleQuickAction(mod);
-            } else {
-              handleModFocus(mod);
-            }
+            if (mod) handleQuickAction(mod);
           });
         }
       }
@@ -11961,21 +11548,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
             if (!confirm('确定清空「' + tabName + '」Tab 的所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除当前Tab的聊天对话历史\n✅ 另一个Tab的聊天记录不受影响')) return;
             setCurrentMessages([]);
-            // MVU Tab 清空时也重置其状态栏模块状态
-            if (currentTab === 'mvu') {
-              mvuTabStatusBarModules = {
-                step2: null,
-                step3: null,
-                step4: null,
-                step5: null,
-                step6: null
-              };
-              mvuTabStatusBarCurrentStep = 0;
-              mvuTabStatusBarMode = false;
-              statusBarModules = mvuTabStatusBarModules;
-              statusBarCurrentStep = 0;
-              statusBarMode = false;
-            }
             var chatC = doc.getElementById('chatMessages');
             if (chatC) chatC.innerHTML = '';
             saveToStorage();
@@ -12183,15 +11755,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           content: content
         });
         appendMsg('assistant', content, curMsgs.length - 1);
-        // MVU Tab：每次消息后同步最新模块状态回 mvuTabStatusBarModules，防止丢失
-        if (currentTab === 'mvu') {
-          mvuTabStatusBarModules = statusBarModules;
-          mvuTabStatusBarCurrentStep = statusBarCurrentStep;
-          mvuTabStatusBarMode = statusBarMode;
-        }
         saveToStorage();
-        renderModDash();
-        renderMvuInfoPanel();
+        scheduleCtxBarUpdate();
       }
 
       function addUserMsg(content) {
@@ -12242,9 +11807,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             currentTab: currentTab,
             cardMessages: cardMessages,
             mvuMessages: mvuMessages,
-            mvuTabStatusBarModules: mvuTabStatusBarModules,
-            mvuTabStatusBarCurrentStep: mvuTabStatusBarCurrentStep,
-            statusBarModules: statusBarModules,
             progress: progress,
             moduleProgress: moduleProgress
           };
@@ -13625,171 +13187,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return fmtBubble(md);
       }
 
-      // ===== 旧 modDash 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
+      // ctx-bar 防抖刷新：高频成对的刷新请求（消息渲染/合并/预览）合并为一次微任务
       var _ctxBarRenderTimer = null;
-
-      function renderModDash() {
-        // ⚠️性能修复：renderModDash/renderMvuInfoPanel 常被连续成对调用（每条消息两遍全量重建
-        // ctx-bar：innerHTML 重写 + checkMvu8Entries 全条目扫描 + 监听器重绑）。合并为一次微任务防抖
+      function scheduleCtxBarUpdate() {
         if (_ctxBarRenderTimer) return;
         _ctxBarRenderTimer = setTimeout(function() {
           _ctxBarRenderTimer = null;
           updateCtxBar();
         }, 0);
-      }
-
-      // ===== 旧 mvuInfoPanel 已并入 ctx-bar，保留函数签名以兼容历史调用点 =====
-      function renderMvuInfoPanel() {
-        renderModDash();
-      }
-
-      async function handleAnalyzeProgress() {
-        if (isGenerating) return;
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length === 0 && !cardData.description) {
-          showToast('还没有内容可以分析，请先和AI聊聊', 'warning');
-          return;
-        }
-        isGenerating = true;
-        setEnabled(false);
-        addTyping();
-        try {
-          var analyzePrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT) +
-            '\n\n=== AI分析指令 ===\n' +
-            '请全面分析当前角色卡内容，完成以下任务：\n' +
-            '1. 评估每个体系的完成度（0-100），输出到```json代码块\n' +
-            '2. JSON格式（严格）：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
-            '   评分标准：0=无内容，30=有1条极简内容，60=有1条内容充实，80=有1条内容详细，100=≥2条且信息密度高（字数仅供参考，不做硬性要求）\n' +
-            '3. 用自然语言给出每个体系的改进建议和下一步行动方向\n' +
-            '4. 最后给出一条适合用户直接输入的建议指令（放在<suggestion>标签中，标签内是纯指令文本，不含解释）\n\n' +
-            '=== 当前角色卡内容 ===\n' +
-            (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述(完整' + (cardData.description || '').length + '字，不截断)：' + (cardData.description || '') + '\n' : '') +
-            (cardData.first_mes ? '- 开场白(' + (cardData.first_mes || '').length + '字)\n' : '') +
-            '- 世界书条目：' + entries.length + '条\n' +
-            (entries.length > 0 ? '- 条目清单：\n' + entries.map(function(e) {
-              return '  · [' + (e.comment || '未命名') + '] ' + (e.content || '').length + '字' + (e.enabled === false ? ' (禁用)' : '');
-            }).join('\n') : '');
-          var aiResponse = await callAI(analyzePrompt);
-          removeTyping();
-          var parsed = extractJSON(aiResponse);
-          if (parsed) {
-            Object.keys(parsed).forEach(function(k) {
-              if (moduleProgress.hasOwnProperty(k) && typeof parsed[k] === 'number') {
-                moduleProgress[k] = Math.max(0, Math.min(100, parsed[k]));
-              }
-            });
-          }
-          var suggestion = aiResponse.match(/<suggestion>([\s\S]*?)<\/suggestion>/);
-          var input = doc.getElementById('chatInput');
-          if (suggestion && input) {
-            input.value = suggestion[1].trim();
-          }
-          var dialogue = aiResponse.replace(/```[\s\S]*?```/g, '').replace(/<suggestion>[\s\S]*?<\/suggestion>/g, '').trim();
-          if (dialogue) {
-            try {
-              addAssistantMsg(dialogue);
-            } catch (e) {
-              console.warn('addAssistantMsg error:', e);
-            }
-          } else {
-            try {
-              addAssistantMsg(aiResponse);
-            } catch (e) {
-              console.warn('addAssistantMsg error:', e);
-            }
-          }
-          updateProgress();
-          updateQuickActions();
-          updateModFocus();
-          renderPreview();
-          renderModDash();
-          saveToStorage();
-        } catch (err) {
-          removeTyping();
-          try {
-            addAssistantMsg('😞 分析失败：' + err.message);
-          } catch (e) {}
-        } finally {
-          isGenerating = false;
-          try {
-            setEnabled(true);
-          } catch (e) {}
-        }
-      }
-
-      function toggleDash() {
-        var dash = doc.getElementById('modDash');
-        if (dash) dash.classList.toggle('collapsed');
-      }
-
-      function getDetailedModuleProgress() {
-        var entries = (cardData.character_book || {}).entries || [];
-        // ========== Tab 隔离：角色卡Tab 过滤掉 MVU 条目 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
-        if (__tab === 'card') {
-          entries = entries.filter(function(e) {
-            return !isMVUEntry(e.comment || '');
-          });
-        }
-        var result = {
-          axiom: 0,
-          soft_rules: 0,
-          core_rules: 0,
-          near_constraint: 0,
-          scene_mechanics: 0,
-          entity_interact: 0,
-          narrative_bg: 0,
-          dynamic_adapt: 0,
-          init_var: 0,
-          var_update_rule: 0
-        };
-        var modKeywords = {
-          axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
-          soft_rules: ['交互软规则', '互动选项', '叙事风格', '剧情引导'],
-          core_rules: ['核心铁则', '绝对禁止', '输出格式', 'AI身份', 'post_history'],
-          near_constraint: ['近场强约束', '当前局势', '即时状态', '临时任务'],
-          scene_mechanics: ['场景机制', '核心玩法', '世界规则', '战斗规则', '修炼', '谈判'],
-          entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景', 'NPC'],
-          narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件', '主线剧情'],
-          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt'],
-          init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
-          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variables', 'mvu_update']
-        };
-        Object.keys(modKeywords).forEach(function(mod) {
-          var kws = modKeywords[mod];
-          var count = 0;
-          var totalLen = 0;
-          var matched = {};
-          entries.forEach(function(e) {
-            var comment = e.comment || '';
-            var isMatch = kws.some(function(kw) {
-              return comment.indexOf(kw) >= 0;
-            });
-            if (isMatch && !matched[comment]) {
-              matched[comment] = true;
-              count++;
-              totalLen += (e.content || '').length;
-            }
-          });
-          // 完成度计算：1条+长度≥250 → 60%；1条+长度≥500 → 80%；≥2条+长度≥500 → 100%
-          if (count >= 2 && totalLen >= 500) result[mod] = 100;
-          else if (count >= 1 && totalLen >= 500) result[mod] = 80;
-          else if (count >= 1 && totalLen >= 250) result[mod] = 60;
-          else if (count >= 1) result[mod] = Math.min(30 + Math.floor(totalLen / 25), 55);
-          else result[mod] = 0;
-        });
-        if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt && cardData.extensions.depth_prompt.prompt.length > 0) {
-          result.dynamic_adapt = Math.max(result.dynamic_adapt, 30);
-        }
-        if (cardData.alternate_greetings && cardData.alternate_greetings.length > 0) {
-          result.dynamic_adapt = Math.max(result.dynamic_adapt, 30);
-        }
-        var aiMp = moduleProgress || {};
-        Object.keys(aiMp).forEach(function(k) {
-          if (aiMp[k] > 0 && result[k] === 0) result[k] = aiMp[k];
-        });
-        return result;
       }
 
       function parseModProgress(reply) {
@@ -14160,14 +13565,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             c.indexOf('状态变量输出') >= 0;
         }
 
-        // 固定MVU脚本（禁止AI删除/覆盖）—— 仅 bundle.js；变量结构/WTC/正则6 由 AI 生成可改
-        function _isFixedMvuScript(s) {
-          var id = (s.id || '').toLowerCase();
-          var content = (s.content || '').toLowerCase();
-          return id === '961f366d-e403-45c2-8155-3d14ec86de53' || // bundle.js
-            content.indexOf('magvarupdate') >= 0 || content.indexOf('bundle.js') >= 0;
-        }
-
         ops.forEach(function(op) {
           // ===== Tab隔离：角色卡Tab下拦截MVU条目写入 =====
           if (currentTab === 'card' && (op.action === 'upsert' || op.action === 'update' || op.action === 'delete')) {
@@ -14194,7 +13591,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
               if (sFoundIdx >= 0) {
                 // 更新（固定脚本拦截）
-                if (_isFixedMvuScript(scripts[sFoundIdx])) {
+                if (isFixedMvuScript(scripts[sFoundIdx])) {
                   console.warn('[opblock] 拦截固定脚本修改:', scriptName);
                   return;
                 }
@@ -14382,7 +13779,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               cd.extensions.tavern_helper.scripts = delScripts.filter(function(s) {
                 var match = (s.name || '').toLowerCase() === delScriptName.toLowerCase() ||
                   (s.id || '') === delScriptName;
-                if (match && _isFixedMvuScript(s)) {
+                if (match && isFixedMvuScript(s)) {
                   console.warn('[opblock] 拦截固定脚本删除:', delScriptName);
                   return true; // 保留
                 }
@@ -15329,16 +14726,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           saveToStorage();
           updateProgress();
           updateQuickActions();
-          updateModFocus();
+          updateCtxBar();
           renderPreview();
-          renderModDash();
-          // MVU Tab：同步最新模块状态
-          if (currentTab === 'mvu') {
-            mvuTabStatusBarModules = statusBarModules;
-            mvuTabStatusBarCurrentStep = statusBarCurrentStep;
-            mvuTabStatusBarMode = statusBarMode;
-          }
-          renderMvuInfoPanel();
+          scheduleCtxBarUpdate();
           saveToStorage();
         } catch (err) {
           removeTyping();
@@ -15379,8 +14769,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             progress = calcProgress();
             setProgress(progress);
             renderPreview();
-            updateModFocus();
-            renderModDash();
+            updateCtxBar();
+            scheduleCtxBarUpdate();
             addAssistantMsg('🎉 角色卡内容已完整！点击「💾 导出」查看完整JSON。\n\n你也可以继续和我对话，随时修改或补充内容。');
             return; // 直接走 finally 统一收尾（不再手动重复 isGenerating/setEnabled）
           }
@@ -15444,8 +14834,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               cardGenerated = true;
               setProgress(100);
               renderPreview();
-              updateModFocus();
-              renderModDash();
+              updateCtxBar();
+              scheduleCtxBarUpdate();
               saveToStorage();
               addAssistantMsg('🎉 角色卡生成成功！点击「💾 导出」查看完整JSON。\n\nMVU变量系统和状态栏请切换到「MVU变量状态栏」Tab独立制作。');
             } catch (e) {
@@ -15496,7 +14886,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           else sendBtn.classList.remove('is-waiting');
         }
         // 快捷按钮、上下文模块按钮统一禁用/启用，避免生成中误触
-        var sels = ['.quick-btn', '.ctx-mod', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
+        var sels = ['.quick-btn', '.ctx-mod'];
         for (var s = 0; s < sels.length; s++) {
           var nodes = doc.querySelectorAll(sels[s]);
           for (var i = 0; i < nodes.length; i++) {
@@ -17088,7 +16478,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           modItems[mi].addEventListener('click', function(e) {
             e.stopPropagation();
             var mod = this.getAttribute('data-mod');
-            if (mod) handleModFocus(mod);
+            if (mod) handleQuickAction(mod);
           });
         }
         // 状态栏按钮
