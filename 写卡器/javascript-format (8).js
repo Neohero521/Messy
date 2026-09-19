@@ -4451,8 +4451,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (sp.indexOf(entryPrefixForScan) === 0) {
         const rawKey = sp.slice(entryPrefixForScan.length);
         if (!/^\d+$/.test(rawKey)) deletedCommentKeySet[normKey(rawKey)] = true; // 纯数字是索引，不是comment
-      } else if (sp.indexOf('.') < 0) {
-        deletedCommentKeySet[normKey(sp)] = true;
+      } else if (sp.indexOf('.') < 0 && !/^\d+$/.test(sp)) {
+        deletedCommentKeySet[normKey(sp)] = true; // 裸数字是不稳定索引，不进删除屏障
       }
     });
     const inlineEntryDeletes = [];
@@ -4472,6 +4472,42 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (partial.character_book && partial.character_book.entries) scanInlineDeletes(partial.character_book.entries);
     inlineEntryDeletes.forEach(function(ic) {
       deletePaths.push('character_book.entries.' + ic);
+    });
+
+    // ================================================================
+    // ===== 🐛修复"AI优化越优化越少/条目被清空"：删写配对=替换语义 =====
+    // ================================================================
+    // 优化场景下 AI 常按"先 _action:delete 旧条目，再输出同 comment 新内容"的配对写法表达"重写"。
+    // 旧逻辑一律执行删除 + 删除屏障吞掉同轮新条目 → 旧的删了、新的没进来 → 条目净减少，
+    // AI 对每条都这么写时整张世界书被清空（用户实测）。
+    // 规则：同一轮里，若某 comment 既出现在删除声明中、又作为有效条目出现在写入数组中，
+    // 判定为"替换/覆盖"意图——取消该 comment 的删除（含屏障），让新内容按正常 upsert 覆盖旧条目。
+    // 只有"只删不写"的 comment 才真正删除（真精简/去重）。
+    const _replacementKeys = {};
+    const _collectWrites = function(arr) {
+      if (!arr || !Array.isArray(arr)) return;
+      arr.forEach(function(e) {
+        if (e && typeof e === 'object' && e.comment) {
+          const k = normKey(e.comment);
+          if (k) _replacementKeys[k] = true;
+        }
+      });
+    };
+    _collectWrites(partial.entries);
+    if (partial.character_book) _collectWrites(partial.character_book.entries);
+    Object.keys(_replacementKeys).forEach(function(rk) {
+      if (deletedCommentKeySet[rk]) {
+        delete deletedCommentKeySet[rk];
+        // 同步从 deletePaths 移除该 comment 的删除（保留数字索引路径，下面单独收紧）
+        deletePaths = deletePaths.filter(function(p) {
+          const sp = String(p);
+          if (sp.indexOf(entryPrefixForScan) === 0) {
+            return normKey(sp.slice(entryPrefixForScan.length)) !== rk;
+          }
+          return sp.indexOf('.') >= 0 || normKey(sp) !== rk;
+        });
+        changeLog._replacePairs = (changeLog._replacePairs || 0) + 1;
+      }
     });
 
     // ================================================================
@@ -4721,7 +4757,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const beforeLen = cd.character_book.entries.length;
             const idx = parseInt(entryKey);
             if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
-              numericIndices.push(idx);
+              // 🐛修复"优化清空条目"：禁止按数字索引删除。AI 只被教过用精确 comment 删除，
+              // 它对卡片实时索引毫无认知（索引随合并/去重不断变化），按索引删除极易误删/连环删错，
+              // 曾导致优化后整批条目消失。索引删除改为拒绝并上报，引导改用 comment。
+              console.warn('[mergePartial] 拒绝数字索引删除（请改用精确comment）:', entryKey);
+              changeLog._deleteFailures = changeLog._deleteFailures || [];
+              changeLog._deleteFailures.push('条目索引#' + entryKey + '（已拒绝：索引不稳定，请使用条目精确名称 comment 删除）');
             } else {
               // 规范化比较：trim + 大小写不敏感 + 去装饰括号
               const nk = normKey(entryKey);
@@ -4760,7 +4801,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } else {
           const rawPath = String(path);
           const knownTopFields = ['name', 'description', 'first_mes', 'system_prompt', 'personality', 'scenario', 'creator_notes', 'alternate_greetings'];
-          if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
+          if (/^\d+$/.test(rawPath)) {
+            // 裸数字=不稳定索引，拒绝按索引删除并上报（与 entryPrefix 数字路径一致）
+            console.warn('[mergePartial] 拒绝裸数字索引删除（请改用精确comment）:', rawPath);
+            changeLog._deleteFailures = changeLog._deleteFailures || [];
+            changeLog._deleteFailures.push('条目索引#' + rawPath + '（已拒绝：索引不稳定，请使用条目精确名称 comment 删除）');
+          } else if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
             const nrp = normKey(rawPath);
             for (let fi = 0; fi < cd.character_book.entries.length; fi++) {
               if (normKey(cd.character_book.entries[fi].comment) === nrp) {
@@ -16363,19 +16409,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '  * probability：随机事件设为<100\n' +
             '  * secondary_keys+selectiveLogic：复杂条件控制\n' +
             '- 优化策略：优先优化现有条目（用相同comment覆盖），不足则补充新条目\n\n' +
-            '⚠️⚠️⚠️【entries 优化铁律 - 违反则优化失败=旧内容残留=用户骂你】\n' +
-            '1. 优化≠追加！优化=覆盖/替换旧条目，而不是只加新条目！\n' +
-            '2. 修改条目：新条目的 comment 必须与旧条目的 comment「完全相同=字符级匹配」（空格标点都不能变）\n' +
-            '3. 重写条目：必须先删除旧条目（_action:delete），再加新条目；或者确保新条目 comment 完全一致\n' +
-            '4. 精简条目：如果要求"精简N条"，必须明确用 _delete / _action:delete 删除多出的条目\n' +
-            '5. 同前缀条目重复：若优化后同模块（如<核心铁则>）的条目数超标，必须删除旧的、质量较低的条目\n' +
-            '6. 最推荐的写法（AI最容易写对，系统支持最好）：\n' +
-            '   替换条目=先写 _action:delete 条目删旧的，再写新条目（新comment可以与旧的不同）\n' +
-            '   例：\n' +
-            '   "entries": [\n' +
-            '     { "_action":"delete", "comment":"<这里粘贴精确旧comment>" },\n' +
-            '     { "comment":"<新comment或相同comment>", "content":"...新内容...", "keys":[...] }\n' +
-            '   ]\n\n' +
+            '⚠️⚠️⚠️【entries 优化铁律 - 违反会导致条目丢失/清空】\n' +
+            '1. 优化=在原有条目基础上增/改，不是推倒重来。严禁删除未被用户点名要求删除的条目！\n' +
+            '2. 修改/重写/扩写现有条目：输出该条目时 comment 必须与旧 comment「完全相同=字符级匹配」（空格标点都不能变），content 写完整新内容。系统自动按 comment 覆盖，不需要、也严禁先 _action:delete\n' +
+            '3. ⚠️ 绝对禁止"先 _action:delete 再写同 comment 新条目"的配对写法——这会被判定为危险操作，系统会拦截/丢弃，导致条目直接消失！重写=同 comment 直接覆盖，仅此一种正确写法\n' +
+            '4. 删除是高风险操作：只有用户明确点名"删掉/精简/去重 XX条目"时才允许 _action:delete，且一次只删用户点名的条目；被删 comment 本轮严禁再以任何形式出现在新条目里\n' +
+            '5. 同前缀疑似重复的条目：默认保留，不要自作主张合并删除；仅当用户明确要求去重时，才删除用户确认过的旧条目\n' +
+            '6. 新增条目与被修改条目都必须在同一个 entries 数组里完整输出；条目数量只能≥优化前（除用户明确点名删除的之外）\n\n' +
             '【MVU 变量系统条目（仅当优化 entries 且卡内已含 MVU 条目时适用）】\n' +
             'MVU 四大核心条目必须成套存在，缺一不可：\n' +
             '1. [InitVar]初始变量（comment 以 [InitVar] 开头）\n' +
@@ -16425,9 +16465,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   t += '  ' + x.idx + '. ⟦' + x.comment + '⟧  (' + x.content.length + '字)\n';
                 });
               });
-              t += '\n⚠️ 删除写法示例：\n';
-              t += '  { "_action":"delete", "comment":"' + (entries[0] ? entries[0].comment : '精确comment') + '" }\n';
-              t += '⚠️ 修改写法：保持 comment 完全与上面一致，或先 _action:delete 再新增新comment条目\n\n';
+              t += '\n⚠️ 修改/重写写法（默认，最常用）：保持 comment 与上面清单完全一致，直接输出完整条目即自动覆盖：\n';
+              t += '  { "comment":"' + (entries[0] ? entries[0].comment : '精确comment') + '", "content":"...完整新内容...", "keys":[...] }\n';
+              t += '⚠️ 删除写法（仅限用户明确点名删除时；严禁为"重写"而先删后写）：\n';
+              t += '  { "_action":"delete", "comment":"精确comment" }\n\n';
               return t;
             })() : '') +
             '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
@@ -16578,7 +16619,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       }
                     } else {
                       // 智能合并模式（默认）
-                      optModified = !!mergePartial(optimized, cardData);
+                      // 🐛护栏【优化越优化越少/条目清空】：优化的定位是"增/改"，不是删减。
+                      // AI 可能误解任务（尤其"重写/精简"措辞），批量 delete 旧条目却漏写/少写新条目。
+                      // 应用前快照 entries，应用后若净减少达到原有条目的一半（且≥3条），判定为危险批量删除：
+                      // 回滚整个 entries 数组（其他字段如 description 的优化照常保留），并明确告知用户。
+                      const _entriesSnap = (cardData.character_book && Array.isArray(cardData.character_book.entries)) ?
+                        cardData.character_book.entries.slice() : null;
+                      const _mergeRet = mergePartial(optimized, cardData, {
+                        returnLog: true
+                      });
+                      optModified = !!(_mergeRet && _mergeRet.modified);
+                      let _massRollback = false;
+                      if (_entriesSnap) {
+                        const _afterEntries = (cardData.character_book && cardData.character_book.entries) || [];
+                        const _lost = _entriesSnap.length - _afterEntries.length;
+                        const _threshold = Math.max(3, Math.floor(_entriesSnap.length / 2));
+                        if (_lost >= _threshold) {
+                          cardData.character_book.entries = _entriesSnap;
+                          _massRollback = true;
+                          try {
+                            showToast('⚠️ 已拦截危险批量删除：AI 试图删掉 ' + _lost + ' 条世界书条目（原有 ' + _entriesSnap.length + ' 条，已全部恢复）。\n' +
+                              '智能合并只做增/改；确实要大规模精简时请选「彻底替换模式」，或在预览面板手动删除。', 'warning', 9000);
+                          } catch (_) {}
+                        }
+                      }
+                      // 删除失败提示（comment 不匹配 / 索引删除被拒绝）
+                      if (!_massRollback && _mergeRet && _mergeRet.log && _mergeRet.log._deleteFailures && _mergeRet.log._deleteFailures.length) {
+                        try {
+                          showToast('⚠️ 有 ' + _mergeRet.log._deleteFailures.length + ' 条删除指令未生效（条目名称不匹配），其余优化已应用', 'warning', 6000);
+                        } catch (_) {}
+                      }
+                      if (_massRollback) optModified = true; // 其他字段的优化可能已生效，仍需保存/刷新
                     }
                     if (optModified) {
                       progress = calcProgress();
