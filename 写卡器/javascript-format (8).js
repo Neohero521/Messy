@@ -13848,9 +13848,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         //   原来前瞻写法 (?=\n[ \t]*:::|$) 允许 delete 后跟"没有闭合的:::"，AI在delete后直接写自然语言或另一个:::块开头，
         //   会导致块体错误吞掉后续大段文本，最终 parseOpBlocks 解析出的 delete.key 里混有"删除理由/下一动作"等垃圾内容，
         //   applyOps / mergePartial 都匹配不到条目。这是用户反馈"AI明明写了删除但预览还堆叠"的主要根因。
-        //   新规则：块结束 = 【必须】行首（允许前导空格/制表）三冒号 + 行尾空白。delete/rename/set 这种无正文的动作，
-        //   也必须以空行 + 闭合:::结尾（AI 输出格式模板里也已经明确说明写法）。
-        const re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::[ \t]*(?:$|\n))/gi;
+        //   新规则：块结束 = 【必须】行首（允许前导空格/制表）三冒号 + 行尾空白。
+        //   delete/rename/set 这类无正文动作允许"紧凑写法"（闭合:::紧跟下一行，块体为空），
+        //   也兼容 CRLF；若闭合:::后直接接下一个动作开头（"::: delete X\n\n::: set field"），
+        //   该:::同时视为上一块闭合+下一块开头（提示词示例里存在这种写法）。
+        const re = /(?:^|\r?\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)(?:\r?\n([\s\S]*?))?(?=\r?\n?[ \t]*:::(?:[ \t]*(?:\r?\n|$)|[ \t]+(?:upsert|update|delete|set|rename)\b))/gi;
         let m;
         while ((m = re.exec(rawText)) !== null) {
           const action = m[1].toLowerCase();
@@ -13976,8 +13978,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 否则 hasOpBlocks 会误判"我要输出:::协议"这种说明性文本也算有效块，导致旧JSON路径被跳过。
       function hasOpBlocks(rawText) {
         if (typeof rawText !== 'string') return false;
-        // 至少要有 开始行 + 闭合行 两个:::。写法：:::action key...\n...\n:::（闭合一行）
-        return /(?:^|\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]+\n[\s\S]*?\n[ \t]*:::[ \t]*(?:$|\n)/i.test(rawText);
+        // 至少要有 开始行 + 闭合行 两个:::。兼容紧凑写法（:::action key 换行即闭合:::）和 CRLF。
+        return /(?:^|\r?\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]+?(?:\r?\n[\s\S]*?)?\r?\n?[ \t]*:::[ \t]*(?:\r?\n|$)/i.test(rawText);
       }
 
       // 执行操作数组，返回 { modified, changeLog }
