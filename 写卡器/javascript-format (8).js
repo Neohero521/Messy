@@ -1,4 +1,5 @@
 (function() {
+  'use strict';
   /* ============================================================================
    * 时之写卡器 · Tavern Helper 脚本（整理版）
    * ----------------------------------------------------------------------------
@@ -31,9 +32,30 @@
    */
   const SCRIPT_ID = 'modelo-char-generator';
 
+  // ============================================================================
+  // 全局调参常量（唯一事实源）：阈值/超时/防抖统一在此，禁止再散落魔法数字
+  // ============================================================================
+  const CONFIG = Object.freeze({
+    // —— 定时器 / 防抖（毫秒）——
+    IFRAME_LOAD_TIMEOUT_MS: 4000,   // iframe 加载超时
+    PREVIEW_DEBOUNCE_MS: 80,        // 预览面板刷新防抖
+    CTX_BAR_DEBOUNCE_MS: 0,         // 上下文操作条合并刷新（0=下一个事件循环即执行，保持即时）
+    RESIZE_THROTTLE_MS: 100,        // 视口 resize 节流
+    // —— 条目匹配引擎（findEntryMatch）——
+    MATCH_SUFFIX_SIM: 0.60,         // 同前缀唯一条目：后缀名「编辑距离+前缀+字符集」混合相似度阈值
+    MATCH_CONTENT_SIM: 0.45,        // 同前缀多条目：正文 bigram Dice 相似度阈值
+    MATCH_CONTENT_MIN_LEN: 20,      // 正文参与相似度匹配的最小长度
+    MATCH_CONTENT_HEAD: 300,        // 正文比较仅取前 N 字符（控 CPU；中文按字符计）
+    // —— 文本 / UI ——
+    AI_ERROR_PREVIEW_CHARS: 300,    // AI 解析失败时回显的原文片段长度
+    DERIVE_KEYWORD_HEAD_CHARS: 300, // 触发词派生：仅扫描正文前 N 字
+    DERIVE_KEYWORD_MAX: 12,         // 触发词派生：候选词数量上限
+    UNDO_STACK_LIMIT: 10            // 撤销快照保留步数
+  });
+
 
   // ===== Iframe 样式表（已从 createModalIframe 中抽出，便于维护和复用）=====
-  var IFRAME_CSS = `
+  const IFRAME_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;width:100%;overflow:hidden}
 :root{
@@ -86,6 +108,67 @@ html,body{height:100%;width:100%;overflow:hidden}
   --scrollbar-track:transparent;
   /* 链接色（走变量，便于主题化）*/
   --link:#2563eb;
+}
+/* ============ 暗黑主题：跟随系统（未显式选择时）或 html[data-theme="dark"] ============ */
+:root[data-theme="dark"]{
+  --bg:#14161c;
+  --surface:#1d2027;
+  --surface-soft:#23272f;
+  --surface-sink:#2a2f3a;
+  --ink:#e6e8ee;
+  --ink-soft:#c3c9d6;
+  --muted:#8f97a8;
+  --accent:#818cf8;
+  --accent-deep:#a5b4fc;
+  --accent-soft:rgba(129,140,248,.16);
+  --accent-soft-strong:rgba(129,140,248,.24);
+  --accent-border:rgba(129,140,248,.32);
+  --accent-border-strong:rgba(129,140,248,.6);
+  --accent-text:#a5b4fc;
+  --sage:#4ade80;
+  --sage-soft:rgba(74,222,128,.12);
+  --sage-soft-strong:rgba(74,222,128,.2);
+  --sage-border:rgba(74,222,128,.26);
+  --sage-border-strong:rgba(74,222,128,.45);
+  --sage-text:#4ade80;
+  --amber:#fbbf24;
+  --amber-soft:rgba(251,191,36,.12);
+  --amber-soft-strong:rgba(251,191,36,.2);
+  --amber-border:rgba(251,191,36,.28);
+  --amber-border-strong:rgba(251,191,36,.5);
+  --amber-text:#fbbf24;
+  --terra:#f87171;
+  --terra-soft:rgba(248,113,113,.12);
+  --terra-soft-strong:rgba(248,113,113,.2);
+  --terra-border:rgba(248,113,113,.28);
+  --terra-border-strong:rgba(248,113,113,.5);
+  --terra-text:#f87171;
+  --line:rgba(255,255,255,.10);
+  --line-soft:rgba(255,255,255,.06);
+  --shadow-soft:0 6px 20px rgba(0,0,0,.3);
+  --shadow-card:0 12px 30px rgba(0,0,0,.38);
+  --shadow-float:0 20px 60px rgba(0,0,0,.5);
+  --scrollbar-thumb:rgba(255,255,255,.22);
+  --link:#93b4ff;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+  --bg:#14161c;--surface:#1d2027;--surface-soft:#23272f;--surface-sink:#2a2f3a;
+  --ink:#e6e8ee;--ink-soft:#c3c9d6;--muted:#8f97a8;
+  --accent:#818cf8;--accent-deep:#a5b4fc;
+  --accent-soft:rgba(129,140,248,.16);--accent-soft-strong:rgba(129,140,248,.24);
+  --accent-border:rgba(129,140,248,.32);--accent-border-strong:rgba(129,140,248,.6);--accent-text:#a5b4fc;
+  --sage:#4ade80;--sage-soft:rgba(74,222,128,.12);--sage-soft-strong:rgba(74,222,128,.2);
+  --sage-border:rgba(74,222,128,.26);--sage-border-strong:rgba(74,222,128,.45);--sage-text:#4ade80;
+  --amber:#fbbf24;--amber-soft:rgba(251,191,36,.12);--amber-soft-strong:rgba(251,191,36,.2);
+  --amber-border:rgba(251,191,36,.28);--amber-border-strong:rgba(251,191,36,.5);--amber-text:#fbbf24;
+  --terra:#f87171;--terra-soft:rgba(248,113,113,.12);--terra-soft-strong:rgba(248,113,113,.2);
+  --terra-border:rgba(248,113,113,.28);--terra-border-strong:rgba(248,113,113,.5);--terra-text:#f87171;
+  --line:rgba(255,255,255,.10);--line-soft:rgba(255,255,255,.06);
+  --shadow-soft:0 6px 20px rgba(0,0,0,.3);--shadow-card:0 12px 30px rgba(0,0,0,.38);--shadow-float:0 20px 60px rgba(0,0,0,.5);
+  --scrollbar-thumb:rgba(255,255,255,.22);--link:#93b4ff;color-scheme:dark;
+  }
 }
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:calc(14px * var(--app-font-scale,1));-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
 /* 工作区关键模块的字体大小也随缩放走，但保持最小字号保证可读性 */
@@ -271,6 +354,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-entry-del:hover{background:var(--terra-soft);color:var(--terra-text)}
 .pv-section .pv-entry .pv-entry-body{padding:0 12px 10px 12px}
 .pv-section .pv-entry-content{font-size:.82em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.65}
+/* 合并 diff 闪光：新增=绿，更新=琥珀；3.2s 淡出，仅提示不打扰 */
+.pv-entry.pv-flash-add{animation:pvFlashAdd 3.2s ease-out;border-left-color:#34a86b}
+.pv-entry.pv-flash-upd{animation:pvFlashUpd 3.2s ease-out;border-left-color:#d9922b}
+@keyframes pvFlashAdd{0%{background:#dff7e9;box-shadow:0 0 0 2px rgba(52,168,107,.45)}100%{background:transparent;box-shadow:none}}
+@keyframes pvFlashUpd{0%{background:#fdf0da;box-shadow:0 0 0 2px rgba(217,146,43,.45)}100%{background:transparent;box-shadow:none}}
+@media (prefers-reduced-motion: reduce){.pv-entry.pv-flash-add,.pv-entry.pv-flash-upd{animation:none}}
 .pv-section .pv-code{font-family:var(--font-mono);font-size:.8em;color:var(--ink);background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:260px;overflow:auto;transition:border-color .2s,box-shadow .2s}
 .pv-section .pv-code:hover{border-color:var(--accent-soft);box-shadow:inset 0 1px 3px rgba(79,70,229,.04)}
 .pv-section .pv-tag{display:inline-flex;align-items:center;font-size:.76em;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,var(--accent-soft) 0%,rgba(79,70,229,.1) 100%);color:var(--accent-deep);border:1px solid var(--accent-border);margin:0 6px 6px 0;white-space:nowrap;font-weight:500;transition:all .18s ease;letter-spacing:.2px}
@@ -861,20 +950,51 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // ============================================================================
+  // 分级日志与空值守卫（SECTION 2 基础工具）
+  //  - logWarn：可降级错误（图标缺失、解析回退等），仅 console 留痕，不打断用户
+  //  - logError：严重错误（AI 响应解析/合并失败等），console 带 scope 输出 + 可选 toast
+  // 空值兜底统一语义：safeStr→''，safeArr→[]，safeObj→{}
+  // ============================================================================
+  function logWarn(scope, err) {
+    try {
+      console.warn('[时之写卡器·' + scope + ']', err === undefined ? '' : err);
+    } catch (_) {}
+  }
+  function logError(scope, err, userMsg) {
+    try {
+      console.error('[时之写卡器·' + scope + ']', err && err.stack ? err.stack : err);
+    } catch (_) {}
+    if (userMsg) {
+      try {
+        showToast(userMsg, 'error', 6000);
+      } catch (_) {}
+    }
+  }
+  function safeStr(v) {
+    return v == null ? '' : String(v);
+  }
+  function safeArr(v) {
+    return Array.isArray(v) ? v : [];
+  }
+  function safeObj(v) {
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  }
+
+  // ============================================================================
   // SECTION 2  通用工具函数
   // ============================================================================
   // ===== Token估算 =====
   function countTokens(text) {
     if (!text) return 0;
-    var t = String(text);
-    var cn = (t.match(/[\u4e00-\u9fa5]/g) || []).length;
-    var enWords = t.replace(/[\u4e00-\u9fa5]/g, ' ').split(/\s+/).filter(Boolean).length;
+    const t = String(text);
+    const cn = (t.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const enWords = t.replace(/[\u4e00-\u9fa5]/g, ' ').split(/\s+/).filter(Boolean).length;
     return cn + Math.ceil(enWords * 0.75);
   }
 
   // ===== SvgIcons 组件系统 =====
   // 统一大小/描边，颜色继承 currentColor，与主题完美融合（参考文件7 stroke 风格）
-  var SVG_PATHS = {
+  const SVG_PATHS = {
     // 通用操作
     close: 'M6 6l12 12M18 6L6 18',
     send: 'M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z',
@@ -932,7 +1052,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 头像菜单专用
     undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-4',
     image: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5L5 21',
-    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
+    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
+    moon: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+    sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'
   };
 
   /**
@@ -943,12 +1065,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
    * @returns {string} 内联 SVG 字符串
    */
   function svgIcon(name, size, cls) {
-    var path = SVG_PATHS[name];
+    const path = SVG_PATHS[name];
     if (!path) return '';
-    var s = (size == null ? 18 : size);
-    var c = cls ? (' ' + cls) : '';
+    const s = (size == null ? 18 : size);
+    const c = cls ? (' ' + cls) : '';
     // 圆形/方框型图标使用填充风格，其余使用描边风格（参考文件7统一风格）
-    var filled = (name === 'checkCircle' || name === 'info' || name === 'alert' || name === 'sparkle' || name === 'play');
+    const filled = (name === 'checkCircle' || name === 'info' || name === 'alert' || name === 'sparkle' || name === 'play');
     if (filled) {
       return '<svg class="ic' + c + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true"><path d="' + path + '"/></svg>';
     }
@@ -963,45 +1085,45 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
-        var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-        var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
+        const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        const old = parentDoc.getElementById(SCRIPT_ID + '-modal');
         if (old) old.remove();
-        var iframe = parentDoc.createElement('iframe');
+        const iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
         iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#f6f2ea;';
         iframe.addEventListener('load', function() {
           try {
-            var d = iframe.contentDocument || iframe.contentWindow.document;
-            var s = d.createElement('style');
+            const d = iframe.contentDocument || iframe.contentWindow.document;
+            const s = d.createElement('style');
             s.textContent = IFRAME_CSS;
             d.head.appendChild(s);
             // viewport meta：确保移动端正确渲染（禁止缩放，支持 dvh）
             try {
-              var vp = d.createElement('meta');
+              const vp = d.createElement('meta');
               vp.name = 'viewport';
               vp.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
               d.head.appendChild(vp);
-              var charset = d.createElement('meta');
+              const charset = d.createElement('meta');
               charset.setAttribute('charset', 'UTF-8');
               d.head.appendChild(charset);
-            } catch (e) {}
+            } catch (e) { logWarn("createModalIframe", e); }
             resolve(d);
           } catch (e) {
             reject(e);
           }
         });
         parentDoc.body.appendChild(iframe);
-        var _iframeTimer = setTimeout(function() {
+        const _iframeTimer = setTimeout(function() {
           try {
             if (!iframe.contentDocument || !iframe.contentDocument.body) reject(new Error('iframe timeout'));
           } catch (e) {
             reject(e);
           }
-        }, 4000);
+        }, CONFIG.IFRAME_LOAD_TIMEOUT_MS);
         // ⚠️修复：正常 resolve/reject 后清理超时定时器（原先 timer 持有 iframe 引用最多延迟 4 秒回收，
         // 且 closeModal 后触发 reject 属于脏操作）
-        var _origResolve = resolve,
+        const _origResolve = resolve,
           _origReject = reject;
         resolve = function(v) {
           clearTimeout(_iframeTimer);
@@ -1019,10 +1141,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   function closeModal() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var m = pDoc.getElementById(SCRIPT_ID + '-modal');
-      if (m) m.remove();
-    } catch (e) {}
+      const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      const m = pDoc.getElementById(SCRIPT_ID + '-modal');
+      if (!m) return;
+      // 1) iframe 内部软清理钩子（界面代码可挂载 window.__cwBeforeClose 主动清业务定时器/监听）
+      try {
+        const cw = m.contentWindow;
+        if (cw && typeof cw.__cwBeforeClose === 'function') {
+          try {
+            cw.__cwBeforeClose();
+          } catch (e) {
+            logWarn('closeModal.hook', e);
+          }
+        }
+      } catch (_) {}
+      // 2) 导航到 about:blank：旧 iframe document/window 随之销毁，
+      //    其内部 setInterval/setTimeout、事件监听、闭包引用一并释放（仅 remove() 不会终止定时器）
+      try {
+        m.src = 'about:blank';
+      } catch (_) {}
+      // 3) 移除 DOM
+      m.remove();
+    } catch (e) { logWarn("closeModal", e); }
   }
 
   // ⚠️修复（卸载清理不完整）：openEditor 把 __cardData / __getChatSessions / __getCurrentMessages 等
@@ -1034,12 +1174,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function _releaseEditorGlobals() {
     try {
       if (typeof window === 'undefined') return;
-      var keys = ['__cardData', '__tab_activeTab', '__getActiveTab', '__getCurrentTab',
+      const keys = ['__cardData', '__tab_activeTab', '__getActiveTab', '__getCurrentTab',
         '__getCurrentMessages', '__setCurrentMessages', '__getChatSessions',
         '__setChatSessionsCardMessages', '__setChatSessionsMvuMessages',
         '__mvuDiscussMode', 'setMvuDiscussMode'
       ];
-      for (var i = 0; i < keys.length; i++) {
+      for (let i = 0; i < keys.length; i++) {
         try {
           delete window[keys[i]];
         } catch (_) {
@@ -1065,9 +1205,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   selectiveLogic: 0=AND_ANY 1=NOT_ALL 2=NOT_ANY 3=AND_ALL（次级关键词逻辑，非随机选择）
 
   // ===== MVU 美化正则 HTML 模板（柔和高对比版本，括号内内容清晰可读）=====
-  var MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">变量完成</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 内容面板：高对比浅灰蓝底+深灰字，确保括号/列表/JSON全部清晰 -->\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强：列表、括号、JSON代码块全部加强对比度 */\n  .status-notice ul, .status-notice ol { padding-left: 22px; color: #1f2937; }\n  .status-notice li { margin: 3px 0; color: #1f2937; }\n  .status-notice code, .status-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .status-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .status-notice strong, .status-notice b { color: #0f172a; }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
+  const MVU_BEAUTIFY_COMPLETE = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="status-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">变量完成</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n      </span>\n    </summary>\n    <!-- 内容面板：高对比浅灰蓝底+深灰字，确保括号/列表/JSON全部清晰 -->\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .status-notice summary::marker { display: none; }\n  .status-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .status-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .status-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强：列表、括号、JSON代码块全部加强对比度 */\n  .status-notice ul, .status-notice ol { padding-left: 22px; color: #1f2937; }\n  .status-notice li { margin: 3px 0; color: #1f2937; }\n  .status-notice code, .status-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .status-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .status-notice strong, .status-notice b { color: #0f172a; }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
-  var MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">正在变量更新</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(130,160,210,0.12),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强 */\n  .loading-notice ul, .loading-notice ol { padding-left: 22px; color: #1f2937; }\n  .loading-notice li { margin: 3px 0; color: #1f2937; }\n  .loading-notice code, .loading-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .loading-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .loading-notice strong, .loading-notice b { color: #0f172a; }\n  @keyframes slide-flow {\n    0% { transform: translateX(-100%); }\n    100% { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
+  const MVU_BEAUTIFY_THINKING = '<div style="text-align:center;margin:10px 0;width:100%;max-width:680px">\n<div style="display:inline-block;width:100%;text-align:left">\n  <details class="loading-notice" style="border:none;background:none;margin:0">\n    <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:0;padding:0;width:100%">\n      <span style="flex:1;display:flex;align-items:center;height:34px;padding:0 18px;background:linear-gradient(135deg,#f7fafd 0%,#eef3fb 100%);border:1px solid rgba(130,150,185,0.35);border-radius:14px;box-shadow:0 2px 8px rgba(130,155,190,0.12);position:relative;overflow:hidden;z-index:2">\n        <span style="flex:1;font-size:0.92em;font-weight:600;color:#2d3a52">正在变量更新</span>\n        <small style="font-size:0.78em;color:#556680;margin-left:10px"><span class="toggle-btn" data-close="展开 ▶" data-open="收起 ▼"></span></small>\n        <span class="flow-light" style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(130,160,210,0.12),transparent);animation:slide-flow 3s linear infinite;pointer-events:none"></span>\n      </span>\n    </summary>\n    <div style="width:100%;max-height:360px;overflow-y:auto;margin:7px 0 0 0;padding:12px 18px;color:#1f2937;line-height:1.78;white-space:pre-wrap;background:#f4f7fb;border:1px solid rgba(130,150,185,0.32);border-radius:12px;font-size:0.92em;box-shadow:0 2px 10px rgba(130,155,190,0.1)">\n    $1\n    </div>\n  </details>\n</div>\n</div>\n\n<style>\n  .loading-notice summary::marker { display: none; }\n  .loading-notice[open] .flow-light { animation: none; opacity: 0; }\n  .loading-notice[open] > div { animation: slideUp 0.35s ease forwards; }\n  .loading-notice[open] .toggle-btn::after { content: attr(data-open); }\n  .loading-notice:not([open]) .toggle-btn::after { content: attr(data-close); }\n  /* 内容区嵌套元素增强 */\n  .loading-notice ul, .loading-notice ol { padding-left: 22px; color: #1f2937; }\n  .loading-notice li { margin: 3px 0; color: #1f2937; }\n  .loading-notice code, .loading-notice pre { font-size: 0.88em; color: #111827; background: #e8eef7; border: 1px solid #c7d3e6; border-radius: 5px; padding: 2px 5px; }\n  .loading-notice pre { padding: 8px 12px; overflow-x: auto; }\n  .loading-notice strong, .loading-notice b { color: #0f172a; }\n  @keyframes slide-flow {\n    0% { transform: translateX(-100%); }\n    100% { transform: translateX(100%); }\n  }\n  @keyframes slideUp {\n    from { opacity: 0; transform: translateY(-6px); }\n    to { opacity: 1; transform: translateY(0); }\n  }\n</style>';
 
   // ===== MVU 状态栏 HTML 模板（用户模板标准：populateCharacterData + getAllVariables + eventOn + errorCatched）=====
   // 用途：渲染 <StatusPlaceHolderImpl/> 占位符为可视化状态栏
@@ -1083,7 +1223,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   6. await waitGlobalInitialized('Mvu') 等MVU就绪
   //   7. body内每个变量有唯一id
   //   8. 兜底模板自动遍历stat_data所有键填入#render-root（因兜底不知具体变量名）
-  var MVU_STATUS_BAR_TEMPLATE = '<!doctype html>\n' +
+  const MVU_STATUS_BAR_TEMPLATE = '<!doctype html>\n' +
     '<html lang="zh-CN">\n' +
     '<head>\n' +
     '  <style>\n' +
@@ -1146,7 +1286,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  <!-- 每个需要显示的变量必须有唯一的 id，在 populateCharacterData 中用 $(\'#id\').text(value) 填充 -->\n' +
     '</body>\n' +
     '</html>';
-  var MVU_STATUS_BAR_HTML = MVU_STATUS_BAR_TEMPLATE;
+  const MVU_STATUS_BAR_HTML = MVU_STATUS_BAR_TEMPLATE;
 
   const ENTRY_TEMPLATES = {
     '基础公理': {
@@ -2005,16 +2145,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function getEntryTemplate(comment) {
     if (!comment) return null;
     // 1. 支持 [InitVar]xxx 前缀格式（MVU变量系统，兼容大小写）
-    var commentLower = comment.toLowerCase();
+    const commentLower = comment.toLowerCase();
     if (commentLower.indexOf('[initvar]') === 0) {
       return ENTRY_TEMPLATES['[InitVar]初始变量'];
     }
     // 2. 支持 <xxx> 前缀格式（标准条目）
-    var m = comment.match(/^<([^>]+)>/);
+    const m = comment.match(/^<([^>]+)>/);
     if (m) {
-      var key = m[1];
+      const key = m[1];
       if (ENTRY_TEMPLATES[key]) return ENTRY_TEMPLATES[key];
-      var fuzzyMatch = Object.keys(ENTRY_TEMPLATES).find(function(k) {
+      const fuzzyMatch = Object.keys(ENTRY_TEMPLATES).find(function(k) {
         return key.indexOf(k) >= 0 || k.indexOf(key) >= 0;
       });
       if (fuzzyMatch) return ENTRY_TEMPLATES[fuzzyMatch];
@@ -2034,10 +2174,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return ENTRY_TEMPLATES['变量列表'];
     }
     // 4. 通用匹配：遍历模板键找最长匹配
-    var keys = Object.keys(ENTRY_TEMPLATES);
-    var bestKey = null;
-    var bestLen = 0;
-    for (var i = 0; i < keys.length; i++) {
+    const keys = Object.keys(ENTRY_TEMPLATES);
+    let bestKey = null;
+    let bestLen = 0;
+    for (let i = 0; i < keys.length; i++) {
       var k = keys[i];
       if (comment.indexOf(k) >= 0 && k.length > bestLen) {
         bestKey = k;
@@ -2053,9 +2193,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 导致 _deriveEntryKeys 引用未定义函数而静默抛错，触发词自动派生全链路失效）
   function _stripOuterBrackets(s) {
     if (!s) return '';
-    var r = String(s).trim();
-    for (var iter = 0; iter < 2; iter++) {
-      var pairs = [
+    let r = String(s).trim();
+    for (let iter = 0; iter < 2; iter++) {
+      const pairs = [
         ['⟦', '⟧'],
         ['【', '】'],
         ['「', '」'],
@@ -2067,9 +2207,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         ['[', ']'],
         ['{', '}']
       ];
-      var matched = false;
-      for (var pi = 0; pi < pairs.length; pi++) {
-        var L = pairs[pi][0],
+      let matched = false;
+      for (let pi = 0; pi < pairs.length; pi++) {
+        const L = pairs[pi][0],
           R = pairs[pi][1];
         if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length - 1) === R) {
           r = r.slice(1, -1).trim();
@@ -2087,8 +2227,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // （如 <自定义条目>变量列表使用说明 的核心名是"变量列表使用说明"，不等于"变量列表"，不应被规范化）
   function _entryCommentCore(comment) {
     if (!comment) return '';
-    var c = _stripOuterBrackets(String(comment)).trim();
-    var prev = null;
+    let c = _stripOuterBrackets(String(comment)).trim();
+    let prev = null;
     while (prev !== c) {
       prev = c;
       c = c.replace(/^\[[^\]]*\]\s*/, '').replace(/^<[^>]*>\s*/, '').trim();
@@ -2098,9 +2238,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ===== 判定是否为 [InitVar] 初始变量条目（大小写不敏感）=====
   function _isInitVarComment(comment, content) {
-    var c = String(comment || '');
+    const c = String(comment || '');
     if (/^\s*\[initvar\]/i.test(c)) return true;
-    var core = _entryCommentCore(c);
+    const core = _entryCommentCore(c);
     if (core === '初始变量') return true;
     return core.indexOf('初始变量') === 0 && typeof content === 'string' && content.indexOf('stat_data') >= 0;
   }
@@ -2110,10 +2250,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 但 comment 本身就是"变量列表"，永远不含 format_message_variable，导致该条目在
   // 角色卡Tab过滤/MVU Tab收集/解析拦截三处全部漏网（隔离失效+重复建条）
   function _isVarListEntry(comment, content) {
-    var c = String(comment || '');
+    const c = String(comment || '');
     if (_entryCommentCore(c) === '变量列表') return true;
     if (c.indexOf('变量列表') >= 0) {
-      var ct = String(content || '');
+      const ct = String(content || '');
       // 新格式 <status_current_variables>null</...> 或旧宏 format_message_variable
       if (ct.indexOf('format_message_variable') >= 0 || ct.indexOf('status_current_variables') >= 0) return true;
     }
@@ -2124,15 +2264,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 仅当 keys 为空时才派生；蓝灯(constant=true)与向量化(vectorized=true)保持空不变
   function _deriveEntryKeys(comment, tmpl, content) {
     if (!comment) return [];
-    var template = tmpl || getEntryTemplate(comment);
-    var isConst = template && template.constant === true;
+    const template = tmpl || getEntryTemplate(comment);
+    const isConst = template && template.constant === true;
     if (isConst) return []; // 蓝灯：constant常驻，保持空
-    var stripped = _stripOuterBrackets(comment); // 先剥最外层装饰（⟦⟧【】等）
-    var m = stripped.match(/^<([^>]+)>\s*([\s\S]*)$/); // <标签>名字后缀 → 取名字部分
-    var prefix = m ? m[1] : '';
-    var namePart = (m ? m[2] : stripped).trim();
+    const stripped = _stripOuterBrackets(comment); // 先剥最外层装饰（⟦⟧【】等）
+    const m = stripped.match(/^<([^>]+)>\s*([\s\S]*)$/); // <标签>名字后缀 → 取名字部分
+    const prefix = m ? m[1] : '';
+    const namePart = (m ? m[2] : stripped).trim();
     // 中文字符片段（2字以上，过滤<标签>、通用停用词）作为触发词种子
-    var stopSet = {
+    const stopSet = {
       '的': 1,
       '是': 1,
       '有': 1,
@@ -2175,30 +2315,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '阶段': 1,
       '模式': 1
     };
-    var candidates = [];
+    const candidates = [];
     // 1) 先提取 名字后缀中"·中文点号"切分出的多段，作为多维度命名（如 白娅·人际关系 → 白娅/人际关系）
     if (namePart) {
       namePart.split(/[·\/,，、\-\\]+/).forEach(function(seg) {
-        var s = seg.trim();
+        const s = seg.trim();
         if (!s) return;
         if (/[\u4e00-\u9fa5A-Za-z0-9]{2,}/.test(s) && !stopSet[s]) candidates.push(s);
       });
     }
-    // 2) 再从 content 前 300 字中抽取中文词组（2-6字）+ 典型实体特征词，去重追加
-    var headContent = (content || '').slice(0, 300);
+    // 2) 再从 content 前 N 字中抽取中文词组（2-6字）+ 典型实体特征词，去重追加
+    const headContent = (content || '').slice(0, CONFIG.DERIVE_KEYWORD_HEAD_CHARS);
     try {
-      var re = /[\u4e00-\u9fa5]{2,6}|[A-Za-z][A-Za-z0-9_]{1,15}/g;
-      var mm;
+      const re = /[\u4e00-\u9fa5]{2,6}|[A-Za-z][A-Za-z0-9_]{1,15}/g;
+      let mm;
       while ((mm = re.exec(headContent)) !== null) {
-        var w = mm[0];
+        const w = mm[0];
         if (stopSet[w]) continue;
         if (/^(姓名|身份|外貌|性格|背景|关系|人际关系|物品|地点|时间|年龄|特征|爱好|特长|家庭|称呼|位置|心情|智慧|魅力|体质|状态|好感度|好感|当前|内容|说明|描述|定义|介绍|概要|摘要|标签|以上|例如|比如|如果|因为|所以|但是|并且|或者|不是|还是|这是|一个|一种|一类|一下|一些|一起)$/.test(w)) continue;
         if (candidates.indexOf(w) < 0) candidates.push(w);
-        if (candidates.length >= 12) break;
+        if (candidates.length >= CONFIG.DERIVE_KEYWORD_MAX) break;
       }
-    } catch (e) {}
+    } catch (e) { logWarn("_deriveEntryKeys", e); }
     // 3) 根据 <标签前缀> 语义补齐语义锚点（典型触发词），和 StageDog 绿灯策略一致
-    var categoryAnchors = {
+    const categoryAnchors = {
       '重要角色': ['角色', '人物', '出场', '出现'],
       '实体交互': ['交互', '行动', '动作', '使用'],
       '势力与组织': ['组织', '势力', '成员', '会议'],
@@ -2225,7 +2365,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       });
     }
     // 4) "<叙事背景>/<故事发展>/<文化与习俗>/<历史事件>" 属于向量化类：下方统一限制为最多2个弱锚点
-    var vecCats = {
+    const vecCats = {
       '叙事背景': 1,
       '故事发展': 1,
       '文化与习俗': 1,
@@ -2234,9 +2374,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     };
     if (candidates.length < 1 && namePart) candidates.push(namePart);
     // 去重 + 限制数量 3-10 个
-    var uniq = [];
-    for (var ci = 0; ci < candidates.length; ci++) {
-      var c = String(candidates[ci]).trim();
+    const uniq = [];
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const c = String(candidates[ci]).trim();
       if (!c || c.length < 1 || c.length > 24) continue;
       if (uniq.indexOf(c) < 0) uniq.push(c);
       if (uniq.length >= 10) break;
@@ -2248,83 +2388,120 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return uniq;
   }
 
-  // ===== 🧹 清洗 MVU 条目 content 中混入的条目配置字段 =====
+  // ===== 🧹 清洗 MVU 条目 content 中混入的条目配置字段（缩进感知版极简 YAML 解析）=====
   // AI 生成 [InitVar] 等 MVU 条目时，有时把整个条目当 YAML 对象输出，
   // 导致 content 正文里出现 enabled: false / content: | / comment: xxx 等配置字段。
-  // 本函数剥离这些配置字段，只保留 YAML 变量正文。
-  // 仅对 MVU 变量条目（[InitVar]/变量列表/变量更新规则/变量输出格式等）生效，其他条目原样返回。
+  // 本函数只解析「缩进层级 + 根键值对 + 块字符串」三类语法，不依赖固定行号：
+  //   · 识别根级（缩进0）content: | / > 块字符串，按块缩进反缩进提取正文，遇同级键即结束
+  //   · content: 行内值直接采用
+  //   · 其余根级配置字段（含其子缩进块/列表）整体剔除
+  // 仅对 MVU 变量条目生效，其他条目原样返回；清洗结果为空时保留原文防数据丢失。
   function _stripEntryConfigFromContent(comment, content) {
     if (!content || typeof content !== 'string') return content;
-    var c = (comment || '').toLowerCase();
-    var isMvu = c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+    const c = (comment || '').toLowerCase();
+    const isMvu = c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
       c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
       c.indexOf('mvu_update') >= 0 || c.indexOf('状态变量输出') >= 0;
     if (!isMvu) return content;
 
-    var lines = content.split(/\r?\n/);
-    // 条目配置字段名（不会被 MVU YAML 正文用作根字段）
-    var configFieldRe = /^(enabled|content|comment|constant|keys|secondary_keys|selective|selectiveLogic|position|depth|order|insertion_order|use_regex|probability|sticky|cooldown|delay|vectorized|prevent_recursion|exclude_recursion|displayIndex|display_index|uid|name|group|group_weight|useProbability|scan_depth|match_whole_words|delay_until_recursion|role)\s*:/i;
-
-    // 快速检查：开头 10 行内是否有配置字段
-    var hasConfig = false;
-    for (var i = 0; i < Math.min(lines.length, 10); i++) {
-      if (configFieldRe.test(lines[i].trim())) {
-        hasConfig = true;
-        break;
-      }
-    }
-    if (!hasConfig) return content;
-
-    // 检查是否有 content: | 行（YAML 块字符串语法，AI 把条目当对象输出的典型特征）
-    var contentPipeIdx = -1;
-    for (var i = 0; i < Math.min(lines.length, 10); i++) {
-      if (/^content\s*:\s*\|/i.test(lines[i].trim())) {
-        contentPipeIdx = i;
-        break;
-      }
+    const lines = content.split(/\r?\n/);
+    // 条目配置字段名（ST 世界书条目原生参数，不会作为 MVU 正文的业务键）
+    const CONFIG_KEYS = {
+      enabled: 1, content: 1, comment: 1, constant: 1, keys: 1, secondary_keys: 1,
+      selective: 1, selectivelogic: 1, position: 1, depth: 1, order: 1, insertion_order: 1,
+      use_regex: 1, probability: 1, sticky: 1, cooldown: 1, delay: 1, vectorized: 1,
+      prevent_recursion: 1, exclude_recursion: 1, displayindex: 1, display_index: 1,
+      uid: 1, name: 1, group: 1, group_weight: 1, useprobability: 1, scan_depth: 1,
+      match_whole_words: 1, delay_until_recursion: 1, role: 1
+    };
+    // 行 -> {indent, key, value(冒号后原文), isKey}
+    function parseLine(line) {
+      const m = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:\s?(.*)$/);
+      if (!m) return null;
+      return { indent: m[1].replace(/\t/g, '  ').length, key: m[2].toLowerCase(), value: m[3] };
     }
 
-    if (contentPipeIdx >= 0) {
-      // 情况1：enabled: false \n content: | \n   缩进的 YAML 正文
-      // 提取 content: | 后面的缩进块，去掉一级缩进作为真正 content
-      var indent = -1;
-      for (var j = contentPipeIdx + 1; j < lines.length; j++) {
+    // 前置扫描：根级配置字段（仅看前 12 行且缩进为 0；正文业务 YAML 即使同名键也在更深缩进）
+    let hasContentKey = false;
+    const rootConfigSeen = {};
+    for (let i = 0; i < Math.min(lines.length, 12); i++) {
+      const t = lines[i].trim();
+      if (t === '' || t.charAt(0) === '#') continue;
+      const p = parseLine(lines[i]);
+      if (p && p.indent === 0 && CONFIG_KEYS[p.key]) {
+        if (p.key === 'content') hasContentKey = true;
+        rootConfigSeen[p.key] = 1;
+      }
+    }
+    const rootConfigCount = Object.keys(rootConfigSeen).length;
+    // 触发条件：出现 content 根键（条目被对象化的铁证），或 ≥2 个不同根级配置字段
+    if (!hasContentKey && rootConfigCount < 2) return content;
+
+    // 找根级 content 键
+    let contentIdx = -1;
+    let contentMeta = null;
+    if (hasContentKey) {
+      for (let i2 = 0; i2 < Math.min(lines.length, 12); i2++) {
+        const p2 = parseLine(lines[i2]);
+        if (p2 && p2.indent === 0 && p2.key === 'content') {
+          contentIdx = i2;
+          contentMeta = p2;
+          break;
+        }
+      }
+    }
+
+    // 情况 A：content 块字符串（| / >，含可选 chomping 指示符 -/+）
+    if (contentMeta && /^[|>][+-]?\s*$/.test(contentMeta.value.trim())) {
+      let blockIndent = -1;
+      for (let j = contentIdx + 1; j < lines.length; j++) {
         if (lines[j].trim() === '') continue;
-        var m = lines[j].match(/^(\s+)/);
-        if (m) {
-          indent = m[1].length;
-        }
+        const pm = lines[j].match(/^(\s*)\S/);
+        blockIndent = pm ? pm[1].replace(/\t/g, '  ').length : 0;
         break;
       }
-      var cleaned = [];
-      for (var j = contentPipeIdx + 1; j < lines.length; j++) {
-        if (indent > 0 && lines[j].startsWith(' '.repeat(indent))) {
-          cleaned.push(lines[j].slice(indent));
-        } else if (indent > 0 && lines[j].startsWith('\t')) {
-          cleaned.push(lines[j].replace(/^\t/, ''));
-        } else if (lines[j].trim() === '') {
-          cleaned.push('');
-        } else {
-          cleaned.push(lines[j]);
+      if (blockIndent > 0) {
+        const out = [];
+        for (let j2 = contentIdx + 1; j2 < lines.length; j2++) {
+          if (lines[j2].trim() === '') { out.push(''); continue; }
+          const ind = (lines[j2].match(/^(\s*)/) || ['', ''])[1].replace(/\t/g, '  ').length;
+          if (ind < blockIndent) break; // 同级或更浅的根键出现 → 块结束
+          const expanded = lines[j2].replace(/\t/g, '  ');
+          out.push(expanded.slice(blockIndent));
         }
+        const result = out.join('\n').replace(/\s+$/g, '').trim();
+        return result || content;
       }
-      var result = cleaned.join('\n').trim();
-      // 如果清洗后为空（异常情况），保留原始内容避免数据丢失
-      return result || content;
     }
 
-    // 情况2：开头有 enabled: false 等配置字段，但没有 content: |
-    // 删掉开头的配置字段行和空行，保留第一个非配置字段行及之后的所有内容
-    var cleaned2 = [];
-    var skipConfig = true;
-    for (var i = 0; i < lines.length; i++) {
-      if (skipConfig) {
-        if (lines[i].trim() === '' || configFieldRe.test(lines[i].trim())) continue;
-        skipConfig = false;
-      }
-      cleaned2.push(lines[i]);
+    // 情况 B：content 行内值（排除 | / > 块指示符——块内容缺失时交情况 C 处理）
+    if (contentMeta && contentMeta.value.trim() !== '' && !/^[|>]/.test(contentMeta.value.trim())) {
+      return contentMeta.value.trim();
     }
-    var result2 = cleaned2.join('\n').trim();
+
+    // 情况 C：无 content 键（或块异常）——剔除根级配置字段行及其缩进子块，其余保留
+    const kept = [];
+    let skipUntilIndent = -1; // >0 时正在跳过某根级配置字段的嵌套内容
+    for (let i3 = 0; i3 < lines.length; i3++) {
+      const raw = lines[i3];
+      const trimmed = raw.trim();
+      const p3 = parseLine(raw);
+      const ind = p3 ? p3.indent : ((raw.match(/^(\s*)/) || ['', ''])[1].replace(/\t/g, '  ').length);
+      if (skipUntilIndent >= 0) {
+        if (trimmed === '' || ind > skipUntilIndent || trimmed.charAt(0) === '-' ||
+          trimmed.charAt(0) === '#') {
+          continue;
+        }
+        skipUntilIndent = -1; // 回到根级，落到后续判定
+      }
+      if (p3 && p3.indent === 0 && CONFIG_KEYS[p3.key]) {
+        skipUntilIndent = 0; // 跳过本行 + 后续更深缩进的子块/列表
+        continue;
+      }
+      if (ind === 0 && (trimmed === '---' || trimmed === '...')) continue; // YAML 文档标记
+      kept.push(raw);
+    }
+    const result2 = kept.join('\n').replace(/^\s+/, '').trim();
     return result2 || content;
   }
 
@@ -2333,7 +2510,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 扩展：包含8条工作流条目 + 附加条目（阶段判定/人设切换/派生字段/状态机/联动规则等）也视为MVU体系条目
   // ⚠️变量分段/EJS 已按六大标准模板规范移除，不再视为 MVU 体系条目
   function isMVUEntry(comment) {
-    var c = (comment || '').toLowerCase();
+    const c = (comment || '').toLowerCase();
     return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
       c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
       c.indexOf('状态变量输出') >= 0 || c.indexOf('updatevariable') >= 0 ||
@@ -2355,11 +2532,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function normalizeRegexScripts(rxScripts) {
     if (!rxScripts || !Array.isArray(rxScripts)) return [];
     return rxScripts.map(function(script, idx) {
-      var findRegex = script.findRegex || script.find_regex || script.find || '';
-      var replaceString = script.replaceString || script.replace_string || script.replace || '';
-      var rawPlacement = script.placement !== undefined ? script.placement :
+      const findRegex = script.findRegex || script.find_regex || script.find || '';
+      const replaceString = script.replaceString || script.replace_string || script.replace || '';
+      const rawPlacement = script.placement !== undefined ? script.placement :
         (script.source ? (function(s) {
-          var arr = [];
+          const arr = [];
           if (s.user_input) arr.push(1);
           if (s.ai_output) arr.push(2);
           if (s.slash_command) arr.push(3);
@@ -2367,13 +2544,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (s.reasoning) arr.push(5);
           return arr.length ? arr : [2];
         })(script.source) : 2);
-      var placement = Array.isArray(rawPlacement) ? rawPlacement : [rawPlacement];
+      const placement = Array.isArray(rawPlacement) ? rawPlacement : [rawPlacement];
       // 兼容 destination 字段（部分实现用 destination.display/prompt 而非 markdownOnly/promptOnly）
-      var dest = script.destination || {};
-      var markdownOnly = script.markdownOnly !== undefined ? script.markdownOnly :
+      const dest = script.destination || {};
+      const markdownOnly = script.markdownOnly !== undefined ? script.markdownOnly :
         (script.markdown_only !== undefined ? script.markdown_only :
           (dest.display !== undefined ? !!dest.display : false));
-      var promptOnly = script.promptOnly !== undefined ? script.promptOnly :
+      const promptOnly = script.promptOnly !== undefined ? script.promptOnly :
         (script.prompt_only !== undefined ? script.prompt_only :
           (dest.prompt !== undefined ? !!dest.prompt : false));
       return {
@@ -2397,15 +2574,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // UI显示分组（基于条目类型，非ST group字段）
   function getDisplayGroup(e) {
-    var comment = e.comment || '';
+    const comment = e.comment || '';
     // 变量系统优先判断（避免被 constant=true 的常驻体系拦截）
     if (isMVUEntry(comment)) return '变量系统';
     // 常驻体系判断
-    var tmpl = getEntryTemplate(comment);
-    var isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
+    const tmpl = getEntryTemplate(comment);
+    const isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
     if (isConst) return '常驻体系';
-    var m = comment.match(/^<([^>]+)>/);
-    var prefixKey = m ? m[1] : '';
+    const m = comment.match(/^<([^>]+)>/);
+    const prefixKey = m ? m[1] : '';
     if (['动态适配', '引导机制', '互动选项', '状态栏'].indexOf(prefixKey) >= 0) return '动态系统';
     if (['叙事背景', '故事发展', '文化与习俗', '历史事件'].indexOf(prefixKey) >= 0) return '叙事';
     return '触发体系';
@@ -3542,22 +3719,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ============================================================================
   // MVU 固定资产（bundle.js）：禁止 AI 删除/覆盖；按固定 id 或内容特征识别。
   // mergePartial 与 applyOps 共用同一判定（原先两处各有一份相同实现）。
-  var MVU_FIXED_SCRIPT_IDS = {
+  const MVU_FIXED_SCRIPT_IDS = {
     '961f366d-e403-45c2-8155-3d14ec86de53': 'MVU (bundle.js)'
   };
   function isFixedMvuScript(scr) {
     if (!scr) return false;
     if (scr.id && MVU_FIXED_SCRIPT_IDS[scr.id]) return true;
-    var c = String(scr.content || '');
+    const c = String(scr.content || '');
     // 特征兜底：bundle.js / MagVarUpdate = MVU本体（唯一受保护的固定资产）
     return c.indexOf('MagVarUpdate') >= 0 || c.indexOf('bundle.js') >= 0;
   }
   // ===== 提取条目的规范前缀（用于智能匹配） =====
   function extractEntryPrefix(comment) {
     if (!comment) return '';
-    var m = String(comment).match(/^<([^>]+)>/);
+    const m = String(comment).match(/^<([^>]+)>/);
     if (m) return m[1];
-    var m2 = String(comment).match(/^\[([^\]]+)\]/);
+    const m2 = String(comment).match(/^\[([^\]]+)\]/);
     if (m2) return '[' + m2[1] + ']';
     return '';
   }
@@ -3568,54 +3745,113 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       index: -1,
       mode: 'none'
     };
-    var neComment = newEntry.comment || '';
-    var neContent = (newEntry.content || '').trim();
-    var nePrefix = extractEntryPrefix(neComment);
+    const neComment = newEntry.comment || '';
+    const neContent = (newEntry.content || '').trim();
+    const nePrefix = extractEntryPrefix(neComment);
 
-    var normMatchKey = function(s) {
-      return _stripOuterBrackets(s).trim().toLowerCase();
+    const normMatchKey = function(s) {
+      return _stripOuterBrackets(safeStr(s)).trim().toLowerCase();
     };
 
     // 辅助：提取 comment 去掉前缀后的后缀（去掉首尾空白和常见分隔符）
-    var getSuffix = function(comment, prefix) {
+    const getSuffix = function(comment, prefix) {
       if (!comment || !prefix) return String(comment || '');
       // 🐛修复：extractEntryPrefix 对 <xxx> 返回 'xxx'(无括号)，对 [xxx] 返回 '[xxx]'(带括号)
       // 所以 prefixLen 必须区分：<> 前缀加2还原括号，[] 前缀本身就是带括号的不加
-      var prefixLen = 0;
+      let prefixLen = 0;
       if (prefix.charAt(0) === '[') {
         prefixLen = prefix.length; // [xxx] → extractEntryPrefix 返回 '[xxx]'，本身已含括号
       } else {
         prefixLen = prefix.length + 2; // <xxx> → extractEntryPrefix 返回 'xxx'，需+2还原 <xxx>
       }
-      var suffix = String(comment).slice(prefixLen);
+      const suffix = String(comment).slice(prefixLen);
       return suffix.replace(/^[\s\-·:：_]+|[\s\-·:：_]+$/g, '');
     };
-    // 辅助：计算两个短字符串的 Jaccard 字符相似度
-    var jaccardSim = function(a, b) {
+    // 辅助：短字符串字符集 Jaccard（保留作为混合分量，解决「白娅/白夜」这类单字差）
+    const jaccardSim = function(a, b) {
       if (!a || !b) return 0;
-      var setA = {},
+      const setA = {},
         setB = {};
-      for (var i = 0; i < a.length; i++) setA[a[i]] = true;
-      for (var j = 0; j < b.length; j++) setB[b[j]] = true;
-      var inter = 0,
+      for (let i = 0; i < a.length; i++) setA[a[i]] = true;
+      for (let j = 0; j < b.length; j++) setB[b[j]] = true;
+      let inter = 0,
         uni = 0;
-      for (var k in setA) {
+      for (let k in setA) {
         if (setA.hasOwnProperty(k)) {
           if (setB[k]) inter++;
           uni++;
         }
       }
-      for (var k2 in setB) {
+      for (let k2 in setB) {
         if (setB.hasOwnProperty(k2) && !setA[k2]) uni++;
       }
       return uni > 0 ? inter / uni : 0;
     };
+    // 辅助：莱文斯坦编辑距离相似度 = 1 - dist / maxLen（同前缀漏字/错字场景敏感）
+    const levenshteinSim = function(a, b) {
+      if (!a || !b) return 0;
+      const la = a.length,
+        lb = b.length;
+      if (la === 0 || lb === 0) return 0;
+      const dp = new Array(la + 1);
+      for (let i = 0; i <= la; i++) {
+        dp[i] = new Array(lb + 1);
+        dp[i][0] = i;
+      }
+      for (let j = 0; j <= lb; j++) dp[0][j] = j;
+      for (let i2 = 1; i2 <= la; i2++) {
+        for (let j2 = 1; j2 <= lb; j2++) {
+          const cost = a.charAt(i2 - 1) === b.charAt(j2 - 1) ? 0 : 1;
+          dp[i2][j2] = Math.min(dp[i2 - 1][j2] + 1, dp[i2][j2 - 1] + 1, dp[i2 - 1][j2 - 1] + cost);
+        }
+      }
+      return 1 - dp[la][lb] / Math.max(la, lb);
+    };
+    // 辅助：公共前缀占比（同「姓」人名/同根地名加权，如 林月/林月如）
+    const commonPrefixRatio = function(a, b) {
+      const m = Math.min(a.length, b.length);
+      let n = 0;
+      while (n < m && a[n] === b[n]) n++;
+      return n / Math.max(a.length, b.length);
+    };
+    // 后缀名混合相似度：编辑距离 50% + 字符集 Jaccard 30% + 公共前缀 20%
+    // 校准：白娅/白夜≈0.45（不匹配），林月/林月如≈0.67（匹配），阈值见 CONFIG.MATCH_SUFFIX_SIM
+    const suffixNameSim = function(a, b) {
+      if (!a || !b) return 0;
+      return 0.5 * levenshteinSim(a, b) + 0.3 * jaccardSim(a, b) + 0.2 * commonPrefixRatio(a, b);
+    };
+    // 正文相似度：相邻字符 bigram 的 Dice 系数（比单字 Jaccard 更能识别「同文微调」）；
+    // 双方条目核心名（后缀）互现在对方正文中时 +0.15 加权（核心实体一致性）
+    const contentBigramSim = function(a, b, neSuf, exSuf) {
+      if (!a || !b) return 0;
+      const bigrams = function(t) {
+        const map = {};
+        for (let i = 0; i < t.length - 1; i++) {
+          const bg = t.substr(i, 2);
+          map[bg] = (map[bg] || 0) + 1;
+        }
+        return map;
+      };
+      const ba = bigrams(a),
+        bb = bigrams(b);
+      let inter = 0,
+        totB = 0;
+      for (const bg in bb) totB += bb[bg];
+      for (const bg2 in ba) if (bb[bg2]) inter += Math.min(ba[bg2], bb[bg2]);
+      const totA = a.length - 1;
+      let dice = (totA > 0 && totB > 0) ? (2 * inter) / (totA + totB) : 0;
+      if (neSuf && exSuf && neSuf.length >= 2 && exSuf.length >= 2 &&
+        b.indexOf(neSuf) >= 0 && a.indexOf(exSuf) >= 0) {
+        dice = Math.min(1, dice + 0.15);
+      }
+      return dice;
+    };
 
     // 第1优先级：规范化精确 comment 匹配（去掉⟦⟧/【】等外层装饰括号 + trim + 大小写不敏感）
-    var nk = normMatchKey(neComment);
-    var exactIdx = -1;
+    const nk = normMatchKey(neComment);
+    let exactIdx = -1;
     if (nk !== '') {
-      for (var fi = 0; fi < existingArr.length; fi++) {
+      for (let fi = 0; fi < existingArr.length; fi++) {
         if (normMatchKey(existingArr[fi].comment) === nk) {
           exactIdx = fi;
           break;
@@ -3636,7 +3872,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 第2优先级：同规范前缀下只有1条现有条目 + 后缀有相关性（AI改了comment后缀但前缀一致，如<基础公理>世界→<基础公理>力量体系）
     // ⚠️修复：必须检查「后缀相关性」，否则 AI 批量新增同前缀多条目时(如<人物>主角/<人物>女配/<人物>反派)会相互覆盖！
     if (nePrefix) {
-      var samePrefixEntries = existingArr.map(function(e, i) {
+      const samePrefixEntries = existingArr.map(function(e, i) {
         return {
           i: i,
           p: extractEntryPrefix(e.comment),
@@ -3647,20 +3883,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return x.p === nePrefix;
       });
       if (samePrefixEntries.length === 1) {
-        var onlyOne = samePrefixEntries[0];
-        var neSuffix = getSuffix(neComment, nePrefix);
-        var exSuffix = getSuffix(onlyOne.ec, nePrefix);
-        var suffixRelated = false;
+        const onlyOne = samePrefixEntries[0];
+        const neSuffix = getSuffix(neComment, nePrefix);
+        const exSuffix = getSuffix(onlyOne.ec, nePrefix);
+        let suffixRelated = false;
         if (neSuffix && exSuffix) {
           // 判定「后缀有相关性」= 微调关系（而非完全不同的新条目主题）：
           //   1. 其中一个为空（只有前缀无后缀），或
           //   2. 其中一个后缀是另一个的子串（如"世界"⊆"世界基础规则"），或
-          //   3. 字符 Jaccard 相似度 ≥ 0.45
+          //   3. 后缀名混合相似度（编辑距离+前缀+字符集）≥ CONFIG.MATCH_SUFFIX_SIM
           if (neSuffix.length === 0 || exSuffix.length === 0) {
             suffixRelated = true;
           } else if (neSuffix.indexOf(exSuffix) >= 0 || exSuffix.indexOf(neSuffix) >= 0) {
             suffixRelated = true;
-          } else if (neSuffix.length >= 2 && exSuffix.length >= 2 && jaccardSim(neSuffix, exSuffix) >= 0.45) {
+          } else if (neSuffix.length >= 2 && exSuffix.length >= 2 && suffixNameSim(neSuffix, exSuffix) >= CONFIG.MATCH_SUFFIX_SIM) {
             suffixRelated = true;
           }
         } else {
@@ -3675,32 +3911,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 后缀不相关 → 这是同前缀下的不同新条目（如主角/女配/反派），不匹配，进入新增分支
       }
-      // 第3优先级：同前缀下内容相似度最高（Jaccard字符集重合度>0.35）
+      // 第3优先级：同前缀下正文 bigram Dice 相似度最高（阈值 CONFIG.MATCH_CONTENT_SIM）
       // ⚠️修复：必须 `length > 1`（同前缀至少2条才用相似度匹配）
       //   原代码 `length > 0` 会导致：同前缀只有1条时，第2优先级后缀相关性检查不通过，
       //   却在第3优先级被内容字符集相似度（中文通用字符重叠>35%）误判为同一条 → 新条目覆盖旧条目！
       //   场景：已有<重要角色>白娅，AI新增<重要角色>林月 → 第2优先级"林月/白娅"后缀不相关→不匹配
       //   → 第3优先级（若>0）内容字符集重叠>0.35→覆盖白娅！改成>1后第3优先级不触发→正确新增林月
-      if (samePrefixEntries.length > 1 && neContent.length > 20) {
-        var neCharSet = {};
-        for (var ci = 0; ci < neContent.length; ci++) neCharSet[neContent[ci]] = true;
-        var best = null;
+      if (samePrefixEntries.length > 1 && neContent.length >= CONFIG.MATCH_CONTENT_MIN_LEN) {
+        const neHead = neContent.slice(0, CONFIG.MATCH_CONTENT_HEAD);
+        const _neSuf = getSuffix(neComment, nePrefix);
+        let best = null;
         samePrefixEntries.forEach(function(x) {
-          var inter = 0,
-            uni = 0;
-          var exSet = {};
-          for (var cj = 0; cj < x.c.length; cj++) exSet[x.c[cj]] = true;
-          for (var k in neCharSet) {
-            if (neCharSet.hasOwnProperty(k)) {
-              if (exSet[k]) inter++;
-              uni++;
-            }
-          }
-          for (var k2 in exSet) {
-            if (exSet.hasOwnProperty(k2) && !neCharSet[k2]) uni++;
-          }
-          var sim = uni > 0 ? inter / uni : 0;
-          if (sim > 0.35 && (!best || sim > best.sim)) best = {
+          const exHead = x.c.slice(0, CONFIG.MATCH_CONTENT_HEAD);
+          const _exSuf = getSuffix(x.ec, nePrefix);
+          const sim = contentBigramSim(neHead, exHead, _neSuf, _exSuf);
+          if (sim >= CONFIG.MATCH_CONTENT_SIM && (!best || sim > best.sim)) best = {
             i: x.i,
             sim: sim
           };
@@ -3715,6 +3940,64 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       index: -1,
       mode: 'none'
     };
+  }
+
+  // ===== 条目集合简易 diff（合并后变更统计 + 预览面板高亮用）=====
+  // 以 comment 为主键对比前后 entries：
+  //   added/deleted：新增/消失的 comment；updated：content 有差异，统计新增/删除行数
+  // 行数统计口径：content 按行切分、trim 后做多重集合差（能直观反映「多了几行/少了几行」，
+  // 行内改写表现为同时 +1/-1）；不做 LCS，成本 O(n)，足够预览提示使用。
+  function computeEntryDiff(beforeArr, afterArr) {
+    const toMap = function(arr) {
+      const m = {};
+      safeArr(arr).forEach(function(e) {
+        if (e && e.comment != null) m[String(e.comment)] = e;
+      });
+      return m;
+    };
+    const lineBag = function(text) {
+      const bag = {};
+      safeStr(text).split(/\r?\n/).forEach(function(line) {
+        const t = line.trim();
+        if (t) bag[t] = (bag[t] || 0) + 1;
+      });
+      return bag;
+    };
+    const bm = toMap(beforeArr),
+      am = toMap(afterArr);
+    const diff = {
+      added: [],
+      deleted: [],
+      updated: []
+    };
+    for (const k in am) {
+      if (!am.hasOwnProperty(k)) continue;
+      if (!bm[k]) {
+        diff.added.push(k);
+        continue;
+      }
+      if ((bm[k].content || '') !== (am[k].content || '')) {
+        const bb = lineBag(bm[k].content),
+          ab = lineBag(am[k].content);
+        let addLines = 0,
+          delLines = 0;
+        for (const ln in ab) {
+          if (ab.hasOwnProperty(ln)) addLines += Math.max(0, ab[ln] - (bb[ln] || 0));
+        }
+        for (const ln2 in bb) {
+          if (bb.hasOwnProperty(ln2)) delLines += Math.max(0, bb[ln2] - (ab[ln2] || 0));
+        }
+        diff.updated.push({
+          comment: k,
+          addLines: addLines,
+          delLines: delLines
+        });
+      }
+    }
+    for (const k2 in bm) {
+      if (bm.hasOwnProperty(k2) && !am[k2]) diff.deleted.push(k2);
+    }
+    return diff;
   }
 
   // ===== 增量合并（修复版：智能匹配 + 变更记录 + 删改可追溯） =====
@@ -3736,10 +4019,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       };
     }
     if (typeof v === 'string') {
-      var s = v.trim();
+      const s = v.trim();
       if (s.length > 0 && s.charAt(0) === '{') {
         try {
-          var p = JSON.parse(s);
+          const p = JSON.parse(s);
           if (p && typeof p === 'object') {
             return {
               prompt: typeof p.prompt === 'string' ? p.prompt : (typeof v === 'string' ? v : ''),
@@ -3766,8 +4049,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function mergePartial(partial, cd, options) {
     if (!partial || typeof partial !== 'object') return false;
     options = options || {};
-    var modified = false;
-    var changeLog = {
+    let modified = false;
+    const changeLog = {
       added: 0,
       updated: 0,
       deleted: 0,
@@ -3782,12 +4065,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 2. MVU Tab：只允许修改白名单字段，禁止改动角色卡主体
     // ======================================================================
     // 注意：这里需要从全局作用域拿到 activeTab，优先顺序与 buildPrompt 保持一致，避免Tab错位
-    var _activeTab = 'card';
+    let _activeTab = 'card';
     if (typeof window !== 'undefined') {
       // 1. 优先 window.__getActiveTab()（最新闭包，每次switchTab都会重新绑定）
       if (typeof window.__getActiveTab === 'function') {
         try {
-          var _t = window.__getActiveTab();
+          const _t = window.__getActiveTab();
           if (_t === 'card' || _t === 'mvu') _activeTab = _t;
         } catch (_eTabA) {}
       }
@@ -3801,29 +4084,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (typeof activeTab !== 'undefined' && (activeTab === 'card' || activeTab === 'mvu')) _activeTab = activeTab;
       else if (typeof currentTab !== 'undefined' && (currentTab === 'card' || currentTab === 'mvu')) _activeTab = currentTab;
     } catch (_eSc) {}
-    var _tabCtx = null;
+    const _tabCtx = null;
 
     // ====== MVU关键词库（升级版）：拆分强弱两档，支持灰色模式 + 扩展附加条目识别 ======
     //   MVU_STRONG_RE = 功能性/结构性强特征（出现即代表真实MVU条目，永远拦截）
     //   MVU_WEAK_RE    = 讨论性弱特征（仅严格模式拦截；灰色模式开启时放行，允许AI讨论/规划变量结构）
     //   MVU_EXTRA_RE   = MVU体系附加条目关键词（8条工作流条目之外的功能性附加条目：阶段判定/EJS控制器/人设切换/派生字段等，仅用于MVU Tab放宽识别，不参与角色卡Tab拦截）
     // 灰色模式（window.__mvuDiscussMode=true）：角色卡Tab允许讨论变量结构，但仍禁止生成真实MVU条目
-    var MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized|registerMvuSchema)/i;
-    var MVU_WEAK_RE = /(变量更新规则|变量输出格式|变量输出格式强调|占位符提醒|状态栏占位|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
+    const MVU_STRONG_RE = /(\[InitVar\]|\[mvu_update\]|StatusPlaceHolderImpl|<UpdateVariable>|format_message_variable|initvar|mvu_update|stat_data|waitGlobalInitialized|registerMvuSchema)/i;
+    const MVU_WEAK_RE = /(变量更新规则|变量输出格式|变量输出格式强调|占位符提醒|状态栏占位|状态变量输出|变量更新函数|动态状态栏|变量渲染函数|MVU变量系统|MVU状态栏)/i;
     // 附加条目关键词：用于MVU Tab识别"变量体系附加条目"——这些条目不是8条工作流核心条目，但仍属于变量系统的配套功能
-    var MVU_EXTRA_RE = /(阶段判定|阶段切换|人设切换|人设规则|EJS|ejs|动态注入|injectPrompts|派生字段|衍生字段|只读字段|联动规则|联动变更|阈值触发|控制器|阶段变量|状态机|分阶段|多阶段|关系阶段|剧情进度|系统模式|境界等级|阶段标记|判定逻辑|分段提示|变量分段)/i;
-    var _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
+    const MVU_EXTRA_RE = /(阶段判定|阶段切换|人设切换|人设规则|EJS|ejs|动态注入|injectPrompts|派生字段|衍生字段|只读字段|联动规则|联动变更|阈值触发|控制器|阶段变量|状态机|分阶段|多阶段|关系阶段|剧情进度|系统模式|境界等级|阶段标记|判定逻辑|分段提示|变量分段)/i;
+    const _mvuDiscussMode = (typeof window !== 'undefined') && (window.__mvuDiscussMode === true);
     /* MVU_KEYWORDS_RE：完整集（强弱+附加条目关键词合并），供 MVU Tab 判定"是否MVU条目"使用，不受灰色模式影响 */
-    var MVU_KEYWORDS_RE = new RegExp('(' + MVU_STRONG_RE.source.slice(1, -1) + '|' + MVU_WEAK_RE.source.slice(1, -1) + '|' + MVU_EXTRA_RE.source.slice(1, -1) + ')', 'i');
-    var MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU|getvar\(|injectPrompts|EJS|ejs)/i;
+    const MVU_KEYWORDS_RE = new RegExp('(' + MVU_STRONG_RE.source.slice(1, -1) + '|' + MVU_WEAK_RE.source.slice(1, -1) + '|' + MVU_EXTRA_RE.source.slice(1, -1) + ')', 'i');
+    const MVU_CONTENT_KEYWORDS_RE = /(format_message_variable::stat_data|enabled=false.*初始变量|INITVAR_.*MVU|<UpdateVariable>|\[MVU\]|MVU变量系统|MVU.*变量|变量.*MVU|MVU状态栏|状态栏.*MVU|getvar\(|injectPrompts|EJS|ejs)/i;
     /* 改进10：角色卡Tab拦截判定（灰色模式感知 + 弱特征降误拦）
        - 强特征（功能性标记）：comment 或 content 命中即拦截（真实MVU条目必有）
        - 弱特征（讨论性词）：仅 comment（条目标题）命中才拦截；正文偶发提及不拦，降低误拦率
        - 灰色模式：弱特征完全放行，允许讨论/规划变量结构 */
-    var _isMvuCardEntry = function(e) {
+    const _isMvuCardEntry = function(e) {
       if (!e) return false;
-      var cmt = e.comment || '';
-      var cnt = e.content || '';
+      const cmt = e.comment || '';
+      const cnt = e.content || '';
       if (MVU_STRONG_RE.test(cmt) || MVU_STRONG_RE.test(cnt)) return true;
       if (!_mvuDiscussMode && (MVU_WEAK_RE.test(cmt) || MVU_CONTENT_KEYWORDS_RE.test(cmt))) return true;
       return false;
@@ -3832,17 +4115,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (_activeTab === 'card') {
       // ===================== 角色卡Tab：硬拦截所有MVU写入 =====================
       // 拦截 entries / character_book.entries
-      var mvuBlockedCounts = {
+      const mvuBlockedCounts = {
         entries: 0,
         fields: 0,
         regex_scripts: 0
       };
       ['entries', 'character_book'].forEach(function(blockKey) {
         if (blockKey === 'entries' && partial.entries && Array.isArray(partial.entries)) {
-          var before = partial.entries.length;
+          const before = partial.entries.length;
           partial.entries = partial.entries.filter(function(e) {
             if (!e) return false;
-            var isMvu = _isMvuCardEntry(e);
+            const isMvu = _isMvuCardEntry(e);
             if (isMvu) {
               console.warn('[Tab隔离·角色卡Tab] 拦截MVU条目: comment=', e.comment);
             }
@@ -3851,10 +4134,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           mvuBlockedCounts.entries += (before - partial.entries.length);
         }
         if (blockKey === 'character_book' && partial.character_book && partial.character_book.entries && Array.isArray(partial.character_book.entries)) {
-          var beforeC = partial.character_book.entries.length;
+          const beforeC = partial.character_book.entries.length;
           partial.character_book.entries = partial.character_book.entries.filter(function(e) {
             if (!e) return false;
-            var isMvu = _isMvuCardEntry(e);
+            const isMvu = _isMvuCardEntry(e);
             if (isMvu) {
               console.warn('[Tab隔离·角色卡Tab] 拦截character_book MVU条目: comment=', e.comment);
             }
@@ -3886,17 +4169,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         changeLog._mvuBlockedOnCardTab = mvuBlockedCounts;
         if (_mvuDiscussMode) changeLog._mvuDiscussMode = true;
         if (typeof showToast === 'function') {
-          var _msgParts = [];
+          const _msgParts = [];
           if (mvuBlockedCounts.entries > 0) _msgParts.push('拦截MVU世界书条目 ' + mvuBlockedCounts.entries + ' 条');
           if (mvuBlockedCounts.regex_scripts > 0) _msgParts.push('拦截正则脚本 ' + mvuBlockedCounts.regex_scripts + ' 条');
           if (mvuBlockedCounts.fields > 0) _msgParts.push('拦截MVU字段写入 ' + mvuBlockedCounts.fields + ' 项');
           if (_msgParts.length > 0) {
-            var _mvuTip = _mvuDiscussMode ?
+            const _mvuTip = _mvuDiscussMode ?
               '（灰色模式：已放行变量结构讨论，仅拦截真实MVU条目；如需生成请切换MVU Tab）' :
               '（请切换到MVU变量状态栏Tab进行操作）';
             try {
               showToast('角色卡Tab已' + _msgParts.join('，') + _mvuTip, 'warning');
-            } catch (e) {}
+            } catch (e) { logWarn("mergePartial", e); }
           }
         }
       }
@@ -3907,12 +4190,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       //   2. extensions.regex_scripts （状态栏正则）
       //   3. extensions.tavern_helper.scripts （zod脚本）
       //   4. extensions.tavern_helper.variables （变量定义，如果有的话）
-      var mvuWlBlocked = {
+      const mvuWlBlocked = {
         fields: 0,
         entries: 0
       };
       // 过滤顶层字段（name/description/first_mes等一律禁改）
-      var MVU_ALLOWED_TOP_KEYS = ['entries', 'character_book', 'extensions', 'deleted_entries', 'delete', '_delete', 'deletes', 'remove', 'removes', '_nochange'];
+      const MVU_ALLOWED_TOP_KEYS = ['entries', 'character_book', 'extensions', 'deleted_entries', 'delete', '_delete', 'deletes', 'remove', 'removes', '_nochange'];
       Object.keys(partial).forEach(function(topKey) {
         if (MVU_ALLOWED_TOP_KEYS.indexOf(topKey) < 0) {
           console.warn('[Tab隔离·MVU Tab] 拦截非白名单顶层字段写入（角色卡主体禁改）：', topKey);
@@ -3924,23 +4207,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 允许所有MVU体系条目通过（8条工作流条目+附加条目），只拦截明确是角色卡Tab专属的内容
       // 允许通过的：MVU变量条目（InitVar/变量列表/更新规则/输出格式/格式强调/占位提醒等）/ 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
       // 拦截的：明确属于角色卡Tab常驻体系/世界观体系的专有模板条目（基础公理/核心铁则/场景机制/实体交互/叙事背景等）
-      var CARD_ONLY_TEMPLATES_RE = /^<(基础公理|核心铁则|世界元数据|交互软规则|近场强约束|当前局势|场景机制|核心玩法|世界规则|实体交互|重要角色|势力与组织|物品|地点场景|叙事背景|故事发展|文化与习俗|历史事件|动态适配|引导机制|互动选项|统一输出格式|角色边界|禁止项|自定义条目|观察锚点)>/i;
-      var filterMvuOnlyEntries = function(arr, srcName) {
+      const CARD_ONLY_TEMPLATES_RE = /^<(基础公理|核心铁则|世界元数据|交互软规则|近场强约束|当前局势|场景机制|核心玩法|世界规则|实体交互|重要角色|势力与组织|物品|地点场景|叙事背景|故事发展|文化与习俗|历史事件|动态适配|引导机制|互动选项|统一输出格式|角色边界|禁止项|自定义条目|观察锚点)>/i;
+      const filterMvuOnlyEntries = function(arr, srcName) {
         if (!arr || !Array.isArray(arr)) return arr;
-        var before = arr.length;
+        const before = arr.length;
         arr = arr.filter(function(e) {
           if (!e) return false;
-          var cmt = String(e.comment || '');
-          var cnt = String(e.content || '');
+          const cmt = String(e.comment || '');
+          const cnt = String(e.content || '');
           // 允许：删除动作（删除任意条目都允许，MVU/非MVU都能删，避免用户需要切Tab删）
           if (e._action === 'delete' || e._action === 'remove' || e.delete === true) {
             return true;
           }
           // 判定1：命中MVU关键词（核心+附加）→ 是MVU体系条目 → 通过
-          var isMvuEntry = MVU_KEYWORDS_RE.test(cmt) || MVU_KEYWORDS_RE.test(cnt) || isMVUEntry(cmt);
+          const isMvuEntry = MVU_KEYWORDS_RE.test(cmt) || MVU_KEYWORDS_RE.test(cnt) || isMVUEntry(cmt);
           if (isMvuEntry) return true;
           // 判定2：命中角色卡Tab专属模板条目（<基础公理>、<核心铁则>等）→ 拦截
-          var isCardOnlyTemplate = CARD_ONLY_TEMPLATES_RE.test(cmt);
+          const isCardOnlyTemplate = CARD_ONLY_TEMPLATES_RE.test(cmt);
           if (isCardOnlyTemplate) {
             console.warn('[Tab隔离·MVU Tab] 拦截角色卡Tab专属条目：', cmt, '→请切换到角色卡Tab修改该类条目');
             return false;
@@ -3958,7 +4241,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // 过滤 extensions：只允许 regex_scripts / tavern_helper.scripts / tavern_helper.variables
       if (partial.extensions && typeof partial.extensions === 'object') {
-        var extWhiteList = ['regex_scripts', 'tavern_helper', 'depth_prompt'];
+        const extWhiteList = ['regex_scripts', 'tavern_helper', 'depth_prompt'];
         Object.keys(partial.extensions).forEach(function(extKey) {
           if (extWhiteList.indexOf(extKey) < 0) {
             console.warn('[Tab隔离·MVU Tab] 拦截非白名单 extensions 字段：', extKey);
@@ -3980,13 +4263,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (mvuWlBlocked.fields > 0 || mvuWlBlocked.entries > 0) {
         changeLog._mvuWlBlockedOnMvuTab = mvuWlBlocked;
         if (typeof showToast === 'function') {
-          var _wlParts = [];
+          const _wlParts = [];
           if (mvuWlBlocked.entries > 0) _wlParts.push('拦截非MVU世界书条目 ' + mvuWlBlocked.entries + ' 条');
           if (mvuWlBlocked.fields > 0) _wlParts.push('拦截非白名单字段写入 ' + mvuWlBlocked.fields + ' 项');
           if (_wlParts.length > 0) {
             try {
               showToast('MVU Tab已' + _wlParts.join('，') + '（角色卡主体字段/普通世界书条目请切换到角色卡Tab）', 'warning');
-            } catch (e) {}
+            } catch (e) { logWarn("mergePartial", e); }
           }
         }
       }
@@ -4002,14 +4285,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (_activeTab === 'mvu') {
       // ---- 1. MVU 世界书条目去重：按 MVU 类型分类，同类型只保留最后一条 ----
       if (cd.character_book && cd.character_book.entries && Array.isArray(cd.character_book.entries)) {
-        var mvuTypeMap = {}; // type → index in entries
-        var indicesToRemove = [];
-        for (var ei = 0; ei < cd.character_book.entries.length; ei++) {
+        const mvuTypeMap = {}; // type → index in entries
+        const indicesToRemove = [];
+        for (let ei = 0; ei < cd.character_book.entries.length; ei++) {
           var e = cd.character_book.entries[ei];
           if (!e) continue;
           var cmt = String(e.comment || '');
           var cnt = String(e.content || '');
-          var mvuType = null;
+          let mvuType = null;
           // 分类 MVU 条目类型（注意：先检查"格式强调"再检查"输出格式"，否则前者会被后者误匹配）
           if (_isInitVarComment(cmt, cnt)) mvuType = 'initvar';
           else if (_isVarListEntry(cmt, cnt)) mvuType = 'varlist';
@@ -4043,15 +4326,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       //   (markdownOnly, 显示用) 和「[不发送]隐藏状态栏标记」(promptOnly, 提示词清理用) 混在一起，
       //   误删隐藏脚本。现改为分类去重，且按 id === 'mvu-status-bar' 精确匹配美化脚本。
       if (cd.extensions && cd.extensions.regex_scripts && Array.isArray(cd.extensions.regex_scripts)) {
-        var rxList = cd.extensions.regex_scripts;
+        const rxList = cd.extensions.regex_scripts;
         // 分类收集：beautify=美化显示脚本，hide=提示词清理脚本
-        var beautifyIdxList = [];
-        var hideIdxList = [];
-        for (var ri = 0; ri < rxList.length; ri++) {
+        const beautifyIdxList = [];
+        const hideIdxList = [];
+        for (let ri = 0; ri < rxList.length; ri++) {
           if (!rxList[ri]) continue;
-          var rxr = rxList[ri];
+          const rxr = rxList[ri];
           var rxFind = (rxr.findRegex || '');
-          var hasStatusPH = rxFind.indexOf('StatusPlaceHolder') >= 0 || rxr.id === 'mvu-status-bar';
+          const hasStatusPH = rxFind.indexOf('StatusPlaceHolder') >= 0 || rxr.id === 'mvu-status-bar';
           if (!hasStatusPH) continue;
           // 区分两类：promptOnly 的是「隐藏占位符」脚本，markdownOnly 且非 promptOnly 的是「美化状态栏」脚本
           if (rxr.promptOnly) {
@@ -4061,10 +4344,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         }
         // 美化脚本去重：多于1个时只保留最后一个（最新的）
-        var totalRemoved = 0;
-        var allRxRemoveIndices = []; // 🐛修复：合并所有要删的索引，统一降序删除，避免分类splice导致的索引错位
+        let totalRemoved = 0;
+        const allRxRemoveIndices = []; // 🐛修复：合并所有要删的索引，统一降序删除，避免分类splice导致的索引错位
         if (beautifyIdxList.length > 1) {
-          var removeBeautify = beautifyIdxList.slice(0, -1);
+          const removeBeautify = beautifyIdxList.slice(0, -1);
           removeBeautify.forEach(function(idx) {
             console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[美化]MVU状态栏脚本:', rxList[idx].scriptName || rxList[idx].name);
             allRxRemoveIndices.push(idx);
@@ -4073,7 +4356,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 隐藏脚本去重：多于1个时只保留最后一个
         if (hideIdxList.length > 1) {
-          var removeHide = hideIdxList.slice(0, -1);
+          const removeHide = hideIdxList.slice(0, -1);
           removeHide.forEach(function(idx) {
             console.warn('[Tab隔离·MVU Tab] 去重：删除重复的[不发送]隐藏状态栏标记脚本:', rxList[idx].scriptName || rxList[idx].name);
             allRxRemoveIndices.push(idx);
@@ -4085,7 +4368,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           allRxRemoveIndices.sort(function(a, b) {
             return b - a;
           });
-          var seenRxIdx = {};
+          const seenRxIdx = {};
           allRxRemoveIndices.forEach(function(idx) {
             if (!seenRxIdx[idx] && idx < rxList.length) {
               seenRxIdx[idx] = true;
@@ -4101,7 +4384,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
 
     if (partial.character && !partial.spec) {
-      var ch = partial.character;
+      const ch = partial.character;
       delete partial.character;
       for (var k in ch) {
         if (ch.hasOwnProperty(k)) partial[k] = ch[k];
@@ -4116,7 +4399,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     //       导致"先删掉又被后面 processEntriesFn 重新加回来"的问题。
     // 同时 processEntriesFn 中命中删除屏障的条目会被直接丢弃（既不新增也不更新）。
     // ================================================================
-    var deletePaths = [];
+    let deletePaths = [];
     if (partial.deleted_entries && Array.isArray(partial.deleted_entries)) {
       partial.deleted_entries.forEach(function(c) {
         deletePaths.push('character_book.entries.' + c);
@@ -4131,25 +4414,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     // 规范化 key：trim + 大小写不敏感 + 剥去⟦⟧/【】等外层装饰括号（解决AI一会儿加括号一会儿不加）
     // 注：_stripOuterBrackets 已提升为 IIFE 顶层共享函数（见 _deriveEntryKeys 上方）
-    var normKey = function(s) {
+    const normKey = function(s) {
       return _stripOuterBrackets(s).trim().toLowerCase();
     };
-    var deletedCommentKeySet = {}; // 命中则：新增丢弃 + 更新丢弃（整轮彻底消失）
-    var entryPrefixForScan = 'character_book.entries.';
+    const deletedCommentKeySet = {}; // 命中则：新增丢弃 + 更新丢弃（整轮彻底消失）
+    const entryPrefixForScan = 'character_book.entries.';
     // 从 deletePaths 中提取所有 comment 形式的 key 放入屏障集合
     deletePaths.forEach(function(p) {
-      var sp = String(p);
+      const sp = String(p);
       if (sp.indexOf(entryPrefixForScan) === 0) {
-        var rawKey = sp.slice(entryPrefixForScan.length);
+        const rawKey = sp.slice(entryPrefixForScan.length);
         if (!/^\d+$/.test(rawKey)) deletedCommentKeySet[normKey(rawKey)] = true; // 纯数字是索引，不是comment
       } else if (sp.indexOf('.') < 0) {
         deletedCommentKeySet[normKey(sp)] = true;
       }
     });
-    var inlineEntryDeletes = [];
-    var scanInlineDeletes = function(arr) {
+    const inlineEntryDeletes = [];
+    const scanInlineDeletes = function(arr) {
       if (!arr || !Array.isArray(arr)) return;
-      for (var di = arr.length - 1; di >= 0; di--) {
+      for (let di = arr.length - 1; di >= 0; di--) {
         if (arr[di] && (arr[di]._action === 'delete' || arr[di]._action === 'remove' || arr[di].delete === true)) {
           if (arr[di].comment) {
             inlineEntryDeletes.push(arr[di].comment);
@@ -4169,18 +4452,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 处理 entries（在删除执行之前先合并，但会过滤掉"删除屏障"命中的条目）=====
     // ================================================================
     // ---- 处理 entries（修复：智能匹配+content过短时也允许更新非content字段 + 删除屏障丢弃） ----
-    var processEntriesFn = function(newEntries) {
+    const processEntriesFn = function(newEntries) {
       if (!newEntries || !Array.isArray(newEntries)) return;
       cd.character_book = cd.character_book || {
         entries: []
       };
-      var existing = cd.character_book.entries || [];
-      var SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+      const existing = cd.character_book.entries || [];
+      const SB_ENTRY_BLOCK_RE = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
       // 拦截 AI 误将 regex 脚本配置写成世界书条目（正则脚本由写卡器自动维护）
-      var REGEX_ENTRY_BLOCK_RE = /^regex[:：]/i;
+      const REGEX_ENTRY_BLOCK_RE = /^regex[:：]/i;
       newEntries = newEntries.filter(function(ne) {
         if (!ne || typeof ne !== 'object') return true;
-        var cmt = String(ne.comment || '');
+        const cmt = String(ne.comment || '');
         if (SB_ENTRY_BLOCK_RE.test(cmt)) {
           console.warn('[statusbar] 拦截状态栏模块条目，不写入世界书:', cmt);
           return false;
@@ -4190,9 +4473,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           console.warn('[sanitize] 拦截regex脚本配置条目，不写入世界书:', cmt);
           return false;
         }
-        var cnt = String(ne.content || '');
+        const cnt = String(ne.content || '');
         if (cnt.length > 50) {
-          var hasSbCodeMarker = (cnt.indexOf('StatusPlaceHolderImpl') >= 0) ||
+          const hasSbCodeMarker = (cnt.indexOf('StatusPlaceHolderImpl') >= 0) ||
             (cnt.indexOf('waitGlobalInitialized') >= 0 && cnt.indexOf('eventOn') >= 0) ||
             (cnt.indexOf('/* === Step') >= 0 && cnt.indexOf('===') >= 0 && /Step\s*[2-7]/.test(cnt));
           if (hasSbCodeMarker && /状态栏|statusbar/i.test(cmt)) {
@@ -4205,7 +4488,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 防御 newEntries 里混入字符串（AI/用户误传 depth_prompt.prompt 直接进数组）=====
       newEntries = newEntries.map(function(ne) {
         if (typeof ne === 'string' && ne.trim()) {
-          var firstLine = ne.split('\n')[0].trim().slice(0, 40) || '未命名文本块';
+          const firstLine = ne.split('\n')[0].trim().slice(0, 40) || '未命名文本块';
           console.warn('[mergePartial] newEntries含字符串元素，已包装为条目:', firstLine);
           return {
             comment: firstLine,
@@ -4222,8 +4505,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else if (ne.title && String(ne.title).trim()) {
             ne.comment = String(ne.title).trim();
           } else if (ne.content && typeof ne.content === 'string') {
-            var firstLine = ne.content.split('\n')[0].trim();
-            var prefixMatch = firstLine.match(/^(<[^>]+>[^<\n]{0,40})/);
+            const firstLine = ne.content.split('\n')[0].trim();
+            const prefixMatch = firstLine.match(/^(<[^>]+>[^<\n]{0,40})/);
             if (prefixMatch) {
               ne.comment = prefixMatch[1].trim();
             } else if (firstLine.length <= 40) {
@@ -4238,7 +4521,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ===== 🐛修复#2.5：入存前剥去⟦⟧/【】等外层装饰括号，统一 entries.comment 风格，避免一会儿带括号一会儿不带 =====
         // （注意：保留内部的 <xxx> / [xxx] 前缀，只剥最外层装饰用括号；若剥完为空则保留原值）
         if (ne.comment && typeof ne.comment === 'string') {
-          var stripped = _stripOuterBrackets(ne.comment);
+          const stripped = _stripOuterBrackets(ne.comment);
           if (stripped && stripped.length > 0) ne.comment = stripped;
         }
         // ===== 🐛修复#2：命中删除屏障 → 整轮直接丢弃（既不新增也不更新）=====
@@ -4246,14 +4529,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           console.warn('[mergePartial·删除屏障] 丢弃命中删除声明的条目（用户已要求删除，即使AI重写内容也不写入）:', ne.comment);
           return;
         }
-        var hasComment = !!(ne.comment && String(ne.comment).trim());
-        var hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
+        const hasComment = !!(ne.comment && String(ne.comment).trim());
+        const hasMeaningfulContent = !!(ne.content && String(ne.content).trim().length >= 20);
         if (!hasComment && !hasMeaningfulContent) return;
 
-        var tmpl = getEntryTemplate(ne.comment || '');
+        const tmpl = getEntryTemplate(ne.comment || '');
         // ⚠️ enabled 保留策略：模板显式配置 > AI 显式传值 > 更新时继承旧值 > 新增默认 true
         // （原先无条件设 true + Object.assign 覆盖，导致用户手动禁用的条目被任何 upsert 静默重新启用）
-        var aiProvidedEnabled = ne.enabled !== undefined && ne.enabled !== null;
+        const aiProvidedEnabled = ne.enabled !== undefined && ne.enabled !== null;
         if (tmpl && tmpl.enabled !== undefined) {
           ne.enabled = tmpl.enabled; // 模板显式配置优先（如 [InitVar] enabled=false）
         } else if (!aiProvidedEnabled) {
@@ -4266,7 +4549,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ===== 再规范化（确保规范化结果是最终值，不被后续清洗破坏）=====
         // ⚠️ 用核心名严格匹配（_entryCommentCore 剥前缀后 === 系统名），不再用宽泛子串 indexOf：
         // 原先 <自定义条目>变量列表使用说明 这类普通条目会被 normalizeVarListContent 无条件覆盖为固定串，内容被摧毁
-        var neCore = _entryCommentCore(ne.comment || '');
+        const neCore = _entryCommentCore(ne.comment || '');
         if (_isInitVarComment(ne.comment, ne.content)) {
           if (typeof ne.content === 'string') ne.content = normalizeInitVarContent(ne.content);
         }
@@ -4284,7 +4567,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (tmpl) {
           // MVU 系统条目（变量输出格式/变量更新规则/InitVar等）的 selective/constant 必须强制使用模板值
           // AI 经常误写 selective:true，导致条目变为选择性触发而非常驻
-          var isMvuSystemEntry = (neCore === '变量输出格式' || neCore === '变量输出格式强调' || neCore === '变量更新规则' ||
+          const isMvuSystemEntry = (neCore === '变量输出格式' || neCore === '变量输出格式强调' || neCore === '变量更新规则' ||
             _isInitVarComment(ne.comment, ne.content) || neCore === '变量列表');
           if (isMvuSystemEntry) {
             ne.selective = tmpl.selective;
@@ -4297,7 +4580,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (ne.use_regex === undefined) ne.use_regex = tmpl.use_regex;
           if (ne.secondary_keys === undefined) ne.secondary_keys = tmpl.secondary_keys || [];
           if (!ne.extensions) ne.extensions = {};
-          var ext = ne.extensions;
+          const ext = ne.extensions;
           if (ext.position === undefined) ext.position = tmpl.position;
           if (ext.depth === undefined) ext.depth = tmpl.depth;
           if (ext.role === undefined) ext.role = 0;
@@ -4352,17 +4635,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ===== ✅新增：processEntriesFn 空 keys 自动派生（mergePartial 路径的兜底）=====
         if (ne.keys.length === 0 && !(tmpl && tmpl.constant) && ne.constant !== true) {
           try {
-            var dk = _deriveEntryKeys(ne.comment || '', tmpl, ne.content || '');
+            const dk = _deriveEntryKeys(ne.comment || '', tmpl, ne.content || '');
             if (dk && dk.length > 0) ne.keys = dk;
-          } catch (e3) {}
+          } catch (e3) { logWarn("mergePartial", e3); }
         }
 
-        var match = findMatchingEntry(ne, existing);
+        const match = findMatchingEntry(ne, existing);
         if (match.index >= 0) {
           // 更新：深合并content优先（如果新content有内容就覆盖，没内容保留旧content）
-          var oldEntry = existing[match.index];
+          const oldEntry = existing[match.index];
           if (ne.content === undefined || String(ne.content).trim().length === 0) {
-            var tmpContent = oldEntry.content;
+            const tmpContent = oldEntry.content;
             existing[match.index] = Object.assign({}, oldEntry, ne);
             existing[match.index].content = tmpContent;
           } else {
@@ -4401,32 +4684,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // - comment 匹配使用规范化比较（trim + 大小写不敏感）
     // - 先删条目，再删其他字段（字段删除不影响 entries 索引）
     if (deletePaths.length > 0) {
-      var entryPrefix = 'character_book.entries.';
-      var fieldDeletes = [];
-      var numericIndices = [];
-      var commentDeletionIndices = []; // 🐛修复：comment匹配删除也收集索引，最后与数字索引统一降序删除
+      const entryPrefix = 'character_book.entries.';
+      const fieldDeletes = [];
+      const numericIndices = [];
+      const commentDeletionIndices = []; // 🐛修复：comment匹配删除也收集索引，最后与数字索引统一降序删除
       deletePaths.forEach(function(path) {
         if (String(path).indexOf(entryPrefix) === 0) {
-          var entryKey = String(path).slice(entryPrefix.length);
+          const entryKey = String(path).slice(entryPrefix.length);
           if (cd.character_book && cd.character_book.entries) {
-            var beforeLen = cd.character_book.entries.length;
-            var idx = parseInt(entryKey);
+            const beforeLen = cd.character_book.entries.length;
+            const idx = parseInt(entryKey);
             if (!isNaN(idx) && String(idx) === entryKey && idx >= 0 && idx < beforeLen) {
               numericIndices.push(idx);
             } else {
               // 规范化比较：trim + 大小写不敏感 + 去装饰括号
-              var nk = normKey(entryKey);
-              var exactMatches = [];
-              var fuzzyMatches = [];
+              const nk = normKey(entryKey);
+              const exactMatches = [];
+              const fuzzyMatches = [];
               cd.character_book.entries.forEach(function(e, i) {
-                var ek = normKey(e.comment);
+                const ek = normKey(e.comment);
                 if (ek === nk && ek !== '') {
                   exactMatches.push(i);
                 } else if (nk.length >= 6 && ek.length >= 6) {
                   if (ek.indexOf(nk) >= 0) fuzzyMatches.push(i);
                 }
               });
-              var toDelete = [];
+              let toDelete = [];
               if (exactMatches.length > 0) {
                 toDelete = exactMatches;
               } else if (fuzzyMatches.length === 1) {
@@ -4443,17 +4726,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 changeLog._deleteFailures.push(String(entryKey || '').slice(0, 120) + '（未匹配到任何条目）');
               }
               // 🐛修复：不立即 splice，改为收集索引，最后统一删除
-              for (var di = 0; di < toDelete.length; di++) {
+              for (let di = 0; di < toDelete.length; di++) {
                 commentDeletionIndices.push(toDelete[di]);
               }
             }
           }
         } else {
-          var rawPath = String(path);
-          var knownTopFields = ['name', 'description', 'first_mes', 'system_prompt', 'personality', 'scenario', 'creator_notes', 'alternate_greetings'];
+          const rawPath = String(path);
+          const knownTopFields = ['name', 'description', 'first_mes', 'system_prompt', 'personality', 'scenario', 'creator_notes', 'alternate_greetings'];
           if (rawPath.indexOf('.') < 0 && knownTopFields.indexOf(rawPath) < 0 && cd.character_book && cd.character_book.entries) {
-            var nrp = normKey(rawPath);
-            for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
+            const nrp = normKey(rawPath);
+            for (let fi = 0; fi < cd.character_book.entries.length; fi++) {
               if (normKey(cd.character_book.entries[fi].comment) === nrp) {
                 commentDeletionIndices.push(fi); // 🐛修复：收集而非立即删
                 break;
@@ -4465,14 +4748,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       });
       // 🐛修复：合并数字索引 + comment匹配索引，去重后统一降序删除，避免索引移位
-      var allEntryDeletions = numericIndices.concat(commentDeletionIndices);
+      const allEntryDeletions = numericIndices.concat(commentDeletionIndices);
       if (allEntryDeletions.length > 0) {
         // 降序排序
         allEntryDeletions.sort(function(a, b) {
           return b - a;
         });
         // 去重（降序后相邻重复）
-        var uniqueIdx = [];
+        const uniqueIdx = [];
         allEntryDeletions.forEach(function(n) {
           if (uniqueIdx.indexOf(n) < 0) uniqueIdx.push(n);
         });
@@ -4485,9 +4768,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
       }
       fieldDeletes.forEach(function(p) {
-        var parts = String(p).split('.');
-        var node = cd;
-        for (var i = 0; i < parts.length - 1; i++) {
+        const parts = String(p).split('.');
+        let node = cd;
+        for (let i = 0; i < parts.length - 1; i++) {
           if (!node || typeof node !== 'object' || !(parts[i] in node)) {
             node = null;
             break;
@@ -4506,15 +4789,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var fields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'creator_notes', 'system_prompt', 'creator', 'character_version', 'alternate_greetings', 'group_only_greetings'];
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
-        var val = partial[f];
-        var oldVal = cd[f];
+        const val = partial[f];
+        const oldVal = cd[f];
         if (f === 'first_mes' || f === 'description') {
           // 放宽占位符过滤：只有同时满足「文本非常短(<80字)」+「整段内容几乎全是占位词」时才跳过
           if (typeof val === 'string') {
-            var vTrim = val.trim();
+            const vTrim = val.trim();
             if (vTrim.length < 80) {
-              var hasPlaceholder = /正文已在上方|见上方|参见上文|见上文|已在上方|请见上文/.test(vTrim);
-              var isOnlyPlaceholder = vTrim.length < 30 && hasPlaceholder;
+              const hasPlaceholder = /正文已在上方|见上方|参见上文|见上文|已在上方|请见上文/.test(vTrim);
+              const isOnlyPlaceholder = vTrim.length < 30 && hasPlaceholder;
               if (isOnlyPlaceholder) return;
             }
           }
@@ -4537,8 +4820,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 或更严重：JSON.stringify 后的字符串对象，导致 ".depth = ..." 抛 "Cannot create property 'depth' on string"
       cd.extensions.depth_prompt = normalizeDepthPrompt(cd.extensions.depth_prompt, 0);
       cd.depth_prompt = normalizeDepthPrompt(cd.depth_prompt, 0);
-      var dp = partial.depth_prompt;
-      var dpModified = false;
+      const dp = partial.depth_prompt;
+      let dpModified = false;
       if (typeof dp === 'string') {
         if (dp.trim().length > 0 && cd.extensions.depth_prompt.prompt !== dp) {
           cd.extensions.depth_prompt.prompt = dp;
@@ -4576,7 +4859,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ⚠️ MVU固定正则白名单拦截：正则1-5（仅格式思维链/只发送最新2楼变量更新/[美化]变量完成/[美化]变量更新中/[不发送]隐藏状态栏标记）
     //   由写卡器导出时自动注入，禁止AI写入cardData（避免导出时重复注入2份）
     //   只允许AI修改：正则6 [美化]MVU状态栏（id=mvu-status-bar 或 StatusPlaceHolderImpl + markdownOnly + 非promptOnly）
-    var MVU_FIXED_REGEX_IDS = {
+    const MVU_FIXED_REGEX_IDS = {
       'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36': '仅格式思维链',
       '5bb4b588-23ca-4564-8df5-882104eff764': '只发送最新2楼的变量更新',
       '6fb572ae-a9ea-436d-9779-ad100f1ff7f5': '[美化]变量完成',
@@ -4587,8 +4870,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     function isFixedMvuRegex(r) {
       if (!r) return false;
       if (r.id && MVU_FIXED_REGEX_IDS[r.id]) return true;
-      var rxFind = String(r.findRegex || '');
-      var scriptName = String(r.scriptName || r.name || '');
+      const rxFind = String(r.findRegex || '');
+      const scriptName = String(r.scriptName || r.name || '');
       // 固定正则特征匹配（兜底，防止AI改id）
       if (rxFind.indexOf('Analysis') >= 0 && r.promptOnly) return true; // 正则1
       if (rxFind.indexOf('UpdateVariable') >= 0 && r.promptOnly) return true; // 正则2
@@ -4600,27 +4883,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     function isAllowedMvuRegex(r) {
       if (!r) return false;
       if (r.id === 'mvu-status-bar') return true;
-      var rxFind = String(r.findRegex || '');
+      const rxFind = String(r.findRegex || '');
       if (rxFind.indexOf('StatusPlaceHolderImpl') >= 0 && r.markdownOnly && !r.promptOnly) return true; // 正则6 美化状态栏
       return false;
     }
-    var mergeRegexScripts = function(newRxList) {
+    const mergeRegexScripts = function(newRxList) {
       if (!Array.isArray(newRxList)) return;
       cd.extensions = cd.extensions || {};
-      var existingRx = cd.extensions.regex_scripts || [];
-      var beforeSnapshot = JSON.stringify(existingRx);
+      let existingRx = cd.extensions.regex_scripts || [];
+      const beforeSnapshot = JSON.stringify(existingRx);
       newRxList.forEach(function(s) {
         if (!s || typeof s !== 'object') return;
         // === MVU固定正则拦截：删除请求也拦截（固定正则由写卡器注入，AI无权删除）===
         if (isFixedMvuRegex(s)) {
-          var blockName = (s.id && MVU_FIXED_REGEX_IDS[s.id]) || s.scriptName || s.name || '(MVU固定正则)';
+          const blockName = (s.id && MVU_FIXED_REGEX_IDS[s.id]) || s.scriptName || s.name || '(MVU固定正则)';
           console.warn('[Tab隔离·MVU] 拦截写入：MVU固定正则「' + blockName + '」由写卡器导出时自动注入，无需AI写入cardData，避免重复。');
           changeLog._mvuFixedRegexBlocked = (changeLog._mvuFixedRegexBlocked || 0) + 1;
           return;
         }
         // === 白名单放行：允许写入的MVU正则只有 [美化]MVU状态栏（正则6）===
         // 其他不属于 MVU 固定正则 / 不属于 MVU 状态栏 的自定义正则也允许（如角色剧情替换等）
-        var isMvuRelatedRegex = isFixedMvuRegex(s) || isAllowedMvuRegex(s);
+        const isMvuRelatedRegex = isFixedMvuRegex(s) || isAllowedMvuRegex(s);
         if (isMvuRelatedRegex && !isAllowedMvuRegex(s)) {
           console.warn('[Tab隔离·MVU] 拦截写入：非白名单MVU正则被丢弃:', s.scriptName || s.id || s.findRegex);
           return;
@@ -4639,7 +4922,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             console.warn('[Tab隔离·MVU] 拦截删除：MVU固定正则由写卡器注入，AI无权删除。');
             return;
           }
-          var beforeLen = existingRx.length;
+          const beforeLen = existingRx.length;
           existingRx = existingRx.filter(function(es) {
             // 固定正则即使 id/name 匹配也不允许被删
             if (isFixedMvuRegex(es)) return true;
@@ -4658,7 +4941,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!s.findRegex || !String(s.findRegex).trim()) return;
         if (s.replaceString === undefined) return;
         // 更新/新增：按 id 或 scriptName/name 或 findRegex 匹配
-        var idx = existingRx.findIndex(function(es) {
+        const idx = existingRx.findIndex(function(es) {
           if (s.id && es.id === s.id) return true;
           if (s.scriptName && es.scriptName === s.scriptName) return true;
           if (s.name && !es.scriptName && es.name === s.name) return true;
@@ -4678,7 +4961,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (JSON.stringify(existingRx) !== beforeSnapshot) modified = true;
     };
 
-    var _topRegexScriptsProcessed = false; // 🐛修复：标记顶层 regex_scripts 是否已处理，防止 extensions 内的副本二次合并
+    let _topRegexScriptsProcessed = false; // 🐛修复：标记顶层 regex_scripts 是否已处理，防止 extensions 内的副本二次合并
     if (partial.regex_scripts !== undefined) {
       mergeRegexScripts(partial.regex_scripts);
       delete partial.regex_scripts;
@@ -4692,7 +4975,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     if (partial.extensions) {
       cd.extensions = cd.extensions || {};
-      var extProcessedKeys = {}; // 防止与顶层重复处理
+      const extProcessedKeys = {}; // 防止与顶层重复处理
       for (var ek in partial.extensions) {
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
@@ -4700,8 +4983,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 防御：旧卡 extensions.depth_prompt 可能是字符串（非空字符串 truthy，|| 不会替换）
             // 或 JSON.stringify 后的字符串对象，需要反序列化为对象
             cd.extensions.depth_prompt = normalizeDepthPrompt(cd.extensions.depth_prompt, 0);
-            var dp2 = partial.extensions.depth_prompt;
-            var beforeDp = JSON.stringify(cd.extensions.depth_prompt);
+            const dp2 = partial.extensions.depth_prompt;
+            const beforeDp = JSON.stringify(cd.extensions.depth_prompt);
             if (typeof dp2 === 'string') {
               if (dp2.trim().length > 0) cd.extensions.depth_prompt.prompt = dp2;
             } else if (dp2 && typeof dp2 === 'object') {
@@ -4737,12 +5020,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 scripts: [],
                 variables: {}
               };
-              var thBefore = JSON.stringify(cd.extensions[ek]);
+              const thBefore = JSON.stringify(cd.extensions[ek]);
               // === scripts：支持替换/删除/追加 ===
-              var thScripts = cd.extensions[ek].scripts || [];
-              var newTHScripts = partial.extensions[ek].scripts || [];
+              let thScripts = cd.extensions[ek].scripts || [];
+              const newTHScripts = partial.extensions[ek].scripts || [];
               // 如果 AI 明确输出 _action:reset 或 scripts 显式置空数组，允许清空（用于「重写 tavern_helper」场景）
-              var resetScripts = partial.extensions[ek]._action === 'reset' || partial.extensions[ek].reset_scripts === true;
+              const resetScripts = partial.extensions[ek]._action === 'reset' || partial.extensions[ek].reset_scripts === true;
               if (resetScripts) {
                 thScripts = [];
               }
@@ -4750,14 +5033,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 if (!ns || typeof ns !== 'object') return;
                 // === MVU固定脚本拦截：写入请求也拦截（固定脚本由写卡器注入，AI无权写入/删除）===
                 if (isFixedMvuScript(ns)) {
-                  var blockName = (ns.id && MVU_FIXED_SCRIPT_IDS[ns.id]) || ns.name || '(MVU固定脚本)';
+                  const blockName = (ns.id && MVU_FIXED_SCRIPT_IDS[ns.id]) || ns.name || '(MVU固定脚本)';
                   console.warn('[Tab隔离·MVU] 拦截写入：MVU固定脚本「' + blockName + '」由写卡器导出时自动注入，无需AI写入cardData，避免重复。');
                   changeLog._mvuFixedScriptBlocked = (changeLog._mvuFixedScriptBlocked || 0) + 1;
                   return;
                 }
                 // === 白名单放行：只允许 [变量结构] 被AI写入 ===
                 // 其他不属于 MVU 固定脚本 / 不属于 MVU 变量结构 的自定义脚本也允许
-                var isMvuRelatedScript = isFixedMvuScript(ns) || isAllowedMvuScript(ns);
+                const isMvuRelatedScript = isFixedMvuScript(ns) || isAllowedMvuScript(ns);
                 if (isMvuRelatedScript && !isAllowedMvuScript(ns)) {
                   console.warn('[Tab隔离·MVU] 拦截写入：非白名单MVU脚本被丢弃:', ns.name || ns.id);
                   return;
@@ -4781,7 +5064,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   });
                   return;
                 }
-                var existsIdx = thScripts.findIndex(function(es) {
+                const existsIdx = thScripts.findIndex(function(es) {
                   return (ns.id && es.id === ns.id) || (ns.name && es.name === ns.name);
                 });
                 if (existsIdx >= 0) {
@@ -4794,9 +5077,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               cd.extensions[ek].scripts = thScripts;
               // === variables：支持删除/替换 ===
               if (partial.extensions[ek].variables) {
-                var vars = partial.extensions[ek].variables;
+                const vars = partial.extensions[ek].variables;
                 if (vars && typeof vars === 'object') {
-                  var curVars = cd.extensions[ek].variables || {};
+                  const curVars = cd.extensions[ek].variables || {};
                   // 支持 { key: null } 或 { key: {_action:"delete"} } 表示删除
                   Object.keys(vars).forEach(function(vk) {
                     if (vars[vk] === null || vars[vk] === undefined || (vars[vk] && typeof vars[vk] === 'object' && (vars[vk]._action === 'delete' || vars[vk].delete === true))) {
@@ -4829,7 +5112,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       cd.character_book = cd.character_book || {
         entries: []
       };
-      for (var cbk in partial.character_book) {
+      for (let cbk in partial.character_book) {
         if (partial.character_book.hasOwnProperty(cbk) && cbk !== 'entries') {
           if (JSON.stringify(cd.character_book[cbk]) !== JSON.stringify(partial.character_book[cbk])) {
             cd.character_book[cbk] = partial.character_book[cbk];
@@ -4858,10 +5141,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   2) 成功阈值 length>0（原先 >5 会把合法回复"本次无修改"当作失败继续降级重试）
   //   3) triggerSlash 兜底路径：prompt 用双引号包裹并转义——原先多行 prompt 裸拼进
   //      STScript 会在首个换行处截断，后续行被当作新命令解析执行（命令注入面）
-  var CALLAI_TIMEOUT_MS = 300000; // 单后端 5 分钟
+  const CALLAI_TIMEOUT_MS = 300000; // 单后端 5 分钟
   function withTimeout(promise, ms, label) {
     return new Promise(function(resolve, reject) {
-      var timer = setTimeout(function() {
+      const timer = setTimeout(function() {
         reject(new Error(label + ' 超时(' + (ms / 1000) + 's)'));
       }, ms);
       Promise.resolve(promise).then(
@@ -4881,10 +5164,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return !!(r && typeof r === 'string' && r.trim().length > 0);
   }
   async function callAI(prompt) {
-    var errors = [];
+    const errors = [];
     // ===== 【写卡预设】AI生成参数（与写卡.json数值一致） =====
-    var p = TAVERN_GENERATION_PARAMS || {};
-    var genParams = {
+    const p = TAVERN_GENERATION_PARAMS || {};
+    const genParams = {
       temperature: typeof p.temperature === 'number' ? p.temperature : 1,
       top_p: typeof p.top_p === 'number' ? p.top_p : 0.9,
       top_k: typeof p.top_k === 'number' ? p.top_k : 500,
@@ -4896,7 +5179,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       max_tokens: typeof p.max_tokens === 'number' ? p.max_tokens : 64000
     };
     // system prompt：创作原则与输出格式（不绑定特定人格身份）
-    var sysPrompt =
+    const sysPrompt =
       '<writing_principles>\n' +
       '禁用词：模糊词（似乎/仿佛/宛如）、劣质比喻（像小兽/投石入湖）、微表情（嘴角上扬/眼里闪过光芒）、语气描写（带着xx的口吻）、极端情绪词（极度羞耻/无比愤怒）、否定转折句（不是...而是...）、心理描写（心想/暗自思忖）。\n' +
       '创作准则：客观叙述（只写镜头能拍到的内容，禁止写内心想法）；白描事实（只写谁做了什么说了什么，禁止修饰渲染）；名词动词造句（禁止形容词做谓语，禁止副词修饰形容词）；具体名词代替代词（禁止用他/她/它作主语）；行为展现性格（写具体动作和对话，禁止写"她是温柔的人"）；纯对话体现特点（只写原话，禁止附加"她温柔地说"）。\n' +
@@ -4907,7 +5190,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '你同时是时之写卡器助手，基于SillyTavern原生机制与ST权重分层8体系引导用户创作角色卡。';
     try {
       if (typeof generate === 'function') {
-        var result = await withTimeout(generate(Object.assign({
+        const result = await withTimeout(generate(Object.assign({
           user_input: prompt,
           should_silence: true,
           max_chat_history: 0
@@ -4921,7 +5204,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     try {
       if (typeof generateQuietPrompt === 'function') {
-        var r6 = await withTimeout(generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'generateQuietPrompt');
+        const r6 = await withTimeout(generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'generateQuietPrompt');
         if (isValidAIReply(r6)) return r6.trim();
       }
     } catch (e) {
@@ -4929,7 +5212,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     try {
       if (window.parent && typeof window.parent.generateQuietPrompt === 'function') {
-        var r5 = await withTimeout(window.parent.generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'parent.generateQuietPrompt');
+        const r5 = await withTimeout(window.parent.generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'parent.generateQuietPrompt');
         if (isValidAIReply(r5)) return r5.trim();
       }
     } catch (e) {
@@ -4937,7 +5220,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     try {
       if (window.TavernHelper && typeof window.TavernHelper.generate === 'function') {
-        var r2 = await withTimeout(window.TavernHelper.generate(Object.assign({
+        const r2 = await withTimeout(window.TavernHelper.generate(Object.assign({
           user_input: prompt,
           should_silence: true,
           max_chat_history: 0
@@ -4949,7 +5232,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     try {
       if (typeof generateRaw === 'function') {
-        var r3 = await withTimeout(generateRaw(Object.assign({
+        const r3 = await withTimeout(generateRaw(Object.assign({
           should_silence: true,
           ordered_prompts: [{
               role: 'system',
@@ -4971,8 +5254,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ⚠️ 取消截断：之前 .substring(0, 8000) 会导致提示词丢失后半部分内容，
         // 现在传递完整 prompt；多行内容用双引号包裹+转义，避免在换行处被 STScript 截断
         // （已知局限：prompt 中的 {{宏}} 仍会被 triggerSlash 替换，此为第5级兜底路径的固有行为）
-        var _tsEscaped = String(prompt).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        var r4 = await withTimeout(triggerSlash('/generate "' + _tsEscaped + '"'), CALLAI_TIMEOUT_MS, 'triggerSlash');
+        const _tsEscaped = String(prompt).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const r4 = await withTimeout(triggerSlash('/generate "' + _tsEscaped + '"'), CALLAI_TIMEOUT_MS, 'triggerSlash');
         if (isValidAIReply(r4)) return r4.trim();
       }
     } catch (e) {
@@ -4989,7 +5272,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function checkMvu8Entries(_cardData) {
     // ⚠️ 本函数在 IIFE 顶层定义，cardData 在 openEditor() 内部定义，作用域不通
     //    必须通过参数传入 cardData，否则报 "cardData is not defined"
-    var cd = _cardData;
+    let cd = _cardData;
     if (!cd) {
       if (typeof window !== 'undefined' && window.__cardData) cd = window.__cardData;
       else {
@@ -5006,34 +5289,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       missingCount: 7,
       has8: false
     };
-    var entries = (cd.character_book || {}).entries || [];
-    var thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
-    var rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
+    const entries = (cd.character_book || {}).entries || [];
+    const thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
+    const rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
     // 前7条检测（按8条工作流顺序：第3条=更新规则，第4条=变量列表）
     // ⚠️脚本存为对象（含content/name/id字段），非string；兼容两种形态
-    var has1 = thScripts.some(function(s) {
+    const has1 = thScripts.some(function(s) {
       if (!s) return false;
-      var c = typeof s === 'string' ? s : (s.content || '');
+      const c = typeof s === 'string' ? s : (s.content || '');
       return c.indexOf('registerMvuSchema') >= 0 || c.indexOf('z.object') >= 0;
     });
-    var has2 = entries.some(function(e) {
+    const has2 = entries.some(function(e) {
       return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
     });
-    var has3 = entries.some(function(e) {
+    const has3 = entries.some(function(e) {
       return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 && (e.comment || '').indexOf('变量更新规则') >= 0;
     });
-    var has4 = entries.some(function(e) {
+    const has4 = entries.some(function(e) {
       return (e.comment || '').indexOf('变量列表') >= 0;
     });
-    var has5 = entries.some(function(e) {
-      var c = (e.comment || '');
+    const has5 = entries.some(function(e) {
+      const c = (e.comment || '');
       return c.indexOf('变量输出格式') >= 0 && c.indexOf('强调') < 0;
     });
-    var has6 = entries.some(function(e) {
+    const has6 = entries.some(function(e) {
       return (e.comment || '').indexOf('变量输出格式强调') >= 0;
     });
-    var has7 = entries.some(function(e) {
-      var c = (e.comment || '');
+    const has7 = entries.some(function(e) {
+      const c = (e.comment || '');
       return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
     });
     // 第8条检测（状态栏HTML正则）
@@ -5043,9 +5326,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     var done = [has1, has2, has3, has4, has5, has6, has7];
     var doneCount = done.filter(Boolean).length;
     var all7Done = doneCount === 7;
-    var names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
+    const names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
     var missing = [];
-    for (var i = 0; i < 7; i++) {
+    for (let i = 0; i < 7; i++) {
       if (!done[i]) missing.push(names7[i]);
     }
     return {
@@ -5060,7 +5343,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 公共函数：生成"缺失条目提示文本"（供 isSBRequest / start_sb 共用）
   function buildMissingMvuHint(missing) {
-    var hint = missing.map(function(item, i) {
+    const hint = missing.map(function(item, i) {
       return '  ' + (i + 1) + '. ' + item;
     }).join('\n');
     return '⚠️ 前7条未齐全（第8条=状态栏HTML，必须前7条完成后才生成）。\n' +
@@ -5081,12 +5364,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 公共常量：MVU 8条工作流规范文本（供 mvuPrompts.init_var / var_update_rule / buildMissingMvuHint 引用，避免多处重复维护）
   // ====================================================================
   // 逐条生成铁则（最高优先级）
-  var MVU_SEQUENTIAL_RULE =
+  const MVU_SEQUENTIAL_RULE =
     '【逐条生成铁则（最高优先级）】\n' +
     '⚠️ 一次只输出1条内容（脚本/条目/正则），输出后立即停下，不要写后面的。结尾只问用户："已生成第N条，说\'继续\'生成下一条"——不要一次性输出多条！\n' +
     '用户说"继续"后，再按顺序生成下一条。前7条全部完成后，才生成第8条（状态栏HTML）。\n\n';
   // 8条固定顺序（含每条详细规范）—— 第3/4条顺序已调整为：更新规则在前，变量列表在后
-  var MVU_8STEPS_DETAIL =
+  const MVU_8STEPS_DETAIL =
     '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
     '  第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema注册）\n' +
     '       · 文件头固定：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
@@ -5100,20 +5383,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
     '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成！走状态栏Step 2-6共5模块生成流程\n\n';
   // 通用生成规范（适用于所有8条）—— 第3/4条顺序已调整
-  var MVU_8STEPS_COMMON_RULES =
+  const MVU_8STEPS_COMMON_RULES =
     '【通用生成规范（适用于所有8条）】\n' +
     '1. 第2/3条必须严格依据第1条schema生成，schema一改这两条必跟改\n' +
     '2. 第4/5/6条是固定内容模板，原封不动输出（第5条的示例路径可参考schema字段名）\n' +
     '3. 禁止AI自行追加8条以外的额外条目（阶段判定/人设切换/EJS/派生字段等），除非用户明确要求\n' +
     '4. 每生成一条立即写入cardData并触发预览更新，用户可实时看到\n\n';
   // 修改场景防漏铁律 —— 第3/4条顺序已调整
-  var MVU_MODIFY_RULE =
+  const MVU_MODIFY_RULE =
     '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/8条全部跟改一遍（第4/5/6/7条原样保留）。';
   // 8条简短列表（供 mvuPrompts.next/summary 等引用）—— 第3/4条顺序已调整
-  var MVU_8STEPS_SHORT =
+  const MVU_8STEPS_SHORT =
     '①zod脚本 ②InitVar ③更新规则 ④变量列表 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
   // MVU变量系统创作指导（第1-6条详细规范）—— 供 mvuPrompts 按用户"写变量xxx"指令逐条输出对应规范
-  var MVU_VAR_SPEC =
+  const MVU_VAR_SPEC =
     '═══════════════════════════════════════════════════════════════════\n' +
     '📋 MVU变量系统创作指导（第1-6条详细规范）\n' +
     '═══════════════════════════════════════════════════════════════════\n\n' +
@@ -5429,7 +5712,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function buildPrompt(cardData, cardGenerated, messages) {
     // ========== Tab 隔离系统：根据当前 Tab 返回完全不同的提示词，两边互不干扰 ==========
     // 优先顺序：window.__getActiveTab()（最新闭包）→ window.__tab_activeTab → activeTab/currentTab（作用域降级）
-    var __tab = 'card';
+    let __tab = 'card';
     if (typeof window !== 'undefined') {
       if (typeof window.__getActiveTab === 'function') {
         try {
@@ -5448,10 +5731,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return buildMvuTabPrompt(cardData, messages);
     }
     // ===== 角色卡生成 Tab：继续走原逻辑，但严格剥离/禁止所有MVU内容 =====
-    var existingInfo = '';
-    var cd = cardData;
+    let existingInfo = '';
+    const cd = cardData;
     if (cd && (cd.name || cd.description || cd.first_mes || (cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0))) {
-      var parts = [];
+      const parts = [];
       if (cd.name) parts.push('世界/角色名称：' + cd.name);
       if (cd.description) parts.push('世界观描述(完整' + (cd.description || '').length + '字，不截断)：' + (cd.description || ''));
       if (cd.system_prompt) parts.push('系统指令(完整' + (cd.system_prompt || '').length + '字，不截断)：' + (cd.system_prompt || ''));
@@ -5459,8 +5742,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       var entries = (cd.character_book || {}).entries || [];
       if (entries.length > 0) {
         // ========== 角色卡Tab：过滤掉MVU相关条目，不让AI看到MVU内容，也禁止它生成 ==========
-        var filteredEntries = entries.filter(function(e) {
-          var c = (e.comment || '').toLowerCase();
+        const filteredEntries = entries.filter(function(e) {
+          const c = (e.comment || '').toLowerCase();
           // 只保留非MVU条目：剔除[InitVar]、变量列表、变量更新规则、变量输出格式、状态变量输出这5类MVU专属条目
           if (c.indexOf('[initvar]') >= 0) return false;
           if (_isVarListEntry(e.comment, e.content)) return false;
@@ -5470,7 +5753,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (c.indexOf('<状态栏>') >= 0) return false; // 角色卡Tab也不处理<状态栏>条目，MVU Tab专属
           return true;
         });
-        var entryText = '世界书条目（' + filteredEntries.length + '条，不含MVU变量系统内容）：';
+        let entryText = '世界书条目（' + filteredEntries.length + '条，不含MVU变量系统内容）：';
         filteredEntries.forEach(function(e, i) {
           // ⚠️修复：发送完整 content（不再截断200字），让 AI 在修改条目时能看到完整旧内容，
           //   避免AI基于200字摘要重新生成完全不同的内容覆盖旧条目
@@ -5478,14 +5761,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         parts.push(entryText);
         // 精确 comment 清单（只列非MVU条目）
-        var commentListText = '⚠️【世界书条目精确 comment 清单 - 删改时务必使用下列精确字符串匹配】\n';
+        let commentListText = '⚠️【世界书条目精确 comment 清单 - 删改时务必使用下列精确字符串匹配】\n';
         commentListText += '删除条目写法：\n';
         commentListText += '  方式1: { "_delete": ["character_book.entries.<这里粘贴完整comment>"] }\n';
         commentListText += '  方式2: entries数组里加 { "_action":"delete", "comment":"<这里粘贴完整comment>" }\n';
         commentListText += '修改条目写法（确保成功覆盖）：comment必须与下面「精确字符串」完全相同，字符级匹配，空格标点都不能变！\n';
         commentListText += '----------------------------------------\n';
         filteredEntries.forEach(function(e, i) {
-          var comment = e.comment || ('条目' + (i + 1));
+          const comment = e.comment || ('条目' + (i + 1));
           commentListText += (i + 1) + '. 精确字符串: ⟦' + comment + '⟧\n';
           commentListText += '     前缀类型: <' + extractEntryPrefix(comment) + '>\n';
         });
@@ -5497,20 +5780,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
 
     // 注入实际质检结果（防止AI虚报进度）—— 在角色卡Tab中，质检不统计MVU条目
-    var qcBlock = '';
+    let qcBlock = '';
     if (cd) {
       // 角色卡Tab：只注入角色卡口径质检项（24核心+5附加），正则/MVU专项不发给AI
-      var qcResults = getScopedQualityChecks(cd, 'card');
-      var passed = qcResults.filter(function(r) {
+      const qcResults = getScopedQualityChecks(cd, 'card');
+      const passed = qcResults.filter(function(r) {
         return r.pass;
       });
-      var failed = qcResults.filter(function(r) {
+      const failed = qcResults.filter(function(r) {
         return !r.pass;
       });
       var entries = (cd.character_book || {}).entries || [];
       // 角色卡Tab：过滤MVU条目后再统计各模块条目数
-      var nonMvuEntries = entries.filter(function(e) {
-        var c = (e.comment || '').toLowerCase();
+      const nonMvuEntries = entries.filter(function(e) {
+        const c = (e.comment || '').toLowerCase();
         if (c.indexOf('[initvar]') >= 0) return false;
         if (_isVarListEntry(e.comment, e.content)) return false;
         if (c.indexOf('变量更新规则') >= 0) return false;
@@ -5518,7 +5801,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (c.indexOf('状态变量输出') >= 0) return false;
         return true;
       });
-      var modCounts = {
+      const modCounts = {
         '基础公理': 0,
         '交互软规则': 0,
         '核心铁则': 0,
@@ -5529,7 +5812,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '动态适配': 0
       };
       nonMvuEntries.forEach(function(e) {
-        var c = e.comment || '';
+        const c = e.comment || '';
         Object.keys(modCounts).forEach(function(mod) {
           if (c.indexOf(mod) >= 0) modCounts[mod]++;
         });
@@ -5556,14 +5839,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       qcBlock += '- 严禁虚报进度，严禁把未完成的模块标记为完成\n';
     }
 
-    var stateInfo = cardGenerated ?
+    const stateInfo = cardGenerated ?
       '\n\n=== 当前状态：角色卡核心内容已具备【角色卡Tab生成模式】 ===\n用户可继续完善细节，或要求优化、质检、生成完整卡。' :
       '\n\n=== 当前状态：创作进行中【角色卡Tab生成模式】 ===\n请继续引导用户逐步完善六大模块内容。';
 
     // 角色卡Tab：永远不开启状态栏生成模式（即使模块级变量被污染也要强制屏蔽）
-    var statusBarStateInfo = '';
+    const statusBarStateInfo = '';
     // 角色卡Tab下的核心铁律注入：严格禁止生成任何MVU相关条目
-    var antiMvuBlock = '\n\n' +
+    const antiMvuBlock = '\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '⚠️【角色卡Tab核心铁律 · MVU隔离禁令 · 最高优先级，违反即失败】\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -5583,11 +5866,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n';
 
     // 构建系统提示词（角色卡Tab：过滤SYS_PROMPT中的MVU段落 + 追加MVU隔离禁令）
-    var filteredSysPrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
-    var sysPrompt = filteredSysPrompt + stateInfo + existingInfo + qcBlock + statusBarStateInfo + antiMvuBlock;
+    const filteredSysPrompt = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
+    const sysPrompt = filteredSysPrompt + stateInfo + existingInfo + qcBlock + statusBarStateInfo + antiMvuBlock;
 
     // jsonReminder：角色卡Tab下永远不进入状态栏代码生成模式，强制用:::操作块协议
-    var jsonReminder = '';
+    let jsonReminder = '';
     // 角色卡Tab：使用:::操作块协议（不再输出```json代码块）
     jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守（角色卡Tab）】\n' +
       '1. 严禁输出```json代码块！只使用:::操作块协议输出修改指令\n' +
@@ -5603,11 +5886,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '11. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n' +
       '12. ★★★【只增不删·冲突才改·不冲突保留】用户每条新信息都是在丰富角色卡，不是重写。新信息=新条目直接upsert；与旧内容不冲突=⟦⟧补充条目或upsert追加；与旧内容同一字段矛盾=才upsert覆盖该字段（其余旧内容原样保留）。禁止因"觉得旧内容不够好"就覆盖或删除。';
 
-    var fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
+    let fullPrompt = sysPrompt + jsonReminder + '\n\n=== 对话历史（角色卡Tab专属，与MVU Tab完全隔离） ===\n';
 
     // ★ 优先使用传入的 messages 参数（callAIChat 传的是 curTabMessages=当前Tab的消息，权威），
     //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
-    var tabMessages = (messages && Array.isArray(messages) && messages.length > 0) ?
+    const tabMessages = (messages && Array.isArray(messages) && messages.length > 0) ?
       messages :
       (typeof getCurrentMessages === 'function' && Array.isArray(getCurrentMessages())) ?
       getCurrentMessages() :
@@ -5615,12 +5898,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       window.__getCurrentMessages() :
       (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
-      var isLast = (idx === tabMessages.length - 1);
-      var roleLabel = (m.role === 'user' ? '用户' : '助手');
+      const isLast = (idx === tabMessages.length - 1);
+      const roleLabel = (m.role === 'user' ? '用户' : '助手');
       // 🐛修复：助手消息中的:::操作块、```代码块、<statusblock>都是给写卡器解析用的
       // AI不需要再看这些格式指令（它只需要看到自然语言对话+角色卡当前状态）
       // 发送给AI前全部清理掉，避免AI模仿格式、浪费token、产生混淆
-      var msgContent = m.content || '';
+      let msgContent = m.content || '';
       if (m.role === 'assistant') {
         msgContent = msgContent
           // 清理:::操作块（含开始::: action key 到结束:::）
@@ -5661,16 +5944,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 3. MVU变量系统设计模式区块（模式1-5 + zod安装清单）
     // 4. 步骤7：配变量系统区块
     // 简单起见，用分段+正则过滤掉关键词区域
-    var p = originalPrompt;
+    let p = originalPrompt;
     // 条目命名规范中移除7个MVU相关条目前缀说明
     // ⚠️ 宽松锚点：SYS_PROMPT 实际文本为 "- [InitVar]初始变量（第2条）：MVU变量系统..."
     // （原先正则要求字面 ":MVU变量系统" 无（第N条）编号，导致永不匹配、MVU条目说明泄漏）
-    var mvuPrefixPattern = /- \[InitVar\]初始变量[^\n]*MVU变量系统[\s\S]*?- <状态变量输出>：输出当前变量状态给LLM的触发条目/;
+    const mvuPrefixPattern = /- \[InitVar\]初始变量[^\n]*MVU变量系统[\s\S]*?- <状态变量输出>：输出当前变量状态给LLM的触发条目/;
     if (mvuPrefixPattern.test(p)) {
       p = p.replace(mvuPrefixPattern, '- 【MVU专属条目已剥离 - 请在MVU变量状态栏Tab查看】');
     }
     // 条目配置规范表中移除 MVU 相关行（最后5行左右的 MVU 条目配置）
-    var mvuConfigPattern = /\| \[InitVar\]初始变量[\s\S]*?\| <状态变量输出>.*?\n/;
+    const mvuConfigPattern = /\| \[InitVar\]初始变量[\s\S]*?\| <状态变量输出>.*?\n/;
     if (mvuConfigPattern.test(p)) {
       p = p.replace(mvuConfigPattern, '| 【MVU条目配置已剥离 - 请在MVU变量状态栏Tab查看】 |\n');
     }
@@ -5681,7 +5964,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     /* 改进B：过滤"步骤7：配变量系统"区块（变量系统配置说明，MVU Tab专属） */
     // ⚠️ 前瞻补全为三个等号（(?==== ...)）：实际标题为 "=== 质量检查标准"，原先两个等号会在
     // 标题第一个 = 处提前截断，替换后标题被腐蚀成 "== 质量检查标准"
-    var mvuStep7Pattern = /\*\*步骤7：配变量系统\*\*[\s\S]*?(?==== 质量检查标准)/;
+    const mvuStep7Pattern = /\*\*步骤7：配变量系统\*\*[\s\S]*?(?==== 质量检查标准)/;
     if (mvuStep7Pattern.test(p)) {
       p = p.replace(mvuStep7Pattern, '**步骤7：配变量系统**（MVU变量系统，进阶可选）- 【已剥离，请在MVU变量状态栏Tab查看】\n\n');
     }
@@ -5690,20 +5973,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ========== MVU Tab 专属提示词：完全不发角色卡生成逻辑，只发角色卡内容 + MVU指令 ==========
   function buildMvuTabPrompt(cardData, messages) {
-    var cd = cardData || {};
+    const cd = cardData || {};
     // 1. 收集当前角色卡的「纯内容上下文」（仅用于参考，不发送角色卡生成逻辑）
-    var cardContext = '';
-    var ctxParts = [];
+    let cardContext = '';
+    const ctxParts = [];
     if (cd.name) ctxParts.push('角色/世界名称：' + cd.name);
     if (cd.description) ctxParts.push('世界观描述(完整' + (cd.description || '').length + '字，不截断)：' + (cd.description || ''));
     if (cd.first_mes) ctxParts.push('开场白(完整' + (cd.first_mes || '').length + '字，不截断)：' + (cd.first_mes || ''));
     // 从现有角色卡条目中，提取MVU专属条目（如果存在）——只提取这些，其他世界书条目不发给AI（避免干扰）
-    var entries = (cd.character_book || {}).entries || [];
+    const entries = (cd.character_book || {}).entries || [];
     // ========== 消除过度隔离：注入常规世界书条目摘要（只读上下文） ==========
     // MVU Tab 设计变量时需要知道世界里有哪些实体/属性/机制，才能设计出有意义的变量
     // 只发 comment + content 前300字摘要，不发完整内容（节省 token），且明确标注「只读、不可修改」
-    var nonMvuEntries = entries.filter(function(e) {
-      var c = (e.comment || '').toLowerCase();
+    const nonMvuEntries = entries.filter(function(e) {
+      const c = (e.comment || '').toLowerCase();
       if (c.indexOf('[initvar]') >= 0) return false;
       if (_isVarListEntry(e.comment, e.content)) return false;
       if (c.indexOf('变量更新规则') >= 0) return false;
@@ -5712,15 +5995,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return true;
     });
     if (nonMvuEntries.length > 0) {
-      var nonMvuText = '世界书常规条目完整内容（' + nonMvuEntries.length + '条 · 只读上下文，用于设计变量参考，❌禁止修改这些条目）：\n';
+      let nonMvuText = '世界书常规条目完整内容（' + nonMvuEntries.length + '条 · 只读上下文，用于设计变量参考，❌禁止修改这些条目）：\n';
       nonMvuEntries.forEach(function(e, i) {
-        var content = (e.content || '');
+        const content = (e.content || '');
         nonMvuText += '  ' + (i + 1) + '. [' + (e.comment || '条目' + (i + 1)) + '] (完整' + content.length + '字，不截断):\n' + content + '\n';
       });
       ctxParts.push(nonMvuText);
     }
-    var mvuOnlyEntries = entries.filter(function(e) {
-      var c = (e.comment || '').toLowerCase();
+    const mvuOnlyEntries = entries.filter(function(e) {
+      const c = (e.comment || '').toLowerCase();
       if (c.indexOf('[initvar]') >= 0) return true;
       if (_isVarListEntry(e.comment, e.content)) return true;
       if (c.indexOf('变量更新规则') >= 0) return true;
@@ -5729,7 +6012,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return false;
     });
     if (mvuOnlyEntries.length > 0) {
-      var mvuEntryText = '当前已有MVU变量条目（' + mvuOnlyEntries.length + '条）：\n';
+      let mvuEntryText = '当前已有MVU变量条目（' + mvuOnlyEntries.length + '条）：\n';
       mvuEntryText += '⚠️ 下方每条条目的「实际content」被 <<<content 开始>>> ... <<<content 结束>>> 包裹。\n';
       mvuEntryText += '⚠️ upsert 时只输出 <<<content 开始>>> 和 <<<content 结束>>> 之间的部分作为 content，\n';
       mvuEntryText += '   绝对不要把 comment/enabled/keys 这些字段名当 YAML 变量写进 content！\n\n';
@@ -5743,7 +6026,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       });
       ctxParts.push(mvuEntryText);
       // 追加精确comment清单（供:::操作块精确匹配用）
-      var mvuCmtList = '⚠️【MVU条目精确 comment 清单 - :::操作块增删改时务必使用精确字符串】\n';
+      let mvuCmtList = '⚠️【MVU条目精确 comment 清单 - :::操作块增删改时务必使用精确字符串】\n';
       mvuOnlyEntries.forEach(function(e, i) {
         mvuCmtList += (i + 1) + '. ⟦' + (e.comment || '') + '⟧ enabled=' + (e.enabled === false ? 'false' : 'true') + '\n';
       });
@@ -5754,14 +6037,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       ctxParts.push(mvuCmtList);
     }
     // 提取已有的正则脚本中 MVU 相关内容
-    var regexScripts = (cd.extensions || {}).regex_scripts || [];
-    var mvuRegexScripts = regexScripts.filter(function(s) {
-      var name = (s.scriptName || '').toLowerCase();
-      var find = (s.findRegex || '').toLowerCase();
+    const regexScripts = (cd.extensions || {}).regex_scripts || [];
+    const mvuRegexScripts = regexScripts.filter(function(s) {
+      const name = (s.scriptName || '').toLowerCase();
+      const find = (s.findRegex || '').toLowerCase();
       return name.indexOf('mvu') >= 0 || name.indexOf('status') >= 0 || find.indexOf('statusplaceholderimpl') >= 0 || find.indexOf('updatevariable') >= 0;
     });
     if (mvuRegexScripts.length > 0) {
-      var rxText = '当前已有MVU相关正则脚本（' + mvuRegexScripts.length + '条）：\n';
+      let rxText = '当前已有MVU相关正则脚本（' + mvuRegexScripts.length + '条）：\n';
       mvuRegexScripts.forEach(function(r, i) {
         rxText += '── 正则 ' + (i + 1) + ' ──\n';
         rxText += '名称: ' + (r.scriptName || '(空)') + '\n';
@@ -5781,7 +6064,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 2. 状态栏已统一使用单一模板（MVU_STATUS_BAR_TEMPLATE），不再有分步模式状态信息
 
     // 3. MVU 专属系统指令（SYS_PROMPT中 MVU 部分的精简提取）
-    var mvuSystemPrompt = '' +
+    const mvuSystemPrompt = '' +
       '你是「MVU变量与状态栏设计师」——专门负责设计和维护MVU变量系统与HTML状态栏。\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎯 你的专属职责（只有这些，别的都不管）\n' +
@@ -5887,7 +6170,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· 状态栏只输出完整HTML代码块（```html 或纯```），不要用JSON包\n';
 
     // 4. JSON/输出格式提醒（MVU Tab版）
-    var jsonReminder = '\n\n' +
+    const jsonReminder = '\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '⚠️【输出格式提醒（MVU Tab）】\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -5909,7 +6192,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ⚠️修复：原先系统提示词只写"详见MVU_VAR_SPEC第N条"的引用文字，从未实际拼接规范内容——
     // AI 根本看不到六大模板详细规范，被迫依赖快捷按钮把整段规范当用户消息发送（用户看到一大段文字）。
     // 现在把全部规范常量拼入后台系统提示词，用户消息只需简短指令。
-    var specBlock = '\n\n' +
+    const specBlock = '\n\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '📖 MVU六大模板 + 8条工作流完整规范（后台注入，无需用户复述）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -5918,14 +6201,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       MVU_VAR_SPEC + '\n\n' +
       MVU_8STEPS_COMMON_RULES + '\n' +
       MVU_MODIFY_RULE + '\n';
-    var fullPrompt = mvuSystemPrompt + specBlock + cardContext + jsonReminder +
+    let fullPrompt = mvuSystemPrompt + specBlock + cardContext + jsonReminder +
       '\n\n═══════════════════════════════════════════════════════════════════\n' +
       '📜 对话历史（MVU Tab专属，与角色卡Tab完全隔离）\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
     // ★ 优先使用传入的 messages 参数（callAIChat 传的是 curTabMessages=当前Tab的消息，权威），
     //   未传时再降级到 getCurrentMessages()/window.__getCurrentMessages()，避免上下文与实际发送的Tab错位
-    var tabMessages = (messages && Array.isArray(messages) && messages.length > 0) ?
+    const tabMessages = (messages && Array.isArray(messages) && messages.length > 0) ?
       messages :
       (typeof getCurrentMessages === 'function' && Array.isArray(getCurrentMessages())) ?
       getCurrentMessages() :
@@ -5933,12 +6216,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       window.__getCurrentMessages() :
       (Array.isArray(messages) ? messages : []);
     tabMessages.forEach(function(m, idx) {
-      var isLast = (idx === tabMessages.length - 1);
-      var roleLabel = (m.role === 'user' ? '用户' : '助手');
+      const isLast = (idx === tabMessages.length - 1);
+      const roleLabel = (m.role === 'user' ? '用户' : '助手');
       // 🐛修复：助手消息中的:::操作块、```代码块、<statusblock>都是给写卡器解析用的
       // AI不需要再看这些格式指令（它只需要看到自然语言对话+角色卡当前状态）
       // 发送给AI前全部清理掉，避免AI模仿格式、浪费token、产生混淆
-      var msgContent = m.content || '';
+      let msgContent = m.content || '';
       if (m.role === 'assistant') {
         msgContent = msgContent
           // 清理:::操作块（含开始::: action key 到结束:::）
@@ -5971,21 +6254,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 这是最后一道防线：即使AI违反prompt禁令生成了MVU内容，这里也会硬性拦截过滤
   function filterMvuEntriesFromParsed(parsed) {
     /* 改进M：浅拷贝+entries数组单独拷贝（避免整卡深拷贝的性能开销） */
-    var result = Object.assign({}, parsed);
+    const result = Object.assign({}, parsed);
     if (Array.isArray(parsed.entries)) result.entries = parsed.entries.slice();
     if (Array.isArray(parsed.regex_scripts)) result.regex_scripts = parsed.regex_scripts.slice();
     if (Array.isArray(parsed._delete)) result._delete = parsed._delete.slice();
-    var strippedCount = 0;
-    var regexScriptStripped = false;
+    let strippedCount = 0;
+    let regexScriptStripped = false;
 
     // 1. 过滤 entries 数组中的MVU条目
     if (result.entries && Array.isArray(result.entries)) {
-      var beforeCount = result.entries.length;
+      const beforeCount = result.entries.length;
       result.entries = result.entries.filter(function(e) {
-        var c = ((e.comment || '') + ' ' + (e.content || '')).toLowerCase();
-        var isMvuEntry = false;
+        const c = ((e.comment || '') + ' ' + (e.content || '')).toLowerCase();
+        let isMvuEntry = false;
         // comment匹配：MVU条目的精确comment
-        var cmt = (e.comment || '').toLowerCase();
+        const cmt = (e.comment || '').toLowerCase();
         if (cmt.indexOf('[initvar]') >= 0) isMvuEntry = true;
         if (_isVarListEntry(e.comment, e.content)) isMvuEntry = true;
         if (cmt.indexOf('变量更新规则') >= 0) isMvuEntry = true;
@@ -6004,14 +6287,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 2. 过滤 _delete 数组中的MVU条目删除请求（角色卡Tab无权操作MVU条目，删除/修改都拦）
     if (result._delete && Array.isArray(result._delete)) {
-      var beforeDel = result._delete.length;
+      const beforeDel = result._delete.length;
       result._delete = result._delete.filter(function(target) {
         if (typeof target !== 'string') return true; // 非字符串的保留（通常是字段名，MVU用comment字符串匹配）
-        var t = target.toLowerCase();
-        var isMvuTarget = false;
+        const t = target.toLowerCase();
+        let isMvuTarget = false;
         if (t.indexOf('character_book.entries.') >= 0) {
           // 提取entry comment部分并检查
-          var entryCmt = t.replace(/^.*character_book\.entries\./, '');
+          const entryCmt = t.replace(/^.*character_book\.entries\./, '');
           if (entryCmt.indexOf('[initvar]') >= 0) isMvuTarget = true;
           if (entryCmt.indexOf('变量列表') >= 0) isMvuTarget = true;
           if (entryCmt.indexOf('变量更新规则') >= 0) isMvuTarget = true;
@@ -6030,10 +6313,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 3. 过滤 entries 数组中带 _action: "delete" / "update" 的MVU条目操作
     if (result.entries && Array.isArray(result.entries)) {
-      var beforeAct = result.entries.length;
+      const beforeAct = result.entries.length;
       result.entries = result.entries.filter(function(e) {
         if (e._action) {
-          var cmt = (e.comment || '').toLowerCase();
+          const cmt = (e.comment || '').toLowerCase();
           if (cmt.indexOf('[initvar]') >= 0) return false;
           if (cmt.indexOf('变量列表') >= 0) return false;
           if (cmt.indexOf('变量更新规则') >= 0) return false;
@@ -6049,11 +6332,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // 4. 过滤 extensions.regex_scripts 中的MVU相关正则脚本（角色卡Tab无权修改MVU正则）
     if (result.extensions && result.extensions.regex_scripts && Array.isArray(result.extensions.regex_scripts)) {
-      var rxBefore = result.extensions.regex_scripts.length;
+      const rxBefore = result.extensions.regex_scripts.length;
       result.extensions.regex_scripts = result.extensions.regex_scripts.filter(function(rx) {
-        var name = ((rx.scriptName || '') + ' ' + (rx.findRegex || '')).toLowerCase();
+        const name = ((rx.scriptName || '') + ' ' + (rx.findRegex || '')).toLowerCase();
         // MVU特征：MVU/StatusPlaceHolderImpl/UpdateVariable/status正则
-        var isMvuRegex = false;
+        let isMvuRegex = false;
         if (name.indexOf('mvu') >= 0) isMvuRegex = true;
         if (name.indexOf('statusplaceholderimpl') >= 0) isMvuRegex = true;
         if (name.indexOf('updatevariable') >= 0) isMvuRegex = true;
@@ -6068,7 +6351,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 5. 直接检查顶层描述字段是否夹带MVU内容（通常不会，但防一手）
     ['description', 'system_prompt', 'first_mes', 'personality', 'scenario'].forEach(function(f) {
       if (typeof result[f] === 'string') {
-        var s = result[f].toLowerCase();
+        const s = result[f].toLowerCase();
         if (s.indexOf('format_message_variable') >= 0 || s.indexOf('[mvu_update]') >= 0 || s.indexOf('<updatevariable>') >= 0) {
           // 这些字段里不应该出现MVU关键宏/标记，如果有则剔除相关段或整个字段
           // 简单处理：替换掉MVU标记
@@ -6093,20 +6376,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   附加5  = 触发词精准度 / 上下文占用 / 中文适配 / 创作者备注 / 常驻group冲突
   // 仅 MVU Tab 追加：regex_scripts高价值1 + 正则触发键1 + 正则脚本6 + MVU变量系统6
   function runQualityCheck(cd) {
-    var results = [];
-    var desc = cd.description || '';
-    var first = cd.first_mes || '';
-    var sys = cd.system_prompt || '';
-    var notes = cd.creator_notes || '';
-    var personality = cd.personality || '';
-    var scenario = cd.scenario || '';
-    var name = cd.name || '';
-    var altG = cd.alternate_greetings || [];
-    var entries = (cd.character_book || {}).entries || [];
-    var hasEntries = entries.length > 0;
-    var ext = cd.extensions || {};
-    var dp = ext.depth_prompt || {};
-    var rx = ext.regex_scripts || [];
+    const results = [];
+    const desc = cd.description || '';
+    const first = cd.first_mes || '';
+    const sys = cd.system_prompt || '';
+    const notes = cd.creator_notes || '';
+    const personality = cd.personality || '';
+    const scenario = cd.scenario || '';
+    const name = cd.name || '';
+    const altG = cd.alternate_greetings || [];
+    const entries = (cd.character_book || {}).entries || [];
+    const hasEntries = entries.length > 0;
+    const ext = cd.extensions || {};
+    const dp = ext.depth_prompt || {};
+    const rx = ext.regex_scripts || [];
 
     // === 基础字段检查（6项） ===
     results.push({
@@ -6155,10 +6438,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // === 高价值字段检查（角色卡口径2项；regex_scripts 项仅 MVU Tab 计入） ===
     // 多开局机制：<动态适配>分支开局 + initvar 或 first_mes 内嵌选项
-    var multiOpenEntries = entries.filter(function(e) {
+    const multiOpenEntries = entries.filter(function(e) {
       return (e.comment || '').indexOf('<动态适配>') >= 0 || (e.comment || '').indexOf('分支开局') >= 0;
     }).length;
-    var firstMesHasChoice = first.indexOf('①') >= 0 || first.indexOf('②') >= 0 || first.indexOf('③') >= 0 || first.indexOf('选项') >= 0 || first.indexOf('选择') >= 0 || (first.indexOf('1.') >= 0 && first.indexOf('2.') >= 0);
+    const firstMesHasChoice = first.indexOf('①') >= 0 || first.indexOf('②') >= 0 || first.indexOf('③') >= 0 || first.indexOf('选项') >= 0 || first.indexOf('选择') >= 0 || (first.indexOf('1.') >= 0 && first.indexOf('2.') >= 0);
     results.push({
       pass: multiOpenEntries >= 1 || firstMesHasChoice,
       category: '高价值字段',
@@ -6189,7 +6472,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: '当前 ' + entries.length + ' 条（自由增减）',
       fix: entries.length < 1 ? '建议至少创建1条世界书条目（数量不限，按需增长）' : '条目数量自由（不限上限下限，随创作进度自然增加）'
     });
-    var entriesWithKeys = entries.filter(function(e) {
+    const entriesWithKeys = entries.filter(function(e) {
       return e.keys && e.keys.length > 0;
     }).length;
     results.push({
@@ -6199,7 +6482,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: entriesWithKeys + '/' + entries.length + ' 条有触发词',
       fix: !hasEntries ? '无条目' : (entriesWithKeys < entries.length * 0.5 ? '建议为更多条目设置精准触发词' : '触发词覆盖良好')
     });
-    var entriesWithContent = entries.filter(function(e) {
+    const entriesWithContent = entries.filter(function(e) {
       return (e.content || '').length >= 250;
     }).length;
     results.push({
@@ -6209,7 +6492,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: entriesWithContent + '/' + entries.length + ' 条≥250字（不强制）',
       fix: !hasEntries ? '无条目' : '字数完全自由，按你需要的精细度决定每条长短'
     });
-    var entriesWithPrefix = entries.filter(function(e) {
+    const entriesWithPrefix = entries.filter(function(e) {
       return /^<[^>]+>/.test(e.comment || '') || /^\[InitVar\]/.test(e.comment || '') || isMVUEntry(e.comment || '');
     }).length;
     results.push({
@@ -6220,11 +6503,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (entriesWithPrefix < entries.length * 0.5 ? '建议使用<基础公理>、<核心铁则>等规范前缀（MVU条目用[InitVar]前缀）' : '命名规范良好')
     });
     // 权重合理性：核心规则在高权重位
-    var coreIronRuleCount = entries.filter(function(e) {
+    const coreIronRuleCount = entries.filter(function(e) {
       return (e.comment || '').indexOf('<核心铁则>') >= 0 || (e.comment || '').indexOf('<禁止项>') >= 0;
     }).length;
-    var hasHighWeightCore = coreIronRuleCount >= 1;
-    var nearConstraintCount = entries.filter(function(e) {
+    const hasHighWeightCore = coreIronRuleCount >= 1;
+    const nearConstraintCount = entries.filter(function(e) {
       return (e.comment || '').indexOf('<近场强约束>') >= 0 || (e.comment || '').indexOf('<当前局势>') >= 0;
     }).length;
     results.push({
@@ -6235,9 +6518,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasHighWeightCore ? '核心规则必须放在高权重位（<核心铁则>条目）' : '权重分配合理'
     });
     // content自包含性：检查是否有依赖上下文的内容（新增）
-    var selfContainedBadPatterns = ['如上所述', '见上文', '前文提到', '之前说过', '上述内容', '上面提到', '如前文', '如前所述'];
-    var nonSelfContainedEntries = entries.filter(function(e) {
-      var c = e.content || '';
+    const selfContainedBadPatterns = ['如上所述', '见上文', '前文提到', '之前说过', '上述内容', '上面提到', '如前文', '如前所述'];
+    const nonSelfContainedEntries = entries.filter(function(e) {
+      const c = e.content || '';
       return selfContainedBadPatterns.some(function(p) {
         return c.indexOf(p) >= 0;
       });
@@ -6252,8 +6535,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // === 世界书高级功能检查（角色卡口径7项；「正则触发键」仅 MVU Tab 计入，共8项） ===
     // 递归链条：实体条目关联背景叙事条目（delay_until_recursion）
-    var hasRecursionChain = entries.some(function(e) {
-      var ext = e.extensions || {};
+    const hasRecursionChain = entries.some(function(e) {
+      const ext = e.extensions || {};
       return ext.delay_until_recursion === true || ext.delay_until_recursion === 1;
     });
     results.push({
@@ -6264,8 +6547,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (!hasRecursionChain ? '建议为叙事类条目开启delay_until_recursion，实现"提到A时自动带出A的背景"' : '递归链条已配置')
     });
     // 分组机制：场景变体/难度分层使用group分组
-    var hasGroup = entries.some(function(e) {
-      var ext = e.extensions || {};
+    const hasGroup = entries.some(function(e) {
+      const ext = e.extensions || {};
       return ext.group && ext.group !== '';
     });
     results.push({
@@ -6278,7 +6561,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (!hasGroup ? '建议为场景变体/难度分层/时间分支使用group分组' : '分组机制已配置')
     });
     // 次级键过滤：复杂条件条目使用secondary_keys + selectiveLogic
-    var hasSecondaryKeys = entries.some(function(e) {
+    const hasSecondaryKeys = entries.some(function(e) {
       return e.secondary_keys && e.secondary_keys.length > 0;
     });
     results.push({
@@ -6291,8 +6574,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (!hasSecondaryKeys ? '建议为复杂条件条目设置secondary_keys配合selectiveLogic' : '次级键过滤已配置')
     });
     // 概率事件：随机天气/彩蛋/遭遇使用probability
-    var hasProbability = entries.some(function(e) {
-      var ext = e.extensions || {};
+    const hasProbability = entries.some(function(e) {
+      const ext = e.extensions || {};
       return ext.useProbability === true && ext.probability !== undefined && ext.probability < 100;
     });
     results.push({
@@ -6300,13 +6583,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       category: '世界书高级',
       name: '概率事件：probability < 100',
       desc: hasProbability ? (entries.filter(function(e) {
-        var ext = e.extensions || {};
+        const ext = e.extensions || {};
         return ext.useProbability === true && ext.probability < 100;
       }).length + ' 条使用概率触发') : '未使用概率触发',
       fix: !hasEntries ? '无条目' : (!hasProbability ? '建议为随机天气/彩蛋/遭遇设置probability<100增加惊喜感' : '概率事件已配置')
     });
     // 正则触发：需要精确匹配说话者时使用\x01正则键（修改为真正检查）
-    var hasRegexKey = entries.some(function(e) {
+    const hasRegexKey = entries.some(function(e) {
       return (e.keys || []).some(function(k) {
         return typeof k === 'string' && k.indexOf('/') === 0;
       });
@@ -6323,8 +6606,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (!hasRegexKey ? '需要精确匹配说话者时可使用正则键（/\\x01{{user}}:.../i）实现精准触发' : '正则触发键已配置')
     });
     // 组评分：大分组条目使用use_group_scoring提升精准度（修改为真正检查）
-    var hasGroupScoring = entries.some(function(e) {
-      var ext = e.extensions || {};
+    const hasGroupScoring = entries.some(function(e) {
+      const ext = e.extensions || {};
       return ext.use_group_scoring === true;
     });
     results.push({
@@ -6335,13 +6618,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (!hasGroupScoring ? '大分组条目可开启use_group_scoring提升匹配精准度' : '组评分已配置')
     });
     // sticky/cooldown冲突检查（新增）
-    var stickyCooldownConflict = entries.filter(function(e) {
-      var ext = e.extensions || {};
-      var stickyVal = ext.sticky;
-      var cdVal = ext.cooldown;
+    const stickyCooldownConflict = entries.filter(function(e) {
+      const ext = e.extensions || {};
+      const stickyVal = ext.sticky;
+      const cdVal = ext.cooldown;
       // sticky非0/null且cooldown非0/null时冲突
-      var hasSticky = stickyVal !== undefined && stickyVal !== null && stickyVal !== 0 && stickyVal !== false;
-      var hasCooldown = cdVal !== undefined && cdVal !== null && cdVal !== 0;
+      const hasSticky = stickyVal !== undefined && stickyVal !== null && stickyVal !== 0 && stickyVal !== false;
+      const hasCooldown = cdVal !== undefined && cdVal !== null && cdVal !== 0;
       return hasSticky && hasCooldown;
     }).length;
     results.push({
@@ -6352,9 +6635,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: !hasEntries ? '无条目' : (stickyCooldownConflict > 0 ? 'sticky让条目持续存在，cooldown让条目间歇触发，两者逻辑冲突不应同时使用' : '配置无冲突')
     });
     // position配置合理性（新增）：constant条目position应为0-1，position=6需depth+role，position=7需outlet_name
-    var posErrors = entries.filter(function(e) {
-      var pos = e.position;
-      var ext = e.extensions || {};
+    const posErrors = entries.filter(function(e) {
+      const pos = e.position;
+      const ext = e.extensions || {};
       // constant=true时position应在0-1范围
       if (e.constant === true && pos !== undefined && pos !== null && pos > 1) return true;
       // position=6时需要有depth和role
@@ -6377,10 +6660,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // === 正则脚本检查（6项） ===
     // 脚本功能单一：每个脚本只做一件事（通过名称判断）
-    var multiFunctionScripts = rx.filter(function(s) {
-      var name = s.scriptName || '';
-      var functions = ['状态', '格式', '标签', '高亮', '过滤', '替换', '清理'];
-      var count = functions.filter(function(f) {
+    const multiFunctionScripts = rx.filter(function(s) {
+      const name = s.scriptName || '';
+      const functions = ['状态', '格式', '标签', '高亮', '过滤', '替换', '清理'];
+      const count = functions.filter(function(f) {
         return name.indexOf(f) >= 0;
       }).length;
       return count > 1;
@@ -6393,10 +6676,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: multiFunctionScripts > 0 ? '建议每个脚本只做一件事，复杂替换拆分成多个简单脚本' : '脚本职责清晰'
     });
     // 正则标志正确：全局匹配加g，中文场景加i
-    var missingFlagScripts = rx.filter(function(s) {
-      var pattern = s.findRegex || '';
-      var flagMatch = pattern.match(/\/([gimsu]*)$/);
-      var flags = flagMatch ? flagMatch[1] : '';
+    const missingFlagScripts = rx.filter(function(s) {
+      const pattern = s.findRegex || '';
+      const flagMatch = pattern.match(/\/([gimsu]*)$/);
+      const flags = flagMatch ? flagMatch[1] : '';
       return flags.indexOf('g') < 0;
     }).length;
     results.push({
@@ -6407,8 +6690,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: missingFlagScripts > 0 ? 'findRegex应包含g标志（如/pattern/gi），否则只替换第一个匹配' : '正则标志正确'
     });
     // 非贪婪匹配：使用.*?避免过度匹配
-    var greedyScripts = rx.filter(function(s) {
-      var pattern = s.findRegex || '';
+    const greedyScripts = rx.filter(function(s) {
+      const pattern = s.findRegex || '';
       return pattern.indexOf('.*?') < 0 && pattern.indexOf('.+?') < 0 && (pattern.indexOf('.*') >= 0 || pattern.indexOf('.+') >= 0);
     }).length;
     results.push({
@@ -6419,8 +6702,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: greedyScripts > 0 ? '建议使用.*?或.+?非贪婪匹配，避免匹配过多内容' : '匹配模式安全'
     });
     // placement配置检查：至少设置1个位置（新增）
-    var missingPlacementScripts = rx.filter(function(s) {
-      var p = s.placement;
+    const missingPlacementScripts = rx.filter(function(s) {
+      const p = s.placement;
       return !p || !Array.isArray(p) || p.length === 0;
     }).length;
     results.push({
@@ -6431,8 +6714,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: missingPlacementScripts > 0 ? '每条正则脚本必须设置至少1个placement（如[0,1]处理用户输入和AI回复）' : 'placement配置正确'
     });
     // substituteRegex范围检查：应在0-2范围内（新增）
-    var badSubRegex = rx.filter(function(s) {
-      var sr = s.substituteRegex;
+    const badSubRegex = rx.filter(function(s) {
+      const sr = s.substituteRegex;
       return sr !== undefined && sr !== null && (sr < 0 || sr > 2);
     }).length;
     results.push({
@@ -6443,9 +6726,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: badSubRegex > 0 ? 'substituteRegex必须在0-2范围内（0=不替换宏，1=原始替换，2=转义替换）' : 'substituteRegex配置正确'
     });
     // runOnEdit标准：StageDog模板默认false（避免编辑消息时重复执行），状态栏类/变量美化类脚本建议false
-    var mvScriptsWithBadRunOnEdit = rx.filter(function(s) {
-      var name = (s.scriptName || '').toLowerCase();
-      var isMvuOrStatusScript = name.indexOf('状态') >= 0 || name.indexOf('status') >= 0 || name.indexOf('格式化') >= 0 ||
+    const mvScriptsWithBadRunOnEdit = rx.filter(function(s) {
+      const name = (s.scriptName || '').toLowerCase();
+      const isMvuOrStatusScript = name.indexOf('状态') >= 0 || name.indexOf('status') >= 0 || name.indexOf('格式化') >= 0 ||
         name.indexOf('变量') >= 0 || name.indexOf('updatevariable') >= 0 || name.indexOf('mvu') >= 0 ||
         name.indexOf('思维链') >= 0 || name.indexOf('analysis') >= 0;
       return isMvuOrStatusScript && s.runOnEdit !== false;
@@ -6459,10 +6742,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
 
     // === 运行效果检查（3项） ===
-    var permanentEntries = entries.filter(function(e) {
+    const permanentEntries = entries.filter(function(e) {
       return e.constant === true;
     });
-    var permanentTokenCount = 0;
+    let permanentTokenCount = 0;
     permanentEntries.forEach(function(e) {
       permanentTokenCount += countTokens(e.content || '');
     });
@@ -6474,11 +6757,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: permanentTokenCount > 2000 ? '常驻内容>2000Token，如遇AI失忆可考虑精简部分' : 'Token量自由掌握，仅参考'
     });
     // 递归安全：实体类条目开启prevent_recursion
-    var entityEntries = entries.filter(function(e) {
-      var c = e.comment || '';
+    const entityEntries = entries.filter(function(e) {
+      const c = e.comment || '';
       return c.indexOf('<实体交互>') >= 0 || c.indexOf('<重要角色>') >= 0 || c.indexOf('<势力与组织>') >= 0 || c.indexOf('<物品>') >= 0 || c.indexOf('<地点场景>') >= 0;
     });
-    var recursionRiskEntries = entityEntries.filter(function(e) {
+    const recursionRiskEntries = entityEntries.filter(function(e) {
       return !(e.extensions && e.extensions.prevent_recursion);
     }).length;
     results.push({
@@ -6489,11 +6772,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: recursionRiskEntries > 0 ? '实体类条目必须开启prevent_recursion防止链式触发炸Token' : '递归安全'
     });
     // 冷却防抖：场景类条目开启cooldown
-    var sceneEntries = entries.filter(function(e) {
-      var c = e.comment || '';
+    const sceneEntries = entries.filter(function(e) {
+      const c = e.comment || '';
       return c.indexOf('<场景机制>') >= 0 || c.indexOf('<核心玩法>') >= 0 || c.indexOf('<世界规则>') >= 0;
     });
-    var noCooldownEntries = sceneEntries.filter(function(e) {
+    const noCooldownEntries = sceneEntries.filter(function(e) {
       return !(e.extensions && e.extensions.cooldown && e.extensions.cooldown > 0);
     }).length;
     results.push({
@@ -6505,9 +6788,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
 
     // === 附加检查（5项，不计入核心24项；正则/MVU专项仅 MVU Tab 计入） ===
-    var highRiskKeys = ['的', '是', '在', '有', '了', '和', '就', '都', '而', '及', '与', '一个', '一些', '什么', '如何', '怎么'];
-    var riskyEntries = entries.filter(function(e) {
-      var ks = e.keys || [];
+    const highRiskKeys = ['的', '是', '在', '有', '了', '和', '就', '都', '而', '及', '与', '一个', '一些', '什么', '如何', '怎么'];
+    const riskyEntries = entries.filter(function(e) {
+      const ks = e.keys || [];
       return ks.some(function(k) {
         return highRiskKeys.indexOf(k) >= 0;
       });
@@ -6519,12 +6802,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: riskyEntries + ' 条使用泛用关键词',
       fix: riskyEntries > 0 ? '避免使用"的"、"是"等泛用词作为触发词，改用领域专属词汇' : '触发词精准'
     });
-    var totalTokenCount = countTokens(desc) + countTokens(first) + countTokens(sys) +
+    const totalTokenCount = countTokens(desc) + countTokens(first) + countTokens(sys) +
       entries.reduce(function(sum, e) {
         return sum + countTokens(e.content || '');
       }, 0);
-    var window8k = Math.round(totalTokenCount / 8192 * 100);
-    var window16k = Math.round(totalTokenCount / 16384 * 100);
+    const window8k = Math.round(totalTokenCount / 8192 * 100);
+    const window16k = Math.round(totalTokenCount / 16384 * 100);
     results.push({
       pass: window8k <= 60,
       category: '附加检查',
@@ -6532,7 +6815,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       desc: '8k窗口: ' + window8k + '% | 16k窗口: ' + window16k + '%',
       fix: window8k > 60 ? '内容偏多，可能影响长对话记忆，建议精简' : '上下文占用合理'
     });
-    var cnEntries = entries.filter(function(e) {
+    const cnEntries = entries.filter(function(e) {
       return e.match_whole_words === true || (e.extensions && e.extensions.match_whole_words === true);
     }).length;
     results.push({
@@ -6550,19 +6833,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       fix: notes.length > 0 ? '备注已记录（不限字数）' : '可随时填写创作备注'
     });
     // group冲突检测：常驻条目共享非空group会导致互斥（ST同组仅注入1条）
-    var groupConflicts = {};
+    const groupConflicts = {};
     entries.forEach(function(e) {
-      var ext = e.extensions || {};
-      var g = ext.group;
+      const ext = e.extensions || {};
+      const g = ext.group;
       if (g && g !== '' && e.constant) {
         if (!groupConflicts[g]) groupConflicts[g] = [];
         groupConflicts[g].push(e);
       }
     });
-    var conflictGroups = Object.keys(groupConflicts).filter(function(g) {
+    const conflictGroups = Object.keys(groupConflicts).filter(function(g) {
       return groupConflicts[g].length > 1;
     });
-    var conflictCount = conflictGroups.reduce(function(sum, g) {
+    const conflictCount = conflictGroups.reduce(function(sum, g) {
       return sum + groupConflicts[g].length;
     }, 0);
     results.push({
@@ -6575,31 +6858,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // === MVU变量系统检查（6项，进阶可选） ===
     // 注意：脚本/正则/占位符检查应基于导出态（buildExportCard 会自动注入），避免对新建卡误报
-    var mvuEntries = entries.filter(function(e) {
+    const mvuEntries = entries.filter(function(e) {
       return isMVUEntry(e.comment || '');
     });
-    var hasInitVar = mvuEntries.some(function(e) {
+    const hasInitVar = mvuEntries.some(function(e) {
       return _isInitVarComment(e.comment, e.content);
     });
-    var hasVarList = mvuEntries.some(function(e) {
+    const hasVarList = mvuEntries.some(function(e) {
       return (e.comment || '').indexOf('变量列表') >= 0;
     });
-    var hasVarRule = mvuEntries.some(function(e) {
+    const hasVarRule = mvuEntries.some(function(e) {
       return (e.comment || '').indexOf('变量更新规则') >= 0;
     });
-    var hasVarFormat = mvuEntries.some(function(e) {
+    const hasVarFormat = mvuEntries.some(function(e) {
       return (e.comment || '').indexOf('变量输出格式') >= 0;
     });
-    var hasAnyMVU = mvuEntries.length > 0;
+    const hasAnyMVU = mvuEntries.length > 0;
     // 检查InitVar条目的enabled是否正确为false（MVU只读取禁用的initvar条目进行初始化）
-    var initVarEnabledWrong = mvuEntries.some(function(e) {
+    const initVarEnabledWrong = mvuEntries.some(function(e) {
       return _isInitVarComment(e.comment, e.content) && e.enabled !== false;
     });
     // 检查变量列表条目内容是否为变量注入格式（新格式 null 或旧 format_message_variable 宏）
-    var varListEntry = mvuEntries.find(function(e) {
+    const varListEntry = mvuEntries.find(function(e) {
       return (e.comment || '').indexOf('变量列表') >= 0;
     });
-    var hasVarMacro = varListEntry ? (/\{\{format_message_variable::stat_data\}\}/.test(varListEntry.content || '') || /<status_current_variables>\s*null\s*<\/status_current_variables>/.test(varListEntry.content || '')) : false;
+    const hasVarMacro = varListEntry ? (/\{\{format_message_variable::stat_data\}\}/.test(varListEntry.content || '') || /<status_current_variables>\s*null\s*<\/status_current_variables>/.test(varListEntry.content || '')) : false;
 
     results.push({
       pass: !hasAnyMVU || (hasInitVar && hasVarList && hasVarRule && hasVarFormat),
@@ -6650,16 +6933,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // Tab 作用域过滤：质检弹窗与 buildPrompt 共用同一口径（原先两处各写一份过滤逻辑）
-  var QC_MVU_ONLY_CATEGORIES = {
+  const QC_MVU_ONLY_CATEGORIES = {
     '正则脚本': true,
     'MVU变量系统': true
   };
-  var QC_MVU_ONLY_NAMES = {
+  const QC_MVU_ONLY_NAMES = {
     'regex_scripts 状态同步正则': true,
     '正则触发键': true
   };
   function getScopedQualityChecks(cd, tab) {
-    var all = runQualityCheck(cd);
+    const all = runQualityCheck(cd);
     if (tab === 'mvu') return all;
     return all.filter(function(r) {
       return !QC_MVU_ONLY_CATEGORIES[r.category] && !QC_MVU_ONLY_NAMES[r.name] && !r._mvuOnly;
@@ -6684,35 +6967,35 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   - 字符串用 z.string().prefault('值')，布尔用 z.boolean().prefault(值)
   /* === 顶层 YAML/InitVar 解析函数（供 generateMvuSchemaScript 和 showMvuStatusBarPreview 共用）=== */
   function parseYamlSimple(text) {
-    var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    const cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
     if (!cleaned) return null;
-    var lines = cleaned.split('\n');
-    var root = {};
-    var stack = [{
+    const lines = cleaned.split('\n');
+    const root = {};
+    const stack = [{
       indent: -1,
       node: root,
       parentNode: null,
       key: null
     }];
 
-    for (var i = 0; i < lines.length; i++) {
-      var raw = lines[i];
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
       if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
       var indent = 0;
       while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
         indent += raw[indent] === '\t' ? 2 : 1;
       }
-      var content = raw.slice(indent).trim();
+      const content = raw.slice(indent).trim();
 
       while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
         stack.pop();
       }
 
-      var top = stack[stack.length - 1];
+      const top = stack[stack.length - 1];
 
       if (content.charAt(0) === '-') {
-        var itemStr = content.slice(1).trim();
-        var itemVal = parseInlineObj(itemStr);
+        const itemStr = content.slice(1).trim();
+        const itemVal = parseInlineObj(itemStr);
         if (top.key !== null && top.parentNode) {
           if (!Array.isArray(top.parentNode[top.key])) {
             top.parentNode[top.key] = [];
@@ -6767,13 +7050,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
 
     function parseInlineObj(str) {
-      var colonIdx = str.indexOf(':');
+      const colonIdx = str.indexOf(':');
       if (colonIdx < 0 || str.charAt(0) === '"' || str.charAt(0) === "'") {
         return parseScalar(str);
       }
-      var key = str.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
-      var valStr = str.slice(colonIdx + 1).trim();
-      var obj = {};
+      const key = str.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
+      const valStr = str.slice(colonIdx + 1).trim();
+      const obj = {};
       obj[key] = parseScalar(valStr);
       return obj;
     }
@@ -6787,9 +7070,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return null;
     }
     if (obj && typeof obj === 'object') {
-      var result = {};
+      const result = {};
       Object.keys(obj).forEach(function(k) {
-        var v = normalizeTupleValues(obj[k]);
+        const v = normalizeTupleValues(obj[k]);
         if (v !== null && v !== undefined) result[k] = v;
       });
       return result;
@@ -6799,14 +7082,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   function parseInitVar(text) {
     if (!text || !text.trim()) return null;
-    var cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+    const cleaned = (text || '').replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
     if (cleaned.charAt(0) === '{') {
       try {
-        var jsonObj = JSON.parse(cleaned);
+        const jsonObj = JSON.parse(cleaned);
         return normalizeTupleValues(stripStatDataRoot(jsonObj));
-      } catch (e) {}
+      } catch (e) { logWarn("parseInitVar", e); }
     }
-    var parsed = parseYamlSimple(text);
+    const parsed = parseYamlSimple(text);
     return stripStatDataRoot(parsed);
   }
 
@@ -6815,19 +7098,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function stripStatDataRoot(obj) {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
     // 若顶层只有一个键且为 stat_data，则下钻一层
-    var keys = Object.keys(obj);
+    const keys = Object.keys(obj);
     if (keys.length === 1 && keys[0] === 'stat_data') {
-      var inner = obj.stat_data;
+      const inner = obj.stat_data;
       if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
         return stripStatDataRoot(inner);
       }
     }
     // 递归过滤 _/$ 开头字段（只读派生字段不应出现在初始变量）
-    var filtered = {};
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
+    const filtered = {};
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
       if (k.charAt(0) === '_' || k.charAt(0) === '$') continue;
-      var v = obj[k];
+      const v = obj[k];
       if (v && typeof v === 'object' && !Array.isArray(v)) {
         filtered[k] = stripStatDataRoot(v);
       } else {
@@ -6844,20 +7127,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 注：本文件曾有第二个同名激进版本（无条件重建）因函数声明提升将其遮蔽，已删除合并至此
   function normalizeInitVarContent(content) {
     if (!content || !content.trim()) return generateInitVarYaml([]);
-    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
-    var parsed = parseInitVar(text);
+    const text = content.replace(/```ya?ml\s*/gi, '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+    const parsed = parseInitVar(text);
     if (!parsed || typeof parsed !== 'object') return text;
     // 检测是否真的需要重建：
-    var trimmed = text.replace(/^---\s*\n/, '');
-    var hasStatDataRoot = /^stat_data\s*:/.test(trimmed);
-    var hadFence = /```/.test(content);
-    var wasJson = trimmed.charAt(0) === '{';
-    var hasDerivedFields = (function scan(o) {
+    const trimmed = text.replace(/^---\s*\n/, '');
+    const hasStatDataRoot = /^stat_data\s*:/.test(trimmed);
+    const hadFence = /```/.test(content);
+    const wasJson = trimmed.charAt(0) === '{';
+    const hasDerivedFields = (function scan(o) {
       if (!o || typeof o !== 'object') return false;
-      var ks = Object.keys(o);
-      for (var i = 0; i < ks.length; i++) {
+      const ks = Object.keys(o);
+      for (let i = 0; i < ks.length; i++) {
         if (ks[i].charAt(0) === '_' || ks[i].charAt(0) === '$') return true;
-        var v = o[ks[i]];
+        const v = o[ks[i]];
         if (v && typeof v === 'object' && scan(v)) return true;
       }
       return false;
@@ -7012,8 +7295,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 这两个条目的 content 是固定 YAML 模板（用户模板5/6），AI 不应修改。
   // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
   function normalizeVarOutputFormatContent(comment, content) {
-    var c = (comment || '').toLowerCase();
-    var isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
+    const c = (comment || '').toLowerCase();
+    const isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
     if (!isFormat) return content;
     // 强制使用固定模板（原封不动，不修改字段、不加注释、不替换占位符）
     if (c.indexOf('变量输出格式强调') >= 0) {
@@ -7089,7 +7372,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //   4. string 类型变量的 type: string 行 → 移除（string 应省略 type 字段）
   function normalizeVarUpdateRuleContent(content) {
     if (!content || !content.trim()) return generateVarUpdateRule([]);
-    var text = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    let text = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
     // 去除可能的前导 --- 分隔符（保留一个）
     text = text.replace(/^---\s*\n/, '');
     // 若缺失根节点，补全
@@ -7105,21 +7388,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ⚠️清理孤立键：type:string 行删除后空悬的变量名（如"主角.心情:"后面直接是下一个同级键）。
     // 判定：任意缩进的键行，若下一个非空行的缩进不深于本键 → 无子内容，属孤立键。
     // 根键"变量更新规则:"（缩进0）始终保留
-    var _il = text.split('\n');
-    var _iout = [];
-    for (var _ii = 0; _ii < _il.length; _ii++) {
-      var _cur = _il[_ii];
-      var _km = _cur.match(/^(\s+)(\S[^\n]*):\s*$/); // 有缩进的键行（跳过根键/---）
+    const _il = text.split('\n');
+    const _iout = [];
+    for (let _ii = 0; _ii < _il.length; _ii++) {
+      const _cur = _il[_ii];
+      const _km = _cur.match(/^(\s+)(\S[^\n]*):\s*$/); // 有缩进的键行（跳过根键/---）
       if (_km) {
-        var _next = '';
-        for (var _nj = _ii + 1; _nj < _il.length; _nj++) {
+        let _next = '';
+        for (let _nj = _ii + 1; _nj < _il.length; _nj++) {
           if (_il[_nj].trim() !== '') {
             _next = _il[_nj];
             break;
           }
         }
         if (_next) {
-          var _ni = (_next.match(/^(\s*)/))[1].length;
+          const _ni = (_next.match(/^(\s*)/))[1].length;
           if (_ni <= _km[1].length) {
             continue;
           } // 下一行不深于本键 → 孤立键，删除
@@ -7132,9 +7415,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     text = text.replace(/\n{3,}/g, '\n\n');
     // check 单行字符串转列表：将 "  check: 某段文字" 转为 "  check:\n      - 某段文字"
     text = text.replace(/^(\s*)check:\s*([^\n]+)$/gm, function(m, indent, desc) {
-      var descTrim = desc.trim();
+      const descTrim = desc.trim();
       if (!descTrim || descTrim.charAt(0) === '-') return m;
-      var itemIndent = new Array(indent.length + 2 + 1).join(' ');
+      const itemIndent = new Array(indent.length + 2 + 1).join(' ');
       return indent + 'check:\n' + itemIndent + '- ' + descTrim;
     });
     // 补回前导 ---
@@ -7148,17 +7431,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 简易 YAML 序列化（仅支持 plain object/数组/标量，用于 InitVar 输出）
   function yamlDumpSimple(obj, indent) {
     indent = indent || 0;
-    var pad = new Array(indent + 1).join(' ');
-    var lines = [];
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      var v = obj[k];
+    const pad = new Array(indent + 1).join(' ');
+    const lines = [];
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const v = obj[k];
       if (v === null || v === undefined) {
         lines.push(pad + k + ':');
       } else if (Array.isArray(v)) {
         lines.push(pad + k + ':');
-        for (var j = 0; j < v.length; j++) {
+        for (let j = 0; j < v.length; j++) {
           lines.push(pad + '  - ' + yamlScalar(v[j]));
         }
       } else if (typeof v === 'object') {
@@ -7244,22 +7527,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 从角色卡数据提取角色名列表 =====
   // 优先从 [InitVar] 条目中解析角色名，回退到角色卡描述中正则提取
   function extractCharNames(cd, rawEntries) {
-    var names = [];
+    const names = [];
     // 1. 从 [InitVar] 条目解析
     if (rawEntries && rawEntries.length) {
-      for (var j = 0; j < rawEntries.length; j++) {
-        var entry = rawEntries[j];
-        var c = (entry.comment || '').toLowerCase();
+      for (let j = 0; j < rawEntries.length; j++) {
+        const entry = rawEntries[j];
+        const c = (entry.comment || '').toLowerCase();
         if (c.indexOf('[initvar]') >= 0) {
-          var content = entry.content || '';
+          const content = entry.content || '';
           // ⚠️改进R4：用 parseInitVar 取顶层键（准确），不再用 line.trim() 逐行匹配
           // 旧逻辑的 line.trim() 会把缩进的嵌套 mapping（着装:/称号:/近期事务:）误收为角色名
           try {
-            var parsed = parseInitVar(content);
+            const parsed = parseInitVar(content);
             if (parsed && typeof parsed === 'object') {
-              var topKeys = Object.keys(parsed);
-              for (var tk = 0; tk < topKeys.length; tk++) {
-                var nm = topKeys[tk];
+              const topKeys = Object.keys(parsed);
+              for (let tk = 0; tk < topKeys.length; tk++) {
+                const nm = topKeys[tk];
                 if (nm === '世界' || nm === '系统' || nm.charAt(0) === '_' || nm.charAt(0) === '$') continue;
                 // ⚠️跳过纯英文/ASCII 顶层键（如 basic/status/secret/social/clock）：
                 // 这是 schema 字段分类名，不是角色名。角色名通常含中文。
@@ -7269,14 +7552,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           } catch (_e) {
             // parseInitVar 失败时回退到逐行匹配（仅取0缩进行的顶层键）
-            var lines = content.split('\n');
-            for (var k = 0; k < lines.length; k++) {
-              var rawLine = lines[k];
+            const lines = content.split('\n');
+            for (let k = 0; k < lines.length; k++) {
+              const rawLine = lines[k];
               // ⚠️R4关键修复：只匹配0缩进（行首非空白）的"键:"行，跳过缩进行的嵌套字段
               if (rawLine.charAt(0) !== ' ' && rawLine.charAt(0) !== '\t' && rawLine.charAt(0) !== '-') {
-                var line = rawLine.trim();
+                const line = rawLine.trim();
                 if (/^[^\s:#]+:\s*$/.test(line) && line.indexOf('世界:') < 0) {
-                  var nm2 = line.replace(/:$/, '').trim();
+                  const nm2 = line.replace(/:$/, '').trim();
                   if (nm2 && nm2 !== '世界' && names.indexOf(nm2) < 0) names.push(nm2);
                 }
               }
@@ -7290,10 +7573,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (names.length === 0 && cd) {
       if (cd.name && !/^(未命名|新建|空)/.test(cd.name)) names.push(cd.name);
       if (cd.description) {
-        var desc = cd.description;
-        var nameMatches = desc.match(/[\u4e00-\u9fff]{1,6}(?=对主角|对<user>|的依存|的好感|暗恋|喜欢|依恋|钟情|心仪|在意)/g);
+        const desc = cd.description;
+        const nameMatches = desc.match(/[\u4e00-\u9fff]{1,6}(?=对主角|对<user>|的依存|的好感|暗恋|喜欢|依恋|钟情|心仪|在意)/g);
         if (nameMatches) {
-          for (var m = 0; m < nameMatches.length; m++) {
+          for (let m = 0; m < nameMatches.length; m++) {
             if (names.indexOf(nameMatches[m]) < 0) names.push(nameMatches[m]);
           }
         }
@@ -7305,9 +7588,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // ===== Neko 美化模板（已与 MVU_BEAUTIFY_* 统一为通长长条样式）=====
-  var NEKO_COMPLETE_HTML = MVU_BEAUTIFY_COMPLETE;
+  const NEKO_COMPLETE_HTML = MVU_BEAUTIFY_COMPLETE;
 
-  var NEKO_THINKING_HTML = MVU_BEAUTIFY_THINKING;
+  const NEKO_THINKING_HTML = MVU_BEAUTIFY_THINKING;
 
   // ===== MVU 状态栏 HTML 生成（通用回退模板）=====
   // 仅作为 AI 未生成状态栏时的兜底：符合用户模板标准（populateCharacterData + getAllVariables + eventOn + errorCatched）
@@ -7334,23 +7617,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (window.parent && typeof window.parent[name] === 'function') return window.parent[name];
       if (typeof window.TavernHelper !== 'undefined' && window.TavernHelper && typeof window.TavernHelper[name] === 'function') return window.TavernHelper[name];
       if (window.parent && typeof window.parent.TavernHelper !== 'undefined' && window.parent.TavernHelper && typeof window.parent.TavernHelper[name] === 'function') return window.parent.TavernHelper[name];
-    } catch (e) {}
+    } catch (e) { logWarn("_tavernFn", e); }
     // 兼容新版 SillyTavern（1.12+）：部分函数从 window 全局移到 SillyTavern.getContext() 上下文对象
     try {
-      var _st = _tavern();
+      const _st = _tavern();
       if (_st && typeof _st.getContext === 'function') {
-        var _ctx = _st.getContext();
+        const _ctx = _st.getContext();
         if (_ctx && typeof _ctx[name] === 'function') return _ctx[name];
       }
       if (typeof getContext === 'function') {
-        var _ctx2 = getContext();
+        const _ctx2 = getContext();
         if (_ctx2 && typeof _ctx2[name] === 'function') return _ctx2[name];
       }
       if (window.parent && typeof window.parent.getContext === 'function') {
-        var _ctx3 = window.parent.getContext();
+        const _ctx3 = window.parent.getContext();
         if (_ctx3 && typeof _ctx3[name] === 'function') return _ctx3[name];
       }
-    } catch (e2) {}
+    } catch (e2) { logWarn("_tavernFn", e2); }
     return null;
   }
 
@@ -7359,7 +7642,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     try {
       if (typeof SillyTavern !== 'undefined') return SillyTavern;
       if (window.parent && window.parent.SillyTavern) return window.parent.SillyTavern;
-    } catch (e) {}
+    } catch (e) { logWarn("_tavern", e); }
     return null;
   }
 
@@ -7372,14 +7655,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function _isAbortError(err) {
     if (err instanceof DOMException && err.name === 'AbortError') return true;
     if (err instanceof Error && err.name === 'AbortError') return true;
-    var msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     return /(?:operation was aborted|request was aborted|\baborted\b)/iu.test(msg);
   }
 
   // 带重试的异步操作（应对酒馆中止）
   async function _tavernRetry(label, fn) {
-    var lastErr;
-    for (var attempt = 1; attempt <= 3; attempt++) {
+    let lastErr;
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         return await fn();
       } catch (e) {
@@ -7391,13 +7674,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
       }
     }
-    var msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
     throw new Error(label + '连续被中止，请确认页面没有刷新或断开后重试（原始错误：' + msg + '）');
   }
 
   // 刷新角色列表
   async function _refreshCharacterList() {
-    var st = _tavern();
+    const st = _tavern();
     if (st && typeof st.getCharacters === 'function') {
       await _tavernRetry('刷新角色列表', function() {
         return st.getCharacters();
@@ -7407,26 +7690,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 验证角色卡名称
   function _tavernValidateName(name) {
-    var e = (name || '').trim();
+    const e = (name || '').trim();
     if (!e) throw new Error('角色卡名称不能为空');
     if (e === 'current') throw new Error('角色卡名称不能是 current');
-    var lower = e.replace(/\s+/g, ' ').toLowerCase();
+    const lower = e.replace(/\s+/g, ' ').toLowerCase();
     if (lower === 'sillytavern system') throw new Error('SillyTavern System 是系统占位角色，请填写新的角色卡名称');
     return e;
   }
 
   // 确保角色卡存在并补全 alternate_greetings 兼容字段（Wr）
   async function _tavernEnsureCharacter(name) {
-    var validated = _tavernValidateName(name);
-    var st = _tavern();
+    const validated = _tavernValidateName(name);
+    const st = _tavern();
     if (!st || !st.characters) throw new Error('无法访问酒馆角色列表');
-    var idx = -1;
+    let idx = -1;
     if (typeof st.characters.findIndex === 'function') {
       idx = st.characters.findIndex(function(c) {
         return c.name === validated;
       });
     } else {
-      for (var i = 0; i < st.characters.length; i++) {
+      for (let i = 0; i < st.characters.length; i++) {
         if (st.characters[i].name === validated) {
           idx = i;
           break;
@@ -7440,7 +7723,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return c.name === validated;
         });
       } else {
-        for (var j = 0; j < st.characters.length; j++) {
+        for (let j = 0; j < st.characters.length; j++) {
           if (st.characters[j].name === validated) {
             idx = j;
             break;
@@ -7449,7 +7732,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
     }
     if (idx < 0) throw new Error('角色卡不存在：' + validated);
-    var char = st.characters[idx];
+    let char = st.characters[idx];
     if (char.data && Array.isArray(char.data.alternate_greetings)) return;
     if (typeof st.unshallowCharacter === 'function') {
       await _tavernRetry('读取角色卡详情', function() {
@@ -7464,13 +7747,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (idx < 0) throw new Error('读取详情后角色卡从列表中消失：' + validated);
     char = st.characters[idx];
     if (!char.data) char.data = {};
-    var altG = char.data.alternate_greetings;
+    const altG = char.data.alternate_greetings;
     if (Array.isArray(altG)) return;
-    var greetings = (typeof altG === 'string' && altG.trim()) ? [altG] : [];
+    let greetings = (typeof altG === 'string' && altG.trim()) ? [altG] : [];
     if (greetings.length === 0) greetings = ['\u200b'];
     char.data.alternate_greetings = greetings;
-    var firstMes = char.first_mes || (char.data && char.data.first_mes) || '';
-    var replaceCharacter = _tavernFn('replaceCharacter');
+    const firstMes = char.first_mes || (char.data && char.data.first_mes) || '';
+    const replaceCharacter = _tavernFn('replaceCharacter');
     if (replaceCharacter) {
       await _tavernRetry('补全角色卡兼容字段', function() {
         return replaceCharacter(validated, {
@@ -7480,7 +7763,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
       });
     }
-    var updated = st.characters.find(function(c) {
+    const updated = st.characters.find(function(c) {
       return c.name === validated;
     });
     if (updated) {
@@ -7491,15 +7774,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 创建或获取角色卡（Nr）
   async function _tavernCreateOrGet(name) {
-    var validated = _tavernValidateName(name);
-    var getCharacterNames = _tavernFn('getCharacterNames');
-    var names = getCharacterNames ? getCharacterNames() : [];
-    var created = false;
+    const validated = _tavernValidateName(name);
+    const getCharacterNames = _tavernFn('getCharacterNames');
+    let names = getCharacterNames ? getCharacterNames() : [];
+    let created = false;
 
     if (names.indexOf(validated) >= 0) {
       await _tavernEnsureCharacter(validated);
     } else {
-      var createCharacter = _tavernFn('createCharacter');
+      const createCharacter = _tavernFn('createCharacter');
       if (!createCharacter) {
         // 兜底：酒馆 JS API 不支持 createCharacter（新版 ST 或 iframe 隔离），
         // 直接用 REST API POST /api/characters/create 创建空角色卡
@@ -7512,8 +7795,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           created: created
         };
       }
-      var lastErr;
-      for (var attempt = 1; attempt <= 3; attempt++) {
+      let lastErr;
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           await createCharacter(validated, {
             first_messages: ['', '\u200b']
@@ -7538,7 +7821,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       await _tavernEnsureCharacter(validated);
       if (!created) {
-        var getCharacter = _tavernFn('getCharacter');
+        const getCharacter = _tavernFn('getCharacter');
         if (getCharacter) {
           try {
             await getCharacter(validated);
@@ -7557,7 +7840,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 兜底：通过 REST API 创建角色卡（不依赖 SillyTavern JS createCharacter 函数）
   // 直接 POST /api/characters/create，兼容所有 ST 版本
   async function _tavernCreateCharacterViaFetch(name) {
-    var formData = new FormData();
+    const formData = new FormData();
     formData.append('name', name);
     // 最小化字段：只需 name，其余字段后续由 _tavernWriteCharacterData 填充
     formData.append('description', '');
@@ -7569,18 +7852,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     formData.append('system_prompt', '');
     formData.append('tags', '[]');
     formData.append('alternate_greetings', '[]');
-    var resp = await fetch('/api/characters/create', {
+    const resp = await fetch('/api/characters/create', {
       method: 'POST',
       body: formData
     });
     if (!resp.ok) {
-      var txt = '';
+      let txt = '';
       try {
         txt = await resp.text();
       } catch (_) {}
       throw new Error('REST API 创建角色卡失败 (HTTP ' + resp.status + '): ' + (txt || resp.statusText));
     }
-    var data = null;
+    let data = null;
     try {
       data = await resp.json();
     } catch (_) {}
@@ -7591,14 +7874,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 写入开场白（Yr）
   async function _tavernWriteFirstMes(name, firstMes) {
-    var validated = _tavernValidateName(name);
-    var content = (firstMes || '').trim();
+    const validated = _tavernValidateName(name);
+    const content = (firstMes || '').trim();
     if (!content) throw new Error('开场白不能为空');
     await _tavernEnsureCharacter(validated);
-    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    const updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
     await updateCharacterWith(validated, function(charData) {
-      var msgs = charData.first_messages || [];
+      const msgs = charData.first_messages || [];
       charData.first_messages = [content].concat(msgs.slice(1));
       return charData;
     });
@@ -7606,9 +7889,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 写入角色卡基础字段（对齐 tavern_helper Character 规范）
   async function _tavernWriteCharacterData(name, data) {
-    var validated = _tavernValidateName(name);
+    const validated = _tavernValidateName(name);
     await _tavernEnsureCharacter(validated);
-    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    const updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
     await updateCharacterWith(validated, function(charData) {
       // ===== 对齐 tavern_helper Character 规范 =====
@@ -7657,7 +7940,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       if (data.depth_prompt !== undefined) {
         // 防御：depth_prompt 必须是对象；JSON 字符串 / 纯 prompt 字符串统一规范化
-        var _dp = normalizeDepthPrompt(data.depth_prompt, 4);
+        const _dp = normalizeDepthPrompt(data.depth_prompt, 4);
         charData.extensions.depth_prompt = _dp;
       }
 
@@ -7674,7 +7957,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         charData.data.alternate_greetings = data.alternate_greetings;
       }
       if (data.depth_prompt !== undefined) {
-        var _dp2 = normalizeDepthPrompt(data.depth_prompt, 4);
+        const _dp2 = normalizeDepthPrompt(data.depth_prompt, 4);
         charData.data.depth_prompt = _dp2;
       }
 
@@ -7710,18 +7993,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 按 id 或 name 去重后更新脚本（Qr）
   function _upsertScript(scripts, newScript) {
-    var arr = scripts.slice();
-    var idx = -1;
-    for (var i = 0; i < arr.length; i++) {
-      var s = arr[i];
+    const arr = scripts.slice();
+    let idx = -1;
+    for (let i = 0; i < arr.length; i++) {
+      const s = arr[i];
       if (s.type !== 'script' && !s.name) continue;
-      var sName = String(s.name || s.scriptName || '');
+      const sName = String(s.name || s.scriptName || '');
       if (s.id === newScript.id || sName.toLowerCase() === newScript.name.toLowerCase()) {
         idx = i;
         break;
       }
     }
-    var merged = Object.assign({}, arr[idx] || {}, newScript, {
+    const merged = Object.assign({}, arr[idx] || {}, newScript, {
       name: newScript.name,
       content: newScript.content,
       enabled: true
@@ -7736,11 +8019,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 写入 tavern_helper 脚本（Rr）
   async function _tavernWriteScript(name, script) {
-    var validated = _tavernValidateName(name);
+    const validated = _tavernValidateName(name);
     await _tavernEnsureCharacter(validated);
-    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    const updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
-    var normalized = _normalizeScript(script);
+    const normalized = _normalizeScript(script);
     await updateCharacterWith(validated, function(charData) {
       if (!charData.extensions) charData.extensions = {
         regex_scripts: [],
@@ -7759,8 +8042,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       charData.extensions.tavern_helper.scripts = _upsertScript(charData.extensions.tavern_helper.scripts, normalized);
       return charData;
     });
-    var getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
-    var updateScriptTreesWith = _tavernFn('updateScriptTreesWith');
+    const getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
+    const updateScriptTreesWith = _tavernFn('updateScriptTreesWith');
     if (getCurrentCharacterName && updateScriptTreesWith && getCurrentCharacterName() === validated) {
       await updateScriptTreesWith(function(scripts) {
         return _upsertScript(scripts, normalized);
@@ -7828,14 +8111,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 用代码块包裹 HTML
   function _wrapHtml(html) {
-    var trimmed = html.trim();
+    const trimmed = html.trim();
     if (/^```/.test(trimmed)) return trimmed;
     return '```html\n' + trimmed + '\n```';
   }
 
   // 转换内部正则格式到 SillyTavern 正则脚本格式（ri）— 对齐 tavern_helper TavernRegex 规范
   function _convertRegexScript(s) {
-    var placement = s.placement || [];
+    const placement = s.placement || [];
     return {
       id: s.id,
       script_name: s.scriptName,
@@ -7862,9 +8145,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 写入正则脚本（含状态栏 HTML）（oi - 借鉴 javascript-format (7).js）
   async function _tavernWriteRegexScripts(name, statusBarHtml) {
-    var validated = _tavernValidateName(name);
+    const validated = _tavernValidateName(name);
 
-    var scripts = [
+    const scripts = [
       // 1. 仅格式思维链 - 从提示词移除 <Analysis> 段
       _convertRegexScript({
         id: 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36',
@@ -7978,17 +8261,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     ];
 
     // 按 script_name 去重旧脚本后追加新脚本（同时清理遗留的无名 StatusPlaceHolderImpl 正则）
-    var nameSet = {};
+    const nameSet = {};
     scripts.forEach(function(s) {
       nameSet[s.script_name] = true;
     });
-    var newFindRegexes = {};
+    const newFindRegexes = {};
     scripts.forEach(function(s) {
-      var fr = String(s.find_regex || s.findRegex || '');
+      const fr = String(s.find_regex || s.findRegex || '');
       if (fr.indexOf('StatusPlaceHolderImpl') >= 0) newFindRegexes['StatusPlaceHolderImpl'] = true;
     });
 
-    var updateCharacterWith = _tavernFn('updateCharacterWith');
+    const updateCharacterWith = _tavernFn('updateCharacterWith');
     if (!updateCharacterWith) throw new Error('酒馆不支持 updateCharacterWith API');
     await _tavernEnsureCharacter(validated);
     await updateCharacterWith(validated, function(charData) {
@@ -7999,13 +8282,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           variables: {}
         }
       };
-      var existing = charData.extensions.regex_scripts || [];
-      var filtered = existing.filter(function(r) {
+      const existing = charData.extensions.regex_scripts || [];
+      const filtered = existing.filter(function(r) {
         if (nameSet[r.script_name]) return false; // 按 script_name 去重
         // 额外清理：遗留的无名 StatusPlaceHolderImpl 正则
         if (!r.script_name) {
-          var fr = String(r.find_regex || r.findRegex || '');
-          var id = String(r.id || '');
+          const fr = String(r.find_regex || r.findRegex || '');
+          const id = String(r.id || '');
           if (newFindRegexes['StatusPlaceHolderImpl'] && fr.indexOf('StatusPlaceHolderImpl') >= 0) return false;
           if (newFindRegexes['StatusPlaceHolderImpl'] && (id.indexOf('mvu-status') >= 0 || id.indexOf('regex-mvu-status') >= 0)) return false;
         }
@@ -8016,15 +8299,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
 
     // 同步当前角色的正则树
-    var getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
-    var updateTavernRegexesWith = _tavernFn('updateTavernRegexesWith');
+    const getCurrentCharacterName = _tavernFn('getCurrentCharacterName');
+    const updateTavernRegexesWith = _tavernFn('updateTavernRegexesWith');
     if (getCurrentCharacterName && updateTavernRegexesWith && getCurrentCharacterName() === validated) {
       await updateTavernRegexesWith(function(existing) {
-        var filtered = existing.filter(function(r) {
+        const filtered = existing.filter(function(r) {
           if (nameSet[r.script_name]) return false;
           if (!r.script_name) {
-            var fr = String(r.find_regex || r.findRegex || '');
-            var id = String(r.id || '');
+            const fr = String(r.find_regex || r.findRegex || '');
+            const id = String(r.id || '');
             if (newFindRegexes['StatusPlaceHolderImpl'] && fr.indexOf('StatusPlaceHolderImpl') >= 0) return false;
             if (newFindRegexes['StatusPlaceHolderImpl'] && (id.indexOf('mvu-status') >= 0 || id.indexOf('regex-mvu-status') >= 0)) return false;
           }
@@ -8043,34 +8326,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 酒馆助手 API(createWorldbookEntries 等)用 name/strategy/position(对象)/extra，
   // 直接传旧格式会导致条目"没有名字"且激活策略/位置参数全部丢失。
   function _convertToWorldbookEntry(e, i, sourceTag) {
-    var comment = e.comment || e.name || e.title || ('条目' + (i + 1));
-    var ext = e.extensions || {};
+    const comment = e.comment || e.name || e.title || ('条目' + (i + 1));
+    const ext = e.extensions || {};
     // position：优先 extensions.position(数字)，其次顶层 position，默认 4(at_depth)
-    var posRaw = (ext.position !== undefined ? ext.position : (e.position !== undefined ? e.position : 4));
-    var posNum = (typeof posRaw === 'string') ?
+    const posRaw = (ext.position !== undefined ? ext.position : (e.position !== undefined ? e.position : 4));
+    const posNum = (typeof posRaw === 'string') ?
       (posRaw === 'before_char' || posRaw === '0' ? 0 : (posRaw === 'after_char' || posRaw === '1' ? 1 : 4)) :
       posRaw;
     // ST position: 0=before_char, 1=after_char, 2=before_example, 3=after_example, 4=at_depth(作者注释位)
-    var posType = (posNum === 0) ? 'before_character_definition' :
+    const posType = (posNum === 0) ? 'before_character_definition' :
       (posNum === 1) ? 'after_character_definition' :
       (posNum === 2) ? 'before_example_messages' :
       (posNum === 3) ? 'after_example_messages' :
       'at_depth';
-    var roleNum = (ext.role !== undefined ? ext.role : 0);
-    var posRole = (roleNum === 1) ? 'user' : (roleNum === 2 ? 'assistant' : 'system');
-    var posDepth = (ext.depth !== undefined ? ext.depth : 4);
-    var order = (e.insertion_order !== undefined ? e.insertion_order : (ext.order || 100));
+    const roleNum = (ext.role !== undefined ? ext.role : 0);
+    const posRole = (roleNum === 1) ? 'user' : (roleNum === 2 ? 'assistant' : 'system');
+    const posDepth = (ext.depth !== undefined ? ext.depth : 4);
+    const order = (e.insertion_order !== undefined ? e.insertion_order : (ext.order || 100));
     // 激活策略：constant=true→蓝灯; 否则 selective=true→绿灯; 否则默认 constant
-    var isConst = (e.constant !== undefined ? e.constant : false);
-    var isSel = (e.selective !== undefined ? e.selective : true);
-    var stratType = isConst ? 'constant' : (isSel ? 'selective' : 'constant');
-    var keys = Array.isArray(e.keys) ? e.keys.filter(function(k) {
+    const isConst = (e.constant !== undefined ? e.constant : false);
+    const isSel = (e.selective !== undefined ? e.selective : true);
+    const stratType = isConst ? 'constant' : (isSel ? 'selective' : 'constant');
+    const keys = Array.isArray(e.keys) ? e.keys.filter(function(k) {
       return typeof k === 'string' && k;
     }) : [];
-    var secKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys : [];
-    var selLogic = (ext.selectiveLogic === 1 ? 'and_all' : (ext.selectiveLogic === 2 ? 'not_all' : (ext.selectiveLogic === 3 ? 'not_any' : 'and_any')));
-    var useProb = (ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : true));
-    var probability = useProb ? (ext.probability !== undefined ? ext.probability : 100) : 100;
+    const secKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys : [];
+    const selLogic = (ext.selectiveLogic === 1 ? 'and_all' : (ext.selectiveLogic === 2 ? 'not_all' : (ext.selectiveLogic === 3 ? 'not_any' : 'and_any')));
+    const useProb = (ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : true));
+    const probability = useProb ? (ext.probability !== undefined ? ext.probability : 100) : 100;
     return {
       name: comment,
       content: e.content || '',
@@ -8112,11 +8395,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //           任何字符串/数字/null/数组 形式的旧条目都会被重建，不把需要升级的字符串形式 position 交给酒馆。
   function _sanitizeWorldbookEntriesForWrite(list) {
     if (!Array.isArray(list)) return [];
-    var safeNumber = function(v, def) {
-      var n = Number(v);
+    const safeNumber = function(v, def) {
+      const n = Number(v);
       return (isFinite(n) && !isNaN(n)) ? n : def;
     };
-    var safeKeys = function(k) {
+    const safeKeys = function(k) {
       if (!Array.isArray(k)) return [];
       return k.filter(function(x) {
         return typeof x === 'string' && x;
@@ -8127,13 +8410,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 防御：entries 里混了纯字符串/数字（典型：depth_prompt.prompt 被误 push）→ 包装成匿名条目避免后面对字符串写 .depth
         if (e == null) return null;
         // 拦截 regex: 脚本配置误写为世界书条目
-        var _eCmt = String((e && (e.comment || e.name)) || '');
+        const _eCmt = String((e && (e.comment || e.name)) || '');
         if (/^regex[:：]/i.test(_eCmt)) {
           console.warn('[sanitize] 写入前拦截regex脚本配置条目:', _eCmt.slice(0, 30));
           return null;
         }
         if (typeof e === 'string') {
-          var firstL = e.split('\n')[0].trim().slice(0, 40) || ('误写字符串条目' + (i + 1));
+          const firstL = e.split('\n')[0].trim().slice(0, 40) || ('误写字符串条目' + (i + 1));
           console.warn('[sanitize] entries里发现字符串元素，已包装为匿名条目:', firstL.slice(0, 20));
           return {
             name: firstL,
@@ -8162,45 +8445,45 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return e && typeof e === 'object';
       })
       .map(function(e, i, arr) {
-        var pos = (e.position && typeof e.position === 'object') ? e.position : {};
-        var strat = (e.strategy && typeof e.strategy === 'object') ? e.strategy : {};
-        var ks = (strat.keys_secondary && typeof strat.keys_secondary === 'object') ? strat.keys_secondary : {};
-        var rec = (e.recursion && typeof e.recursion === 'object') ? e.recursion : {};
-        var eff = (e.effect && typeof e.effect === 'object') ? e.effect : {};
+        const pos = (e.position && typeof e.position === 'object') ? e.position : {};
+        const strat = (e.strategy && typeof e.strategy === 'object') ? e.strategy : {};
+        const ks = (strat.keys_secondary && typeof strat.keys_secondary === 'object') ? strat.keys_secondary : {};
+        const rec = (e.recursion && typeof e.recursion === 'object') ? e.recursion : {};
+        const eff = (e.effect && typeof e.effect === 'object') ? e.effect : {};
         // ===== ✅新增：写入酒馆前对空 keys 条目最后一次兜底派生（写酒馆的永久防线）=====
-        var rawKeys = (Array.isArray(strat.keys) && strat.keys.length > 0) ? strat.keys :
+        let rawKeys = (Array.isArray(strat.keys) && strat.keys.length > 0) ? strat.keys :
           (Array.isArray(e.keys) && e.keys.length > 0 ? e.keys : null);
         if (!rawKeys || rawKeys.length === 0) {
-          var isConst = !!(e.constant || (strat.type === 'constant'));
+          const isConst = !!(e.constant || (strat.type === 'constant'));
           if (!isConst) {
             try {
-              var cmForDerive = e.comment || e.name || '';
-              var derTmpl = (typeof getEntryTemplate === 'function') ? getEntryTemplate(cmForDerive) : null;
+              const cmForDerive = e.comment || e.name || '';
+              const derTmpl = (typeof getEntryTemplate === 'function') ? getEntryTemplate(cmForDerive) : null;
               if (!(derTmpl && derTmpl.constant)) {
-                var derived = (typeof _deriveEntryKeys === 'function') ?
+                const derived = (typeof _deriveEntryKeys === 'function') ?
                   _deriveEntryKeys(cmForDerive, derTmpl, e.content || '') :
                   [];
                 if (derived && derived.length > 0) rawKeys = derived;
               }
-            } catch (eDer) {}
+            } catch (eDer) { logWarn("_sanitizeWorldbookEntriesForWrite", eDer); }
           }
         }
-        var rawSecondaryKeys = (Array.isArray(ks.keys) && ks.keys.length > 0) ? ks.keys :
+        const rawSecondaryKeys = (Array.isArray(ks.keys) && ks.keys.length > 0) ? ks.keys :
           (Array.isArray(e.secondary_keys) && e.secondary_keys.length > 0 ? e.secondary_keys : []);
         // position 类型（优先取新字段，否则回退 Tavern 旧常量）
-        var posType = typeof pos.type === 'string' ? pos.type :
+        const posType = typeof pos.type === 'string' ? pos.type :
           (e.position === 'before_char' || e.position === 0 || pos.type === 0 ? 'before_character_definition' :
             (e.position === 'after_char' || e.position === 1 ? 'after_character_definition' :
               (e.position === 'before_an' || e.position === 2 ? 'before_example_messages' :
                 (e.position === 'after_an' || e.position === 3 ? 'after_example_messages' :
                   'at_depth'))));
-        var roleVal = (typeof pos.role === 'string') ? pos.role :
+        const roleVal = (typeof pos.role === 'string') ? pos.role :
           (pos.role === 1 ? 'user' : (pos.role === 2 ? 'assistant' : 'system'));
         // ===== 🧹 最后一道防线：变量列表/变量输出格式条目强制规范化 content =====
         // ⚠️ 核心名严格匹配，避免含关键词的普通条目被强制覆盖（同 processEntriesFn 修复）
-        var _sanitizeComment = String(e.comment || e.name || '');
-        var _sanitizeContent = String(e.content == null ? '' : e.content);
-        var _sanitizeCore = _entryCommentCore(_sanitizeComment);
+        const _sanitizeComment = String(e.comment || e.name || '');
+        let _sanitizeContent = String(e.content == null ? '' : e.content);
+        const _sanitizeCore = _entryCommentCore(_sanitizeComment);
         if (_isInitVarComment(_sanitizeComment, _sanitizeContent)) {
           _sanitizeContent = normalizeInitVarContent(_sanitizeContent);
         }
@@ -8258,22 +8541,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function assignAndWrapTagIds(entries) {
     if (!entries || !entries.length) return entries;
     // 第一步：收集顶层角色名（从comment中提取，非主角/世界/系统）
-    var allNames = [];
-    var worldviewIdx = 0; // 世界观计数器，第一个世界观 = id1
-    var charNameToId = {}; // 角色名 → 分配的id数字
-    var nextCharId = 1; // 下一个可用的角色id（从1开始，因为世界观可能先占）
-    var NPCIdOffset = 0;
+    const allNames = [];
+    let worldviewIdx = 0; // 世界观计数器，第一个世界观 = id1
+    const charNameToId = {}; // 角色名 → 分配的id数字
+    let nextCharId = 1; // 下一个可用的角色id（从1开始，因为世界观可能先占）
+    const NPCIdOffset = 0;
     // 预扫描：优先从comment提取所有候选：角色速览/世界观前缀/角色名/NPC名
     // 窄口径：仅 9.1.6 工作流核心条目参与 tag-id 的 mvu 分桶。
     // 故意不复用顶层宽口径 isMVUEntry（后者还含阶段判定/派生字段/控制器等附加条目，
     // 那些在 id 分配时应走普通世界观/NPC 分桶，过宽会把普通条目误分到 mvu 桶）。
-    var MVU_WORKFLOW_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
-    var isMvuWorkflowEntry = function(c) {
+    const MVU_WORKFLOW_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
+    const isMvuWorkflowEntry = function(c) {
       return MVU_WORKFLOW_PREFIX_RE.test(c || '');
     };
     // 预扫描：把所有comment按出现顺序分类
-    var classified = entries.map(function(e, idx) {
-      var c = String(e.comment || e.name || ('条目' + (idx + 1)));
+    const classified = entries.map(function(e, idx) {
+      const c = String(e.comment || e.name || ('条目' + (idx + 1)));
       if (isMvuWorkflowEntry(c)) return {
         idx: idx,
         type: 'mvu',
@@ -8302,8 +8585,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 3. NPC条目（尝试提取名称，如"NPC1: 商人张三" → "商人张三"）
       if (/^(NPC|重要角色|势力与组织|物品|地点|场景)/.test(c) || c.indexOf('NPC') === 0) {
         // 尝试从"NPC: 名称"或"NPC1: 名称"格式提取名称
-        var npcMatch = c.match(/^(?:NPC\d*|重要角色|势力与组织|物品|地点|场景)\s*[:：]\s*([\u4e00-\u9fffA-Za-z0-9_]{2,8})/);
-        var npcName = npcMatch ? npcMatch[1] : '';
+        const npcMatch = c.match(/^(?:NPC\d*|重要角色|势力与组织|物品|地点|场景)\s*[:：]\s*([\u4e00-\u9fffA-Za-z0-9_]{2,8})/);
+        const npcName = npcMatch ? npcMatch[1] : '';
         return {
           idx: idx,
           type: 'npc-guess',
@@ -8312,10 +8595,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
       }
       // 4. 角色条目（从comment前缀提取：去掉<...>/[...]后的首个2-6字中文字符串）
-      var m = c.match(/<?([\u4e00-\u9fff]{2,6})/);
-      var guessName = m ? m[1] : '';
+      const m = c.match(/<?([\u4e00-\u9fff]{2,6})/);
+      const guessName = m ? m[1] : '';
       // 排除明显非角色名：主角/世界/系统/剧情/第一章/附录等
-      var EXCLUDE_NAMES = {
+      const EXCLUDE_NAMES = {
         '主角': true,
         '世界': true,
         '系统': true,
@@ -8347,31 +8630,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     // 第二步：正式分配ID
     // 角色速览固定id0，世界观从id1开始，角色从世界观最大id+1继续，NPC继续
-    var maxWorldId = 0;
+    let maxWorldId = 0;
     classified.forEach(function(item) {
       if (item.type === 'worldview') maxWorldId = Math.max(maxWorldId, item.subId || 0);
     });
     nextCharId = maxWorldId + 1;
     classified.forEach(function(item) {
       if (item.type === 'char-entry' || item.type === 'npc-guess') {
-        var key = item.name || ('NPC_' + item.idx);
+        const key = item.name || ('NPC_' + item.idx);
         if (!(key in charNameToId)) {
           charNameToId[key] = nextCharId++;
         }
       }
     });
     // 第三步：执行包裹
-    var TAG_OPEN_RE = /^\s*<([\u4e00-\u9fffA-Za-z0-9_]+)_id(\d+)\s*>/; // 已经有标签打开？
-    var outEntries = entries.slice();
+    const TAG_OPEN_RE = /^\s*<([\u4e00-\u9fffA-Za-z0-9_]+)_id(\d+)\s*>/; // 已经有标签打开？
+    const outEntries = entries.slice();
     classified.forEach(function(item) {
-      var e = outEntries[item.idx];
+      const e = outEntries[item.idx];
       if (!e) return;
-      var content = String(e.content || '');
+      const content = String(e.content || '');
       // MVU条目、已含标签开头的、空内容的不处理
       if (item.type === 'mvu') return;
       if (TAG_OPEN_RE.test(content)) return;
       if (!content.trim()) return;
-      var tagName = '',
+      let tagName = '',
         tagId = 0;
       if (item.type === 'char-overview') {
         tagName = '角色速览';
@@ -8393,10 +8676,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         tagId = (++worldviewIdx);
       }
       if (!tagName) return;
-      var open = '<' + tagName + '_id' + tagId + '>';
-      var close = '</' + tagName + '_id' + tagId + '>';
+      const open = '<' + tagName + '_id' + tagId + '>';
+      const close = '</' + tagName + '_id' + tagId + '>';
       // 保证 content 前后有换行分隔，避免标签和内容粘连
-      var padded = content;
+      let padded = content;
       if (padded.charAt(0) !== '\n') padded = '\n' + padded;
       if (padded.charAt(padded.length - 1) !== '\n') padded = padded + '\n';
       e.content = open + padded + close;
@@ -8409,34 +8692,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 但 extra 字段经酒馆持久化后不一定能原样读回，过滤失效 → 条目叠加。
   // 新方案：updateWorldbookWith 一次性按 name 匹配，命中则覆盖，未命中才追加。
   function _normWiPath(p) {
-    var n = String(p == null ? '' : p).replace(/\\/g, '/').replace(/\/+/g, '/').trim();
+    let n = String(p == null ? '' : p).replace(/\\/g, '/').replace(/\/+/g, '/').trim();
     if (!n) return '';
     if (n.charAt(0) !== '/') n = '/' + n;
     return '/' + n.split('/').filter(Boolean).join('/');
   }
 
   function _wiEntryMatch(worldbookName, targetName, oldEntry) {
-    var target = _normWiPath('/Worldbooks/' + worldbookName + '/' + (targetName || ''));
+    const target = _normWiPath('/Worldbooks/' + worldbookName + '/' + (targetName || ''));
     if (!target) return false;
-    var byComment = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.comment) || ''));
-    var byName = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.name) || ''));
+    const byComment = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.comment) || ''));
+    const byName = _normWiPath('/Worldbooks/' + worldbookName + '/' + ((oldEntry && oldEntry.name) || ''));
     return byComment === target || byName === target;
   }
 
   async function _tavernWriteWorldbook(worldbookName, entries) {
-    var SOURCE_TAG = 'modelo-char-generator';
-    var getWorldbookNames = _tavernFn('getWorldbookNames');
-    var getWorldbook = _tavernFn('getWorldbook');
-    var createWorldbook = _tavernFn('createWorldbook');
-    var updateWorldbookWith = _tavernFn('updateWorldbookWith');
-    var createWorldbookEntries = _tavernFn('createWorldbookEntries');
+    const SOURCE_TAG = 'modelo-char-generator';
+    const getWorldbookNames = _tavernFn('getWorldbookNames');
+    const getWorldbook = _tavernFn('getWorldbook');
+    const createWorldbook = _tavernFn('createWorldbook');
+    const updateWorldbookWith = _tavernFn('updateWorldbookWith');
+    const createWorldbookEntries = _tavernFn('createWorldbookEntries');
 
     // ===== 【写卡预设】步骤0：给所有世界书条目自动包裹 <名称_idN> 标签 =====
     // MVU条目自动跳过，已经有标签的不重复包裹
-    var wrappedEntries = assignAndWrapTagIds(entries || []);
+    const wrappedEntries = assignAndWrapTagIds(entries || []);
 
     // ===== 修复Bug2：转换为酒馆助手 WorldbookEntry 新格式（name 替代 comment） =====
-    var converted = wrappedEntries.map(function(e, i) {
+    let converted = wrappedEntries.map(function(e, i) {
       return _convertToWorldbookEntry(e, i, SOURCE_TAG);
     });
     // ===== 写入前强制 sanitize：确保所有条目/position/strategy 是对象，过滤字符串/null =====
@@ -8444,10 +8727,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
     // ===== 修复Bug1：确保世界书存在（createWorldbookEntries / updateWorldbookWith 要求世界书已存在，
     //                  否则抛错——这正是"只写入开场白和角色描述、不生成世界书、不关联到角色卡"的根因） =====
-    var exists = false;
+    let exists = false;
     if (getWorldbookNames) {
       try {
-        var names = await getWorldbookNames();
+        const names = await getWorldbookNames();
         exists = !!(names && names.indexOf(worldbookName) >= 0);
       } catch (_e) {}
     }
@@ -8469,11 +8752,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // （参考 javascript-format 的 ba + updateWorldbookWith 实现，避免条目叠加）
     if (updateWorldbookWith) {
       await updateWorldbookWith(worldbookName, function(oldEntries) {
-        var list = (oldEntries || []).slice();
-        for (var i = 0; i < converted.length; i++) {
-          var newEntry = converted[i];
-          var idx = -1;
-          for (var j = 0; j < list.length; j++) {
+        const list = (oldEntries || []).slice();
+        for (let i = 0; i < converted.length; i++) {
+          const newEntry = converted[i];
+          let idx = -1;
+          for (let j = 0; j < list.length; j++) {
             if (_wiEntryMatch(worldbookName, newEntry.name, list[j])) {
               idx = j;
               break;
@@ -8507,18 +8790,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 真正激活角色卡与世界书的关联，导致世界书虽已生成却"不关联到角色卡"。
   // 此函数在切换到角色卡后调用，把 worldbookName 设为主世界书，并保留原有 additional 世界书。
   async function _tavernBindWorldbookToChar(worldbookName) {
-    var getCharWorldbookNames = _tavernFn('getCharWorldbookNames');
-    var rebindCharWorldbooks = _tavernFn('rebindCharWorldbooks');
+    const getCharWorldbookNames = _tavernFn('getCharWorldbookNames');
+    const rebindCharWorldbooks = _tavernFn('rebindCharWorldbooks');
     if (!rebindCharWorldbooks) {
       console.warn('[worldbook] 酒馆不支持 rebindCharWorldbooks API，跳过角色卡世界书绑定');
       return;
     }
     // 读取当前角色卡已绑定的世界书，保留 additional，仅替换 primary
-    var primary = worldbookName;
-    var additional = [];
+    const primary = worldbookName;
+    const additional = [];
     if (getCharWorldbookNames) {
       try {
-        var cur = getCharWorldbookNames('current');
+        const cur = getCharWorldbookNames('current');
         if (cur) {
           // 把旧的主世界书降级为 additional（避免丢失之前已绑定的世界书），去重
           if (cur.primary && cur.primary !== worldbookName && additional.indexOf(cur.primary) < 0) {
@@ -8540,13 +8823,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 切换到角色卡（Lr）
   async function _tavernSwitchToCharacter(name) {
-    var validated = _tavernValidateName(name);
-    var st = _tavern();
+    const validated = _tavernValidateName(name);
+    const st = _tavern();
     if (!st || !st.characters) throw new Error('无法访问酒馆角色列表');
-    var idx = -1;
-    for (var n = 0; n < 20 && idx < 0; n++) {
+    let idx = -1;
+    for (let n = 0; n < 20 && idx < 0; n++) {
       idx = -1;
-      for (var i = 0; i < st.characters.length; i++) {
+      for (let i = 0; i < st.characters.length; i++) {
         if (st.characters[i].name === validated) {
           idx = i;
           break;
@@ -8567,22 +8850,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 生成完整角色卡 =====
   function buildExportCard(cd) {
     // 兼容 V3 格式：条目和扩展可能在 data 对象内
-    var v3Data = cd.data || {};
-    var rawEntries = (cd.character_book && cd.character_book.entries) || (v3Data.character_book && v3Data.character_book.entries) || [];
-    var rawExtensions = cd.extensions || v3Data.extensions || {};
+    const v3Data = cd.data || {};
+    const rawEntries = (cd.character_book && cd.character_book.entries) || (v3Data.character_book && v3Data.character_book.entries) || [];
+    const rawExtensions = cd.extensions || v3Data.extensions || {};
     // 从角色卡数据提取角色名列表，用于 MVU 条目内容自动生成
-    var charNames = extractCharNames(cd, rawEntries);
+    const charNames = extractCharNames(cd, rawEntries);
     // ===== 预填充：自动填充 MVU 条目空内容（独立步骤，确保检测和schema生成使用填充后的数据）=====
     // ⚠️六大标准模板对齐：InitVar/变量列表/更新规则/输出格式/格式强调；变量分段(EJS)已按规范移除
-    var filledEntries = rawEntries.map(function(e, i) {
-      var comment = e.comment || ('条目' + (i + 1));
-      var commentLower = comment.toLowerCase();
-      var isInitVar = commentLower.indexOf('[initvar]') >= 0;
-      var isVarList = comment.indexOf('变量列表') >= 0;
-      var isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
-      var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
-      var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
-      var outContent = e.content || '';
+    let filledEntries = rawEntries.map(function(e, i) {
+      const comment = e.comment || ('条目' + (i + 1));
+      const commentLower = comment.toLowerCase();
+      const isInitVar = commentLower.indexOf('[initvar]') >= 0;
+      const isVarList = comment.indexOf('变量列表') >= 0;
+      const isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
+      const isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
+      const isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
+      let outContent = e.content || '';
       if (!outContent || outContent.trim() === '') {
         if (isInitVar) outContent = generateInitVarYaml(charNames);
         else if (isVarList) outContent = generateVarListContent();
@@ -8619,15 +8902,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 预填充结束 =====
     // ===== 改进Z5：MVU核心条目兜底——只要任意一项MVU条目存在，就自动补齐其余4类缺失条目 =====
     // 确保导出的角色卡永远包含完整可用的MVU系统
-    var anyMVUExists = filledEntries.some(function(e) {
+    const anyMVUExists = filledEntries.some(function(e) {
       return isMVUEntry(e.comment || '');
     });
-    var mvuEntryExists = function(pred) {
+    const mvuEntryExists = function(pred) {
       return filledEntries.some(pred);
     };
     if (anyMVUExists) {
-      var _toAppend = [];
-      var _idx = filledEntries.length;
+      const _toAppend = [];
+      let _idx = filledEntries.length;
       // InitVar
       if (!mvuEntryExists(function(e) {
           return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
@@ -8736,47 +9019,47 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }).join('、'));
       }
     }
-    var entries = filledEntries.map(function(e, i) {
-      var comment = e.comment || ('条目' + (i + 1));
-      var tmpl = getEntryTemplate(comment);
-      var isConst = tmpl ? tmpl.constant : false;
-      var isSel = tmpl ? tmpl.selective : true;
-      var pos = tmpl ? tmpl.position : 4;
-      var depth = tmpl ? tmpl.depth : 4;
-      var order = tmpl ? tmpl.order : 100;
-      var defaultGroup = tmpl ? tmpl.group : '';
-      var defaultSticky = tmpl ? (tmpl.sticky || 0) : 0;
-      var defaultCD = tmpl ? tmpl.cooldown : 0;
-      var defaultProb = tmpl ? tmpl.probability : 100;
-      var defaultSL = tmpl ? tmpl.selectiveLogic : 0;
-      var defaultPR = tmpl ? tmpl.prevent_recursion : false;
-      var defaultER = tmpl ? tmpl.exclude_recursion : false;
-      var defaultDUR = tmpl ? !!tmpl.delay_until_recursion : false;
-      var defaultUseProb = tmpl ? tmpl.useProbability : false;
-      var defaultScanDepth = tmpl ? tmpl.scan_depth : null;
-      var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-      var ext = e.extensions || {};
-      var rawPos = ext.position !== undefined ? ext.position : pos;
-      var posNum = typeof rawPos === 'string' ?
+    let entries = filledEntries.map(function(e, i) {
+      const comment = e.comment || ('条目' + (i + 1));
+      const tmpl = getEntryTemplate(comment);
+      const isConst = tmpl ? tmpl.constant : false;
+      const isSel = tmpl ? tmpl.selective : true;
+      const pos = tmpl ? tmpl.position : 4;
+      const depth = tmpl ? tmpl.depth : 4;
+      const order = tmpl ? tmpl.order : 100;
+      const defaultGroup = tmpl ? tmpl.group : '';
+      const defaultSticky = tmpl ? (tmpl.sticky || 0) : 0;
+      const defaultCD = tmpl ? tmpl.cooldown : 0;
+      const defaultProb = tmpl ? tmpl.probability : 100;
+      const defaultSL = tmpl ? tmpl.selectiveLogic : 0;
+      const defaultPR = tmpl ? tmpl.prevent_recursion : false;
+      const defaultER = tmpl ? tmpl.exclude_recursion : false;
+      const defaultDUR = tmpl ? !!tmpl.delay_until_recursion : false;
+      const defaultUseProb = tmpl ? tmpl.useProbability : false;
+      const defaultScanDepth = tmpl ? tmpl.scan_depth : null;
+      const defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
+      const ext = e.extensions || {};
+      const rawPos = ext.position !== undefined ? ext.position : pos;
+      const posNum = typeof rawPos === 'string' ?
         (rawPos === 'before_char' || rawPos === '0' ? 0 : 1) :
         rawPos;
       // ST规范：顶层position只接受 "before_char" 或 "after_char"
       // position=0 → before_char，其他所有值 → after_char
-      var topPosStr = (posNum === 0) ? 'before_char' : 'after_char';
-      var roleVal = ext.role !== undefined ? ext.role : 0;
+      const topPosStr = (posNum === 0) ? 'before_char' : 'after_char';
+      let roleVal = ext.role !== undefined ? ext.role : 0;
       if (typeof roleVal === 'string') {
         roleVal = roleVal.toLowerCase() === 'user' ? 1 : 0;
       }
-      var useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
-      var groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
+      const useProbVal = ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : defaultUseProb);
+      const groupWeightVal = ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100);
       // MVU 安全网：[initvar] 条目必须 enabled=false；变量输出格式强调 默认 enabled=false
       // 注意：空内容填充已移至预填充步骤，此处仅保留类型检测用于 enabled 逻辑
-      var commentLower = comment.toLowerCase();
-      var isInitVar = commentLower.indexOf('[initvar]') >= 0;
-      var isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
-      var isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
-      var isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
-      var outContent = e.content || '';
+      const commentLower = comment.toLowerCase();
+      const isInitVar = commentLower.indexOf('[initvar]') >= 0;
+      const isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
+      const isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
+      const isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
+      const outContent = e.content || '';
       return {
         id: e.id || (i + 1),
         keys: e.keys || [],
@@ -8833,7 +9116,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // ===== 额外保险：如果 entry.comment 缺失但 content 像 "【...】：..." 这种 depth_prompt 式长文本，加一个 fallback comment 防止后续流程炸 =====
     entries = entries.map(function(e) {
       if (!e.comment && e.content && typeof e.content === 'string') {
-        var first = e.content.split('\n')[0].trim();
+        const first = e.content.split('\n')[0].trim();
         if (first.length > 8 && first.length <= 60) e = Object.assign({}, e, {
           comment: first.slice(0, 40)
         });
@@ -8841,44 +9124,44 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return e;
     });
     // ST规范：换行符统一使用 \r\n
-    var toCRLF = function(str) {
+    const toCRLF = function(str) {
       if (!str) return str;
       return str.replace(/\r?\n/g, '\r\n');
     };
     // normalizeRegexScripts 已提取为外层共享函数（导入/导出共用）
-    var cardName = cd.name || '未命名世界';
-    var cardDesc = cd.description || '';
+    const cardName = cd.name || '未命名世界';
+    const cardDesc = cd.description || '';
     // 检测是否包含MVU核心条目（至少 [initvar] + 变量列表/更新规则/输出格式 之一即视为MVU系统）
     // 使用预填充后的 filledEntries 进行检测，确保 InitVar 等条目已含自动生成的内容
-    var hasInitVar = filledEntries.some(function(e) {
+    const hasInitVar = filledEntries.some(function(e) {
       return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
     });
-    var hasVarList = filledEntries.some(function(e) {
+    const hasVarList = filledEntries.some(function(e) {
       return (e.comment || '').indexOf('变量列表') >= 0;
     });
-    var hasVarUpdate = filledEntries.some(function(e) {
+    const hasVarUpdate = filledEntries.some(function(e) {
       return (e.comment || '').toLowerCase().indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量更新规则') >= 0;
     });
-    var hasVarFormat = filledEntries.some(function(e) {
+    const hasVarFormat = filledEntries.some(function(e) {
       return (e.comment || '').indexOf('变量输出格式') >= 0;
     });
-    var hasMVUEntries = !!(hasInitVar && (hasVarList || hasVarUpdate || hasVarFormat));
+    let hasMVUEntries = !!(hasInitVar && (hasVarList || hasVarUpdate || hasVarFormat));
     // 宽泛匹配：只要存在任意 MVU 核心条目（即使无 [InitVar]）也视为 MVU 卡
-    var hasAnyMVU = hasMVUEntries || filledEntries.some(function(e) {
+    const hasAnyMVU = hasMVUEntries || filledEntries.some(function(e) {
       return isMVUEntry(e.comment || '');
     });
     // 最终使用宽泛匹配结果，确保只要有任意 MVU 条目就注入脚本
     hasMVUEntries = hasMVUEntries || hasAnyMVU;
-    var rawFirstMes = cd.first_mes || '';
+    let rawFirstMes = cd.first_mes || '';
     // MVU 卡的开场白必须含 <StatusPlaceHolderImpl/>（即使 first_mes 为空也追加，保证状态栏正常显示）
     if (hasMVUEntries && rawFirstMes.indexOf('<StatusPlaceHolderImpl') < 0) {
       rawFirstMes = rawFirstMes.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '').trim() + '\n\n<StatusPlaceHolderImpl/>';
     }
-    var cardFirstMes = toCRLF(rawFirstMes);
-    var cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
+    const cardFirstMes = toCRLF(rawFirstMes);
+    const cardAltGreetings = (cd.alternate_greetings || []).map(function(g) {
       // ⚠️改进R5：非字符串元素（null/数字/对象）会令 toCRLF 崩溃，加 typeof 守卫
       if (typeof g !== 'string') g = '';
-      var greeting = toCRLF(g);
+      let greeting = toCRLF(g);
       // MVU开局变量初始化：在alternate_greetings中保留<UpdateVariable>段（覆盖[InitVar]默认值）
       // 同时确保每个alt greeting也含<StatusPlaceHolderImpl/>占位符
       if (hasMVUEntries && greeting.indexOf('<StatusPlaceHolderImpl') < 0) {
@@ -8886,25 +9169,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       return greeting;
     });
-    var cardSysPrompt = toCRLF(cd.system_prompt || '');
-    var cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
+    const cardSysPrompt = toCRLF(cd.system_prompt || '');
+    const cardCreatorNotes = toCRLF(cd.creator_notes || '时之写卡器创建');
     // 优先从 data.depth_prompt 读取（v3规范），回退到 extensions.depth_prompt（v2兼容）
     // 改进D：深拷贝避免引用污染源cardData（多次buildExportCard会累积修改role/depth）
     // 修复：若来源是 JSON 字符串（形如 '{"prompt":"...","depth":0,"role":"system"}'），先反序列化再操作，
     //   否则 JSON.parse(JSON.stringify(string)) 仍是字符串，后续 .depth= 会抛 "Cannot create property 'depth' on string"
-    var _rawDpSrc = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : {
+    const _rawDpSrc = cd.depth_prompt ? cd.depth_prompt : (rawExtensions.depth_prompt ? rawExtensions.depth_prompt : {
       prompt: '',
       depth: 4,
       role: 'system'
     });
-    var _depthPromptSrc = normalizeDepthPrompt(_rawDpSrc, 4);
-    var depthPrompt = JSON.parse(JSON.stringify(_depthPromptSrc));
+    const _depthPromptSrc = normalizeDepthPrompt(_rawDpSrc, 4);
+    const depthPrompt = JSON.parse(JSON.stringify(_depthPromptSrc));
     // 修正 depth_prompt.role 为字符串
     if (typeof depthPrompt.role === 'number') {
       depthPrompt.role = depthPrompt.role === 1 ? 'user' : (depthPrompt.role === 2 ? 'assistant' : 'system');
     }
     if (depthPrompt.depth === undefined) depthPrompt.depth = 4;
-    var cardData = {
+    const cardData = {
       name: cardName,
       description: cardDesc,
       personality: cd.personality || '',
@@ -8919,15 +9202,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       depth_prompt: depthPrompt,
       extensions: (function() {
         // 检测是否包含MVU变量系统条目（复用前面的检测结果）
-        var hasMVU = hasMVUEntries;
-        var existingRx = normalizeRegexScripts(rawExtensions.regex_scripts);
-        var existingScripts = (rawExtensions.tavern_helper && rawExtensions.tavern_helper.scripts) || [];
-        var mvuScripts = existingScripts.slice();
-        var mvuRegex = existingRx.slice();
+        const hasMVU = hasMVUEntries;
+        const existingRx = normalizeRegexScripts(rawExtensions.regex_scripts);
+        const existingScripts = (rawExtensions.tavern_helper && rawExtensions.tavern_helper.scripts) || [];
+        const mvuScripts = existingScripts.slice();
+        const mvuRegex = existingRx.slice();
         if (hasMVU) {
           // 自动注入MVU bundle.js脚本（如果尚未存在）
           // 使用 MVU 规范的固定UUID，确保兼容
-          var hasBundle = mvuScripts.some(function(s) {
+          const hasBundle = mvuScripts.some(function(s) {
             return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0;
           });
           if (!hasBundle) {
@@ -8975,7 +9258,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // （原 hasWTC 自动注入逻辑已移除）
           // 自动注入MVU必备正则脚本（5条：正则1-5；正则6 美化状态栏由 AI 在 MVU Tab 生成）
           // 正则1：仅格式思维链 - 从提示词中移除<Analysis>段（AI思维链不需要重复发送）
-          var hasAnalysisRegex = mvuRegex.some(function(r) {
+          const hasAnalysisRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('Analysis') >= 0 && r.promptOnly;
           });
           if (!hasAnalysisRegex) {
@@ -8996,7 +9279,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
           }
           // 正则2：只发送最新2楼的变量更新 - 从提示词移除旧UpdateVariable段（minDepth=4保留最近2楼）
-          var hasUpdateVarPromptRegex = mvuRegex.some(function(r) {
+          const hasUpdateVarPromptRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly;
           });
           if (!hasUpdateVarPromptRegex) {
@@ -9017,7 +9300,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
           }
           // 正则3：[美化]变量完成 - 美化已完成的UpdateVariable显示（markdownOnly）
-          var hasBeautifyCompleteRegex = mvuRegex.some(function(r) {
+          const hasBeautifyCompleteRegex = mvuRegex.some(function(r) {
             return r.id === '6fb572ae-a9ea-436d-9779-ad100f1ff7f5';
           });
           if (!hasBeautifyCompleteRegex) {
@@ -9038,7 +9321,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
           }
           // 正则4：[美化]变量更新中 - 美化流式输出中的UpdateVariable显示
-          var hasBeautifyThinkingRegex = mvuRegex.some(function(r) {
+          const hasBeautifyThinkingRegex = mvuRegex.some(function(r) {
             return r.id === 'bf1b7441-5cf1-426d-bd6c-911332be9923';
           });
           if (!hasBeautifyThinkingRegex) {
@@ -9060,7 +9343,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // 月相1-4已删除
           // 正则5：[不发送]隐藏状态栏标记 - 从提示词移除 <StatusPlaceHolderImpl/>（AI不需要看到占位符）
-          var hasHidePlaceholderRegex = mvuRegex.some(function(r) {
+          const hasHidePlaceholderRegex = mvuRegex.some(function(r) {
             return (r.findRegex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly;
           });
           if (!hasHidePlaceholderRegex) {
@@ -9135,9 +9418,63 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 主界面 =====
   async function openEditor() {
     try {
-      var doc = await createModalIframe();
+      const doc = await createModalIframe();
 
-      var cardData = {
+      // ========== 明暗主题 ==========
+      // 优先级：localStorage('cw-theme') 显式选择 > 系统 prefers-color-scheme（默认浅色）
+      function _systemPrefersDark() {
+        try {
+          return !!(doc.defaultView && doc.defaultView.matchMedia &&
+            doc.defaultView.matchMedia('(prefers-color-scheme: dark)').matches);
+        } catch (_) {
+          return false;
+        }
+      }
+      function _resolveTheme() {
+        try {
+          const saved = localStorage.getItem('cw-theme');
+          if (saved === 'dark' || saved === 'light') return saved;
+        } catch (_) {}
+        return _systemPrefersDark() ? 'dark' : 'light';
+      }
+      function _syncThemeToggleIcon(theme) {
+        try {
+          const btns = doc.querySelectorAll('#themeToggleBtn');
+          for (let i = 0; i < btns.length; i++) {
+            btns[i].innerHTML = svgIcon(theme === 'dark' ? 'sun' : 'moon', 15);
+          }
+        } catch (_) {}
+      }
+      function applyTheme(theme) {
+        try {
+          if (theme === 'dark') doc.documentElement.setAttribute('data-theme', 'dark');
+          else if (theme === 'light') doc.documentElement.setAttribute('data-theme', 'light');
+          else doc.documentElement.removeAttribute('data-theme');
+          _syncThemeToggleIcon(theme);
+          // iframe 外壳带内联背景色（不走 CSS 变量），同步真实 --bg 防止暗黑下白边闪烁
+          try {
+            if (window.frameElement) {
+              const bg = doc.defaultView.getComputedStyle(doc.documentElement).getPropertyValue('--bg').trim();
+              if (bg) window.frameElement.style.background = bg;
+            }
+          } catch (_) {}
+        } catch (e) {
+          logWarn('applyTheme', e);
+        }
+      }
+      applyTheme(_resolveTheme());
+      // 事件委托：topbar 随 doc.body.innerHTML 多次重建，监听挂 doc 只需绑定一次
+      doc.addEventListener('click', function(e) {
+        const btn = e.target && e.target.closest ? e.target.closest('#themeToggleBtn') : null;
+        if (!btn) return;
+        const next = doc.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        try {
+          localStorage.setItem('cw-theme', next);
+        } catch (_) {}
+        applyTheme(next);
+      });
+
+      let cardData = {
         name: '',
         description: '',
         personality: '',
@@ -9180,7 +9517,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ========== Tab 隔离系统：角色卡 Tab 与 MVU状态栏 Tab 完全独立 ==========
       // 参考用户建议的 chatSessions 结构化封装，两边会话状态完全隔离
-      var activeTab = 'card'; // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
+      let activeTab = 'card'; // 'card' = 角色卡生成, 'mvu' = MVU变量状态栏
       // 暴露到 window：让 mergePartial / checkMvu8Entries 等顶层作用域函数也能正确取到当前Tab和cardData
       if (typeof window !== 'undefined') {
         window.__cardData = cardData;
@@ -9197,8 +9534,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
       }
       // 向后兼容别名：activeTab === currentTab，两边代码都能跑
-      var currentTab = activeTab;
-      var chatSessions = {
+      let currentTab = activeTab;
+      const chatSessions = {
         card: {
           messages: [], // 角色卡Tab独立聊天历史
           mode: 'normal' // 角色卡Tab专属模式：永远是 normal，永远不进入状态栏生成模式
@@ -9208,8 +9545,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       };
       // 会话数组别名：实际以 chatSessions 为准，切换Tab时同步
-      var cardMessages = chatSessions.card.messages;
-      var mvuMessages = chatSessions.mvu.messages;
+      let cardMessages = chatSessions.card.messages;
+      let mvuMessages = chatSessions.mvu.messages;
       // ★ 向后兼容别名：旧代码各处仍直接引用 messages 变量（importCardData/loadFromStorage等）
       // 必须保留 var messages 声明，否则会报 "messages is not defined"
       var messages = chatSessions.card.messages;
@@ -9250,10 +9587,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
       }
 
-      var isGenerating = false;
-      var cardGenerated = false;
-      var progress = 0;
-      var moduleProgress = {
+      let isGenerating = false;
+      let cardGenerated = false;
+      let progress = 0;
+      let moduleProgress = {
         axiom: 0,
         soft_rules: 0,
         core_rules: 0,
@@ -9295,8 +9632,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           };
         }
         // 更新Tab按钮激活态
-        var tabBtns = doc.querySelectorAll('.tab-btn');
-        for (var ti = 0; ti < tabBtns.length; ti++) {
+        const tabBtns = doc.querySelectorAll('.tab-btn');
+        for (let ti = 0; ti < tabBtns.length; ti++) {
           tabBtns[ti].classList.toggle('active', tabBtns[ti].getAttribute('data-tab') === targetTab);
         }
         // ===== 3. 同步所有消息别名变量（cardMessages/mvuMessages/messages），保证所有引用都指向最新数组 =====
@@ -9306,11 +9643,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           messages = chatSessions.card.messages;
         }
         // 切换聊天记录：清空当前聊天面板并重放目标Tab的消息
-        var chatC = doc.getElementById('chatMessages');
+        const chatC = doc.getElementById('chatMessages');
         if (chatC) {
           chatC.innerHTML = '';
-          var msgs = getCurrentMessages();
-          for (var mi = 0; mi < msgs.length; mi++) {
+          const msgs = getCurrentMessages();
+          for (let mi = 0; mi < msgs.length; mi++) {
             appendMsg(msgs[mi].role, msgs[mi].content, mi);
           }
           // ★ 重绘后自动滚动到底部，让用户看到最新消息
@@ -9329,7 +9666,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ===== 进入MVU Tab时自动注入固定资产（bundle.js + 正则1-5）=====
           // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
           // 这些资产固定不变，提前注入让用户在MVU Tab里就能看到完整资产，预览时也能正确渲染
-          var injectedAssets = ensureFixedMvuAssetsInCardData();
+          const injectedAssets = ensureFixedMvuAssetsInCardData();
           if (injectedAssets && injectedAssets.length > 0) {
             renderPreview();
             showToast('已自动注入MVU固定资产：' + injectedAssets.join('、'), 'success');
@@ -9344,7 +9681,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         renderPreview(); // 右侧预览面板
         scheduleCtxBarUpdate(); // ctx-bar 防抖再刷一次（合并后续成对刷新）
         // ===== 6. 更新输入框：切换Tab时清空残留内容 + 更新placeholder + 更新字符计数/发送按钮脉冲 =====
-        var inputEl = doc.getElementById('chatInput');
+        const inputEl = doc.getElementById('chatInput');
         if (inputEl) {
           // ★ 切换Tab必须清空输入框内容：避免用户在A Tab写了一半切到B Tab还在，导致上下文不匹配
           inputEl.value = '';
@@ -9353,7 +9690,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
           // 触发输入框的input事件让字符计数和脉冲按钮更新
           try {
-            var _fakeEvt = doc.createEvent ? doc.createEvent('Event') : null;
+            const _fakeEvt = doc.createEvent ? doc.createEvent('Event') : null;
             if (_fakeEvt) {
               _fakeEvt.initEvent('input', false, true);
               inputEl.dispatchEvent(_fakeEvt);
@@ -9363,7 +9700,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           updateSendBtnPulse();
         }
         // ===== 7. 更新顶栏标题：Tab不同标题不同，给用户明确的上下文感知 =====
-        var titleH1 = doc.querySelector('.topbar h1');
+        const titleH1 = doc.querySelector('.topbar h1');
         if (titleH1) {
           if (targetTab === 'card') {
             titleH1.innerHTML = svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器';
@@ -9384,6 +9721,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器</h1>' +
           '</div>' +
           '<div class="topbar-right">' +
+          '<button class="icon-btn icon-btn-square" id="themeToggleBtn" aria-label="切换明暗主题" title="切换明暗主题">' + svgIcon('moon', 15) + '</button>' +
           '<button class="icon-btn icon-btn-square danger" id="closeBtn" aria-label="关闭" title="关闭">' + svgIcon('close', 16) + '</button>' +
           '</div>' +
           '</div>' +
@@ -9413,7 +9751,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事（默认，不含任何成人内容）\n   • 暗黑向：残酷、血腥、深刻、绝望的剧情——包含暴力/死亡/折磨/背叛/创伤/精神崩溃，不含色情\n   • NSFW（18禁）：成人内容——包含露骨的情欲/性行为描写，器官直呼、过程逐帧、不回避不省略\n   • 暗黑+NSFW 叠加：性暴力/黑暗调教/末世堕落/人身支配等极端内容，两套标准同时全开\n   ⚠️ 一旦选定，本卡将**严格按照该尺度执行**——不会打码、不会留白、不会用"省略号/成语"敷衍。\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
         });
         doc.getElementById('importBtn').addEventListener('click', showImportModal);
-        var contBtn = doc.getElementById('continueBtn');
+        const contBtn = doc.getElementById('continueBtn');
         if (contBtn && hasSavedData()) {
           contBtn.style.display = 'inline-block';
           contBtn.addEventListener('click', continueFromSave);
@@ -9437,6 +9775,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="ws-dropdown" id="wsDropdown"></div>' +
           '</div>' +
           '<span class="phase" id="phaseLabel">0%</span>' +
+          '<button class="icon-btn icon-btn-square" id="themeToggleBtn" aria-label="切换明暗主题" title="切换明暗主题">' + svgIcon('moon', 15) + '</button>' +
           '<button class="icon-btn icon-btn-square danger" id="closeBtn" aria-label="关闭" title="关闭">' + svgIcon('close', 16) + '</button>' +
           '</div>' +
           '</div>' +
@@ -9489,13 +9828,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== Work Toast 工作提示系统 =====
-      var workToastSeed = 0;
+      let workToastSeed = 0;
 
       function pushWorkToast(text, kind) {
-        var layer = doc.getElementById('workToastLayer');
+        const layer = doc.getElementById('workToastLayer');
         if (!layer) return;
-        var id = ++workToastSeed;
-        var toast = doc.createElement('div');
+        const id = ++workToastSeed;
+        const toast = doc.createElement('div');
         toast.className = 'work-toast ' + (kind === 'done' ? 'is-done' : 'is-working');
         toast.innerHTML = svgIcon(kind === 'done' ? 'checkCircle' : 'spinner', 18, 'wt-icon' + (kind !== 'done' ? ' ic-spin' : '')) +
           '<span class="wt-text">' + escHtml(text) + '</span>';
@@ -9516,12 +9855,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 工作区下拉菜单 =====
       // ⚠️修复：document 级监听器一次性绑定标志——renderChatUI 每次导入卡/继续上次都会重跑
       // bindEvents/initWorkspaceMenu，原先 doc.addEventListener 直接累积（N次导入=N倍监听器+游离DOM引用）
-      var _docClickBound = false;
-      var _docKeydownBound = false;
+      let _docClickBound = false;
+      let _docKeydownBound = false;
 
       function initWorkspaceMenu() {
-        var btn = doc.getElementById('wsMenuBtn');
-        var dropdown = doc.getElementById('wsDropdown');
+        const btn = doc.getElementById('wsMenuBtn');
+        const dropdown = doc.getElementById('wsDropdown');
         if (!btn || !dropdown) return;
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -9532,18 +9871,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _docClickBound = true;
           doc.addEventListener('click', function(e) {
             // 事件发生时实时查找 dropdown（body.innerHTML 重建后旧引用会指向游离节点）
-            var dd = doc.getElementById('wsDropdown');
+            const dd = doc.getElementById('wsDropdown');
             if (dd && (!e.target || !e.target.closest || !e.target.closest('#wsMenuWrap'))) dd.classList.remove('show');
           });
         }
       }
 
       function renderWorkspaceMenuItems() {
-        var dropdown = doc.getElementById('wsDropdown');
+        const dropdown = doc.getElementById('wsDropdown');
         if (!dropdown) return;
-        var items = '';
-        var hasFirstDef = cardData.first_mes && cardData.first_mes.length > 50;
-        var hasEntriesDef = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
+        let items = '';
+        const hasFirstDef = cardData.first_mes && cardData.first_mes.length > 50;
+        const hasEntriesDef = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
         // 工作台
         items += '<div class="ws-dropdown-section">工作台</div>';
         items += '<div class="ws-dropdown-item" data-action="open-workspace">' + svgIcon('folder', 15) + ' 打开工作台 <span class="ws-item-badge">Tab</span></div>';
@@ -9587,8 +9926,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         items += '<div class="ws-dropdown-item" data-action="import-card">' + svgIcon('download', 15) + ' 导入角色卡</div>';
         dropdown.innerHTML = items;
         // ===== 字体大小展开栏：折叠/展开切换 =====
-        var fontHeader = doc.getElementById('wsFontHeader');
-        var fontExpand = doc.getElementById('wsFontExpand');
+        const fontHeader = doc.getElementById('wsFontHeader');
+        const fontExpand = doc.getElementById('wsFontExpand');
         if (fontHeader && fontExpand) {
           fontHeader.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -9596,42 +9935,42 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         // ===== 字体加减按钮绑定（下拉菜单中）=====
-        var wsDecBtn = doc.getElementById('wsFontDec');
-        var wsIncBtn = doc.getElementById('wsFontInc');
-        var wsResetBtn = doc.getElementById('wsFontReset');
+        const wsDecBtn = doc.getElementById('wsFontDec');
+        const wsIncBtn = doc.getElementById('wsFontInc');
+        const wsResetBtn = doc.getElementById('wsFontReset');
         if (wsDecBtn) wsDecBtn.addEventListener('click', function(e) {
           e.stopPropagation();
           applyFontScale(_appFontScale - _FONT_STEP);
           try {
             saveToStorage();
-          } catch (e) {}
+          } catch (e) { logWarn("renderWorkspaceMenuItems", e); }
         });
         if (wsIncBtn) wsIncBtn.addEventListener('click', function(e) {
           e.stopPropagation();
           applyFontScale(_appFontScale + _FONT_STEP);
           try {
             saveToStorage();
-          } catch (e) {}
+          } catch (e) { logWarn("renderWorkspaceMenuItems", e); }
         });
         if (wsResetBtn) wsResetBtn.addEventListener('click', function(e) {
           e.stopPropagation();
           applyFontScale(1);
           try {
             saveToStorage();
-          } catch (e) {}
+          } catch (e) { logWarn("renderWorkspaceMenuItems", e); }
         });
         // 应用当前字体缩放状态到下拉控件（按钮禁用/百分比）
         applyFontScale(_appFontScale);
         // 绑定点击
         dropdown.querySelectorAll('.ws-dropdown-item').forEach(function(item) {
           item.addEventListener('click', function() {
-            var action = this.getAttribute('data-action');
+            const action = this.getAttribute('data-action');
             dropdown.classList.remove('show');
             if (action === 'open-workspace') openWorkspacePanel();
             else if (action === 'switch-tab') switchTab(this.getAttribute('data-tab'));
             else if (action === 'export-card') exportCardJson();
             else if (action === 'export-log') {
-              var btn = doc.getElementById('exportLogBtn');
+              const btn = doc.getElementById('exportLogBtn');
               if (btn) btn.click();
             } else if (action === 'import-card') showImportModal();
             else if (action === 'qa-summary') handleQuickAction('summary');
@@ -9645,11 +9984,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 工作台模态浮窗 =====
-      var wsPanelTab = 'files';
-      var wsSelectedNode = null; // { type: 'field'|'entry'|'regex'|'thscript', key: string, index?: number, fieldType?: string }
-      var wsEditorView = 'split'; // 'split' | 'edit' | 'preview'
-      var wsEditedContent = {}; // nodeKey → 编辑后的内容缓存
-      var wsOriginalContent = {}; // nodeKey → 打开时的原始内容（用于 diff）
+      let wsPanelTab = 'files';
+      let wsSelectedNode = null; // { type: 'field'|'entry'|'regex'|'thscript', key: string, index?: number, fieldType?: string }
+      let wsEditorView = 'split'; // 'split' | 'edit' | 'preview'
+      let wsEditedContent = {}; // nodeKey → 编辑后的内容缓存
+      let wsOriginalContent = {}; // nodeKey → 打开时的原始内容（用于 diff）
       function _wsNodeKey(node) {
         return node ? (node.type + '::' + node.key + (node.index != null ? '::' + node.index : '')) : '';
       }
@@ -9657,21 +9996,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function _wsGetContent(node) {
         if (!node) return '';
         if (node.type === 'field') {
-          var v = cardData[node.key];
+          const v = cardData[node.key];
           if (Array.isArray(v) && node.index != null) return v[node.index] || '';
           return v != null ? String(v) : '';
         }
         if (node.type === 'entry') {
-          var e = (cardData.character_book || {}).entries || [];
+          const e = (cardData.character_book || {}).entries || [];
           return (e[node.index] && e[node.index].content) || '';
         }
         if (node.type === 'regex') {
-          var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+          const r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
           return (r[node.index] && r[node.index].replaceString) || '';
         }
         if (node.type === 'thscript') {
-          var scripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
-          var s = scripts[node.index];
+          const scripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
+          const s = scripts[node.index];
           return s && s.content ? s.content : '';
         }
         return '';
@@ -9686,10 +10025,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             cardData[node.key] = val;
           }
         } else if (node.type === 'entry') {
-          var e = (cardData.character_book || {}).entries || [];
+          const e = (cardData.character_book || {}).entries || [];
           if (e[node.index]) e[node.index].content = val;
         } else if (node.type === 'regex') {
-          var r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+          const r = (cardData.extensions && cardData.extensions.regex_scripts) || [];
           if (r[node.index]) r[node.index].replaceString = val;
         } else if (node.type === 'thscript') {
           if (!cardData.extensions) cardData.extensions = {};
@@ -9705,7 +10044,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!node) return null;
         if (node.type === 'thscript') return null;
         if (node.type === 'entry') {
-          var e = ((cardData.character_book || {}).entries || [])[node.index];
+          const e = ((cardData.character_book || {}).entries || [])[node.index];
           if (!e) return null;
           return {
             comment: e.comment || '',
@@ -9726,7 +10065,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function _wsSetMeta(node, meta) {
         if (!node || node.type !== 'entry') return;
-        var e = ((cardData.character_book || {}).entries || [])[node.index];
+        const e = ((cardData.character_book || {}).entries || [])[node.index];
         if (!e) return;
         if (meta.enabled != null) e.enabled = meta.enabled;
         if (meta.constant != null) e.constant = meta.constant;
@@ -9748,13 +10087,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function _wsDiff(oldText, newText) {
-        var oldLines = (oldText || '').split('\n');
-        var newLines = (newText || '').split('\n');
-        var maxLen = Math.max(oldLines.length, newLines.length);
-        var rows = [];
-        for (var i = 0; i < maxLen; i++) {
-          var o = oldLines[i] != null ? oldLines[i] : '';
-          var n = newLines[i] != null ? newLines[i] : '';
+        const oldLines = (oldText || '').split('\n');
+        const newLines = (newText || '').split('\n');
+        const maxLen = Math.max(oldLines.length, newLines.length);
+        const rows = [];
+        for (let i = 0; i < maxLen; i++) {
+          const o = oldLines[i] != null ? oldLines[i] : '';
+          const n = newLines[i] != null ? newLines[i] : '';
           if (o === n) rows.push({
             kind: 'same',
             text: o
@@ -9774,7 +10113,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function openWorkspacePanel() {
-        var container = doc.getElementById('wsPanelContainer');
+        const container = doc.getElementById('wsPanelContainer');
         if (!container) return;
         wsEditorView = 'split';
         wsEditedContent = {};
@@ -9808,10 +10147,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         // 保存所有
         doc.getElementById('wsSaveAllBtn').addEventListener('click', function() {
-          var saved = 0;
+          let saved = 0;
           Object.keys(wsEditedContent).forEach(function(k) {
-            var parts = k.split('::');
-            var node = {
+            const parts = k.split('::');
+            const node = {
               type: parts[0],
               key: parts[1],
               index: parts[2] != null ? parseInt(parts[2]) : null
@@ -9827,7 +10166,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             showToast('已保存 ' + saved + ' 项更改到角色卡', 'success');
           } else showToast('没有未保存的更改', 'info');
           // 刷新编辑器和工作台预览
-          var editorEl = container.querySelector('#wsEditor');
+          const editorEl = container.querySelector('#wsEditor');
           if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
           bindWsEditorEvents(container);
           renderWsArtifact(container);
@@ -9858,16 +10197,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function closeWorkspacePanel() {
-        var container = doc.getElementById('wsPanelContainer');
+        const container = doc.getElementById('wsPanelContainer');
         if (container) container.innerHTML = '';
         // 关闭工作台后刷新预览，确保最新保存的内容立即显示
         renderPreview();
       }
       // ===== 文件树：从 cardData 读取真实数据，虚拟文件系统 =====
       function buildWorkspaceTree() {
-        var groups = [];
+        const groups = [];
         // 1. 角色卡基础字段（StageDog schema 对齐：移除 system_prompt / alternate_greetings，改为 first_mes 数组）
-        var cardFields = [{
+        const cardFields = [{
             key: 'name',
             label: '名称',
             type: 'text'
@@ -9923,7 +10262,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             type: 'text'
           }
         ];
-        var basicNodes = [];
+        const basicNodes = [];
         cardFields.forEach(function(f) {
           basicNodes.push({
             type: 'field',
@@ -9938,13 +10277,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           nodes: basicNodes
         });
         // 2. 世界书条目 —— 按 <标签前缀> 自动分组 + MVU变量单独分组
-        var entries = (cardData.character_book || {}).entries || [];
-        var entryBuckets = {};
-        var mvuNodes = [];
-        var otherNodes = [];
+        const entries = (cardData.character_book || {}).entries || [];
+        const entryBuckets = {};
+        const mvuNodes = [];
+        const otherNodes = [];
         entries.forEach(function(e, i) {
-          var label = e.comment || ('条目' + (i + 1));
-          var node = {
+          const label = e.comment || ('条目' + (i + 1));
+          const node = {
             type: 'entry',
             key: 'character_book',
             index: i,
@@ -9956,16 +10295,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             mvuNodes.push(node);
             return;
           }
-          var m = /^<([^>]+)>/.exec(e.comment || '');
-          var bucketKey = m ? m[1] : '未分类';
+          const m = /^<([^>]+)>/.exec(e.comment || '');
+          let bucketKey = m ? m[1] : '未分类';
           if (m) {
-            var pureTag = m[1];
+            const pureTag = m[1];
             bucketKey = pureTag;
           }
           if (!entryBuckets[bucketKey]) entryBuckets[bucketKey] = [];
           entryBuckets[bucketKey].push(node);
         });
-        var tagOrder = ['基础公理', '核心铁则', '交互软规则', '近场强约束', '核心玩法', '场景机制', '实体交互', '统一输出格式', '状态变量输出', '引导机制', '动态适配', '叙事背景', '未分类'];
+        const tagOrder = ['基础公理', '核心铁则', '交互软规则', '近场强约束', '核心玩法', '场景机制', '实体交互', '统一输出格式', '状态变量输出', '引导机制', '动态适配', '叙事背景', '未分类'];
         tagOrder.forEach(function(t) {
           if (!entryBuckets[t]) return;
           groups.push({
@@ -9988,9 +10327,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           isMVU: true
         });
         // 3. 酒馆助手脚本
-        var thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
+        const thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [];
         if (thScripts.length > 0) {
-          var thNodes = thScripts.map(function(s, i) {
+          const thNodes = thScripts.map(function(s, i) {
             return {
               type: 'thscript',
               key: 'tavern_helper_script',
@@ -10005,9 +10344,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         // 4. 正则脚本
-        var rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+        const rxScripts = (cardData.extensions && cardData.extensions.regex_scripts) || [];
         if (rxScripts.length > 0) {
-          var rxNodes = rxScripts.map(function(r, i) {
+          const rxNodes = rxScripts.map(function(r, i) {
             return {
               type: 'regex',
               key: 'regex_scripts',
@@ -10022,7 +10361,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         // 渲染
-        var html = '';
+        let html = '';
         if (!groups.length) {
           return '<div style="padding:20px;color:var(--muted);font-size:.82em;text-align:center">暂无文件<br>开始创作后这里会显示角色卡内容</div>';
         }
@@ -10032,20 +10371,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           html += '<div class="ws-tree-group-head"><span class="ws-tree-arrow">▸</span> ' + escHtml(g.name) + '</div>';
           html += '<div class="ws-tree-items">';
           g.nodes.forEach(function(n) {
-            var nodeStr = escAttr(JSON.stringify({
+            const nodeStr = escAttr(JSON.stringify({
               type: n.type,
               key: n.key,
               index: n.index,
               fieldType: n.fieldType || null
             }));
-            var len = '';
+            let len = '';
             if (n.type === 'entry') {
-              var e = entries[n.index];
+              const e = entries[n.index];
               if (e && e.content) len = ' <span class="ws-tree-len">' + String(e.content).length + '</span>';
-              var en = (e && e.enabled === false) ? '🔘' : '🟢';
+              const en = (e && e.enabled === false) ? '🔘' : '🟢';
               n.label = en + ' ' + n.label;
             } else if (n.type === 'field') {
-              var v = cardData[n.key];
+              const v = cardData[n.key];
               if (v) len = ' <span class="ws-tree-len">' + String(v).length + '</span>';
             }
             html += '<div class="ws-tree-item" data-node="' + nodeStr + '">' +
@@ -10070,30 +10409,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 编辑器：Edit / Diff / Preview 三视图 =====
       function buildWorkspaceEditor() {
         if (!wsSelectedNode) return '<div class="ws-editor-empty">从左侧选择一个条目进行编辑</div>';
-        var node = wsSelectedNode;
-        var nk = _wsNodeKey(node);
-        var original = wsOriginalContent[nk] != null ? wsOriginalContent[nk] : _wsGetContent(node);
-        var current = wsEditedContent[nk] != null ? wsEditedContent[nk] : original;
-        var title = _wsGetTitle(node);
-        var isDirty = wsEditedContent[nk] != null && wsEditedContent[nk] !== original;
-        var isHtml = _wsIsHtml(node, current);
+        const node = wsSelectedNode;
+        const nk = _wsNodeKey(node);
+        const original = wsOriginalContent[nk] != null ? wsOriginalContent[nk] : _wsGetContent(node);
+        const current = wsEditedContent[nk] != null ? wsEditedContent[nk] : original;
+        const title = _wsGetTitle(node);
+        const isDirty = wsEditedContent[nk] != null && wsEditedContent[nk] !== original;
+        const isHtml = _wsIsHtml(node, current);
         // 视图切换按钮：双栏模式下，编辑/对比并排，不再切换单视图
-        var viewBtns = '<div class="ws-view-switcher">' +
+        const viewBtns = '<div class="ws-view-switcher">' +
           '<button class="ws-view-btn' + (wsEditorView === 'split' ? ' active' : '') + '" data-view="split">📝 编辑+对比 (推荐)</button>' +
           '<button class="ws-view-btn' + (wsEditorView === 'edit' ? ' active' : '') + '" data-view="edit">纯编辑' + (isDirty ? ' *' : '') + '</button>' +
           '<button class="ws-view-btn' + (wsEditorView === 'preview' ? ' active' : '') + '" data-view="preview">渲染预览</button>' +
           '</div>';
-        var metaHtml = '';
-        var meta = _wsGetMeta(node);
+        let metaHtml = '';
+        const meta = _wsGetMeta(node);
         if (meta) {
           // 激活策略下拉（蓝灯/绿灯/向量化 + 自动匹配当前条目配置）
-          var activateType = '蓝灯';
+          let activateType = '蓝灯';
           if (meta.vectorized === true) activateType = '向量化';
           else if (meta.constant !== true && meta.selective !== true) activateType = '绿灯';
           if (meta.constant === true || (meta.depth === 0 && meta.selective === false)) activateType = '蓝灯';
           // ⚠️修复：position 类型归一化——条目里存的是数字（0/1/2/3/4），下拉框 value 是字符串，
           // 原先直接比较导致无论实际值是什么都显示第一项；用户一改动还会把字符串写回与数字并存
-          var posDisplay = meta.position;
+          let posDisplay = meta.position;
           if (typeof posDisplay === 'number') {
             posDisplay = posDisplay === 0 ? 'before_char' :
               posDisplay === 1 ? 'after_char' :
@@ -10120,22 +10459,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '<label class="ws-prop ws-prop-keys">关键词 <input type="text" class="ws-prop-keys-input" value="' + escAttr(meta.keys) + '" placeholder="逗号分隔"></label>' +
             '</div>';
         }
-        var bodyHtml = '';
+        let bodyHtml = '';
         // 构建单栏内容
-        var textareaEl = '<textarea class="ws-textarea" id="wsTextarea" spellcheck="false">' + current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>';
-        var diffEl = '';
+        const textareaEl = '<textarea class="ws-textarea" id="wsTextarea" spellcheck="false">' + current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>';
+        let diffEl = '';
         if (isDirty) {
-          var diff = _wsDiff(original, current);
-          var diffHtml = '';
+          const diff = _wsDiff(original, current);
+          let diffHtml = '';
           diff.forEach(function(row) {
-            var cls = row.kind === 'add' ? 'diff-add' : row.kind === 'del' ? 'diff-del' : 'diff-same';
+            const cls = row.kind === 'add' ? 'diff-add' : row.kind === 'del' ? 'diff-del' : 'diff-same';
             diffHtml += '<div class="' + cls + '">' + (row.kind === 'add' ? '+ ' : row.kind === 'del' ? '- ' : '  ') + row.text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
           });
           diffEl = '<div class="ws-diff-view">' + diffHtml + '</div>';
         } else {
           diffEl = '<div class="ws-diff-view" style="padding:30px;color:var(--muted);font-size:.82em;text-align:center;justify-content:center;align-items:center;display:flex">🟢 尚未修改，原始内容（左侧编辑即可看到变化对比）</div>';
         }
-        var previewEl = '';
+        let previewEl = '';
         if (isHtml) {
           // ⚠️ 沙箱修复：移除 allow-same-origin——与 allow-scripts 组合时 iframe 内脚本与酒馆父页面同源，
           // 可访问父 DOM / 修改自身 sandbox 属性实现逃逸（预览的是导入卡的不可信 HTML/脚本）
@@ -10162,7 +10501,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function _wsGetTitle(node) {
         if (node.type === 'field') {
-          var labels = {
+          const labels = {
             name: '名称',
             avatar: '头像',
             description: '角色描述（世界观/人格/关系）',
@@ -10175,20 +10514,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             creator_notes: '备注',
             tags: '标签'
           };
-          var label = labels[node.key] || node.key;
+          const label = labels[node.key] || node.key;
           if (node.index != null && Array.isArray(cardData[node.key])) return label + ' #' + (node.index + 1);
           return label;
         }
         if (node.type === 'entry') {
-          var e = ((cardData.character_book || {}).entries || [])[node.index];
+          const e = ((cardData.character_book || {}).entries || [])[node.index];
           return (e && e.comment) || ('条目' + (node.index + 1));
         }
         if (node.type === 'regex') {
-          var r = ((cardData.extensions || {}).regex_scripts || [])[node.index];
+          const r = ((cardData.extensions || {}).regex_scripts || [])[node.index];
           return (r && r.scriptName) || ('正则' + (node.index + 1));
         }
         if (node.type === 'thscript') {
-          var s = ((cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [])[node.index];
+          const s = ((cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.script_lib) || [])[node.index];
           return (s && s.name) || ('脚本' + (node.index + 1));
         }
         return '';
@@ -10200,7 +10539,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           btn.addEventListener('click', function() {
             if (this.disabled) return;
             wsEditorView = this.getAttribute('data-view');
-            var editorEl = container.querySelector('#wsEditor');
+            const editorEl = container.querySelector('#wsEditor');
             if (editorEl) {
               editorEl.innerHTML = buildWorkspaceEditor();
               bindWsEditorEvents(container);
@@ -10208,26 +10547,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         });
         // textarea 编辑
-        var ta = container.querySelector('#wsTextarea');
+        const ta = container.querySelector('#wsTextarea');
         if (ta) {
           ta.addEventListener('input', function() {
             if (wsSelectedNode) {
-              var nk = _wsNodeKey(wsSelectedNode);
+              const nk = _wsNodeKey(wsSelectedNode);
               wsEditedContent[nk] = ta.value;
             }
           });
         }
         // 条目属性变更
-        var enabledChk = container.querySelector('.ws-prop-enabled');
-        var constChk = container.querySelector('.ws-prop-constant');
-        var selChk = container.querySelector('.ws-prop-selective');
-        var vecChk = container.querySelector('.ws-prop-vectorized');
-        var posSel = container.querySelector('.ws-prop-position');
-        var depthInp = container.querySelector('.ws-prop-depth');
-        var orderInp = container.querySelector('.ws-prop-order');
-        var groupInp = container.querySelector('.ws-prop-group');
-        var groupWInp = container.querySelector('.ws-prop-groupWeight');
-        var keysInp = container.querySelector('.ws-prop-keys-input');
+        const enabledChk = container.querySelector('.ws-prop-enabled');
+        const constChk = container.querySelector('.ws-prop-constant');
+        const selChk = container.querySelector('.ws-prop-selective');
+        const vecChk = container.querySelector('.ws-prop-vectorized');
+        const posSel = container.querySelector('.ws-prop-position');
+        const depthInp = container.querySelector('.ws-prop-depth');
+        const orderInp = container.querySelector('.ws-prop-order');
+        const groupInp = container.querySelector('.ws-prop-group');
+        const groupWInp = container.querySelector('.ws-prop-groupWeight');
+        const keysInp = container.querySelector('.ws-prop-keys-input');
         if (enabledChk) enabledChk.addEventListener('change', function() {
           if (wsSelectedNode) _wsSetMeta(wsSelectedNode, {
             enabled: this.checked
@@ -10282,31 +10621,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 删除工作台条目/字段（从卡片数据里真正移除，重排左侧树、刷新预览）=====
       function _wsDeleteNode(container, node) {
         if (!container || !node) return;
-        var type = node.type || '';
-        var title = _wsGetTitle(node) || '（未命名）';
-        var typeLabel = '';
+        const type = node.type || '';
+        const title = _wsGetTitle(node) || '（未命名）';
+        let typeLabel = '';
         if (type === 'entry') typeLabel = '条目';
         else if (type === 'field') typeLabel = '字段';
         else if (type === 'regex') typeLabel = '正则脚本';
         else if (type === 'thscript') typeLabel = '酒馆助手脚本';
         if (!typeLabel) return;
         // 保护性确认：删除条目是用户高频需求（堆叠了旧条目想清掉），但毕竟不可逆，所以弹一次确认。
-        var ok = window.confirm('确认删除该' + typeLabel + '吗？\n\n' + typeLabel + '：' + title + '\n（此操作无法撤回，若误删可用头像菜单→"撤回AI修改"恢复上一个快照）');
+        const ok = window.confirm('确认删除该' + typeLabel + '吗？\n\n' + typeLabel + '：' + title + '\n（此操作无法撤回，若误删可用头像菜单→"撤回AI修改"恢复上一个快照）');
         if (!ok) return;
-        var deleted = false;
-        var deletedName = title;
+        let deleted = false;
+        const deletedName = title;
         // ⚠️修复：删除后同组后续条目 index 整体前移，wsEditedContent/wsOriginalContent 按 index
         // 编码的缓存键必须同步迁移，否则"保存全部"按旧 index 写回会把编辑内容写进错误的条目
         function _remapWsCacheIndices(delType, delKey, delIndex) {
           if (delIndex == null) return;
-          var prefix = delType + '::' + delKey + '::';
+          const prefix = delType + '::' + delKey + '::';
           [wsEditedContent, wsOriginalContent].forEach(function(store) {
             if (!store) return;
             Object.keys(store).forEach(function(k) {
               if (k.indexOf(prefix) !== 0) return;
-              var idxStr = k.slice(prefix.length);
+              const idxStr = k.slice(prefix.length);
               if (!/^\d+$/.test(idxStr)) return;
-              var idx = parseInt(idxStr, 10);
+              const idx = parseInt(idxStr, 10);
               if (idx > delIndex) {
                 store[prefix + (idx - 1)] = store[k];
                 delete store[k];
@@ -10315,7 +10654,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         if (type === 'entry') {
-          var entries = (cardData.character_book || {}).entries || [];
+          const entries = (cardData.character_book || {}).entries || [];
           if (node.index >= 0 && node.index < entries.length) {
             entries.splice(node.index, 1);
             _remapWsCacheIndices('entry', node.key, node.index);
@@ -10334,7 +10673,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             deleted = true;
           }
         } else if (type === 'regex') {
-          var rxs = ((cardData.extensions || {}).regex_scripts) || [];
+          const rxs = ((cardData.extensions || {}).regex_scripts) || [];
           if (node.index >= 0 && node.index < rxs.length) {
             rxs.splice(node.index, 1);
             _remapWsCacheIndices('regex', node.key, node.index);
@@ -10343,7 +10682,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } else if (type === 'thscript') {
           if (!cardData.extensions) cardData.extensions = {};
           if (!cardData.extensions.tavern_helper) cardData.extensions.tavern_helper = {};
-          var ths = cardData.extensions.tavern_helper.script_lib || [];
+          const ths = cardData.extensions.tavern_helper.script_lib || [];
           if (node.index >= 0 && node.index < ths.length) {
             ths.splice(node.index, 1);
             _remapWsCacheIndices('thscript', node.key, node.index);
@@ -10355,7 +10694,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 删完之后：当前选中的节点已经被删掉了，清理相关缓存
-        var nk = _wsNodeKey(node);
+        const nk = _wsNodeKey(node);
         try {
           delete wsEditedContent[nk];
         } catch (_) {}
@@ -10370,9 +10709,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         saveToStorage();
         showToast('🗑️ 已删除' + typeLabel + '：' + deletedName, 'success');
         // 刷新工作台所有视图（左侧树条目顺序会变、编辑器和 artifact 都要重新渲染）
-        var treeEl = container.querySelector('#wsTree');
+        const treeEl = container.querySelector('#wsTree');
         if (treeEl) treeEl.innerHTML = buildWorkspaceTree();
-        var editorEl = container.querySelector('#wsEditor');
+        const editorEl = container.querySelector('#wsEditor');
         if (editorEl) editorEl.innerHTML = buildWorkspaceEditor();
         bindWsEditorEvents(container);
         renderWsArtifact(container);
@@ -10390,21 +10729,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             item.addEventListener('click', function(e) {
               // 点到删除按钮 → 选中由删除自行处理，不要继续展开编辑器
               if (e.target && e.target.getAttribute && e.target.getAttribute('data-action') === 'delete') return;
-              var nodeStr = this.getAttribute('data-node');
+              const nodeStr = this.getAttribute('data-node');
               if (!nodeStr) return;
               try {
                 wsSelectedNode = JSON.parse(nodeStr);
               } catch (_e) {
                 return;
               }
-              var nk = _wsNodeKey(wsSelectedNode);
+              const nk = _wsNodeKey(wsSelectedNode);
               if (wsOriginalContent[nk] === undefined) wsOriginalContent[nk] = _wsGetContent(wsSelectedNode);
               container.querySelectorAll('.ws-tree-item').forEach(function(i) {
                 i.classList.remove('selected');
               });
               this.classList.add('selected');
               wsEditorView = 'split';
-              var editorEl = container.querySelector('#wsEditor');
+              const editorEl = container.querySelector('#wsEditor');
               if (editorEl) {
                 editorEl.innerHTML = buildWorkspaceEditor();
                 bindWsEditorEvents(container);
@@ -10412,7 +10751,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (wsPanelTab === 'files') {
                 wsPanelTab = 'editor';
                 container.querySelector('.ws-panel-tab[data-wstab="files"]').classList.remove('active');
-                var et = container.querySelector('.ws-panel-tab[data-wstab="editor"]');
+                const et = container.querySelector('.ws-panel-tab[data-wstab="editor"]');
                 if (et) et.classList.add('active');
                 container.querySelector('#wsTree').classList.remove('active');
                 if (editorEl) editorEl.classList.add('active');
@@ -10421,16 +10760,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             item.setAttribute('data-tree-bound', '1');
           }
           // 悬浮删除按钮
-          var delBtn = item.querySelector('.ws-tree-del[data-action="delete"]');
+          const delBtn = item.querySelector('.ws-tree-del[data-action="delete"]');
           if (delBtn) {
             if (delBtn.getAttribute('data-del-bound') === '1') return;
             delBtn.addEventListener('click', function(e) {
               e.stopPropagation();
               e.preventDefault();
-              var nodeStr = item.getAttribute('data-node');
+              const nodeStr = item.getAttribute('data-node');
               if (!nodeStr) return;
               try {
-                var node = JSON.parse(nodeStr);
+                const node = JSON.parse(nodeStr);
                 _wsDeleteNode(container, node);
               } catch (_e) {
                 showToast('⚠️ 删除失败：无法解析节点信息', 'warning');
@@ -10442,20 +10781,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // ===== 预览区：角色卡整体预览 =====
       function renderWsArtifact(container) {
-        var el = container.querySelector('#wsArtifact');
+        const el = container.querySelector('#wsArtifact');
         if (!el) return;
         el.innerHTML = buildWorkspaceArtifact();
       }
 
       function buildWorkspaceArtifact() {
-        var p = progress || 0;
-        var entries = (cardData.character_book || {}).entries || [];
-        var wbCount = entries.filter(function(e) {
+        const p = progress || 0;
+        const entries = (cardData.character_book || {}).entries || [];
+        const wbCount = entries.filter(function(e) {
           return !isMVUEntry(e.comment || '');
         }).length;
-        var mvuCount = entries.length - wbCount;
-        var rxCount = ((cardData.extensions || {}).regex_scripts || []).length;
-        var html = '<div class="ws-art-summary">' +
+        const mvuCount = entries.length - wbCount;
+        const rxCount = ((cardData.extensions || {}).regex_scripts || []).length;
+        let html = '<div class="ws-art-summary">' +
           '<div class="ws-art-stat"><span class="ws-stat-num">' + p + '%</span><span class="ws-stat-label">进度</span></div>' +
           '<div class="ws-art-stat"><span class="ws-stat-num">' + wbCount + '</span><span class="ws-stat-label">世界书</span></div>' +
           '<div class="ws-art-stat"><span class="ws-stat-num">' + mvuCount + '</span><span class="ws-stat-label">MVU变量</span></div>' +
@@ -10470,12 +10809,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 最近修改的条目
         if (entries.length > 0) {
-          var recent = entries.slice(-5).reverse();
+          const recent = entries.slice(-5).reverse();
           html += '<div class="ws-art-section-title">最近条目</div>';
           recent.forEach(function(e) {
-            var name = e.comment || '未命名';
-            var content = (e.content || '').substring(0, 120);
-            var isMvu = isMVUEntry(e.comment || '');
+            const name = e.comment || '未命名';
+            const content = (e.content || '').substring(0, 120);
+            const isMvu = isMVUEntry(e.comment || '');
             html += '<div class="ws-art-card' + (isMvu ? ' mvu' : '') + '">' +
               '<div class="ws-ac-title">' + (isMvu ? svgIcon('sliders', 12) + ' ' : svgIcon('book', 12) + ' ') + escHtml(name) +
               (e.enabled === false ? ' <span class="ws-ac-off">禁用</span>' : '') +
@@ -10492,7 +10831,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 新闭包形成双写者竞态（AI 修改可能被覆盖丢失）。改为关闭前二次确认
         doc.getElementById('closeBtn').addEventListener('click', function() {
           if (isGenerating) {
-            var okToClose = window.confirm('AI 正在生成中，关闭后本次生成的内容可能丢失（后台任务仍会继续写数据）。\n确定要关闭吗？');
+            const okToClose = window.confirm('AI 正在生成中，关闭后本次生成的内容可能丢失（后台任务仍会继续写数据）。\n确定要关闭吗？');
             if (!okToClose) return;
             closeModal();
             // 后台任务仍在运行：保留 window.__* 访问器（后台闭包仍经其读写数据），下次 openEditor 覆盖
@@ -10502,8 +10841,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             _releaseEditorGlobals();
           }
         });
-        var input = doc.getElementById('chatInput');
-        var sendBtn = doc.getElementById('sendBtn');
+        const input = doc.getElementById('chatInput');
+        const sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
         // 键盘事件：
         //   · 桌面：单纯 Enter = 换行（textarea 默认行为，不拦截）；Ctrl/Cmd + Enter = 发送
@@ -10515,7 +10854,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 合成中：直接 return，交给 textarea 默认换行
           if (e.isComposing) return;
           // Ctrl(Mac:Cmd) + Enter → 发送
-          var sendModifier = e.ctrlKey || e.metaKey;
+          const sendModifier = e.ctrlKey || e.metaKey;
           if (sendModifier) {
             e.preventDefault();
             handleSend();
@@ -10524,12 +10863,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         // 提示：在 sendBtn title / 底部 hint 动态加上正确的修饰键（Mac=⌘, Win/Linux=Ctrl）
         try {
-          var _ua = typeof navigator !== 'undefined' ? (navigator.platform || navigator.userAgent || '') : '';
-          var _isMac = /Mac|iPhone|iPad|iPod/i.test(_ua);
-          var _mod = _isMac ? '⌘' : 'Ctrl';
+          const _ua = typeof navigator !== 'undefined' ? (navigator.platform || navigator.userAgent || '') : '';
+          const _isMac = /Mac|iPhone|iPad|iPod/i.test(_ua);
+          const _mod = _isMac ? '⌘' : 'Ctrl';
           sendBtn.setAttribute('title', '发送（' + _mod + '+Enter）');
           sendBtn.setAttribute('aria-label', '发送（' + _mod + '+Enter）');
-          var _hintEl = doc.getElementById('chatInputHint');
+          const _hintEl = doc.getElementById('chatInputHint');
           if (_hintEl) {
             _hintEl.innerHTML = '<span class="kbd">' + _mod + '</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行';
           }
@@ -10547,8 +10886,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           doc.addEventListener('keydown', function(e) {
             if (e.key !== 'Escape') return;
             // 1) 先尝试关闭最上层模态框（json-modal / modal）
-            var modals = doc.querySelectorAll('.json-modal, .modal');
-            for (var i = modals.length - 1; i >= 0; i--) {
+            const modals = doc.querySelectorAll('.json-modal, .modal');
+            for (let i = modals.length - 1; i >= 0; i--) {
               if (modals[i].parentNode) {
                 modals[i].remove();
                 e.preventDefault();
@@ -10556,43 +10895,43 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
             }
             // 2) 再关闭工作台浮窗
-            var backdrop = doc.getElementById('wsBackdrop');
+            const backdrop = doc.getElementById('wsBackdrop');
             if (backdrop) {
               closeWorkspacePanel();
               e.preventDefault();
             }
           });
         }
-        var exportLogBtn = doc.getElementById('exportLogBtn');
+        const exportLogBtn = doc.getElementById('exportLogBtn');
         if (exportLogBtn) {
           exportLogBtn.addEventListener('click', exportChatLogs);
         }
-        var qBtns = doc.querySelectorAll('.quick-btn');
+        const qBtns = doc.querySelectorAll('.quick-btn');
         for (var i = 0; i < qBtns.length; i++) {
           qBtns[i].addEventListener('click', function() {
-            var action = this.getAttribute('data-action');
+            const action = this.getAttribute('data-action');
             handleQuickAction(action);
           });
         }
         // ctx-bar 模块按钮（updateCtxBar 内部已绑定，这里兜底）
-        var ctxMods = doc.querySelectorAll('.ctx-mod');
+        const ctxMods = doc.querySelectorAll('.ctx-mod');
         for (var cm = 0; cm < ctxMods.length; cm++) {
           if (!ctxMods[cm].getAttribute('data-bound')) {
             ctxMods[cm].setAttribute('data-bound', '1');
             ctxMods[cm].addEventListener('click', function() {
-              var mod = this.getAttribute('data-mod');
+              const mod = this.getAttribute('data-mod');
               if (mod) handleQuickAction(mod);
             });
           }
         }
-        var sbBtn = doc.getElementById('scrollBottomBtn');
+        const sbBtn = doc.getElementById('scrollBottomBtn');
         if (sbBtn) {
           sbBtn.addEventListener('click', scrollChat);
         }
         var cm = doc.getElementById('chatMessages');
         if (cm) {
           cm.addEventListener('scroll', function() {
-            var btns = doc.getElementById('scrollBtns');
+            const btns = doc.getElementById('scrollBtns');
             if (btns) {
               if (cm.scrollTop < cm.scrollHeight - cm.clientHeight - 100) {
                 btns.classList.add('show');
@@ -10602,27 +10941,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           });
         }
-        var mTabs = doc.querySelectorAll('.mobile-tab');
-        for (var ti = 0; ti < mTabs.length; ti++) {
+        const mTabs = doc.querySelectorAll('.mobile-tab');
+        for (let ti = 0; ti < mTabs.length; ti++) {
           mTabs[ti].addEventListener('click', function() {
-            var tab = this.getAttribute('data-tab');
-            var mainEl = doc.querySelector('.main');
+            const tab = this.getAttribute('data-tab');
+            const mainEl = doc.querySelector('.main');
             if (!mainEl) return;
             if (tab === 'preview') {
               mainEl.classList.add('tab-preview');
             } else {
               mainEl.classList.remove('tab-preview');
             }
-            for (var tj = 0; tj < mTabs.length; tj++) {
+            for (let tj = 0; tj < mTabs.length; tj++) {
               mTabs[tj].classList.toggle('active', mTabs[tj].getAttribute('data-tab') === tab);
             }
           });
         }
         // ========== Tab 切换按钮：角色卡 / MVU状态栏，完全隔离两边聊天记录与AI上下文 ==========
-        var tabBtns = doc.querySelectorAll('.tab-btn');
-        for (var tbi = 0; tbi < tabBtns.length; tbi++) {
+        const tabBtns = doc.querySelectorAll('.tab-btn');
+        for (let tbi = 0; tbi < tabBtns.length; tbi++) {
           tabBtns[tbi].addEventListener('click', function() {
-            var targetTab = this.getAttribute('data-tab');
+            const targetTab = this.getAttribute('data-tab');
             if (isGenerating && targetTab !== activeTab) {
               showToast('AI 正在生成中，请稍候再切换 Tab', 'warning');
               return;
@@ -10633,10 +10972,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function updateCharCount() {
-        var input = doc.getElementById('chatInput');
-        var cnt = doc.getElementById('charCount');
+        const input = doc.getElementById('chatInput');
+        const cnt = doc.getElementById('charCount');
         if (!input || !cnt) return;
-        var len = input.value.length;
+        const len = input.value.length;
         cnt.textContent = len + ' / 2000';
         cnt.className = 'chat-input-char-count';
         if (len > 1500) cnt.classList.add('warn');
@@ -10644,16 +10983,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function updateSendBtnPulse() {
-        var input = doc.getElementById('chatInput');
-        var btn = doc.getElementById('sendBtn');
+        const input = doc.getElementById('chatInput');
+        const btn = doc.getElementById('sendBtn');
         if (!input || !btn) return;
-        var hasContent = input.value.trim().length > 0;
+        const hasContent = input.value.trim().length > 0;
         btn.classList.toggle('send-btn-pulse', hasContent && !btn.disabled);
       }
 
       // ===== 导入模态框 =====
       function showImportModal() {
-        var h = '<div class="modal" id="importModal">' +
+        const h = '<div class="modal" id="importModal">' +
           '<div class="modal-content">' +
           '<h3 style="color:var(--accent-deep);margin-bottom:4px;font-size:1em;display:inline-flex;align-items:center;gap:7px">' + svgIcon('download', 17) + ' 导入角色卡</h3>' +
           '<p style="font-size:.78em;color:var(--ink-soft);margin-bottom:8px">导入现有角色卡继续编辑，支持chara_card_v2/v3格式</p>' +
@@ -10677,9 +11016,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-primary" id="importConfirmBtn">' + svgIcon('check', 15) + ' 导入并开始</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
+        const modalEl = tmp.firstElementChild;
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) {
           if (e.target === modalEl) modalEl.remove();
@@ -10688,39 +11027,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           modalEl.remove();
         });
 
-        var tabs = modalEl.querySelectorAll('.import-tab');
+        const tabs = modalEl.querySelectorAll('.import-tab');
         tabs.forEach(function(t) {
           t.addEventListener('click', function() {
             tabs.forEach(function(x) {
               x.classList.remove('active');
             });
             t.classList.add('active');
-            var tab = t.getAttribute('data-tab');
+            const tab = t.getAttribute('data-tab');
             doc.getElementById('importTabPaste').style.display = tab === 'paste' ? 'block' : 'none';
             doc.getElementById('importTabFile').style.display = tab === 'file' ? 'block' : 'none';
           });
         });
 
-        var dz = doc.getElementById('importDropzone');
-        var fileInput = doc.getElementById('importFile');
+        const dz = doc.getElementById('importDropzone');
+        const fileInput = doc.getElementById('importFile');
         if (dz && fileInput) {
           dz.addEventListener('click', function() {
             fileInput.click();
           });
           fileInput.addEventListener('change', function(e) {
-            var file = e.target.files && e.target.files[0];
+            const file = e.target.files && e.target.files[0];
             if (file) handleImportFile(file);
           });
         }
 
         doc.getElementById('importConfirmBtn').addEventListener('click', function() {
-          var text = doc.getElementById('importTextarea').value.trim();
+          const text = doc.getElementById('importTextarea').value.trim();
           if (!text) {
             showToast('请粘贴JSON内容或选择文件', 'warning');
             return;
           }
           try {
-            var data = JSON.parse(text);
+            const data = JSON.parse(text);
             importCardData(data);
             modalEl.remove();
           } catch (e) {
@@ -10730,14 +11069,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function handleImportFile(file) {
-        var reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = function(e) {
           try {
-            var data = JSON.parse(e.target.result);
-            var info = doc.getElementById('importFileInfo');
+            const data = JSON.parse(e.target.result);
+            const info = doc.getElementById('importFileInfo');
             if (info) {
               info.style.display = 'block';
-              var name = (data.data && data.data.name) || data.name || '未知';
+              const name = (data.data && data.data.name) || data.name || '未知';
               info.textContent = '✅ 已加载: ' + name + ' (' + file.name + ')';
             }
             doc.getElementById('importTextarea').value = e.target.result;
@@ -10749,8 +11088,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function importCardData(data) {
-        var rawData = data;
-        var cd = data.data || data;
+        const rawData = data;
+        const cd = data.data || data;
         if (!cd || typeof cd !== 'object') {
           showToast('无效的角色卡格式', 'error');
           return;
@@ -10805,17 +11144,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           cardData.character_book = {
             entries: (cd.character_book.entries || []).map(function(e, i) {
               // 通过模板获取默认值（支持 MVU [InitVar] 等前缀）
-              var comment = e.comment || '';
-              var tmpl = getEntryTemplate(comment);
-              var defaultPos = tmpl ? tmpl.position : 4;
-              var defaultDepth = tmpl ? tmpl.depth : 4;
-              var defaultOrder = tmpl ? tmpl.order : 100;
-              var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
+              const comment = e.comment || '';
+              const tmpl = getEntryTemplate(comment);
+              const defaultPos = tmpl ? tmpl.position : 4;
+              const defaultDepth = tmpl ? tmpl.depth : 4;
+              const defaultOrder = tmpl ? tmpl.order : 100;
+              const defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
               // [InitVar] 条目 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
-              var isInitVar = _isInitVarComment(comment, e.content);
-              var isVarList = comment.indexOf('变量列表') >= 0;
-              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
-              var ext = e.extensions || {};
+              const isInitVar = _isInitVarComment(comment, e.content);
+              const isVarList = comment.indexOf('变量列表') >= 0;
+              const enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
+              const ext = e.extensions || {};
               return {
                 comment: comment,
                 content: isVarList ? normalizeVarListContent(e.content || '') : (e.content || ''),
@@ -10875,7 +11214,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 同步到全局 messages 别名（向后兼容）
         messages = [];
         // 如果当前不在角色卡Tab，自动切回角色卡Tab（导入后默认从角色卡开始）
-        var needSwitchBack = (activeTab !== 'card');
+        const needSwitchBack = (activeTab !== 'card');
 
         renderChatUI();
         applyFontScale(_appFontScale);
@@ -10886,12 +11225,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (typeof window !== 'undefined') window.__tab_activeTab = 'card';
         }
         // 恢复Tab激活态（renderChatUI 每次会重新生成Tab按钮）
-        var tabBtnsAfter = doc.querySelectorAll('.tab-btn');
-        for (var tbai = 0; tbai < tabBtnsAfter.length; tbai++) {
+        const tabBtnsAfter = doc.querySelectorAll('.tab-btn');
+        for (let tbai = 0; tbai < tabBtnsAfter.length; tbai++) {
           tabBtnsAfter[tbai].classList.toggle('active', tabBtnsAfter[tbai].getAttribute('data-tab') === activeTab);
         }
-        var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
-        var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
+        const entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
+        const greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
           '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
           '**我已读取了角色卡的全部内容，可以直接进行增/删/改操作：**\n' +
           '• 想修改某个字段？直接说"把名字改成XXX"或"修改世界观描述"\n' +
@@ -10908,7 +11247,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // SECTION 9  持久化 & 酒馆 SillyTavern API 适配层
       // ============================================================================
       // ===== localStorage 持久化 =====
-      var STORAGE_KEY = 'modelo_char_generator_state';
+      const STORAGE_KEY = 'modelo_char_generator_state';
 
       // ===== 创建全新空 cardData 对象（写新卡/新建工作区时用，保证彻底无旧值残留）=====
       //   模板与 openEditor 入口处 L8154 初始化完全一致，保证新建与首次打开状态等价
@@ -11029,13 +11368,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         scale = Math.round(scale * 100) / 100;
         _appFontScale = scale;
         // 修复：必须作用到 iframe 内的 doc，而非外层 document
-        var docEl = (doc && doc.documentElement) ? doc.documentElement : document.documentElement;
+        const docEl = (doc && doc.documentElement) ? doc.documentElement : document.documentElement;
         if (docEl) docEl.style.setProperty('--app-font-scale', String(scale));
         // 同步更新下拉菜单中的字体控件（如果已打开）
-        var wsLabel = doc ? doc.getElementById('wsFontSizeLabel') : null;
-        var wsDecBtn = doc ? doc.getElementById('wsFontDec') : null;
-        var wsIncBtn = doc ? doc.getElementById('wsFontInc') : null;
-        var wsResetBtn = doc ? doc.getElementById('wsFontReset') : null;
+        const wsLabel = doc ? doc.getElementById('wsFontSizeLabel') : null;
+        const wsDecBtn = doc ? doc.getElementById('wsFontDec') : null;
+        const wsIncBtn = doc ? doc.getElementById('wsFontInc') : null;
+        const wsResetBtn = doc ? doc.getElementById('wsFontReset') : null;
         if (wsLabel) wsLabel.textContent = Math.round(scale * 100) + '%';
         if (wsDecBtn) wsDecBtn.disabled = scale <= _MIN_FONT_SCALE + 0.001;
         if (wsIncBtn) wsIncBtn.disabled = scale >= _MAX_FONT_SCALE - 0.001;
@@ -11047,7 +11386,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           cardMessages = chatSessions.card.messages;
           mvuMessages = chatSessions.mvu.messages;
 
-          var state = {
+          const state = {
             cardData: cardData,
             activeTab: activeTab || 'card',
             chatSessions: chatSessions,
@@ -11064,7 +11403,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             console.warn('[storage] Quota exceeded, 尝试精简冗余字段后重试...');
             /* 改进E：去掉向后兼容的冗余副本字段（chatSessions已是唯一真源），仅保留核心数据重试一次 */
             try {
-              var slimState = {
+              const slimState = {
                 cardData: cardData,
                 activeTab: activeTab || 'card',
                 chatSessions: chatSessions,
@@ -11097,9 +11436,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function loadFromStorage() {
         try {
-          var raw = localStorage.getItem(STORAGE_KEY);
+          const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return false;
-          var state = JSON.parse(raw);
+          const state = JSON.parse(raw);
           if (state.cardData) {
             cardData = state.cardData;
             if (typeof window !== 'undefined') window.__cardData = cardData;
@@ -11140,7 +11479,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               );
             } else {
               // 上一版/旧版：从独立字段或 messages 字段迁移
-              var migratedCardMsgs = [];
+              let migratedCardMsgs = [];
               if (state.cardMessages && Array.isArray(state.cardMessages)) {
                 migratedCardMsgs = state.cardMessages;
               } else if (state.messages && Array.isArray(state.messages)) {
@@ -11191,21 +11530,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             return true;
           }
-        } catch (e) {}
+        } catch (e) { logWarn("loadFromStorage", e); }
         return false;
       }
 
       function hasSavedData() {
         try {
-          var raw = localStorage.getItem(STORAGE_KEY);
+          const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return false;
-          var state = JSON.parse(raw);
+          const state = JSON.parse(raw);
           // 放宽条件：有 name 或有 entries 或有 description 都算有数据
           if (!state || !state.cardData) return false;
-          var cd = state.cardData;
-          var hasName = cd.name && cd.name.length > 0;
-          var hasDesc = cd.description && cd.description.length > 0;
-          var hasEntries = cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0;
+          const cd = state.cardData;
+          const hasName = cd.name && cd.name.length > 0;
+          const hasDesc = cd.description && cd.description.length > 0;
+          const hasEntries = cd.character_book && cd.character_book.entries && cd.character_book.entries.length > 0;
           return hasName || hasDesc || hasEntries;
         } catch (e) {
           return false;
@@ -11215,7 +11554,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function clearStorage() {
         try {
           localStorage.removeItem(STORAGE_KEY);
-        } catch (e) {}
+        } catch (e) { logWarn("clearStorage", e); }
       }
 
       function continueFromSave() {
@@ -11224,29 +11563,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           applyFontScale(_appFontScale);
           // ========== Tab 隔离：恢复对应Tab的历史消息到对话区 ==========
           // 用 getCurrentMessages() 取当前Tab的专属消息数组（activeTab已在loadFromStorage中恢复）
-          var curMsgs = getCurrentMessages();
-          var savedMessages = curMsgs.slice();
+          const curMsgs = getCurrentMessages();
+          const savedMessages = curMsgs.slice();
           setCurrentMessages([]);
-          var chatC = doc.getElementById('chatMessages');
+          const chatC = doc.getElementById('chatMessages');
           if (chatC) chatC.innerHTML = '';
           savedMessages.forEach(function(m) {
-            var arr = getCurrentMessages();
+            const arr = getCurrentMessages();
             arr.push(m);
             appendMsg(m.role, m.content, arr.length - 1);
           });
           // 恢复Tab按钮激活态（renderChatUI 默认可能没有选中对应Tab）
-          var tabBtns = doc.querySelectorAll('.tab-btn');
-          for (var tbi = 0; tbi < tabBtns.length; tbi++) {
+          const tabBtns = doc.querySelectorAll('.tab-btn');
+          for (let tbi = 0; tbi < tabBtns.length; tbi++) {
             tabBtns[tbi].classList.toggle('active', tabBtns[tbi].getAttribute('data-tab') === activeTab);
           }
           // 更新输入框占位符和标题
-          var inputEl = doc.getElementById('chatInput');
+          const inputEl = doc.getElementById('chatInput');
           if (inputEl) {
             inputEl.placeholder = activeTab === 'card' ?
               '描述你想要的世界/角色设定，我来生成角色卡...' :
               '描述你想要的MVU变量系统或状态栏，如"做一个好感度+物品栏的状态栏"...';
           }
-          var titleH1 = doc.querySelector('.topbar h1');
+          const titleH1 = doc.querySelector('.topbar h1');
           if (titleH1) {
             titleH1.innerHTML = activeTab === 'card' ?
               svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span>' :
@@ -11264,13 +11603,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function updateCtxBar() {
-        var stage = doc.getElementById('ctxStage');
-        var actions = doc.getElementById('ctxActions');
+        const stage = doc.getElementById('ctxStage');
+        const actions = doc.getElementById('ctxActions');
         if (!stage || !actions) return;
-        var __tab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
-        var p = progress || 0;
+        const __tab = (typeof activeTab !== 'undefined') ? activeTab : 'card';
+        const p = progress || 0;
         // ===== 阶段提示 =====
-        var stageName, stageIcon;
+        let stageName, stageIcon;
         if (__tab === 'card') {
           stageIcon = 'info';
           stageName = p < 20 ? '定核心铁则' : p < 40 ? '搭世界基底' : p < 60 ? '做实体内容' : p < 80 ? '补叙事背景' : p < 95 ? '做动态适配' : '可写入酒馆';
@@ -11281,12 +11620,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         stage.innerHTML = svgIcon(stageIcon, 13) + ' <strong>' + stageName + '</strong>';
         // ===== 操作区内容 =====
-        var h = '';
+        let h = '';
         if (__tab === 'card') {
           // 角色卡Tab：8个模块导航胶囊（done/prog 状态）
-          var mp = getModuleProgress();
-          var aiMp = moduleProgress || {};
-          var labels = [{
+          const mp = getModuleProgress();
+          const aiMp = moduleProgress || {};
+          const labels = [{
               key: 'core_rules',
               icon: 'lock',
               name: '核心铁则'
@@ -11328,18 +11667,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           ];
           labels.forEach(function(l) {
-            var val = (mp[l.key] ? 100 : 0);
+            let val = (mp[l.key] ? 100 : 0);
             if (aiMp[l.key] > 0) val = Math.max(val, aiMp[l.key]);
-            var cls = val >= 100 ? 'done' : val > 0 ? 'prog' : '';
+            const cls = val >= 100 ? 'done' : val > 0 ? 'prog' : '';
             h += '<button class="ctx-mod ' + cls + '" data-mod="' + l.key + '">' + svgIcon(l.icon, 13) + ' ' + l.name + '</button>';
           });
         } else {
           // MVU Tab：8步紧凑状态 chip + 阶段自适应主操作按钮
-          var _ctxChk = checkMvu8Entries(cardData);
-          var _d = _ctxChk.done;
-          var _doneCnt = _ctxChk.doneCount;
+          const _ctxChk = checkMvu8Entries(cardData);
+          const _d = _ctxChk.done;
+          const _doneCnt = _ctxChk.doneCount;
           // 8步紧凑状态 chip（仅序号 + 完成态，节省横向空间）
-          var _steps = [{
+          const _steps = [{
               has: _d[0],
               label: '①',
               title: '第1条 zod变量结构脚本'
@@ -11397,28 +11736,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         actions.innerHTML = h;
         // 绑定模块按钮点击
-        var modBtns = actions.querySelectorAll('.ctx-mod');
-        for (var i = 0; i < modBtns.length; i++) {
+        const modBtns = actions.querySelectorAll('.ctx-mod');
+        for (let i = 0; i < modBtns.length; i++) {
           modBtns[i].addEventListener('click', function() {
-            var mod = this.getAttribute('data-mod');
+            const mod = this.getAttribute('data-mod');
             if (mod) handleQuickAction(mod);
           });
         }
       }
 
       function updateQuickActions() {
-        var qa = doc.getElementById('quickActions');
+        const qa = doc.getElementById('quickActions');
         if (!qa) return;
-        var p = progress || 0;
-        var hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
-        var hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
-        var hasMVU = hasEntries && cardData.character_book.entries.some(function(e) {
+        const p = progress || 0;
+        const hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
+        const hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
+        const hasMVU = hasEntries && cardData.character_book.entries.some(function(e) {
           return isMVUEntry(e.comment || '');
         });
 
         // ========== 精简版：仅留「阶段主操作」+「生成」+ 2 mini（写入/清空）==========
         // 模块导航/质检/优化/权重/分组/进度总览等已迁至「工作区」下拉菜单，避免拥挤
-        var actions = [];
+        const actions = [];
         if (currentTab === 'card') {
           // 阶段主操作（hl）
           if (p < 20) actions.push({
@@ -11462,9 +11801,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         } else {
           // MVU Tab：基于8条工作流的三阶段按钮组
-          var _chk = checkMvu8Entries(cardData);
-          var _done7Count = _chk.doneCount;
-          var _all7Done = _chk.all7Done;
+          const _chk = checkMvu8Entries(cardData);
+          const _done7Count = _chk.doneCount;
+          const _all7Done = _chk.all7Done;
           if (!_all7Done) {
             // Phase A：前7条MVU条目未完成
             if (_done7Count === 0) {
@@ -11520,19 +11859,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
           }
         }
-        var h = '';
+        let h = '';
         actions.forEach(function(a) {
-          var icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
-          var titleAttr = a.title ? (' title="' + a.title.replace(/"/g, '&quot;') + '"') : '';
-          var ariaLabel = a.title ? (' aria-label="' + a.title.replace(/"/g, '&quot;') + '"') : '';
+          const icHtml = a.icon ? svgIcon(a.icon, 14) + ' ' : '';
+          const titleAttr = a.title ? (' title="' + a.title.replace(/"/g, '&quot;') + '"') : '';
+          const ariaLabel = a.title ? (' aria-label="' + a.title.replace(/"/g, '&quot;') + '"') : '';
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '"' + titleAttr + ariaLabel + '>' + icHtml + a.label + '</button>';
         });
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
         qa.innerHTML = h;
-        var btns = qa.querySelectorAll('.quick-btn');
-        for (var i = 0; i < btns.length; i++) {
+        const btns = qa.querySelectorAll('.quick-btn');
+        for (let i = 0; i < btns.length; i++) {
           btns[i].addEventListener('click', function() {
             handleQuickAction(this.getAttribute('data-action'));
           });
@@ -11544,9 +11883,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // 绑定导出/清空按钮（位于 quick-actions 内，每次重建后需重新绑定）
       function bindToolbarButtons() {
-        var saveBtn = doc.getElementById('saveBtn');
+        const saveBtn = doc.getElementById('saveBtn');
         if (saveBtn) saveBtn.addEventListener('click', saveCharacter);
-        var clearChatBtn = doc.getElementById('clearChatBtn');
+        const clearChatBtn = doc.getElementById('clearChatBtn');
         if (clearChatBtn) {
           clearChatBtn.addEventListener('click', function() {
             if (isGenerating) {
@@ -11554,15 +11893,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return;
             }
             // ========== Tab 隔离：只清空当前Tab的聊天记录，另一Tab不受影响 ==========
-            var curMsgs = getCurrentMessages();
-            var tabName = currentTab === 'card' ? '角色卡生成' : 'MVU变量状态栏';
+            const curMsgs = getCurrentMessages();
+            const tabName = currentTab === 'card' ? '角色卡生成' : 'MVU变量状态栏';
             if (curMsgs.length === 0) {
               showToast(tabName + ' Tab 的对话已经是空的', 'info');
               return;
             }
             if (!confirm('确定清空「' + tabName + '」Tab 的所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除当前Tab的聊天对话历史\n✅ 另一个Tab的聊天记录不受影响')) return;
             setCurrentMessages([]);
-            var chatC = doc.getElementById('chatMessages');
+            const chatC = doc.getElementById('chatMessages');
             if (chatC) chatC.innerHTML = '';
             saveToStorage();
             showToast('✅ ' + tabName + ' Tab 的对话已清空（角色卡内容不受影响）', 'success');
@@ -11573,7 +11912,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function handleQuickAction(action) {
-        var input = doc.getElementById('chatInput');
+        const input = doc.getElementById('chatInput');
 
         // ========== Tab 跳转动作（跨Tab快速切换入口） ==========
         if (action === 'goto_mvu') {
@@ -11589,7 +11928,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // ========== Tab 隔离：动作权限校验，跨Tab动作自动跳转 ==========
         // 在角色卡Tab中点击了MVU专属动作 → 自动切到MVU Tab再执行
-        var mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview', 'continue_mvu'];
+        const mvuOnlyActions = ['init_var', 'var_update_rule', 'start_sb', 'continue_sb', 'reset_sb', 'mvuPreview', 'continue_mvu'];
         if (currentTab === 'card' && mvuOnlyActions.indexOf(action) >= 0) {
           // ⚠️修复：生成中 switchTab 被锁静默失败，但旧逻辑仍 300ms 后原样重放 → 无限 toast 循环。
           // 改为：切换失败（Tab 未变）时中断重放链并明确提示，不重试
@@ -11606,7 +11945,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 在MVU Tab中点击了角色卡专属动作 → 自动切到角色卡Tab再执行
-        var cardOnlyActions = ['core_rules', 'axiom', 'soft_rules', 'entity_interact', 'scene_mechanics', 'narrative_bg', 'dynamic_adapt', 'opening', 'generate', 'qc', 'optimize', 'weight', 'group'];
+        const cardOnlyActions = ['core_rules', 'axiom', 'soft_rules', 'entity_interact', 'scene_mechanics', 'narrative_bg', 'dynamic_adapt', 'opening', 'generate', 'qc', 'optimize', 'weight', 'group'];
         if (currentTab === 'mvu' && cardOnlyActions.indexOf(action) >= 0) {
           // ⚠️修复：同上，切换失败时中断重放链
           switchTab('card');
@@ -11624,7 +11963,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // MVU专属快捷动作（仅MVU Tab有效）
         if (action === 'start_sb') {
           // ===== 前置检查：生成状态栏前，必须先完成前7条（第8条=状态栏本身）=====
-          var _chkSB = checkMvu8Entries(cardData);
+          const _chkSB = checkMvu8Entries(cardData);
           if (!_chkSB.all7Done) {
             addAssistantMsg(buildMissingMvuHint(_chkSB.missing));
             showToast('前7条未齐全：缺' + _chkSB.missingCount + '条', 'warning');
@@ -11659,8 +11998,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 清除已生成的状态栏正则（正则6）
           if (!confirm('确定清除已生成的美化状态栏正则（正则6）吗？\n\n✅ 仅删除状态栏HTML正则，不影响前7条MVU变量条目\n✅ 可随时重新生成')) return;
           cardData.extensions = cardData.extensions || {};
-          var _rx = cardData.extensions.regex_scripts || [];
-          for (var _m = _rx.length - 1; _m >= 0; _m--) {
+          const _rx = cardData.extensions.regex_scripts || [];
+          for (let _m = _rx.length - 1; _m >= 0; _m--) {
             if ((_rx[_m].findRegex || '').indexOf('StatusPlaceHolder') >= 0 && _rx[_m].markdownOnly && !_rx[_m].promptOnly) {
               _rx.splice(_m, 1);
             }
@@ -11708,7 +12047,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // Prompt字典：区分角色卡Tab和MVU Tab使用不同的默认提示
-        var cardPrompts = {
+        const cardPrompts = {
           next: '下一步我该做什么？请根据当前完成度和未达标项，给出2-3条具体可执行的建议，并说明每条建议会改善哪个体系。',
           summary: '帮我梳理一下当前已收集的信息和进度：1) 已完成的核心设定 2) 各体系完成情况 3) 还缺什么 4) 推荐的下一步。用简洁列表呈现。',
           opening: '请根据现有世界观设定生成一段500-800字的开场白（first_mes）。要求：场景描写→主角出场→冲突/悬念→结尾留钩。必须是完整文本，禁止占位符。',
@@ -11722,7 +12061,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。用:::upsert操作块输出，使用<叙事背景>前缀，delay_until_recursion=true。',
           dynamic_adapt: '请帮我设计【动态适配】体系：<引导机制>新手引导、互动选项、depth_prompt渐进引导、<动态适配>分支开局（多开局请用<动态适配>条目+MVU initvar覆盖实现，禁止写入alternate_greetings字段）。用:::upsert操作块输出，使用<引导机制>/<动态适配>标签前缀。（状态栏和变量系统请去MVU Tab制作）'
         };
-        var mvuPrompts = {
+        const mvuPrompts = {
           next: '我当前的MVU进度该怎么推进？请分析：\n1) 前7条MVU条目完成情况（' + MVU_8STEPS_SHORT + '）\n2) 第8条状态栏完成情况\n3) 推荐的下一步怎么做。用简洁列表呈现。',
           summary: '帮我梳理MVU系统当前状态：\n1) 按8条顺序检查前7条完成情况（' + MVU_8STEPS_SHORT + '）\n2) 检查第8条状态栏完成情况\n3) 缺失什么、推荐的下一步。',
           // ⚠️修复：六大模板+8条工作流规范已全部注入后台系统提示词（buildMvuTabPrompt 的 specBlock），
@@ -11735,7 +12074,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '一次只补1条，输出后立即停下等我确认。前7条全部完成后才生成第8条状态栏。'
         };
         // 选择当前Tab对应的Prompt字典
-        var prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
+        const prompts = currentTab === 'card' ? cardPrompts : mvuPrompts;
         // summary/next在两个字典中都有；init_var/var_update_rule仅在MVU字典
         if (prompts[action] && input) {
           // ⚠️修复：生成期间禁止填入提示词——原先 isGenerating 时 handleSend 静默 return，
@@ -11763,7 +12102,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
-        var curMsgs = getCurrentMessages();
+        const curMsgs = getCurrentMessages();
         curMsgs.push({
           role: 'assistant',
           content: content
@@ -11775,7 +12114,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function addUserMsg(content) {
         // ========== Tab 隔离：写入当前Tab专属的聊天记录数组，两边互不干扰 ==========
-        var curMsgs = getCurrentMessages();
+        const curMsgs = getCurrentMessages();
         curMsgs.push({
           role: 'user',
           content: content
@@ -11790,16 +12129,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             showToast('请先确定世界/角色名称，再导出角色卡', 'warning');
             return;
           }
-          var exportCard = buildExportCard(cardData);
-          var json = JSON.stringify(exportCard, null, 2);
-          var blob = new Blob([json], {
+          const exportCard = buildExportCard(cardData);
+          const json = JSON.stringify(exportCard, null, 2);
+          const blob = new Blob([json], {
             type: 'application/json;charset=utf-8'
           });
-          var url = URL.createObjectURL(blob);
-          var a = doc.createElement('a');
+          const url = URL.createObjectURL(blob);
+          const a = doc.createElement('a');
           a.href = url;
           // 文件名非法字符替换为下划线（/ \ : * ? " < > |）
-          var safeName = cardData.name.trim().replace(/[\\/:*?"<>|]/g, '_');
+          const safeName = cardData.name.trim().replace(/[\\/:*?"<>|]/g, '_');
           a.download = '角色卡_' + safeName + '_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
           doc.body.appendChild(a);
           a.click();
@@ -11814,7 +12153,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
       function exportChatLogs() {
         try {
-          var log = {
+          const log = {
             exportTime: new Date().toISOString(),
             toolVersion: 'Card_making_tool',
             cardData: cardData,
@@ -11824,11 +12163,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             progress: progress,
             moduleProgress: moduleProgress
           };
-          var blob = new Blob([JSON.stringify(log, null, 2)], {
+          const blob = new Blob([JSON.stringify(log, null, 2)], {
             type: 'application/json;charset=utf-8'
           });
-          var url = URL.createObjectURL(blob);
-          var a = doc.createElement('a');
+          const url = URL.createObjectURL(blob);
+          const a = doc.createElement('a');
           a.href = url;
           a.download = 'chatlog_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
           doc.body.appendChild(a);
@@ -11843,16 +12182,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function appendMsg(role, content, explicitIdx) {
-        var c = doc.getElementById('chatMessages');
+        const c = doc.getElementById('chatMessages');
         if (!c) return;
-        var div = doc.createElement('div');
+        const div = doc.createElement('div');
         div.className = 'chat-msg ' + role;
-        var msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        const msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
         div.setAttribute('data-msg-id', msgId);
         // 记录消息在当前Tab消息数组中的索引（供头像菜单撤回/重新生成定位）
         // explicitIdx 由重放场景（switchTab/rerenderChatMessages）显式传入；
         // 正常流程（push后立即append）用 getCurrentMessages().length-1 兜底
-        var msgIdx = (typeof explicitIdx === 'number' && explicitIdx >= 0) ? explicitIdx : -1;
+        let msgIdx = (typeof explicitIdx === 'number' && explicitIdx >= 0) ? explicitIdx : -1;
         if (msgIdx < 0) {
           try {
             msgIdx = getCurrentMessages().length - 1;
@@ -11861,12 +12200,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (msgIdx < 0) msgIdx = (c.querySelectorAll('.chat-msg').length);
         div.setAttribute('data-msg-index', String(msgIdx));
         div.setAttribute('data-msg-role', role);
-        var avatarHtml = buildAvatarHtml(role);
-        var bubbleHtml;
+        const avatarHtml = buildAvatarHtml(role);
+        let bubbleHtml;
         // AI 消息：使用 section 分区渲染（思维链/正文/代码块可折叠）
         if (role === 'assistant') {
           try {
-            var sections = parseMessageSections(content);
+            const sections = parseMessageSections(content);
             bubbleHtml = renderMessageSections(sections, msgId);
           } catch (e) {
             console.warn('section render error:', e);
@@ -11889,12 +12228,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           div.innerHTML = avatarHtml + '<div class="bubble" data-raw-text="' + content.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">' + bubbleHtml + '</div>';
         } else {
           div.innerHTML = avatarHtml + '<div class="bubble"></div>';
-          var bubbleEl = div.querySelector('.bubble');
+          const bubbleEl = div.querySelector('.bubble');
           if (bubbleEl) bubbleEl.textContent = (content == null ? '' : String(content));
         }
         c.appendChild(div);
         // 头像点击：弹出操作菜单（修改头像/人设/撤回/重新生成等），不再直接上传
-        var avEl = div.querySelector('.avatar-clickable');
+        const avEl = div.querySelector('.avatar-clickable');
         if (avEl) {
           avEl.style.position = 'relative';
           avEl.addEventListener('click', function(e) {
@@ -11905,7 +12244,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         // 铅笔按钮：点击直接编辑该条消息内容（不截断后续、不重新生成，仅原地改文本）
-        var editBtnEl = div.querySelector('.msg-edit-btn');
+        const editBtnEl = div.querySelector('.msg-edit-btn');
         if (editBtnEl) {
           editBtnEl.addEventListener('click', function(e) {
             if (e) {
@@ -11917,29 +12256,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // AI 消息：绑定 section 折叠交互
         if (role === 'assistant') {
-          var bubbleDiv = div.querySelector('.bubble');
+          const bubbleDiv = div.querySelector('.bubble');
           if (bubbleDiv) bindSectionToggles(bubbleDiv);
         }
         scrollChat();
       }
 
       function buildAvatarHtml(role) {
-        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
-        var cls = 'avatar avatar-clickable';
-        var title = role === 'user' ? '点击展开操作菜单（修改头像/人设/撤回等）' : '点击展开操作菜单（修改头像/人设/撤回/重新生成等）';
-        var saved = localStorage.getItem(key);
-        var avatarInner;
+        const key = role === 'user' ? 'userAvatar' : 'aiAvatar';
+        const cls = 'avatar avatar-clickable';
+        const title = role === 'user' ? '点击展开操作菜单（修改头像/人设/撤回等）' : '点击展开操作菜单（修改头像/人设/撤回/重新生成等）';
+        const saved = localStorage.getItem(key);
+        let avatarInner;
         if (saved) {
           // ⚠️ XSS防御：saved 来自 localStorage（正常为 canvas dataURL），仍需校验为 data:image/*
           // 且转义引号/括号，防止被注入 x" onmouseover=... 或 url() 逃逸
-          var isSafeAvatar = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(saved);
+          const isSafeAvatar = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(saved);
           avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer;background-image:url(' + (isSafeAvatar ? ('\'' + saved + '\'') : 'none') + ');background-size:cover;background-position:center"></div>';
         } else {
-          var icon = role === 'user' ? svgIcon('user', 18) : svgIcon('bot', 18);
+          const icon = role === 'user' ? svgIcon('user', 18) : svgIcon('bot', 18);
           avatarInner = '<div class="' + cls + '" title="' + title + '" style="cursor:pointer">' + icon + '</div>';
         }
         // 铅笔编辑按钮：AI 在头像右侧，用户在头像左侧
-        var editBtn = '<button class="msg-edit-btn" type="button" title="编辑此条消息内容">' + svgIcon('edit', 14) + '</button>';
+        const editBtn = '<button class="msg-edit-btn" type="button" title="编辑此条消息内容">' + svgIcon('edit', 14) + '</button>';
         // 用户消息（右对齐）：铅笔在左、头像在右；AI消息（左对齐）：头像在左、铅笔在右
         if (role === 'user') {
           return '<div class="avatar-row">' + editBtn + avatarInner + '</div>';
@@ -11948,23 +12287,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function triggerAvatarUpload(role) {
-        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
-        var input = doc.createElement('input');
+        const key = role === 'user' ? 'userAvatar' : 'aiAvatar';
+        const input = doc.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
         input.style.display = 'none';
         doc.body.appendChild(input);
-        var inputRemoved = false;
-        var removeInput = function() {
+        let inputRemoved = false;
+        const removeInput = function() {
           if (!inputRemoved && input.parentNode) {
             doc.body.removeChild(input);
             inputRemoved = true;
           }
         };
         // 取消文件选择对话框不触发 change：用窗口 focus + 延迟兜底清理临时 input（防 DOM 残留）
-        var cancelTimer = null;
-        var win = doc.defaultView || window;
-        var onFocusCleanup = function() {
+        let cancelTimer = null;
+        const win = doc.defaultView || window;
+        const onFocusCleanup = function() {
           if (cancelTimer) clearTimeout(cancelTimer);
           cancelTimer = setTimeout(function() {
             removeInput();
@@ -11975,23 +12314,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.addEventListener('change', function(e) {
           if (cancelTimer) clearTimeout(cancelTimer);
           win.removeEventListener('focus', onFocusCleanup);
-          var file = e.target.files && e.target.files[0];
+          const file = e.target.files && e.target.files[0];
           // 无论是否选中文件都移除临时 input，避免 DOM 节点泄漏
           removeInput();
           if (!file) return;
-          var reader = new FileReader();
+          const reader = new FileReader();
           reader.onload = function(ev) {
-            var img = new Image();
+            const img = new Image();
             img.onload = function() {
-              var size = Math.min(img.width, img.height);
-              var canvas = doc.createElement('canvas');
+              const size = Math.min(img.width, img.height);
+              const canvas = doc.createElement('canvas');
               canvas.width = 128;
               canvas.height = 128;
-              var ctx = canvas.getContext('2d');
-              var sx = (img.width - size) / 2,
+              const ctx = canvas.getContext('2d');
+              const sx = (img.width - size) / 2,
                 sy = (img.height - size) / 2;
               ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
-              var dataUrl = canvas.toDataURL('image/png');
+              const dataUrl = canvas.toDataURL('image/png');
               localStorage.setItem(key, dataUrl);
               refreshAllAvatars(role);
               showToast((role === 'user' ? '用户' : 'AI') + '头像已更新', 'success');
@@ -12011,11 +12350,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function refreshAllAvatars(role) {
-        var key = role === 'user' ? 'userAvatar' : 'aiAvatar';
-        var saved = localStorage.getItem(key);
+        const key = role === 'user' ? 'userAvatar' : 'aiAvatar';
+        const saved = localStorage.getItem(key);
         if (!saved) return;
-        var avatars = doc.querySelectorAll('.chat-msg.' + role + ' .avatar-clickable');
-        for (var i = 0; i < avatars.length; i++) {
+        const avatars = doc.querySelectorAll('.chat-msg.' + role + ' .avatar-clickable');
+        for (let i = 0; i < avatars.length; i++) {
           avatars[i].innerHTML = '';
           avatars[i].style.backgroundImage = 'url(' + saved + ')';
           avatars[i].style.backgroundSize = 'cover';
@@ -12039,23 +12378,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function saveCardDataSnapshot(aiMsgIndex) {
         try {
-          var clone = JSON.parse(JSON.stringify(cardData));
-          cardDataSnapshots[_snapTabKey()][aiMsgIndex] = clone;
+          const clone = JSON.parse(JSON.stringify(cardData));
+          const tabSnaps = cardDataSnapshots[_snapTabKey()];
+          tabSnaps[aiMsgIndex] = clone;
+          // 撤销栈封顶：每 Tab 仅保留最近 CONFIG.UNDO_STACK_LIMIT 步，防止长会话快照无限增长占内存
+          try {
+            const keys = Object.keys(tabSnaps).map(Number).sort(function(a, b) {
+              return a - b;
+            });
+            if (keys.length > CONFIG.UNDO_STACK_LIMIT) {
+              const dropN = keys.length - CONFIG.UNDO_STACK_LIMIT;
+              for (let i = 0; i < dropN; i++) delete tabSnaps[keys[i]];
+            }
+          } catch (e) {
+            logWarn('snapshotCap', e);
+          }
         } catch (e) {
           console.warn('[snapshot] save failed:', e && e.message);
         }
       }
 
       function restoreCardDataSnapshot(aiMsgIndex) {
-        var snap = cardDataSnapshots[_snapTabKey()][aiMsgIndex];
+        const snap = cardDataSnapshots[_snapTabKey()][aiMsgIndex];
         if (!snap) return false;
         try {
-          var restored = JSON.parse(JSON.stringify(snap));
+          const restored = JSON.parse(JSON.stringify(snap));
           // 原地替换 cardData 的内容（保留引用，避免各处引用失效）
-          for (var k in cardData) {
+          for (let k in cardData) {
             if (cardData.hasOwnProperty(k)) delete cardData[k];
           }
-          for (var k2 in restored) {
+          for (let k2 in restored) {
             if (restored.hasOwnProperty(k2)) cardData[k2] = restored[k2];
           }
           return true;
@@ -12066,18 +12418,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function clearSnapshotsAfter(msgIndex) {
-        var tab = _snapTabKey();
-        var snaps = cardDataSnapshots[tab];
-        for (var k in snaps) {
+        const tab = _snapTabKey();
+        const snaps = cardDataSnapshots[tab];
+        for (let k in snaps) {
           if (snaps.hasOwnProperty(k) && Number(k) > msgIndex) delete snaps[k];
         }
       }
 
       // 全局人设：AI人设 / 用户人设（存localStorage，buildPrompt注入）
       function getPersonaHeader() {
-        var aiP = (localStorage.getItem('aiPersona') || '').trim();
-        var userP = (localStorage.getItem('userPersona') || '').trim();
-        var hdr = '';
+        const aiP = (localStorage.getItem('aiPersona') || '').trim();
+        const userP = (localStorage.getItem('userPersona') || '').trim();
+        let hdr = '';
         if (aiP) hdr += '【AI全局人设】\n' + aiP + '\n';
         if (userP) hdr += '【用户全局人设】\n' + userP + '\n';
         return hdr;
@@ -12090,10 +12442,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // 编辑全局人设（弹窗textarea）
       function editPersona(role) {
-        var key = role === 'user' ? 'userPersona' : 'aiPersona';
-        var title = role === 'user' ? '用户全局人设' : 'AI全局人设';
-        var cur = localStorage.getItem(key) || '';
-        var html = '<div class="modal-content" style="max-width:560px">' +
+        const key = role === 'user' ? 'userPersona' : 'aiPersona';
+        const title = role === 'user' ? '用户全局人设' : 'AI全局人设';
+        const cur = localStorage.getItem(key) || '';
+        const html = '<div class="modal-content" style="max-width:560px">' +
           '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('settings', 16) + ' ' + title + '</h3>' +
           '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">该人设会注入到每次AI对话的开头，对当前工具内的AI生效（与状态栏/角色卡界面互不影响，仅影响工具内对话）。</div>' +
           '<textarea id="personaEditArea" style="width:100%;min-height:160px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(cur) + '</textarea>' +
@@ -12101,22 +12453,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn" id="personaCancelBtn" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>' +
           '<button class="btn" id="personaSaveBtn" style="background:var(--accent);color:#fff">保存</button>' +
           '</div></div>';
-        var mask = doc.createElement('div');
+        const mask = doc.createElement('div');
         mask.className = 'modal';
         mask.innerHTML = html;
         doc.body.appendChild(mask);
-        var ta = doc.getElementById('personaEditArea');
+        const ta = doc.getElementById('personaEditArea');
         if (ta) {
           try {
             ta.focus();
           } catch (_) {}
         }
-        var close = function() {
+        const close = function() {
           if (mask.parentNode) mask.parentNode.removeChild(mask);
         };
         doc.getElementById('personaCancelBtn').addEventListener('click', close);
         doc.getElementById('personaSaveBtn').addEventListener('click', function() {
-          var val = ta ? ta.value : '';
+          const val = ta ? ta.value : '';
           localStorage.setItem(key, val);
           close();
           showToast(title + '已保存', 'success');
@@ -12128,8 +12480,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // 关闭所有已打开的头像菜单
       function closeAllAvatarMenus() {
-        var ms = doc.querySelectorAll('.avatar-menu');
-        for (var i = 0; i < ms.length; i++) {
+        const ms = doc.querySelectorAll('.avatar-menu');
+        for (let i = 0; i < ms.length; i++) {
           if (ms[i].parentNode) ms[i].parentNode.removeChild(ms[i]);
         }
       }
@@ -12141,12 +12493,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 显示头像菜单（展开在头像旁边）
       function showAvatarMenu(role, msgIdx, anchorEl) {
         closeAllAvatarMenus();
-        var msgs = getCurrentMessages();
-        var menu = doc.createElement('div');
+        const msgs = getCurrentMessages();
+        const menu = doc.createElement('div');
         menu.className = 'avatar-menu';
         // AI头像在左(user右对齐)，菜单展开在右侧；用户头像在右，菜单展开在左侧
         menu.classList.add(role === 'user' ? 'am-left' : 'am-right');
-        var items = [];
+        const items = [];
         if (role === 'assistant') {
           items.push({
             icon: 'image',
@@ -12229,14 +12581,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           });
         }
-        var html = '';
+        let html = '';
         items.forEach(function(it) {
           if (it.sep) {
             html += '<div class="avatar-menu-sep"></div>';
             return;
           }
           // 横向图标条：只显示图标，hover 时顶部弹出 tooltip（label/title）
-          var tipText = it.title || it.label || '';
+          const tipText = it.title || it.label || '';
           html += '<div class="avatar-menu-item' + (it.danger ? ' danger' : '') + '" title="' + escAttr(tipText) + '">' + svgIcon(it.icon, 18) + '<span class="am-tip">' + escHtml(tipText) + '</span></div>';
         });
         menu.innerHTML = html;
@@ -12249,11 +12601,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           anchorEl.appendChild(menu);
         }
         // 绑定点击
-        var itemEls = menu.querySelectorAll('.avatar-menu-item');
-        var actIdx = 0;
+        const itemEls = menu.querySelectorAll('.avatar-menu-item');
+        let actIdx = 0;
         items.forEach(function(it) {
           if (it.sep) return;
-          var el = itemEls[actIdx];
+          const el = itemEls[actIdx];
           actIdx++;
           if (!el || !it.act) return;
           el.addEventListener('click', function(e) {
@@ -12272,11 +12624,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 重放当前Tab所有消息到聊天面板（撤回/重新生成后调用） =====
       function rerenderChatMessages() {
-        var chatC = doc.getElementById('chatMessages');
+        const chatC = doc.getElementById('chatMessages');
         if (!chatC) return;
         chatC.innerHTML = '';
-        var msgs = getCurrentMessages();
-        for (var i = 0; i < msgs.length; i++) {
+        const msgs = getCurrentMessages();
+        for (let i = 0; i < msgs.length; i++) {
           appendMsg(msgs[i].role, msgs[i].content, i);
         }
         try {
@@ -12296,7 +12648,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 撤回：移除某条AI消息 + 回滚其cardData修改 =====
       function revokeAIMessage(aiIdx) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
           showToast('无法撤回：该消息不是AI回复', 'warning');
           return;
@@ -12307,10 +12659,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // 检查后面是否还有用户消息——如果有，说明后续用户消息的上下文依赖本条AI的回复
         // 此时禁止单条撤回（会导致用户消息变成无根之木），引导用户从对应"用户消息"撤回
-        var hasUserAfter = false;
-        var aiCountAfter = 0;
-        var userCountAfter = 0;
-        for (var _i = aiIdx + 1; _i < msgs.length; _i++) {
+        let hasUserAfter = false;
+        let aiCountAfter = 0;
+        let userCountAfter = 0;
+        for (let _i = aiIdx + 1; _i < msgs.length; _i++) {
           if (msgs[_i].role === 'user') {
             hasUserAfter = true;
             userCountAfter++;
@@ -12321,13 +12673,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 后续只有AI回复：提示影响范围
-        var confirmMsg = '确定撤回此条AI回复吗？\n\n✅ 移除该AI回复消息';
+        let confirmMsg = '确定撤回此条AI回复吗？\n\n✅ 移除该AI回复消息';
         if (aiCountAfter > 0) confirmMsg += ' 及其后 ' + aiCountAfter + ' 条AI回复';
         confirmMsg += '\n✅ 回滚对角色卡/变量系统的修改';
         confirmMsg += '\n✅ 保留上一条用户消息，可重新生成';
         if (!confirm(confirmMsg)) return;
         // 回滚cardData到该AI消息应用修改前的快照
-        var ok = restoreCardDataSnapshot(aiIdx);
+        const ok = restoreCardDataSnapshot(aiIdx);
         // 截断消息：保留到aiIdx（不含），即移除该AI消息及其后所有（仅AI）
         msgs.length = aiIdx;
         clearSnapshotsAfter(aiIdx - 1);
@@ -12339,7 +12691,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 撤回：用户消息之后所有消息和操作（含cardData，含之后的用户消息） =====
       function revokeAfterUserMessage(userIdx) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
           showToast('无法撤回：该消息不是用户消息', 'warning');
           return;
@@ -12349,13 +12701,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 统计该用户消息之后的消息数量（用户消息和AI回复）
-        var userCountAfter = 0;
-        var aiCountAfter = 0;
-        for (var _wai = userIdx + 1; _wai < msgs.length; _wai++) {
+        let userCountAfter = 0;
+        let aiCountAfter = 0;
+        for (let _wai = userIdx + 1; _wai < msgs.length; _wai++) {
           if (msgs[_wai].role === 'user') userCountAfter++;
           else aiCountAfter++;
         }
-        var msg = '确定从这条用户消息之后全部撤回吗？\n\n';
+        let msg = '确定从这条用户消息之后全部撤回吗？\n\n';
         msg += '⚠️ 会移除：';
         if (aiCountAfter > 0) msg += aiCountAfter + ' 条AI回复';
         if (userCountAfter > 0) msg += ' + ' + userCountAfter + ' 条用户消息（之后的用户输入也会被删除，因上下文基于此条之前的对话）';
@@ -12369,8 +12721,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         if (!confirm(msg)) return;
         // 该用户消息后的AI消息索引 = userIdx+1
-        var aiIdx = userIdx + 1;
-        var ok = false;
+        const aiIdx = userIdx + 1;
+        let ok = false;
         if (aiIdx < msgs.length) {
           ok = restoreCardDataSnapshot(aiIdx);
         }
@@ -12385,7 +12737,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 重新生成：某条AI消息（撤回该AI回复后重新调用AI）=====
       function regenerateAIMessage(aiIdx) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
           showToast('无法重新生成：该消息不是AI回复', 'warning');
           return;
@@ -12400,10 +12752,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 检查后面是否还有用户消息——有则禁止，否则后续上下文断裂
-        var hasUserAfter = false;
-        var userCountAfter = 0;
-        var aiCountAfter = 0;
-        for (var _ri = aiIdx + 1; _ri < msgs.length; _ri++) {
+        let hasUserAfter = false;
+        let userCountAfter = 0;
+        let aiCountAfter = 0;
+        for (let _ri = aiIdx + 1; _ri < msgs.length; _ri++) {
           if (msgs[_ri].role === 'user') {
             hasUserAfter = true;
             userCountAfter++;
@@ -12430,7 +12782,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 重新生成：用户消息下面的AI回答 =====
       function regenerateAnswerBelow(userIdx) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
           showToast('无法重新生成：该消息不是用户消息', 'warning');
           return;
@@ -12440,9 +12792,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 统计该用户消息之后有多少用户消息和AI回复——如果后面还有用户消息，需提示
-        var userCountAfter = 0;
-        var aiCountAfter = 0;
-        for (var _bai = userIdx + 1; _bai < msgs.length; _bai++) {
+        let userCountAfter = 0;
+        let aiCountAfter = 0;
+        for (let _bai = userIdx + 1; _bai < msgs.length; _bai++) {
           if (msgs[_bai].role === 'user') userCountAfter++;
           else aiCountAfter++;
         }
@@ -12453,7 +12805,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (!confirm('该用户消息之后还有 ' + aiCountAfter + ' 条AI回复，重新生成会移除这些AI回复并重建新回答。确定继续？')) return;
         }
         // 该用户消息下的AI回答索引 = userIdx+1
-        var aiIdx = userIdx + 1;
+        const aiIdx = userIdx + 1;
         if (aiIdx < msgs.length && msgs[aiIdx].role === 'assistant') {
           // 存在AI回答：回滚 + 截断到aiIdx（移除其及之后所有）
           restoreCardDataSnapshot(aiIdx);
@@ -12476,7 +12828,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 修改：用户消息（原地修改内容，弹窗textArea确认，该消息之后的AI/用户消息全部移除并回滚快照）=====
       function editUserMessage(userIdx) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (userIdx < 0 || userIdx >= msgs.length || msgs[userIdx].role !== 'user') {
           showToast('无法修改：该消息不是用户消息', 'warning');
           return;
@@ -12485,9 +12837,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('AI正在生成中，请稍候', 'warning');
           return;
         }
-        var origText = msgs[userIdx].content || '';
+        const origText = msgs[userIdx].content || '';
         // 弹窗：textArea + 取消/确定
-        var html = '<div class="modal-content" style="max-width:640px">' +
+        const html = '<div class="modal-content" style="max-width:640px">' +
           '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('edit', 16) + ' 修改用户消息</h3>' +
           '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">修改本条消息后，本条之后的所有消息（含AI回答和后续用户消息）将被撤销并回滚对应改动。</div>' +
           '<textarea id="editMsgText" style="width:100%;min-height:160px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(origText) + '</textarea>' +
@@ -12495,17 +12847,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn" id="editMsgCancel" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>' +
           '<button class="btn" id="editMsgOk" style="background:var(--accent);color:#fff">确认修改</button>' +
           '</div></div>';
-        var mask = doc.createElement('div');
+        const mask = doc.createElement('div');
         mask.className = 'modal';
         mask.innerHTML = html;
         doc.body.appendChild(mask);
-        var ta = doc.getElementById('editMsgText');
+        const ta = doc.getElementById('editMsgText');
         if (ta) {
           try {
             ta.focus();
           } catch (_) {}
         }
-        var close = function() {
+        const close = function() {
           if (mask.parentNode) mask.parentNode.removeChild(mask);
         };
         doc.getElementById('editMsgCancel').addEventListener('click', close);
@@ -12513,13 +12865,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (e.target === mask) close();
         });
         doc.getElementById('editMsgOk').addEventListener('click', function() {
-          var newText = ta ? ta.value : '';
+          const newText = ta ? ta.value : '';
           if (!newText || !newText.trim()) {
             showToast('消息内容不能为空', 'warning');
             return;
           }
           // 1. 该用户消息之后的第一条AI消息：回滚快照（若存在）
-          var aiIdx = userIdx + 1;
+          const aiIdx = userIdx + 1;
           if (aiIdx < msgs.length) restoreCardDataSnapshot(aiIdx);
           // 2. 截断到 userIdx+1（保留[0..userIdx]，移除 userIdx 之后的所有）
           msgs.length = userIdx + 1;
@@ -12541,7 +12893,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // ===== 铅笔按钮：原地编辑消息内容（不截断后续消息、不重新生成）=====
       function editMessageContent(msgIdx, role) {
-        var msgs = getCurrentMessages();
+        const msgs = getCurrentMessages();
         if (msgIdx < 0 || msgIdx >= msgs.length) {
           showToast('无法编辑：消息索引无效', 'warning');
           return;
@@ -12554,13 +12906,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('AI正在生成中，请稍候', 'warning');
           return;
         }
-        var origText = msgs[msgIdx].content || '';
-        var isAI = (role === 'assistant');
-        var titleText = isAI ? '编辑AI消息' : '编辑用户消息';
-        var hint = isAI ?
+        const origText = msgs[msgIdx].content || '';
+        const isAI = (role === 'assistant');
+        const titleText = isAI ? '编辑AI消息' : '编辑用户消息';
+        const hint = isAI ?
           '直接修改AI的回复文本。保存后仅更新本条消息的显示内容，不会重新生成或撤回后续消息。' :
           '直接修改本条消息文本。保存后仅更新显示内容，不会截断后续消息或重新生成。如需重新生成，请点头像菜单→修改。';
-        var html = '<div class="modal-content" style="max-width:640px">' +
+        const html = '<div class="modal-content" style="max-width:640px">' +
           '<h3 style="margin:0 0 8px;color:var(--accent-deep)">' + svgIcon('edit', 16) + ' ' + titleText + '</h3>' +
           '<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">' + hint + '</div>' +
           '<textarea id="editMsgTextInline" style="width:100%;min-height:200px;font-size:.88em;padding:10px;border:1px solid var(--line);border-radius:var(--radius);font-family:inherit;resize:vertical;box-sizing:border-box">' + escHtml(origText) + '</textarea>' +
@@ -12568,17 +12920,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn" id="editMsgInlineCancel" style="background:var(--surface-soft);color:var(--ink-soft);border:1px solid var(--line)">取消</button>' +
           '<button class="btn" id="editMsgInlineOk" style="background:var(--accent);color:#fff">保存</button>' +
           '</div></div>';
-        var mask = doc.createElement('div');
+        const mask = doc.createElement('div');
         mask.className = 'modal';
         mask.innerHTML = html;
         doc.body.appendChild(mask);
-        var ta = doc.getElementById('editMsgTextInline');
+        const ta = doc.getElementById('editMsgTextInline');
         if (ta) {
           try {
             ta.focus();
           } catch (_) {}
         }
-        var close = function() {
+        const close = function() {
           if (mask.parentNode) mask.parentNode.removeChild(mask);
         };
         doc.getElementById('editMsgInlineCancel').addEventListener('click', close);
@@ -12586,7 +12938,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (e.target === mask) close();
         });
         doc.getElementById('editMsgInlineOk').addEventListener('click', function() {
-          var newText = ta ? ta.value : '';
+          const newText = ta ? ta.value : '';
           if (!newText || !newText.trim()) {
             showToast('消息内容不能为空', 'warning');
             return;
@@ -12601,37 +12953,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function addTyping() {
         removeTyping();
-        var c = doc.getElementById('chatMessages');
+        const c = doc.getElementById('chatMessages');
         if (!c) return;
-        var div = doc.createElement('div');
+        const div = doc.createElement('div');
         div.className = 'chat-msg assistant';
         div.id = 'typingInd';
         div.innerHTML = buildAvatarHtml('assistant') + '<div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
         // 打字指示器不需要铅笔编辑按钮
-        var typingEditBtn = div.querySelector('.msg-edit-btn');
+        const typingEditBtn = div.querySelector('.msg-edit-btn');
         if (typingEditBtn) typingEditBtn.style.display = 'none';
         c.appendChild(div);
         scrollChat();
       }
 
       function removeTyping() {
-        var t = doc.getElementById('typingInd');
+        const t = doc.getElementById('typingInd');
         if (t) t.remove();
       }
 
       function scrollChat() {
-        var c = doc.getElementById('chatMessages');
+        const c = doc.getElementById('chatMessages');
         if (c) requestAnimationFrame(function() {
           c.scrollTop = c.scrollHeight;
         });
       }
       // ===== 消息 section 分区渲染（参考专家工作区设计）=====
-      var cpSectionStates = {};
+      const cpSectionStates = {};
 
       function parseMessageSections(text) {
-        var sections = [];
-        var thinkingRe = /(?:<thinking>|<reasoning>|<think>)([\s\S]*?)(?:<\/thinking>|<\/reasoning>|<\/think>)|(?:\[metacognition\]|\[思维链\]|\[果农冒泡\]|\[love_qkll\])([\s\S]*?)(?:\[\/metacognition\]|\[\/思维链\]|\[\/果农冒泡\]|\[\/love_qkll\])/gi;
-        var match, lastEnd = 0;
+        const sections = [];
+        const thinkingRe = /(?:<thinking>|<reasoning>|<think>)([\s\S]*?)(?:<\/thinking>|<\/reasoning>|<\/think>)|(?:\[metacognition\]|\[思维链\]|\[果农冒泡\]|\[love_qkll\])([\s\S]*?)(?:\[\/metacognition\]|\[\/思维链\]|\[\/果农冒泡\]|\[\/love_qkll\])/gi;
+        let match, lastEnd = 0;
         while ((match = thinkingRe.exec(text)) !== null) {
           if (match.index > lastEnd) {
             var before = text.slice(lastEnd, match.index).trim();
@@ -12640,7 +12992,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               content: before
             });
           }
-          var thinkContent = (match[1] || match[2] || '').trim();
+          const thinkContent = (match[1] || match[2] || '').trim();
           if (thinkContent) sections.push({
             type: 'thinking',
             content: thinkContent
@@ -12648,7 +13000,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           lastEnd = match.index + match[0].length;
         }
         if (lastEnd < text.length) {
-          var after = text.slice(lastEnd).trim();
+          const after = text.slice(lastEnd).trim();
           if (after) sections.push({
             type: 'content',
             content: after
@@ -12659,18 +13011,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           content: text
         });
         // 对 content section 进一步拆分代码块
-        var expanded = [];
+        const expanded = [];
         sections.forEach(function(sec) {
           if (sec.type !== 'content') {
             expanded.push(sec);
             return;
           }
-          var codeRe = /```(\w*)\s*\n?([\s\S]*?)```/g;
-          var lastPos = 0,
+          const codeRe = /```(\w*)\s*\n?([\s\S]*?)```/g;
+          let lastPos = 0,
             m2;
           while ((m2 = codeRe.exec(sec.content)) !== null) {
             if (m2.index > lastPos) {
-              var before2 = sec.content.slice(lastPos, m2.index).trim();
+              const before2 = sec.content.slice(lastPos, m2.index).trim();
               if (before2) expanded.push({
                 type: 'content',
                 content: before2
@@ -12684,7 +13036,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             lastPos = m2.index + m2[0].length;
           }
           if (lastPos < sec.content.length) {
-            var after2 = sec.content.slice(lastPos).trim();
+            const after2 = sec.content.slice(lastPos).trim();
             if (after2) expanded.push({
               type: 'content',
               content: after2
@@ -12692,9 +13044,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         });
         // 合并连续 content
-        var merged = [];
+        const merged = [];
         expanded.forEach(function(s) {
-          var last = merged[merged.length - 1];
+          const last = merged[merged.length - 1];
           if (last && last.type === 'content' && s.type === 'content') {
             last.content += '\n' + s.content;
           } else {
@@ -12702,35 +13054,35 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         });
         // 🆕 第三遍：从 content section 中拆出 :::操作块（让操作块也能折叠）
-        var finalSections = [];
+        let finalSections = [];
         merged.forEach(function(sec) {
           if (sec.type !== 'content') {
             finalSections.push(sec);
             return;
           }
-          var opRe = /:::\s*(upsert|update|delete|set|rename)\s+[^\n\r]+/gi;
+          const opRe = /:::\s*(upsert|update|delete|set|rename)\s+[^\n\r]+/gi;
           if (!opRe.test(sec.content)) {
             finalSections.push(sec);
             return;
           }
           // 重置 lastIndex（test 会移动它）
           opRe.lastIndex = 0;
-          var lastOpEnd = 0,
+          let lastOpEnd = 0,
             opMatch;
           while ((opMatch = opRe.exec(sec.content)) !== null) {
             if (opMatch.index > lastOpEnd) {
-              var before = sec.content.slice(lastOpEnd, opMatch.index).trim();
+              const before = sec.content.slice(lastOpEnd, opMatch.index).trim();
               if (before) finalSections.push({
                 type: 'content',
                 content: before
               });
             }
             // 找到对应的结束 ::: （从当前位置开始找下一个单独的 ::: 行）
-            var afterStart = opMatch.index + opMatch[0].length;
-            var closeRe = /\n\s*:::/g;
+            const afterStart = opMatch.index + opMatch[0].length;
+            const closeRe = /\n\s*:::/g;
             closeRe.lastIndex = afterStart;
-            var closeMatch = closeRe.exec(sec.content);
-            var opBody, opEnd;
+            const closeMatch = closeRe.exec(sec.content);
+            let opBody, opEnd;
             if (closeMatch) {
               opBody = sec.content.slice(opMatch.index, closeMatch.index + closeMatch[0].length);
               opEnd = closeMatch.index + closeMatch[0].length;
@@ -12745,7 +13097,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             lastOpEnd = opEnd;
           }
           if (lastOpEnd < sec.content.length) {
-            var afterOps = sec.content.slice(lastOpEnd).trim();
+            const afterOps = sec.content.slice(lastOpEnd).trim();
             if (afterOps) finalSections.push({
               type: 'content',
               content: afterOps
@@ -12754,14 +13106,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         // 🆕 第四遍：如果存在:::操作块，剥除冗余的JSON代码块
         // AI有时同时输出:::操作块和JSON代码块（两者内容重复），此时JSON是冗余的，应从显示中移除
-        var hasOpBlock = finalSections.some(function(s) {
+        const hasOpBlock = finalSections.some(function(s) {
           return s.type === 'opblock';
         });
         if (hasOpBlock) {
           finalSections = finalSections.filter(function(s) {
             if (s.type !== 'code') return true;
             // JSON代码块（含 { "name" / "entries" / "character_book" 等角色卡字段）视为冗余
-            var c = (s.content || '').trim();
+            const c = (s.content || '').trim();
             if (c.charAt(0) === '{' && (c.indexOf('"name"') >= 0 || c.indexOf('"entries"') >= 0 || c.indexOf('"character_book"') >= 0 || c.indexOf('"description"') >= 0)) {
               return false; // 剥除
             }
@@ -12777,15 +13129,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!sections || (sections.length === 1 && sections[0].type === 'content' && sections[0].content.length <= 200)) {
           return fmtBubble(sections ? sections[0].content : '');
         }
-        var html = '';
+        let html = '';
         sections.forEach(function(sec, idx) {
-          var stateKey = msgId + '-' + idx;
+          const stateKey = msgId + '-' + idx;
           // ========== 默认收起：所有 section（思维链/正文/代码）初次渲染均为 collapsed ==========
           // cpSectionStates[key] === true  → 用户已手动展开
           // cpSectionStates[key] === false → 用户已手动收起
           // cpSectionStates[key] === undefined → 未操作过，默认收起
-          var isCollapsed = cpSectionStates[stateKey] !== true;
-          var icon, label, cls;
+          const isCollapsed = cpSectionStates[stateKey] !== true;
+          let icon, label, cls;
           if (sec.type === 'thinking') {
             icon = '思';
             label = '思维链';
@@ -12799,7 +13151,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             cls = 'cp-section-opblock';
             // 从:::行提取操作类型作为label
             // ⚠️ XSS修复：label 来自 AI 输出的 ::: 行剩余文本，必须转义后再拼接
-            var opMatch = (sec.content || '').match(/^:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]*)/i);
+            const opMatch = (sec.content || '').match(/^:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]*)/i);
             if (opMatch) {
               label = escHtml(opMatch[1] + ' ' + (opMatch[2] || '').trim());
             } else {
@@ -12810,7 +13162,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             label = '正文';
             cls = 'cp-section-content';
           }
-          var preview = (sec.content || '').slice(0, 80).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+          const preview = (sec.content || '').slice(0, 80).replace(/&/g, '&amp;').replace(/</g, '&lt;');
           html += '<div class="cp-section ' + cls + '">';
           html += '<div class="cp-section-header" data-section-key="' + stateKey + '">';
           html += '<span class="cp-section-icon">' + icon + '</span>';
@@ -12820,11 +13172,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           html += '</div>';
           if (!isCollapsed) {
             if (sec.type === 'code') {
-              var esc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const esc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
               html += '<div class="cp-section-body">' + esc + '</div>';
             } else if (sec.type === 'opblock') {
               // 操作块：转义后等宽字体显示原始:::文本
-              var opEsc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const opEsc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
               html += '<div class="cp-section-body"><pre class="cp-opblock-pre">' + opEsc + '</pre></div>';
             } else if (sec.type === 'thinking') {
               html += '<div class="cp-section-body">' + sec.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</div>';
@@ -12839,29 +13191,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function bindSectionToggles(container) {
         if (!container) return;
-        var headers = container.querySelectorAll('.cp-section-header');
-        for (var i = 0; i < headers.length; i++) {
+        const headers = container.querySelectorAll('.cp-section-header');
+        for (let i = 0; i < headers.length; i++) {
           (function(h) {
             h.addEventListener('click', function() {
-              var key = h.getAttribute('data-section-key');
+              const key = h.getAttribute('data-section-key');
               if (!key) return;
               // 当前是否收起：未操作过(undefined)默认收起，或用户设为 false
-              var wasCollapsed = cpSectionStates[key] !== true;
+              const wasCollapsed = cpSectionStates[key] !== true;
               // 切换：收起→展开(true)，展开→收起(false)
               cpSectionStates[key] = wasCollapsed ? true : false;
               // ⚠️泄漏修复：msgId 含 Date.now()+random，rerenderChatMessages/switchTab 重放会生成全新 id，
               // 旧键永不清理导致无界增长。超过上限时清掉最早的键
-              var _cpKeys = Object.keys(cpSectionStates);
+              const _cpKeys = Object.keys(cpSectionStates);
               if (_cpKeys.length > 500) {
-                for (var _ck = 0; _ck < _cpKeys.length - 400; _ck++) delete cpSectionStates[_cpKeys[_ck]];
+                for (let _ck = 0; _ck < _cpKeys.length - 400; _ck++) delete cpSectionStates[_cpKeys[_ck]];
               }
-              var msgEl = h.closest('.chat-msg');
+              const msgEl = h.closest('.chat-msg');
               if (msgEl) {
-                var msgId = msgEl.getAttribute('data-msg-id');
-                var bubble = msgEl.querySelector('.bubble');
-                var raw = bubble ? bubble.getAttribute('data-raw-text') : '';
+                const msgId = msgEl.getAttribute('data-msg-id');
+                const bubble = msgEl.querySelector('.bubble');
+                const raw = bubble ? bubble.getAttribute('data-raw-text') : '';
                 if (bubble && raw) {
-                  var secs = parseMessageSections(raw);
+                  const secs = parseMessageSections(raw);
                   bubble.innerHTML = renderMessageSections(secs, msgId);
                   bindSectionToggles(bubble);
                 }
@@ -12872,10 +13224,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function fmtBubble(t) {
-        var parts = [];
-        var re = /<statusblock>([\s\S]*?)<\/statusblock>/gi;
-        var last = 0;
-        var m;
+        const parts = [];
+        const re = /<statusblock>([\s\S]*?)<\/statusblock>/gi;
+        let last = 0;
+        let m;
         while ((m = re.exec(t)) !== null) {
           if (m.index > last) {
             parts.push({
@@ -12895,14 +13247,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             content: t.substring(last)
           });
         }
-        var out = '';
+        let out = '';
         parts.forEach(function(p) {
           if (p.type === 'status') {
             out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
           } else {
-            var h = p.content;
-            var placeholders = [];
-            var iframes = [];
+            let h = p.content;
+            const placeholders = [];
+            const iframes = [];
             // ===== 保护阶段：先做 iframe → 再做代码块 → 最后做 Markdown =====
             // ⚠️占位符用 \u0000 包裹，避免被 Markdown 的 __bold__ 正则吃掉
             // 1) ```html 代码块优先转 iframe（必须放在一般 ```\w* 之前）
@@ -12912,14 +13264,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             });
             // 2) 检测消息中直接包含的完整HTML文档（非代码块格式）
             h = h.replace(/(?:html\s*[\n\\n]+)?(<!doctype html>[\s\S]*?<\/html>)/gi, function(_, htmlCode) {
-              var code = htmlCode.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+              const code = htmlCode.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
               iframes.push(renderHtmlToIframe(code));
               return '\u0000HTML_IFRAME_' + (iframes.length - 1) + '\u0000';
             });
             // 3) 所有 ``` 代码块存占位符（含 ```json / ```js 等），内容必须 HTML 转义后再塞回
             h = h.replace(/```(\w*)\s*\n([\s\S]*?)```/gi, function(_, lang, code) {
-              var escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              var cls = lang ? ' class="lang-' + lang.replace(/[^a-zA-Z0-9_-]/g, '') + '"' : '';
+              const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const cls = lang ? ' class="lang-' + lang.replace(/[^a-zA-Z0-9_-]/g, '') + '"' : '';
               placeholders.push('<pre><code' + cls + '>' + escaped + '</code></pre>');
               return '\u0000PROTECTED_BLOCK_' + (placeholders.length - 1) + '\u0000';
             });
@@ -12936,41 +13288,41 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return '__BQ__' + txt;
             });
             h = h.replace(/(__BQ__(?:.*\n?)*)/g, function(m) {
-              var inner = m.replace(/__BQ__/g, '').replace(/\n$/, '');
+              const inner = m.replace(/__BQ__/g, '').replace(/\n$/, '');
               return '<blockquote>' + inner + '</blockquote>';
             });
             // ===== GFM 表格（必须在换行 → <br> 之前处理，按段落解析） =====
             h = h.replace(/^((?:\|.*\|\n)+)$/gm, function(block) {
-              var lines = block.replace(/\n$/, '').split(/\n/);
+              const lines = block.replace(/\n$/, '').split(/\n/);
               if (lines.length < 2) return block;
               // 取第二行判断是否为分隔线（:---|:---:|---: 之类）
-              var sep = lines[1].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
-              var isSep = sep.length > 0 && sep.every(function(s) {
+              const sep = lines[1].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+              const isSep = sep.length > 0 && sep.every(function(s) {
                 return /^:?-{3,}:?$/.test(s.trim());
               });
               if (!isSep) return block;
               // 解析表头
-              var headers = lines[0].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
-              var aligns = sep.map(function(s) {
-                var t = s.trim();
+              const headers = lines[0].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+              const aligns = sep.map(function(s) {
+                const t = s.trim();
                 if (t.charAt(0) === ':' && t.charAt(t.length - 1) === ':') return 'center';
                 if (t.charAt(t.length - 1) === ':') return 'right';
                 if (t.charAt(0) === ':') return 'left';
                 return '';
               });
-              var thead = '<thead><tr>' + headers.map(function(hd, i) {
-                var st = aligns[i] ? ' style="text-align:' + aligns[i] + '"' : '';
+              const thead = '<thead><tr>' + headers.map(function(hd, i) {
+                const st = aligns[i] ? ' style="text-align:' + aligns[i] + '"' : '';
                 return '<th' + st + '>' + hd.trim() + '</th>';
               }).join('') + '</tr></thead>';
-              var bodyRows = '';
-              for (var ri = 2; ri < lines.length; ri++) {
-                var cells = lines[ri].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
+              let bodyRows = '';
+              for (let ri = 2; ri < lines.length; ri++) {
+                const cells = lines[ri].replace(/^\s*\||\|\s*$/g, '').split(/\s*\|\s*/);
                 bodyRows += '<tr>' + cells.map(function(ce, ci) {
-                  var st = aligns[ci] ? ' style="text-align:' + aligns[ci] + '"' : '';
+                  const st = aligns[ci] ? ' style="text-align:' + aligns[ci] + '"' : '';
                   return '<td' + st + '>' + ce.trim() + '</td>';
                 }).join('') + '</tr>';
               }
-              var tbody = bodyRows ? '<tbody>' + bodyRows + '</tbody>' : '';
+              const tbody = bodyRows ? '<tbody>' + bodyRows + '</tbody>' : '';
               return '<div class="md-table-wrap"><table>' + thead + tbody + '</table></div>';
             });
             // 无序列表 - 或 *
@@ -12978,7 +13330,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return '__UL__' + txt;
             });
             h = h.replace(/(__UL__(?:.*\n?)*)/g, function(m) {
-              var items = m.replace(/__UL__/g, '').split(/\n/).filter(function(x) {
+              const items = m.replace(/__UL__/g, '').split(/\n/).filter(function(x) {
                 return x;
               });
               return '<ul>' + items.map(function(it) {
@@ -12990,7 +13342,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return '__OL__' + txt;
             });
             h = h.replace(/(__OL__(?:.*\n?)*)/g, function(m) {
-              var items = m.replace(/__OL__/g, '').split(/\n/).filter(function(x) {
+              const items = m.replace(/__OL__/g, '').split(/\n/).filter(function(x) {
                 return x;
               });
               return '<ol>' + items.map(function(it) {
@@ -13012,10 +13364,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h = h.replace(/\n{3,}/g, '\n\n');
             h = h.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
             // 还原 iframe → 代码块（用 split/join 全局替换，避免 replace 只替换首个）
-            for (var ii = 0; ii < iframes.length; ii++) {
+            for (let ii = 0; ii < iframes.length; ii++) {
               h = h.split('\u0000HTML_IFRAME_' + ii + '\u0000').join(iframes[ii]);
             }
-            for (var pi = 0; pi < placeholders.length; pi++) {
+            for (let pi = 0; pi < placeholders.length; pi++) {
               h = h.split('\u0000PROTECTED_BLOCK_' + pi + '\u0000').join(placeholders[pi]);
             }
             out += h;
@@ -13028,7 +13380,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!htmlCode || htmlCode.length < 50) return '';
         /* 注入与状态栏预览一致的完整 mock 运行时（getAllVariables/_/$/waitGlobalInitialized/eventOn/Mvu/errorCatched），
            保证状态栏 HTML 在聊天内预览也能正确渲染变量 */
-        var mockScript = buildPreviewMockScript(getStatDataForRender());
+        const mockScript = buildPreviewMockScript(getStatDataForRender());
         if (htmlCode.indexOf('<head') >= 0) {
           htmlCode = htmlCode.replace(/<head([^>]*)>/i, '<head$1>' + mockScript);
         } else if (htmlCode.indexOf('<html') >= 0) {
@@ -13036,22 +13388,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } else {
           htmlCode = mockScript + htmlCode;
         }
-        var escHtml = htmlCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const escHtml = htmlCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         return '<iframe class="html-render-frame" loading="lazy" srcdoc="' + escHtml + '" sandbox="allow-scripts" style="width:100%;min-height:280px;border:1px solid #e6dfd0;border-radius:6px;background:transparent"></iframe>';
       }
 
       function getStatDataForRender() {
-        var statData = {};
-        var entries = (cardData.character_book && cardData.character_book.entries) || [];
-        var initVarEntry = null;
-        for (var i = 0; i < entries.length; i++) {
+        let statData = {};
+        const entries = (cardData.character_book && cardData.character_book.entries) || [];
+        let initVarEntry = null;
+        for (let i = 0; i < entries.length; i++) {
           if (_isInitVarComment(entries[i].comment, entries[i].content)) {
             initVarEntry = entries[i];
             break;
           }
         }
         if (initVarEntry && initVarEntry.content) {
-          var parsed = parseInitVar(initVarEntry.content);
+          const parsed = parseInitVar(initVarEntry.content);
           if (parsed) statData = parsed;
         }
         return statData;
@@ -13060,7 +13412,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 提供 getAllVariables / waitGlobalInitialized / eventOn / errorCatched / Mvu / _ / $ + fallback 渲染
       function buildPreviewMockScript(statData) {
         statData = statData || {};
-        var statDataJson = JSON.stringify(statData).replace(/<\/script/gi, '<\\/script');
+        const statDataJson = JSON.stringify(statData).replace(/<\/script/gi, '<\\/script');
         return '<script>\n' +
           '/* === 写卡器预览用 mock API（模拟酒馆运行时）=== */\n' +
           '(function() {\n' +
@@ -13176,7 +13528,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // ===== statusblock 渲染：统一走 Markdown 管道（兼容旧 HTML 格式自动转换） =====
       function parseStatusblock(inner) {
-        var md = inner;
+        let md = inner;
         // ===== 向后兼容：把旧 HTML 标签格式自动转成 Markdown =====
         // <details open><summary><b>标题</b></summary> → ### 标题
         md = md.replace(/<details(?:\s+open)?\s*>[\s\S]*?<summary>(?:<b>)?([\s\S]*?)(?:<\/b>)?<\/summary>/gi, function(_, title) {
@@ -13201,18 +13553,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return fmtBubble(md);
       }
 
-      // ctx-bar 防抖刷新：高频成对的刷新请求（消息渲染/合并/预览）合并为一次微任务
-      var _ctxBarRenderTimer = null;
+      // ctx-bar 防抖刷新：高频成对的刷新请求（消息渲染/合并/预览）合并为一次
+      let _ctxBarRenderTimer = null;
       function scheduleCtxBarUpdate() {
         if (_ctxBarRenderTimer) return;
         _ctxBarRenderTimer = setTimeout(function() {
           _ctxBarRenderTimer = null;
           updateCtxBar();
-        }, 0);
+        }, CONFIG.CTX_BAR_DEBOUNCE_MS);
       }
 
       function parseModProgress(reply) {
-        var modMap = {
+        const modMap = {
           '基础公理': 'axiom',
           '交互软规则': 'soft_rules',
           '核心铁则': 'core_rules',
@@ -13225,7 +13577,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '变量更新规则': 'var_update_rule',
           '变量系统': 'init_var'
         };
-        var result = {
+        const result = {
           axiom: 0,
           soft_rules: 0,
           core_rules: 0,
@@ -13238,19 +13590,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           var_update_rule: 0
         };
         Object.keys(modMap).forEach(function(kw) {
-          var key = modMap[kw];
-          var re = new RegExp(kw + '[^\\n]*?([✅⏳❌])');
-          var m = reply.match(re);
+          const key = modMap[kw];
+          const re = new RegExp(kw + '[^\\n]*?([✅⏳❌])');
+          const m = reply.match(re);
           if (m) {
-            var sym = m[1];
+            const sym = m[1];
             result[key] = sym === '✅' ? 100 : sym === '⏳' ? 50 : 0;
           }
         });
         if (cardData && cardData.character_book && cardData.character_book.entries) {
-          var entries = cardData.character_book.entries;
+          const entries = cardData.character_book.entries;
           Object.keys(modMap).forEach(function(kw) {
-            var key = modMap[kw];
-            var count = 0;
+            const key = modMap[kw];
+            let count = 0;
             entries.forEach(function(e) {
               if ((e.comment || '').indexOf(kw) >= 0) count++;
             });
@@ -13268,21 +13620,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
 
-      var lastUserInput = '';
+      let lastUserInput = '';
       // ============================================================================
       // SECTION 10 聊天消息发送 + AI 写卡流程主循环（callAIChat）
       // ============================================================================
       async function handleSend() {
-        var input = doc.getElementById('chatInput');
-        var text = input ? input.value.trim() : '';
+        const input = doc.getElementById('chatInput');
+        const text = input ? input.value.trim() : '';
         if (!text || isGenerating) return;
         input.value = '';
         input.style.height = 'auto'; // 发送后重置输入框高度
         lastUserInput = text;
-        var genKw = ['生成角色卡', '生成完整角色卡', '导出角色卡', '写入酒馆', '完整生成'];
+        const genKw = ['生成角色卡', '生成完整角色卡', '导出角色卡', '写入酒馆', '完整生成'];
         // ⚠️修复：否定语境不算生成指令（"不要导出角色卡"原先会命中 indexOf 误触发 doGenerate）
-        var isNegation = /不要|别|不许|禁止|无需|不用/.test(text.slice(0, 12));
-        var isGenCmd = !isNegation && genKw.some(function(k) {
+        const isNegation = /不要|别|不许|禁止|无需|不用/.test(text.slice(0, 12));
+        const isGenCmd = !isNegation && genKw.some(function(k) {
           return text === k || text.indexOf(k) >= 0;
         });
         if (isGenCmd && progress >= 30) {
@@ -13304,7 +13656,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== AI回复清理（移除思考链、内部标签等） =====
       function cleanAIReply(text) {
         if (!text) return text;
-        var t = text;
+        let t = text;
         t = t.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
         t = t.replace(/<!--\s*End of The ECoT\s*-->/gi, '');
         t = t.replace(/^#\s*果农人格加载[^\n]*\n/gim, '');
@@ -13322,31 +13674,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 从AI回复中提取JSON =====
       function extractJSON(text) {
         if (!text) return null;
-        var patterns = [
+        const patterns = [
           /```json\s*([\s\S]*?)\s*```/i,
           /```javascript\s*([\s\S]*?)\s*```/i,
           /```js\s*([\s\S]*?)\s*```/i,
           /```\s*([\s\S]*?)\s*```/i,
         ];
-        for (var i = 0; i < patterns.length; i++) {
-          var m = text.match(patterns[i]);
+        for (let i = 0; i < patterns.length; i++) {
+          const m = text.match(patterns[i]);
           if (m) {
-            var jsonContent = m[1].trim();
+            const jsonContent = m[1].trim();
             try {
               return JSON.parse(jsonContent);
-            } catch (e) {}
-            var fixed = repairJSON(jsonContent);
+            } catch (e) { logWarn("extractJSON", e); }
+            const fixed = repairJSON(jsonContent);
             if (fixed) return fixed;
           }
         }
-        var braceStart = text.indexOf('{');
-        var braceEnd = text.lastIndexOf('}');
+        const braceStart = text.indexOf('{');
+        const braceEnd = text.lastIndexOf('}');
         if (braceStart >= 0 && braceEnd > braceStart) {
-          var candidate = text.substring(braceStart, braceEnd + 1);
+          const candidate = text.substring(braceStart, braceEnd + 1);
           try {
             return JSON.parse(candidate.trim());
-          } catch (e) {}
-          var fixed2 = repairJSON(candidate);
+          } catch (e) { logWarn("extractJSON", e); }
+          const fixed2 = repairJSON(candidate);
           if (fixed2) return fixed2;
         }
         return null;
@@ -13360,9 +13712,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 规范化key：去装饰括号 + trim + 大小写折叠（复用已有逻辑）
       function _opNormKey(s) {
         if (!s) return '';
-        var r = String(s).trim();
-        for (var iter = 0; iter < 2; iter++) {
-          var pairs = [
+        let r = String(s).trim();
+        for (let iter = 0; iter < 2; iter++) {
+          const pairs = [
             ['⟦', '⟧'],
             ['【', '】'],
             ['「', '」'],
@@ -13374,9 +13726,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             ['[', ']'],
             ['{', '}']
           ];
-          var matched = false;
-          for (var pi = 0; pi < pairs.length; pi++) {
-            var L = pairs[pi][0],
+          let matched = false;
+          for (let pi = 0; pi < pairs.length; pi++) {
+            const L = pairs[pi][0],
               R = pairs[pi][1];
             if (r.length >= 4 && r.charAt(0) === L && r.charAt(r.length - 1) === R) {
               r = r.slice(1, -1).trim();
@@ -13392,7 +13744,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 解析 ::: 操作块，返回操作数组
       function parseOpBlocks(rawText) {
         if (!rawText) return [];
-        var ops = [];
+        const ops = [];
         // 匹配 ::: action key ... 格式（key 到换行/行尾为止，content 到下一个 ::: 为止）
         // 用单个 \n 分隔 key 和 content，避免 [\r\n]+ 贪婪吃掉多个换行导致 content 起点错误
         // 前瞻允许中间有空行（\n\s*:::），解决 delete 后紧跟空行再接下一个操作的问题
@@ -13404,44 +13756,44 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         //   applyOps / mergePartial 都匹配不到条目。这是用户反馈"AI明明写了删除但预览还堆叠"的主要根因。
         //   新规则：块结束 = 【必须】行首（允许前导空格/制表）三冒号 + 行尾空白。delete/rename/set 这种无正文的动作，
         //   也必须以空行 + 闭合:::结尾（AI 输出格式模板里也已经明确说明写法）。
-        var re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::[ \t]*(?:$|\n))/gi;
-        var m;
+        const re = /(?:^|\n)[ \t]*:::\s*(upsert|update|delete|set|rename)\s+([^\n\r]+?)\n([\s\S]*?)(?=\n[ \t]*:::[ \t]*(?:$|\n))/gi;
+        let m;
         while ((m = re.exec(rawText)) !== null) {
-          var action = m[1].toLowerCase();
-          var key = m[2].trim();
+          const action = m[1].toLowerCase();
+          const key = m[2].trim();
           // 从块体里剥离后面会被前瞻一并捕获的闭合:::行（前瞻只是锚定，内容里仍可能含尾空格/换行）
-          var rawBody = (m[3] || '').replace(/\n[ \t]*:::[ \t]*$/, '').replace(/\n[ \t]*:::[ \t]*\n$/, '\n').trim();
-          var content = rawBody;
+          const rawBody = (m[3] || '').replace(/\n[ \t]*:::[ \t]*$/, '').replace(/\n[ \t]*:::[ \t]*\n$/, '\n').trim();
+          let content = rawBody;
           // ===== ✅新增：解析 upsert/update 块体开头的元信息头（keys/secondary_keys/selectiveLogic/constant/depth/cooldown等）=====
           //   格式：块体第1行开始，连续出现 `键=值`（单行）行，直到遇到第1个空行或遇到不以"键名="开头的行为止。
           //   之后的部分（空行之后 / 非键=值行开始之后）才是真正的 content 正文。
           //   支持的键：keys, secondary_keys, selectiveLogic, constant, depth, cooldown, sticky, delay, vectorized,
           //            prevent_recursion, exclude_recursion, delay_until_recursion, use_regex, probability, group, order
-          var metaFields = ['keys', 'secondary_keys', 'selectiveLogic', 'constant', 'depth', 'cooldown', 'sticky', 'delay',
+          const metaFields = ['keys', 'secondary_keys', 'selectiveLogic', 'constant', 'depth', 'cooldown', 'sticky', 'delay',
             'vectorized', 'prevent_recursion', 'exclude_recursion', 'delay_until_recursion', 'use_regex',
             'probability', 'group', 'order', 'insertion_order', 'position', 'useProbability', 'scan_depth',
             'match_whole_words', 'enabled', 'group_weight'
           ];
-          var _stripMeta = function(bodyStr) {
-            var lines = bodyStr.split(/\r?\n/);
-            var meta = {};
-            var splitIdx = -1; // 正文从第几行开始
-            for (var li = 0; li < lines.length; li++) {
-              var line = lines[li];
-              var tline = line.trim();
+          const _stripMeta = function(bodyStr) {
+            const lines = bodyStr.split(/\r?\n/);
+            const meta = {};
+            let splitIdx = -1; // 正文从第几行开始
+            for (let li = 0; li < lines.length; li++) {
+              const line = lines[li];
+              const tline = line.trim();
               if (tline === '') {
                 splitIdx = li + 1;
                 break;
               } // 空行 → 元信息结束
-              var eq = tline.indexOf('=');
+              const eq = tline.indexOf('=');
               if (eq < 2) {
                 splitIdx = li;
                 break;
               } // 不以"键="开头 → 元信息结束
-              var k = tline.substring(0, eq).trim();
-              var v = tline.substring(eq + 1).trim();
-              var matchedKey = null;
-              for (var mi = 0; mi < metaFields.length; mi++) {
+              const k = tline.substring(0, eq).trim();
+              const v = tline.substring(eq + 1).trim();
+              let matchedKey = null;
+              for (let mi = 0; mi < metaFields.length; mi++) {
                 if (metaFields[mi].toLowerCase() === k.toLowerCase()) {
                   matchedKey = metaFields[mi];
                   break;
@@ -13465,29 +13817,29 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               } else if (matchedKey === 'group') {
                 meta[matchedKey] = v;
               } else {
-                var n = Number(v);
+                const n = Number(v);
                 meta[matchedKey] = (!isNaN(n) && String(n) === v) ? n : v;
               }
             }
-            var bodyLines = (splitIdx >= 0) ? lines.slice(splitIdx) : lines;
+            const bodyLines = (splitIdx >= 0) ? lines.slice(splitIdx) : lines;
             return {
               meta: meta,
               content: bodyLines.join('\n').trim()
             };
           };
           if (action === 'upsert' || action === 'update') {
-            var r = _stripMeta(rawBody);
-            for (var mk in r.meta) {
+            const r = _stripMeta(rawBody);
+            for (let mk in r.meta) {
               if (r.meta.hasOwnProperty(mk)) ops._metaFields = ops._metaFields || {};
             } // no-op 兼容
             // 把解析出的元信息直接挂到 op 上（applyOps 里会用），content 用剥离元信息后的正文
             content = r.content;
-            var opRec = {
+            const opRec = {
               action: action,
               key: key,
               content: content
             };
-            for (var _mk in r.meta) {
+            for (let _mk in r.meta) {
               if (r.meta.hasOwnProperty(_mk)) opRec[_mk] = r.meta[_mk];
             }
             ops.push(opRec);
@@ -13495,7 +13847,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // rename 格式：::: rename oldKey → newKey
           if (action === 'rename') {
-            var arrowMatch = key.match(/^(.+?)\s*(?:->|→|=>)\s*(.+)$/);
+            const arrowMatch = key.match(/^(.+?)\s*(?:->|→|=>)\s*(.+)$/);
             if (arrowMatch) {
               ops.push({
                 action: 'rename',
@@ -13505,7 +13857,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               });
             } else {
               // 没有箭头，尝试用空格分割
-              var parts = key.split(/\s+/);
+              const parts = key.split(/\s+/);
               if (parts.length >= 2) {
                 ops.push({
                   action: 'rename',
@@ -13568,11 +13920,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (!cd.extensions.regex_scripts) cd.extensions.regex_scripts = [];
 
         // 合法的顶层字段（set操作用）
-        var validFields = ['name', 'description', 'first_mes', 'system_prompt', 'personality', 'scenario', 'creator_notes', 'alternate_greetings', 'creator', 'character_version', 'depth_prompt'];
+        const validFields = ['name', 'description', 'first_mes', 'system_prompt', 'personality', 'scenario', 'creator_notes', 'alternate_greetings', 'creator', 'character_version', 'depth_prompt'];
 
         // MVU条目关键词（用于Tab隔离：角色卡Tab下拦截MVU条目写入）
         function _isMvuEntryKey(comment) {
-          var c = (comment || '').toLowerCase();
+          const c = (comment || '').toLowerCase();
           return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
             c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
             c.indexOf('mvu_update') >= 0 || c.indexOf('[mvu_update]') >= 0 ||
@@ -13592,11 +13944,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (op.action === 'upsert' || op.action === 'update') {
             // 检测是否是脚本操作（key以 script: 开头）
             if (op.key && /^script:/i.test(op.key)) {
-              var scriptName = op.key.replace(/^script:\s*/i, '').trim();
-              var scripts = cd.extensions.tavern_helper.scripts;
+              const scriptName = op.key.replace(/^script:\s*/i, '').trim();
+              const scripts = cd.extensions.tavern_helper.scripts;
               // 查找现有脚本
-              var sFoundIdx = -1;
-              for (var si = 0; si < scripts.length; si++) {
+              let sFoundIdx = -1;
+              for (let si = 0; si < scripts.length; si++) {
                 if ((scripts[si].name || '').toLowerCase() === scriptName.toLowerCase() ||
                   (scripts[si].id || '') === scriptName) {
                   sFoundIdx = si;
@@ -13627,16 +13979,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return;
             }
 
-            var nk = _opNormKey(op.key);
+            const nk = _opNormKey(op.key);
             if (!nk) {
               console.warn('[opblock] 跳过空key');
               return;
             }
 
             // 剥去入存comment的外层装饰括号
-            var cleanComment = op.key;
-            for (var iter = 0; iter < 2; iter++) {
-              var pairs = [
+            let cleanComment = op.key;
+            for (let iter = 0; iter < 2; iter++) {
+              const pairs = [
                 ['⟦', '⟧'],
                 ['【', '】'],
                 ['「', '」'],
@@ -13648,9 +14000,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 ['[', ']'],
                 ['{', '}']
               ];
-              var didStrip = false;
-              for (var pi = 0; pi < pairs.length; pi++) {
-                var L = pairs[pi][0],
+              let didStrip = false;
+              for (let pi = 0; pi < pairs.length; pi++) {
+                const L = pairs[pi][0],
                   R = pairs[pi][1];
                 if (cleanComment.length >= 4 && cleanComment.charAt(0) === L && cleanComment.charAt(cleanComment.length - 1) === R) {
                   cleanComment = cleanComment.slice(1, -1).trim();
@@ -13662,11 +14014,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
 
             // ===== ✅新增：构造基础增量对象（含 AI 块体元信息头里的 keys/secondary_keys/selectiveLogic/constant/...）=====
-            var basePatch = {
+            const basePatch = {
               comment: cleanComment
             };
             // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
-            var _cleanedContent = (op.content && op.content.trim().length > 0) ?
+            let _cleanedContent = (op.content && op.content.trim().length > 0) ?
               _stripEntryConfigFromContent(cleanComment, op.content) : op.content;
             // 变量列表条目：强制规范化为标准格式（只保留 null+包裹标签，丢弃变量实际值/配置字段）
             if (_cleanedContent && cleanComment.indexOf('变量列表') >= 0) {
@@ -13681,12 +14033,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               _cleanedContent = normalizeVarUpdateRuleContent(_cleanedContent);
             }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
-            var metaKeysTop = ['keys', 'secondary_keys', 'selectiveLogic', 'constant', 'depth', 'cooldown', 'sticky', 'delay',
+            const metaKeysTop = ['keys', 'secondary_keys', 'selectiveLogic', 'constant', 'depth', 'cooldown', 'sticky', 'delay',
               'vectorized', 'prevent_recursion', 'exclude_recursion', 'delay_until_recursion', 'use_regex',
               'probability', 'group', 'order', 'insertion_order', 'position', 'useProbability', 'scan_depth',
               'match_whole_words', 'enabled', 'group_weight'
             ];
-            var extMap = {
+            const extMap = {
               selectiveLogic: 'selectiveLogic',
               depth: 'depth',
               position: 'position',
@@ -13704,9 +14056,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               group_weight: 'group_weight',
               role: 'role'
             };
-            var extPatch = null;
-            for (var _mki = 0; _mki < metaKeysTop.length; _mki++) {
-              var _mk = metaKeysTop[_mki];
+            let extPatch = null;
+            for (let _mki = 0; _mki < metaKeysTop.length; _mki++) {
+              const _mk = metaKeysTop[_mki];
               if (op[_mk] === undefined) continue;
               if (extMap[_mk] !== undefined) {
                 extPatch = extPatch || {};
@@ -13717,8 +14069,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
 
             // 精确匹配现有条目
-            var foundIdx = -1;
-            for (var fi = 0; fi < cd.character_book.entries.length; fi++) {
+            let foundIdx = -1;
+            for (let fi = 0; fi < cd.character_book.entries.length; fi++) {
               if (_opNormKey(cd.character_book.entries[fi].comment) === nk) {
                 foundIdx = fi;
                 break;
@@ -13727,15 +14079,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
             if (foundIdx >= 0) {
               // 更新
-              var oldEntry = cd.character_book.entries[foundIdx];
-              var mergedEntry = Object.assign({}, oldEntry, basePatch);
+              const oldEntry = cd.character_book.entries[foundIdx];
+              const mergedEntry = Object.assign({}, oldEntry, basePatch);
               if (extPatch) mergedEntry.extensions = Object.assign({}, (oldEntry && oldEntry.extensions) || {}, extPatch);
               // ===== ✅新增：keys 为空时，按<标签>分类+实体名自动派生（蓝灯不派生）=====
-              var _tmplHere = getEntryTemplate(mergedEntry.comment || '');
+              const _tmplHere = getEntryTemplate(mergedEntry.comment || '');
               if ((!mergedEntry.keys || mergedEntry.keys.length === 0) && !((_tmplHere && _tmplHere.constant) || mergedEntry.constant)) {
                 try {
                   mergedEntry.keys = _deriveEntryKeys(mergedEntry.comment, _tmplHere, mergedEntry.content);
-                } catch (derr) {}
+                } catch (derr) { logWarn("_isMvuEntryKey", derr); }
               }
               if (!mergedEntry.secondary_keys) mergedEntry.secondary_keys = [];
               cd.character_book.entries[foundIdx] = mergedEntry;
@@ -13746,7 +14098,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (op.action === 'update') {
                 console.warn('[opblock] update 找不到条目:', op.key);
               } else {
-                var newEntry = Object.assign({
+                const newEntry = Object.assign({
                   comment: cleanComment,
                   content: op.content || '',
                   constant: false,
@@ -13756,10 +14108,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   extensions: {}
                 }, basePatch);
                 if (extPatch) newEntry.extensions = Object.assign({}, newEntry.extensions || {}, extPatch);
-                var _tmplNew = getEntryTemplate(newEntry.comment || '');
+                const _tmplNew = getEntryTemplate(newEntry.comment || '');
                 if (_tmplNew) {
                   // MVU 系统条目强制使用模板的 selective/constant 值
-                  var _isNewMvuSys = (String(newEntry.comment || '').toLowerCase().indexOf('变量输出格式') >= 0 ||
+                  const _isNewMvuSys = (String(newEntry.comment || '').toLowerCase().indexOf('变量输出格式') >= 0 ||
                     String(newEntry.comment || '').toLowerCase().indexOf('变量更新规则') >= 0 ||
                     String(newEntry.comment || '').toLowerCase().indexOf('[initvar]') >= 0 ||
                     String(newEntry.comment || '').indexOf('初始变量') >= 0 ||
@@ -13776,7 +14128,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 if ((!newEntry.keys || newEntry.keys.length === 0) && !(newEntry.constant || (_tmplNew && _tmplNew.constant))) {
                   try {
                     newEntry.keys = _deriveEntryKeys(newEntry.comment, _tmplNew, newEntry.content);
-                  } catch (derr2) {}
+                  } catch (derr2) { logWarn("_isMvuEntryKey", derr2); }
                 }
                 if (!newEntry.secondary_keys) newEntry.secondary_keys = [];
                 cd.character_book.entries.push(newEntry);
@@ -13787,11 +14139,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } else if (op.action === 'delete') {
             // 检测是否是脚本删除（key以 script: 开头）
             if (op.key && /^script:/i.test(op.key)) {
-              var delScriptName = op.key.replace(/^script:\s*/i, '').trim();
-              var delScripts = cd.extensions.tavern_helper.scripts;
-              var delCount = 0;
+              const delScriptName = op.key.replace(/^script:\s*/i, '').trim();
+              const delScripts = cd.extensions.tavern_helper.scripts;
+              let delCount = 0;
               cd.extensions.tavern_helper.scripts = delScripts.filter(function(s) {
-                var match = (s.name || '').toLowerCase() === delScriptName.toLowerCase() ||
+                const match = (s.name || '').toLowerCase() === delScriptName.toLowerCase() ||
                   (s.id || '') === delScriptName;
                 if (match && isFixedMvuScript(s)) {
                   console.warn('[opblock] 拦截固定脚本删除:', delScriptName);
@@ -13807,28 +14159,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return;
             }
 
-            var dk = _opNormKey(op.key);
+            const dk = _opNormKey(op.key);
             if (!dk) {
               console.warn('[opblock] delete空key');
               return;
             }
-            var removeCount = 0;
-            var strippedDk = dk.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
+            let removeCount = 0;
+            const strippedDk = dk.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
             cd.character_book.entries = cd.character_book.entries.filter(function(e) {
               if (!e || typeof e !== 'object') {
                 removeCount++;
                 return false;
               } // 防御：null/字符串/数字直接当脏数据删掉
-              var ek = _opNormKey(e.comment || '');
-              var strippedEk = ek.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
+              const ek = _opNormKey(e.comment || '');
+              const strippedEk = ek.replace(/^[<\[【⟦『「〈《\(\[{]+|[>\]】⟧』」〉》\)\]}]+$/g, '').trim();
               // 精确匹配优先；否则短 key 用 includes 模糊（dk.length>=4 避免乱删）
-              var shouldDelete = (ek === dk) ||
+              let shouldDelete = (ek === dk) ||
                 (strippedDk && strippedEk && strippedEk === strippedDk) ||
                 (strippedDk && strippedEk && strippedDk.length >= 4 && strippedEk.indexOf(strippedDk) >= 0) ||
                 (dk.length >= 6 && ek.indexOf(dk) >= 0);
               // 额外：如果用户删的内容本身和某条 entry.content 前 50 字匹配度>80%（常见于"把这段删掉"）也命中删除
               if (!shouldDelete && strippedDk && strippedDk.length >= 10 && e.content && typeof e.content === 'string') {
-                var headContent = e.content.slice(0, Math.max(60, strippedDk.length + 20));
+                const headContent = e.content.slice(0, Math.max(60, strippedDk.length + 20));
                 if (headContent.indexOf(strippedDk) >= 0) shouldDelete = true;
               }
               if (shouldDelete) removeCount++;
@@ -13846,7 +14198,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               changeLog._deleteFailures.push(String(op.key || '').slice(0, 120));
             }
           } else if (op.action === 'set') {
-            var fieldName = op.key.toLowerCase().trim();
+            const fieldName = op.key.toLowerCase().trim();
             if (validFields.indexOf(fieldName) >= 0) {
               if (fieldName === 'alternate_greetings') {
                 // alternate_greetings 也需要转为数组
@@ -13862,16 +14214,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               console.warn('[opblock] set 未知字段:', fieldName);
             }
           } else if (op.action === 'rename') {
-            var oldK = _opNormKey(op.oldKey);
-            var newK = op.newKey.trim();
+            const oldK = _opNormKey(op.oldKey);
+            const newK = op.newKey.trim();
             if (!oldK || !newK) {
               console.warn('[opblock] rename 空key');
               return;
             }
             // 剥去newKey装饰括号
-            var cleanNewKey = newK;
-            for (var iter2 = 0; iter2 < 2; iter2++) {
-              var pairs2 = [
+            let cleanNewKey = newK;
+            for (let iter2 = 0; iter2 < 2; iter2++) {
+              const pairs2 = [
                 ['⟦', '⟧'],
                 ['【', '】'],
                 ['「', '」'],
@@ -13883,9 +14235,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 ['[', ']'],
                 ['{', '}']
               ];
-              var didStrip2 = false;
-              for (var pi2 = 0; pi2 < pairs2.length; pi2++) {
-                var L2 = pairs2[pi2][0],
+              let didStrip2 = false;
+              for (let pi2 = 0; pi2 < pairs2.length; pi2++) {
+                const L2 = pairs2[pi2][0],
                   R2 = pairs2[pi2][1];
                 if (cleanNewKey.length >= 4 && cleanNewKey.charAt(0) === L2 && cleanNewKey.charAt(cleanNewKey.length - 1) === R2) {
                   cleanNewKey = cleanNewKey.slice(1, -1).trim();
@@ -13895,8 +14247,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
               if (!didStrip2) break;
             }
-            var renamed = false;
-            for (var ri = 0; ri < cd.character_book.entries.length; ri++) {
+            let renamed = false;
+            for (let ri = 0; ri < cd.character_book.entries.length; ri++) {
               if (_opNormKey(cd.character_book.entries[ri].comment) === oldK) {
                 cd.character_book.entries[ri].comment = cleanNewKey;
                 renamed = true;
@@ -13924,15 +14276,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function tryExtractStatusBarHtml(aiText) {
         if (!aiText) return false;
         // 匹配所有 ```html 代码块（[ \t]*\r?\n? 容错 ```html 后无换行的情况，不吃内容缩进）
-        var htmlBlocks = [];
-        var htmlRe = /```html[ \t]*\r?\n?([\s\S]*?)\r?\n?```/gi;
-        var m;
+        const htmlBlocks = [];
+        const htmlRe = /```html[ \t]*\r?\n?([\s\S]*?)\r?\n?```/gi;
+        let m;
         while ((m = htmlRe.exec(aiText)) !== null) {
           htmlBlocks.push(m[1]);
         }
         // 也匹配无语言标记的 ``` 代码块（可能含HTML）
         if (htmlBlocks.length === 0) {
-          var genericRe = /```[ \t]*\r?\n?([\s\S]*?)\r?\n?```/g;
+          const genericRe = /```[ \t]*\r?\n?([\s\S]*?)\r?\n?```/g;
           while ((m = genericRe.exec(aiText)) !== null) {
             if (m[1].indexOf('<html') >= 0 || m[1].indexOf('<!doctype') >= 0 || m[1].indexOf('<head') >= 0) {
               htmlBlocks.push(m[1]);
@@ -13945,16 +14297,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ⚠️P0修复：entries/comment 原先是裸子串匹配——StageDog zod 规范明确推荐 `_(data).entries()`，
         // AI 按规范生成的状态栏 JS 里出现 Object.entries()/_.entries()/注释 一律被误杀 → 提取失败
         // → 预览"未生成"+写入酒馆丢自定义状态栏。改为只匹配 JSON 键形态（"entries": / 'comment':）
-        var wordBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
+        const wordBlacklist = ['<statusblock>', '</statusblock>', '信息完整度', '需要您补充的信息',
           '基础公理', '交互软规则', '核心铁则', '```json', '```js', '```yaml',
           'character_book', 'insertion_order'
         ];
         // 结构验证：完整HTML文档特征（doctype/html + style/script 至少各一）
-        var mustHaveStructure = ['<!doctype', '<html', '<style', '<script'];
+        const mustHaveStructure = ['<!doctype', '<html', '<style', '<script'];
         // 状态栏HTML专属特征（⚠️对齐用户模板标准：populateCharacterData + getAllVariables + eventOn + errorCatched）
         // 旧表（matrix-card/m-bar-wrap/renderTree等）大半是历史模板专属词，按用户模板生成的
         // 新状态栏常只命中2-3个，导致提取失败（预览显示未生成+写入酒馆丢失），故大幅扩充并降阈值
-        var statusBarKeywords = ['StatusPlaceHolderImpl', 'render-root', 'stat_data', 'waitGlobalInitialized',
+        const statusBarKeywords = ['StatusPlaceHolderImpl', 'render-root', 'stat_data', 'waitGlobalInitialized',
           'getAllVariables', 'populateCharacterData', 'errorCatched', 'eventOn',
           'VARIABLE_UPDATE_ENDED', 'Mvu.events', 'toggleSection', 'section-header',
           'mvu-status', 'card-body', 'refreshStatus', 'renderTree',
@@ -13963,13 +14315,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           'getVariables', 'stat_data.'
         ];
         // MVU核心特征（用户模板标准必备）：至少命中1个才可能是状态栏
-        var mvuCoreFeatures = ['getAllVariables', 'stat_data', 'populateCharacterData', 'waitGlobalInitialized', 'Mvu.events', 'getVariables'];
-        var statusBarHtml = null;
-        for (var i = 0; i < htmlBlocks.length; i++) {
-          var block = htmlBlocks[i];
+        const mvuCoreFeatures = ['getAllVariables', 'stat_data', 'populateCharacterData', 'waitGlobalInitialized', 'Mvu.events', 'getVariables'];
+        let statusBarHtml = null;
+        for (let i = 0; i < htmlBlocks.length; i++) {
+          const block = htmlBlocks[i];
           // 黑名单过滤：裸词命中（这些词不会出现在状态栏代码里）→ 跳过
-          var hitBlack = false;
-          for (var b = 0; b < wordBlacklist.length; b++) {
+          let hitBlack = false;
+          for (let b = 0; b < wordBlacklist.length; b++) {
             if (block.indexOf(wordBlacklist[b]) >= 0) {
               hitBlack = true;
               break;
@@ -13981,24 +14333,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (/["']entries["']\s*:/.test(block) || /["']comment["']\s*:/.test(block)) continue;
           // 结构验证：至少出现2个HTML结构标签（非单纯CSS/JS碎片）
           var structCount = 0;
-          for (var s = 0; s < mustHaveStructure.length; s++) {
+          for (let s = 0; s < mustHaveStructure.length; s++) {
             if (block.indexOf(mustHaveStructure[s]) >= 0) structCount++;
           }
           if (structCount < 2) continue;
           // MVU核心特征：至少1个（读变量的入口，状态栏必有）
-          var coreCount = 0;
-          for (var c = 0; c < mvuCoreFeatures.length; c++) {
+          let coreCount = 0;
+          for (let c = 0; c < mvuCoreFeatures.length; c++) {
             if (block.indexOf(mvuCoreFeatures[c]) >= 0) coreCount++;
           }
           if (coreCount < 1) continue;
           // 特征关键词：至少2个即认定（黑名单+完整文档结构+MVU核心特征三重防护，误报风险低）
-          var matchCount = 0;
-          for (var k = 0; k < statusBarKeywords.length; k++) {
+          let matchCount = 0;
+          for (let k = 0; k < statusBarKeywords.length; k++) {
             if (block.indexOf(statusBarKeywords[k]) >= 0) matchCount++;
           }
           if (matchCount >= 2) {
             // 清理字面量转义字符
-            var cleaned = block;
+            let cleaned = block;
             if (cleaned.indexOf('\\n') >= 0) cleaned = cleaned.replace(/\\n/g, '\n');
             if (cleaned.indexOf('\\"') >= 0) cleaned = cleaned.replace(/\\"/g, '"');
             if (cleaned.indexOf('\\\\') >= 0) cleaned = cleaned.replace(/\\\\/g, '\\');
@@ -14011,12 +14363,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           try {
             console.warn('[statusbar] 未识别到状态栏HTML：共', htmlBlocks.length, '个代码块。各块判定：',
               htmlBlocks.map(function(blk) {
-                var mc = 0;
-                for (var k2 = 0; k2 < statusBarKeywords.length; k2++) {
+                let mc = 0;
+                for (let k2 = 0; k2 < statusBarKeywords.length; k2++) {
                   if (blk.indexOf(statusBarKeywords[k2]) >= 0) mc++;
                 }
-                var sc = 0;
-                for (var s2 = 0; s2 < mustHaveStructure.length; s2++) {
+                let sc = 0;
+                for (let s2 = 0; s2 < mustHaveStructure.length; s2++) {
                   if (blk.indexOf(mustHaveStructure[s2]) >= 0) sc++;
                 }
                 return {
@@ -14051,21 +14403,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         cardData.first_mes = typeof cardData.first_mes === 'string' ? cardData.first_mes : '';
         cardData.alternate_greetings = Array.isArray(cardData.alternate_greetings) ? cardData.alternate_greetings : [];
 
-        var rxList = cardData.extensions.regex_scripts;
+        const rxList = cardData.extensions.regex_scripts;
         // 收集所有「美化状态栏」脚本：findRegex 含 StatusPlaceHolder 且 markdownOnly 且 非 promptOnly
         // 同时兼容 id === 'mvu-status-bar' 的脚本（历史数据可能 findRegex 写法不一）
-        var sbIdxList = [];
-        for (var j = 0; j < rxList.length; j++) {
-          var r = rxList[j];
+        const sbIdxList = [];
+        for (let j = 0; j < rxList.length; j++) {
+          const r = rxList[j];
           if (!r) continue;
-          var isSb = (r.id === 'mvu-status-bar') ||
+          const isSb = (r.id === 'mvu-status-bar') ||
             ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly);
           if (isSb) sbIdxList.push(j);
         }
-        var wrappedHtml = '```\n' + assembledHtml + '\n```';
+        const wrappedHtml = '```\n' + assembledHtml + '\n```';
         if (sbIdxList.length > 0) {
           // 取第一个作为更新目标，其余重复的全部删除（按 id 或 findRegex 匹配的都算重复）
-          var keepIdx = sbIdxList[0];
+          const keepIdx = sbIdxList[0];
           rxList[keepIdx].replaceString = wrappedHtml;
           rxList[keepIdx].findRegex = '/<StatusPlaceHolderImpl\\/>/g';
           rxList[keepIdx].markdownOnly = true;
@@ -14077,7 +14429,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           rxList[keepIdx].scriptName = '[美化]MVU状态栏';
           // 降序删除其余重复脚本（保留 keepIdx）
           if (sbIdxList.length > 1) {
-            var dupToRemove = sbIdxList.slice(1).sort(function(a, b) {
+            const dupToRemove = sbIdxList.slice(1).sort(function(a, b) {
               return b - a;
             });
             dupToRemove.forEach(function(idx) {
@@ -14108,10 +14460,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 代码（Step 2-6）误写入了character_book.entries。此处保存regex后主动清理，
         // 避免条目里的陈旧状态栏代码污染世界书上下文、与regex_scripts版本不一致。
         if (cardData.character_book && Array.isArray(cardData.character_book.entries)) {
-          var sbCleanupRe = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
-          var beforeLen = cardData.character_book.entries.length;
+          const sbCleanupRe = /状态栏.*Step\s*[2-7]|Step\s*[2-7].*状态栏|状态栏.*(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定)|(配色|HTML骨架|CSS样式|变量读取|渲染函数|事件绑定).*状态栏/;
+          const beforeLen = cardData.character_book.entries.length;
           cardData.character_book.entries = cardData.character_book.entries.filter(function(e) {
-            var c = String((e && e.comment) || '');
+            const c = String((e && e.comment) || '');
             if (sbCleanupRe.test(c)) {
               console.warn('[statusbar] 清理世界书中的状态栏残留条目:', c);
               return false;
@@ -14134,8 +14486,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         /* 同样确保 alternate_greetings 每条也追加了占位符 */
         if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
-          for (var gi = 0; gi < cardData.alternate_greetings.length; gi++) {
-            var ag = cardData.alternate_greetings[gi];
+          for (let gi = 0; gi < cardData.alternate_greetings.length; gi++) {
+            const ag = cardData.alternate_greetings[gi];
             if (typeof ag === 'string' && ag.indexOf('StatusPlaceHolderImpl') < 0) {
               cardData.alternate_greetings[gi] = ag.replace(/\s*$/, '') + '\n<StatusPlaceHolderImpl/>';
             }
@@ -14157,24 +14509,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
         if (!cardData.extensions.tavern_helper.scripts) cardData.extensions.tavern_helper.scripts = [];
         if (!cardData.extensions.regex_scripts) cardData.extensions.regex_scripts = [];
-        var thScripts = cardData.extensions.tavern_helper.scripts;
-        var rxList = cardData.extensions.regex_scripts;
-        var injected = [];
+        const thScripts = cardData.extensions.tavern_helper.scripts;
+        let rxList = cardData.extensions.regex_scripts;
+        const injected = [];
 
         // === 0. 去重清理：移除已累积的重复固定正则（只保留每个id的第一份）===
-        var _fixedRxIds = {
+        const _fixedRxIds = {
           'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36': true,
           '5bb4b588-23ca-4564-8df5-882104eff764': true,
           '6fb572ae-a9ea-436d-9779-ad100f1ff7f5': true,
           'bf1b7441-5cf1-426d-bd6c-911332be9923': true,
           'mvu-status-hide': true
         };
-        var _seenRxIds = {};
-        var _dedupedRx = [];
-        for (var _ri = 0; _ri < rxList.length; _ri++) {
-          var _r = rxList[_ri];
+        const _seenRxIds = {};
+        const _dedupedRx = [];
+        for (let _ri = 0; _ri < rxList.length; _ri++) {
+          const _r = rxList[_ri];
           if (!_r) continue;
-          var _rid = _r.id || '';
+          const _rid = _r.id || '';
           if (_rid && _fixedRxIds[_rid]) {
             if (_seenRxIds[_rid]) continue;
             _seenRxIds[_rid] = true;
@@ -14187,7 +14539,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 1. 注入 bundle.js（MVU本体脚本）===
-        var hasBundle = thScripts.some(function(s) {
+        const hasBundle = thScripts.some(function(s) {
           return (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0;
         });
         if (!hasBundle) {
@@ -14233,7 +14585,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // （原逻辑已移除，AI 按 9.1.5 工作流生成）
 
         // === 4. 注入正则1：仅格式思维链（移除<Analysis>段）===
-        var hasR1 = rxList.some(function(r) {
+        const hasR1 = rxList.some(function(r) {
           return r.id === 'd668c8a6-fa6a-444d-a5d6-8f68b73a3c36' || ((r.findRegex || r.find_regex || '').indexOf('Analysis') >= 0 && r.promptOnly);
         });
         if (!hasR1) {
@@ -14256,7 +14608,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 5. 注入正则2：只发送最新2楼的变量更新 ===
-        var hasR2 = rxList.some(function(r) {
+        const hasR2 = rxList.some(function(r) {
           return r.id === '5bb4b588-23ca-4564-8df5-882104eff764' || ((r.findRegex || r.find_regex || '').indexOf('UpdateVariable') >= 0 && r.promptOnly);
         });
         if (!hasR2) {
@@ -14279,7 +14631,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 6. 注入正则3：[美化]变量完成 ===
-        var hasR3 = rxList.some(function(r) {
+        const hasR3 = rxList.some(function(r) {
           return r.id === '6fb572ae-a9ea-436d-9779-ad100f1ff7f5';
         });
         if (!hasR3) {
@@ -14302,7 +14654,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 7. 注入正则4：[美化]变量更新中 ===
-        var hasR4 = rxList.some(function(r) {
+        const hasR4 = rxList.some(function(r) {
           return r.id === 'bf1b7441-5cf1-426d-bd6c-911332be9923';
         });
         if (!hasR4) {
@@ -14325,7 +14677,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // === 8. 注入正则5：[不发送]隐藏状态栏标记 ===
-        var hasR5 = rxList.some(function(r) {
+        const hasR5 = rxList.some(function(r) {
           return r.id === 'mvu-status-hide' || ((r.findRegex || r.find_regex || '').indexOf('StatusPlaceHolderImpl') >= 0 && r.promptOnly && !r.markdownOnly);
         });
         if (!hasR5) {
@@ -14364,30 +14716,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 1) 先尝试直接解析
         try {
           return JSON.parse(str);
-        } catch (e) {}
+        } catch (e) { logWarn("repairJSON", e); }
         // 2) 反转义多余转义、修复尾逗号
-        var s = str
+        const s = str
           .replace(/\\\\n/g, '\\n')
           .replace(/\\\\r/g, '\\r')
           .replace(/,\s*}/g, '}')
           .replace(/,\s*]/g, ']');
         try {
           return JSON.parse(s);
-        } catch (e) {}
+        } catch (e) { logWarn("repairJSON", e); }
         // 3) 状态机：单引号字符串转双引号 + 裸键补引号（不触碰字符串内部）
-        var out = [];
-        var i = 0;
-        var len = s.length;
+        const out = [];
+        let i = 0;
+        const len = s.length;
         // state: 0=期望键或值, 1=字符串内, 2=键已结束待冒号, 3=值已结束待逗号/括号
-        var afterColon = false; // 上一非空白token是否是冒号（值上下文）
+        let afterColon = false; // 上一非空白token是否是冒号（值上下文）
         while (i < len) {
-          var ch = s[i];
+          const ch = s[i];
           if (ch === '"') {
             // 双引号字符串：原样复制到匹配的结束引号（处理转义）
             out.push(ch);
             i++;
             while (i < len) {
-              var c = s[i];
+              const c = s[i];
               out.push(c);
               if (c === '\\' && i + 1 < len) {
                 out.push(s[i + 1]);
@@ -14405,7 +14757,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             out.push('"');
             i++;
             while (i < len) {
-              var c2 = s[i];
+              const c2 = s[i];
               if (c2 === '\\' && i + 1 < len) {
                 // 转义字符原样保留
                 out.push(c2, s[i + 1]);
@@ -14428,10 +14780,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
           // 裸键检测：在键上下文（非值，紧跟标识符 + 冒号）
           if (!afterColon && /[a-zA-Z_$]/.test(ch)) {
-            var j = i;
+            let j = i;
             while (j < len && /[a-zA-Z0-9_$]/.test(s[j])) j++;
             // 跳过空白看是否跟冒号
-            var k = j;
+            let k = j;
             while (k < len && /\s/.test(s[k])) k++;
             if (k < len && s[k] === ':') {
               // 是裸键，补引号
@@ -14446,7 +14798,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           out.push(ch);
           i++;
         }
-        var repaired = out.join('');
+        const repaired = out.join('');
         try {
           return JSON.parse(repaired);
         } catch (e) {
@@ -14466,12 +14818,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _aiChatQueueMode = true;
           _aiChatNotesQueue = [];
           // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
-          var curTabMessages = getCurrentMessages();
-          var prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
+          const curTabMessages = getCurrentMessages();
+          let prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
           // 注入全局人设（AI/用户人设，从 localStorage 读取，头像菜单可编辑）
-          var _personaHdr = getPersonaHeader();
+          const _personaHdr = getPersonaHeader();
           if (_personaHdr) prompt = _personaHdr + '\n\n' + prompt;
-          var aiResponse = await callAI(prompt);
+          let aiResponse = await callAI(prompt);
           aiResponse = cleanAIReply(aiResponse);
           removeTyping();
 
@@ -14485,9 +14837,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
           // 否则回退到旧JSON路径（兼容）
           if (hasOpBlocks(aiResponse)) {
-            var ops = parseOpBlocks(aiResponse);
+            const ops = parseOpBlocks(aiResponse);
             if (ops.length > 0) {
-              var opResult = applyOps(ops, cardData);
+              const _entriesBeforeOps = _snapshotEntries();
+              const opResult = applyOps(ops, cardData);
               if (opResult.modified) {
                 if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
                   cardGenerated = true;
@@ -14495,23 +14848,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 progress = calcProgress();
                 // MVU Tab：合并后自动注入固定资产
                 if (currentTab === 'mvu') {
-                  var mvuEntriesAfterOps = (cardData.character_book || {}).entries || [];
-                  var hasInitVarAfterOps = mvuEntriesAfterOps.some(function(e) {
+                  const mvuEntriesAfterOps = (cardData.character_book || {}).entries || [];
+                  const hasInitVarAfterOps = mvuEntriesAfterOps.some(function(e) {
                     return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
                   });
                   if (hasInitVarAfterOps) {
-                    var newlyInjectedOps = ensureFixedMvuAssetsInCardData();
+                    const newlyInjectedOps = ensureFixedMvuAssetsInCardData();
                     if (newlyInjectedOps && newlyInjectedOps.length > 0) renderPreview();
                   }
                 }
                 // 显示变更统计
-                var crOps = opResult.changeLog;
-                var partsOps = [];
+                const crOps = opResult.changeLog;
+                let _diffOps = null;
+                try {
+                  _diffOps = computeEntryDiff(_entriesBeforeOps, _snapshotEntries());
+                } catch (e) {
+                  logWarn('entryDiff', e);
+                }
+                if (_diffOps) flashPreviewChanges(_diffOps);
+                const partsOps = [];
                 if (crOps.added) partsOps.push('➕新增' + crOps.added + '条');
                 if (crOps.updated) partsOps.push('🔄更新' + crOps.updated + '条');
                 if (crOps.deleted) partsOps.push('🗑️删除' + crOps.deleted + '条');
                 if (crOps.fieldUpdates) partsOps.push('📝字段' + crOps.fieldUpdates + '项');
                 if (crOps.renamed) partsOps.push('✏️重命名' + crOps.renamed + '条');
+                if (_diffOps && _diffOps.updated.length) {
+                  let addLO = 0,
+                    delLO = 0;
+                  _diffOps.updated.forEach(function(u) {
+                    addLO += u.addLines;
+                    delLO += u.delLines;
+                  });
+                  if (addLO || delLO) partsOps.push('📝正文 +' + addLO + '/-' + delLO + '行');
+                }
                 if (partsOps.length) showToast('✅ 已应用修改：' + partsOps.join('，'), 'success');
                 // ⚠️ 删除失败：把所有没命中的 key 明确告诉用户。避免"AI写了删除但预览堆叠"时用户毫无察觉，
                 // 只能眼睁睁看着旧条目越来越多。这里给出精确匹配的指导文案。
@@ -14541,7 +14910,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (parsed) {
             // ========== Tab 隔离：角色卡Tab下，严格过滤掉AI违规生成的MVU条目 ==========
             if (currentTab === 'card') {
-              var filteredForCard = filterMvuEntriesFromParsed(parsed);
+              const filteredForCard = filterMvuEntriesFromParsed(parsed);
               if (filteredForCard._mvuStrippedCount > 0) {
                 showToast('⚠️ 检测到AI违规生成了 ' + filteredForCard._mvuStrippedCount + ' 条MVU相关内容，已自动拦截。\nMVU变量系统请切换到「MVU变量状态栏」Tab进行制作。', 'warning', 6000);
               }
@@ -14550,16 +14919,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
               parsed = filteredForCard.parsed;
             }
-            var hasData = Object.keys(parsed).filter(function(k) {
+            const hasData = Object.keys(parsed).filter(function(k) {
               return k !== '_nochange';
             }).length > 0;
             if (hasData) {
+              // 合并前条目快照：用于合并后简易 diff（toast 行数统计 + 预览面板高亮）
+              const _entriesBeforeMerge = _snapshotEntries();
               // 传递 returnLog 选项以便获取精确的变更统计（新增/删除/更新数量）
-              var mergeResult = mergePartial(parsed, cardData, {
+              const mergeResult = mergePartial(parsed, cardData, {
                 returnLog: true
               });
-              var actuallyModified = false;
-              var changeLogResult = null;
+              let actuallyModified = false;
+              let changeLogResult = null;
               if (typeof mergeResult === 'object' && mergeResult !== null) {
                 actuallyModified = !!mergeResult.modified;
                 changeLogResult = mergeResult.log || null;
@@ -14575,12 +14946,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
                 // 当AI生成了InitVar条目后，触发一次补注入（确保固定资产不丢）
                 if (currentTab === 'mvu') {
-                  var mvuEntriesAfterMerge = (cardData.character_book || {}).entries || [];
-                  var hasInitVarAfterMerge = mvuEntriesAfterMerge.some(function(e) {
+                  const mvuEntriesAfterMerge = (cardData.character_book || {}).entries || [];
+                  const hasInitVarAfterMerge = mvuEntriesAfterMerge.some(function(e) {
                     return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
                   });
                   if (hasInitVarAfterMerge) {
-                    var newlyInjected = ensureFixedMvuAssetsInCardData();
+                    const newlyInjected = ensureFixedMvuAssetsInCardData();
                     if (newlyInjected && newlyInjected.length > 0) {
                       renderPreview();
                     }
@@ -14588,13 +14959,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 }
                 // 显示变更统计 Toast，让用户明确知道AI确实执行了删改而不是瞎加
                 try {
+                  // 合并后简易 diff：驱动预览面板闪光 + 追加新增/删除行数
+                  let _entryDiff = null;
+                  try {
+                    _entryDiff = computeEntryDiff(_entriesBeforeMerge, _snapshotEntries());
+                  } catch (e) {
+                    logWarn('entryDiff', e);
+                  }
+                  if (_entryDiff) flashPreviewChanges(_entryDiff);
                   if (changeLogResult) {
-                    var cr = changeLogResult;
-                    var parts = [];
+                    const cr = changeLogResult;
+                    const parts = [];
                     if (cr.added) parts.push('➕新增' + cr.added + '条');
                     if (cr.updated) parts.push('🔄更新' + cr.updated + '条');
                     if (cr.deleted) parts.push('🗑️删除' + cr.deleted + '条');
                     if (cr.fieldUpdates) parts.push('📝字段' + cr.fieldUpdates + '项');
+                    if (_entryDiff && _entryDiff.updated.length) {
+                      let addL = 0,
+                        delL = 0;
+                      _entryDiff.updated.forEach(function(u) {
+                        addL += u.addLines;
+                        delL += u.delLines;
+                      });
+                      if (addL || delL) parts.push('📝正文 +' + addL + '/-' + delL + '行');
+                    }
                     if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
                     // mergePartial 路径下同样提示删除失败（AI走旧JSON协议、写 _delete/entries[{_action:delete}] 时的兜底提醒）
                     if (cr._deleteFailures && cr._deleteFailures.length > 0) {
@@ -14609,8 +14997,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       } catch (_) {}
                     }
                   }
-                } catch (e) {
-                  /* ignore */ }
+                } catch (e) { logWarn("callAIChat", e); }
               } else if (hasData) {
                 // AI输出了JSON但实际上没修改到任何东西（可能comment不匹配导致只加不删没生效）
                 // 提示用户可能需要调整comment
@@ -14627,8 +15014,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (cardData.first_mes !== parsed.first_mes.trim()) {
               // 额外检查：用户当前输入确实是在讨论开场白（正向意图，非否定语境）
               if (lastUserInput) {
-                var hasOpening = lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0 || lastUserInput.indexOf('开局') >= 0;
-                var isNegation = /别动|不要|不用|别改|保持|取消|撤销|删除开场/.test(lastUserInput);
+                const hasOpening = lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0 || lastUserInput.indexOf('开局') >= 0;
+                const isNegation = /别动|不要|不用|别改|保持|取消|撤销|删除开场/.test(lastUserInput);
                 if (hasOpening && !isNegation) {
                   cardData.first_mes = parsed.first_mes.trim();
                   progress = calcProgress();
@@ -14640,7 +15027,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== Tab 隔离：状态栏处理仅在 MVU Tab 中执行，角色卡Tab完全跳过 ==========
           if (currentTab === 'mvu') {
             try {
-              var _sbSavedMain = tryExtractStatusBarHtml(aiResponse);
+              const _sbSavedMain = tryExtractStatusBarHtml(aiResponse);
               if (_sbSavedMain) {
                 showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
                 progress = calcProgress();
@@ -14651,7 +15038,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               } else {
                 // ⚠️失败可见化：原先静默失败，用户只看到"预览未生成"却不知道原因
                 // 有```代码块但没识别为状态栏时给出明确提示（Console 有各代码块判定详情）
-                var _hasFence = /```/.test(aiResponse || '');
+                const _hasFence = /```/.test(aiResponse || '');
                 if (_hasFence) {
                   showToast('⚠️ AI回复中有代码块，但未识别为状态栏HTML（未保存）。\n详情见浏览器Console的 [statusbar] 日志', 'warning', 7000);
                 }
@@ -14670,10 +15057,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           }
 
-          var modProg = parseModProgress(aiResponse);
+          const modProg = parseModProgress(aiResponse);
           if (modProg) {
-            var entries = (cardData.character_book || {}).entries || [];
-            var modMap = {
+            const entries = (cardData.character_book || {}).entries || [];
+            const modMap = {
               '基础公理': 'axiom',
               '交互软规则': 'soft_rules',
               '核心铁则': 'core_rules',
@@ -14687,21 +15074,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             };
             // 仅当 AI 回复中确实识别到模块状态符号时才更新，
             // 否则 parseModProgress 返回全 0 会清空真实进度
-            var hasAnySignal = Object.keys(modProg).some(function(k) {
+            const hasAnySignal = Object.keys(modProg).some(function(k) {
               return modProg[k] > 0;
             });
             if (hasAnySignal) {
               Object.keys(modMap).forEach(function(kw) {
-                var key = modMap[kw];
+                const key = modMap[kw];
                 if (modProg[key] === 100) {
-                  var count = entries.filter(function(e) {
+                  const count = entries.filter(function(e) {
                     return (e.comment || '').indexOf(kw) >= 0;
                   }).length;
                   if (count === 0) modProg[key] = 0;
                   else if (count === 1) modProg[key] = 50;
                 }
                 if (modProg[key] === 50) {
-                  var cnt = entries.filter(function(e) {
+                  const cnt = entries.filter(function(e) {
                     return (e.comment || '').indexOf(kw) >= 0;
                   }).length;
                   if (cnt === 0) modProg[key] = 0;
@@ -14716,7 +15103,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== 关闭队列模式，合并所有系统消息到一条回复 ==========
           _aiChatQueueMode = false;
           // 对话框显示与历史存储：合并AI原始回复 + 队列中的系统消息，只显示一条消息
-          var rawContent = aiResponse;
+          let rawContent = aiResponse;
           if (_aiChatNotesQueue.length > 0) {
             rawContent = (rawContent || '') + '\n\n---\n' + _aiChatNotesQueue.join('\n\n');
           }
@@ -14725,7 +15112,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 1. 先存储到历史（Tab隔离：存到当前Tab的专属数组）
           //    ⚠️必须先 push 再 appendMsg：appendMsg 用 getCurrentMessages().length-1 算消息索引，
           //    若先 append 再 push，DOM 上的 data-msg-index 会比实际数组索引小1，导致头像菜单撤回/重新生成定位错位
-          var _aiMsgContent = (rawContent && rawContent.trim().length > 0) ? rawContent : '（已应用修改）';
+          const _aiMsgContent = (rawContent && rawContent.trim().length > 0) ? rawContent : '（已应用修改）';
           curTabMessages.push({
             role: 'assistant',
             content: _aiMsgContent
@@ -14749,15 +15136,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _aiChatNotesQueue = [];
           try {
             addAssistantMsg('😞 出错了：' + err.message + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。');
-          } catch (e) {}
+          } catch (e) { logWarn("callAIChat", e); }
           try {
             setEnabled(true);
-          } catch (e) {}
+          } catch (e) { logWarn("callAIChat", e); }
         } finally {
           isGenerating = false;
           try {
             setEnabled(true);
-          } catch (e) {}
+          } catch (e) { logWarn("callAIChat", e); }
         }
       }
 
@@ -14773,7 +15160,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         setEnabled(false);
         addTyping();
         try {
-          var hasAll = cardData.name && cardData.description && cardData.first_mes && ((cardData.character_book || {}).entries || []).length >= 4;
+          const hasAll = cardData.name && cardData.description && cardData.first_mes && ((cardData.character_book || {}).entries || []).length >= 4;
           if (hasAll) {
             removeTyping();
             cardGenerated = true;
@@ -14788,13 +15175,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             return; // 直接走 finally 统一收尾（不再手动重复 isGenerating/setEnabled）
           }
           // 角色卡Tab：genPrompt也必须过滤MVU内容，并明确禁止生成MVU条目
-          var filteredSysForGenerate = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
-          var antiMvuBanGenerate = '\n\n⚠️【生成时MVU隔离禁令 · 绝对不允许违反】\n' +
+          const filteredSysForGenerate = filterOutMvuSectionsFromSysPrompt(SYS_PROMPT);
+          const antiMvuBanGenerate = '\n\n⚠️【生成时MVU隔离禁令 · 绝对不允许违反】\n' +
             '1. 绝对禁止生成MVU变量条目：[InitVar]初始变量、变量列表、变量更新规则、变量输出格式、变量输出格式强调、<状态栏>占位符提醒\n' +
             '2. 绝对禁止生成<状态栏>或任何状态栏相关的世界书条目\n' +
             '3. 绝对禁止在regex_scripts中生成MVU/StatusPlaceHolderImpl/UpdateVariable相关正则脚本\n' +
             '4. MVU变量条目（8条工作流）和状态栏由独立的MVU Tab负责，当前生成任务与MVU系统完全无关\n';
-          var genPrompt = filteredSysForGenerate + antiMvuBanGenerate +
+          let genPrompt = filteredSysForGenerate + antiMvuBanGenerate +
             '\n\n=== 生成指令 ===\n' +
             '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
             '=== 必须达到的字段标准 ===\n' +
@@ -14813,33 +15200,33 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
             '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。严禁夹带任何MVU内容。';
           // 注入全局人设（与 callAIChat 路径保持一致）
-          var _genPersonaHdr = getPersonaHeader();
+          const _genPersonaHdr = getPersonaHeader();
           if (_genPersonaHdr) genPrompt = _genPersonaHdr + '\n\n' + genPrompt;
-          var aiResponse = await callAI(genPrompt);
+          const aiResponse = await callAI(genPrompt);
           removeTyping();
           // doGenerate 路径同样需要快照，否则撤回一键生成结果时无法回滚cardData
           try {
-            var _genMsgs = getCurrentMessages();
+            const _genMsgs = getCurrentMessages();
             saveCardDataSnapshot(_genMsgs.length);
           } catch (_genSnapErr) {}
 
-          var parsed = extractJSON(aiResponse);
+          let parsed = extractJSON(aiResponse);
           if (parsed) {
             // 角色卡一键生成：同样走MVU内容过滤防御
-            var genFiltered = filterMvuEntriesFromParsed(parsed);
+            const genFiltered = filterMvuEntriesFromParsed(parsed);
             if (genFiltered._mvuStrippedCount > 0 || genFiltered._mvuRegexScriptStripped) {
               showToast('⚠️ 一键生成的结果中检测到 ' + genFiltered._mvuStrippedCount + ' 项MVU违规内容，已自动过滤。', 'warning', 5000);
             }
             parsed = genFiltered.parsed;
             try {
-              var genMergeOk = false;
+              let genMergeOk = false;
               if (parsed.spec === 'chara_card_v3' && parsed.data) {
-                var rV3 = mergePartial(parsed.data, cardData, {
+                const rV3 = mergePartial(parsed.data, cardData, {
                   returnLog: true
                 });
                 genMergeOk = !!(typeof rV3 === 'object' ? rV3.modified : rV3);
               } else {
-                var rPlain = mergePartial(parsed, cardData, {
+                const rPlain = mergePartial(parsed, cardData, {
                   returnLog: true
                 });
                 genMergeOk = !!(typeof rPlain === 'object' ? rPlain.modified : rPlain);
@@ -14855,7 +15242,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               addAssistantMsg('⚠️ 解析失败，请重试。\n\n错误：' + e.message);
             }
           } else {
-            addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
+            addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前' + CONFIG.AI_ERROR_PREVIEW_CHARS + '字：\n' + aiResponse.substring(0, CONFIG.AI_ERROR_PREVIEW_CHARS));
           }
         } catch (err) {
           removeTyping();
@@ -14869,12 +15256,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // 记录禁用前输入框是否聚焦，避免恢复时抢焦点打断用户阅读
-      var _inputWasFocused = false;
+      let _inputWasFocused = false;
 
       function setEnabled(enabled) {
-        var sendBtn = doc.getElementById('sendBtn');
-        var saveBtn = doc.getElementById('saveBtn');
-        var input = doc.getElementById('chatInput');
+        const sendBtn = doc.getElementById('sendBtn');
+        const saveBtn = doc.getElementById('saveBtn');
+        const input = doc.getElementById('chatInput');
         if (sendBtn) sendBtn.disabled = !enabled;
         if (saveBtn) saveBtn.disabled = !enabled;
         if (input) {
@@ -14887,22 +15274,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (_inputWasFocused) {
               try {
                 input.focus();
-              } catch (e) {}
+              } catch (e) { logWarn("setEnabled", e); }
             }
             _inputWasFocused = false;
           }
         }
         // 发送按钮图标切换：生成中显示等待（转圈）图标，空闲显示发送图标
         if (sendBtn) {
-          var waiting = !enabled;
+          const waiting = !enabled;
           if (waiting) sendBtn.classList.add('is-waiting');
           else sendBtn.classList.remove('is-waiting');
         }
         // 快捷按钮、上下文模块按钮统一禁用/启用，避免生成中误触
-        var sels = ['.quick-btn', '.ctx-mod'];
-        for (var s = 0; s < sels.length; s++) {
-          var nodes = doc.querySelectorAll(sels[s]);
-          for (var i = 0; i < nodes.length; i++) {
+        const sels = ['.quick-btn', '.ctx-mod'];
+        for (let s = 0; s < sels.length; s++) {
+          const nodes = doc.querySelectorAll(sels[s]);
+          for (let i = 0; i < nodes.length; i++) {
             nodes[i].disabled = !enabled;
             nodes[i].style.pointerEvents = enabled ? '' : 'none';
             nodes[i].style.opacity = enabled ? '' : '0.5';
@@ -14912,18 +15299,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function getModuleProgress() {
-        var entries = (cardData.character_book || {}).entries || [];
+        let entries = (cardData.character_book || {}).entries || [];
         // ========== Tab 隔离：角色卡Tab 过滤掉 MVU 条目 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        const __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
         if (__tab === 'card') {
           entries = entries.filter(function(e) {
             return !isMVUEntry(e.comment || '');
           });
         }
-        var comments = entries.map(function(e) {
+        const comments = entries.map(function(e) {
           return (e.comment || '');
         });
-        var keywords = {
+        const keywords = {
           axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
           soft_rules: ['交互软规则', '互动选项', '叙事风格', '剧情引导'],
           core_rules: ['核心铁则', '绝对禁止', '输出格式', 'AI身份'],
@@ -14935,14 +15322,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
           var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variables']
         };
-        var result = {};
+        const result = {};
         Object.keys(keywords).forEach(function(mod) {
           // 角色卡Tab：跳过MVU模块检查（永远返回false，不影响进度计算）
           if (__tab === 'card' && (mod === 'init_var' || mod === 'var_update_rule')) {
             result[mod] = false;
             return;
           }
-          var kws = keywords[mod];
+          const kws = keywords[mod];
           result[mod] = comments.some(function(c) {
             return kws.some(function(kw) {
               return c.indexOf(kw) >= 0;
@@ -14956,14 +15343,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function calcProgress() {
-        var score = 0;
+        let score = 0;
         if (cardData.name) score += 8;
         if (cardData.description && cardData.description.length >= 400) score += 15;
         else if (cardData.description && cardData.description.length >= 200) score += 10;
         else if (cardData.description && cardData.description.length > 50) score += 5;
-        var entries = (cardData.character_book || {}).entries || [];
+        let entries = (cardData.character_book || {}).entries || [];
         // ========== Tab 隔离：角色卡Tab 不统计 MVU 条目 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        const __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
         if (__tab === 'card') {
           entries = entries.filter(function(e) {
             return !isMVUEntry(e.comment || '');
@@ -14977,15 +15364,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt) score += 3;
         if ((cardData.personality || '').trim() || (cardData.scenario || '').trim()) score += 2;
         score += Math.min(entries.length * 5, 30);
-        var mp = getModuleProgress();
+        const mp = getModuleProgress();
         // 角色卡Tab：不把 init_var / var_update_rule 计入 doneCount
-        var modKeys = Object.keys(mp);
+        let modKeys = Object.keys(mp);
         if (__tab === 'card') {
           modKeys = modKeys.filter(function(k) {
             return k !== 'init_var' && k !== 'var_update_rule';
           });
         }
-        var doneCount = modKeys.filter(function(k) {
+        const doneCount = modKeys.filter(function(k) {
           return mp[k] === true;
         }).length;
         score += doneCount * 5;
@@ -14995,13 +15382,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function updateProgress() {
         progress = calcProgress();
-        var pl = doc.getElementById('phaseLabel');
+        const pl = doc.getElementById('phaseLabel');
         if (pl) pl.textContent = progress + '%';
       }
 
       function setProgress(val) {
         progress = Math.max(0, Math.min(100, val));
-        var pl = doc.getElementById('phaseLabel');
+        const pl = doc.getElementById('phaseLabel');
         if (pl) pl.textContent = progress + '%';
       }
 
@@ -15012,32 +15399,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // ========== Tab 隔离：角色卡Tab 质检不检查 MVU 相关内容 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
-        var results = getScopedQualityChecks(cardData, __tab);
-        var passCount = results.filter(function(r) {
+        const __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        const results = getScopedQualityChecks(cardData, __tab);
+        const passCount = results.filter(function(r) {
           return r.pass;
         }).length;
-        var coreResults = results.filter(function(r) {
+        const coreResults = results.filter(function(r) {
           return r.category !== '附加检查' && r.category !== 'MVU变量系统';
         });
-        var corePass = coreResults.filter(function(r) {
+        const corePass = coreResults.filter(function(r) {
           return r.pass;
         }).length;
-        var mvuResults = results.filter(function(r) {
+        const mvuResults = results.filter(function(r) {
           return r.category === 'MVU变量系统';
         });
-        var mvuPass = mvuResults.filter(function(r) {
+        const mvuPass = mvuResults.filter(function(r) {
           return r.pass;
         }).length;
-        var h = '<div class="modal" id="qcModal">' +
+        let h = '<div class="modal" id="qcModal">' +
           '<div class="modal-content">' +
           '<h3 style="color:#a16207;margin-bottom:4px;font-size:1em">✅ ' + (__tab === 'card' ? '角色卡' : 'MVU变量系统') + '质检报告（' + coreResults.length + '项核心' + (mvuResults.length > 0 ? ' + ' + mvuResults.length + '项MVU' : '') + ' + ' + (results.length - coreResults.length - mvuResults.length) + '项附加）</h3>' +
           '<p style="font-size:.78em;color:#667085;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标' + (mvuResults.length > 0 ? ' · MVU ' + mvuPass + '/' + mvuResults.length + ' 项达标' : '') + ' · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
           '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass / coreResults.length * 100) + '%"></div></div>' +
           '<div class="modal-body" style="margin-top:10px">';
         // 空分类（角色卡Tab下正则/MVU分类已被作用域过滤）在渲染时自动跳过
-        var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
-        var catColors = {
+        const categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
+        const catColors = {
           '基础字段': '#a16207',
           '高价值字段': '#ca8a04',
           '世界书': '#15803d',
@@ -15048,11 +15435,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '附加检查': '#667085'
         };
         categories.forEach(function(cat) {
-          var catResults = results.filter(function(r) {
+          const catResults = results.filter(function(r) {
             return r.category === cat;
           });
           if (catResults.length === 0) return;
-          var catPass = catResults.filter(function(r) {
+          const catPass = catResults.filter(function(r) {
             return r.pass;
           }).length;
           h += '<div style="margin:8px 0 4px;font-size:.75em;font-weight:600;color:' + (catColors[cat] || '#667085') + ';border-bottom:1px solid rgba(15,23,42,.10);padding-bottom:3px">' + cat + '（' + catPass + '/' + catResults.length + '）</div>';
@@ -15072,9 +15459,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-primary" id="qcOptBtn">🔧 ' + ((results.length - passCount) === 0 ? '全部达标·自由优化' : '一键优化 ' + (results.length - passCount) + ' 项未达标') + '</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
+        const modalEl = tmp.firstElementChild;
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) {
           if (e.target === modalEl) modalEl.remove();
@@ -15082,11 +15469,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         doc.getElementById('qcCloseBtn').addEventListener('click', function() {
           modalEl.remove();
         });
-        var optBtn = doc.getElementById('qcOptBtn');
+        const optBtn = doc.getElementById('qcOptBtn');
         if (optBtn) {
           optBtn.addEventListener('click', function() {
             modalEl.remove();
-            var failedItems = results.filter(function(r) {
+            const failedItems = results.filter(function(r) {
               return !r.pass;
             });
             if (failedItems.length === 0) {
@@ -15094,7 +15481,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               showOptimizeModal();
               return;
             }
-            var plan = buildOptimizeInstructions(failedItems);
+            const plan = buildOptimizeInstructions(failedItems);
             showOptimizeModal(plan.text, plan.fields);
             if (plan.skipped.length > 0) {
               showToast('另有 ' + plan.skipped.length + ' 项无自动优化指令，请按报告建议手动处理', 'warning', 4000);
@@ -15109,13 +15496,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // HTML源：优先用AI生成的正则6 replaceString，回退用 MVU_STATUS_BAR_HTML 默认模板
       function showMvuStatusBarPreview() {
         /* 改进Q：重复打开去重——若已存在预览模态框，先移除旧实例，避免iframe叠加和定时器累积 */
-        var existingModal = doc.getElementById('mvuPreviewModal');
+        const existingModal = doc.getElementById('mvuPreviewModal');
         if (existingModal) {
           existingModal.remove();
         }
-        var entries = (cardData.character_book || {}).entries || [];
+        const entries = (cardData.character_book || {}).entries || [];
         /* 前置检查：必须存在MVU条目 */
-        var hasMVU = entries.some(function(e) {
+        const hasMVU = entries.some(function(e) {
           return isMVUEntry(e.comment || '');
         });
         if (!hasMVU) {
@@ -15123,19 +15510,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         /* 读取 [InitVar] 初始变量 YAML 作为预览假数据 */
-        var initVarEntry = null;
-        for (var i = 0; i < entries.length; i++) {
+        let initVarEntry = null;
+        for (let i = 0; i < entries.length; i++) {
           if ((entries[i].comment || '').toLowerCase().indexOf('[initvar]') >= 0) {
             initVarEntry = entries[i];
             break;
           }
         }
-        var statData = {};
-        var initVarContent = '';
-        var usingSampleData = false;
+        let statData = {};
+        let initVarContent = '';
+        let usingSampleData = false;
         if (initVarEntry && initVarEntry.content) {
           initVarContent = initVarEntry.content;
-          var parsed = parseInitVar(initVarContent);
+          const parsed = parseInitVar(initVarContent);
           if (parsed) statData = parsed;
         }
         /* 若 InitVar 为空或解析失败，使用示例数据让预览仍有内容可渲染 */
@@ -15154,16 +15541,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           usingSampleData = true;
         }
         /* 读取状态栏HTML：优先AI生成的正则6，回退默认模板 */
-        var statusBarHtml = MVU_STATUS_BAR_HTML;
-        var statusBarSource = '默认模板';
-        var regexScripts = cardData.extensions && cardData.extensions.regex_scripts || [];
-        for (var j = 0; j < regexScripts.length; j++) {
-          var r = regexScripts[j];
+        let statusBarHtml = MVU_STATUS_BAR_HTML;
+        let statusBarSource = '默认模板';
+        const regexScripts = cardData.extensions && cardData.extensions.regex_scripts || [];
+        for (let j = 0; j < regexScripts.length; j++) {
+          const r = regexScripts[j];
           /* 匹配 StatusPlaceHolder（兼容带Impl和不带Impl的版本） */
           if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
-            var rep = r.replaceString || '';
+            const rep = r.replaceString || '';
             /* 去掉 ```html ... ``` 或 ``` ... ``` 包裹（StageDog标准用纯```无语言） */
-            var m = rep.match(/```(?:html)?\s*\n([\s\S]*?)\n```/);
+            const m = rep.match(/```(?:html)?\s*\n([\s\S]*?)\n```/);
             if (m) {
               statusBarHtml = m[1];
               statusBarSource = 'AI生成正则';
@@ -15176,10 +15563,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         /* ====== HTML 鲁棒性包装：如果 AI 生成的只是 <body> 片段或独立片段，自动补全为完整 HTML 文档 ====== */
         (function() {
-          var hasDocType = /<!doctype\s/i.test(statusBarHtml);
-          var hasHtmlTag = /<html[\s>]/i.test(statusBarHtml);
-          var hasHeadTag = /<head[\s>]/i.test(statusBarHtml);
-          var hasBodyTag = /<body[\s>]/i.test(statusBarHtml);
+          const hasDocType = /<!doctype\s/i.test(statusBarHtml);
+          const hasHtmlTag = /<html[\s>]/i.test(statusBarHtml);
+          const hasHeadTag = /<head[\s>]/i.test(statusBarHtml);
+          const hasBodyTag = /<body[\s>]/i.test(statusBarHtml);
           /* 默认模板本身是完整的，不用包；AI 生成的片段没 doctype/head/body 时需要包 */
           if (!hasDocType && !hasHtmlTag) {
             statusBarHtml = '<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <title>MVU StatusBar</title>\n</head>\n<body>\n' + statusBarHtml + '\n</body>\n</html>';
@@ -15198,7 +15585,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         })();
         /* 构建预览弹窗：顶部说明+数据来源标识，主体为iframe沙箱渲染 */
-        var h = '<div class="modal" id="mvuPreviewModal">' +
+        let h = '<div class="modal" id="mvuPreviewModal">' +
           '<div class="modal-content" style="max-width:720px">' +
           '<h3 style="color:#a16207;margin-bottom:8px;font-size:1em">🎛️ MVU状态栏预览</h3>' +
           /* 顶部只有标题，然后直接是iframe渲染区，不显示任何变量信息 */
@@ -15216,23 +15603,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-ghost" id="mvuPreviewCloseBtn">关闭</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
+        const modalEl = tmp.firstElementChild;
         doc.body.appendChild(modalEl);
         /* 注入 iframe 内容：在状态栏HTML前注入 mock API + 轻量级jquery/lodash子集 */
-        var frame = doc.getElementById('mvuPreviewFrame');
+        const frame = doc.getElementById('mvuPreviewFrame');
 
         function loadFrame() {
-          var mockScript = buildPreviewMockScript(statData);
-          var fullDoc = statusBarHtml;
+          const mockScript = buildPreviewMockScript(statData);
+          let fullDoc = statusBarHtml;
           /* ======【插入位置：将 mock 脚本放在 <head> 的最开始，保证 mock API 先于状态栏原有 script 执行 ======
              （相比插在 </head> 前，这样即使原状态栏用了 defer/module 也能拿到 $、_、getAllVariables） */
-          var headStartMatch = fullDoc.match(/<head[^>]*>/i);
+          const headStartMatch = fullDoc.match(/<head[^>]*>/i);
           if (headStartMatch) {
             /* 插入到 <head ...> 标签紧后面（紧跟 headStartMatch[0] 的后面）
                同时把默认模板的 <style> 保留（否则 mock 脚本在 style 前也没关系，因为 script 是顺序执行的，style 仍会生效 */
-            var idx = fullDoc.indexOf(headStartMatch[0]);
+            const idx = fullDoc.indexOf(headStartMatch[0]);
             fullDoc = fullDoc.substring(0, idx + headStartMatch[0].length) +
               '\n' + mockScript + '\n' +
               fullDoc.substring(idx + headStartMatch[0].length);
@@ -15260,22 +15647,22 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 权重可视化预览（规范4.4） =====
       function showWeightVisual() {
-        var entries = (cardData.character_book || {}).entries || [];
+        const entries = (cardData.character_book || {}).entries || [];
         if (entries.length === 0) {
           showToast('还没有世界书条目，先和AI聊聊生成内容吧', 'warning');
           return;
         }
-        var permToken = 0,
+        let permToken = 0,
           trigToken = 0,
           totalToken = 0;
         entries.forEach(function(e) {
-          var tk = countTokens(e.content || '');
+          const tk = countTokens(e.content || '');
           totalToken += tk;
           if (e.constant) permToken += tk;
           else trigToken += tk;
         });
 
-        var h = '<div class="modal" id="wvModal">' +
+        let h = '<div class="modal" id="wvModal">' +
           '<div class="modal-content">' +
           '<h3 style="color:#a16207;margin-bottom:4px;font-size:1em">📊 权重可视化预览</h3>' +
           '<p style="font-size:.72em;color:#667085;margin-bottom:8px">展示每个条目的权重等级、触发逻辑、Token占用（对齐ST注入权重层级）</p>' +
@@ -15286,7 +15673,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="wv-stat"><span class="wv-stat-val" style="color:#ca8a04">' + totalToken + '</span><span class="wv-stat-lbl">总Token</span></div>' +
           '</div>' +
           '<div class="wv-legend">';
-        var legendItems = [{
+        const legendItems = [{
             level: '最高',
             color: '#c98b7a',
             desc: 'post_history/铁则'
@@ -15324,8 +15711,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="modal-body">';
 
         // 按分组展示
-        var groupOrder = ['常驻体系', '触发体系', '叙事', '动态系统', '自定义'];
-        var groupColors = {
+        const groupOrder = ['常驻体系', '触发体系', '叙事', '动态系统', '自定义'];
+        const groupColors = {
           '常驻体系': '#15803d',
           '触发体系': '#a16207',
           '叙事': '#ca8a04',
@@ -15333,12 +15720,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '自定义': '#667085'
         };
         groupOrder.forEach(function(g) {
-          var groupEntries = entries.filter(function(e) {
-            var eg = getDisplayGroup(e);
+          const groupEntries = entries.filter(function(e) {
+            const eg = getDisplayGroup(e);
             return eg === g;
           });
           if (groupEntries.length === 0) return;
-          var groupTok = 0;
+          let groupTok = 0;
           groupEntries.forEach(function(e) {
             groupTok += countTokens(e.content || '');
           });
@@ -15348,25 +15735,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             return (a.insertion_order || 100) - (b.insertion_order || 100);
           });
           groupEntries.forEach(function(e, idx) {
-            var comment = e.comment || ('条目' + (idx + 1));
-            var m = comment.match(/^<([^>]+)>/);
-            var prefixKey = m ? m[1] : '';
-            var wl = WEIGHT_LEVELS[prefixKey] || {
+            const comment = e.comment || ('条目' + (idx + 1));
+            const m = comment.match(/^<([^>]+)>/);
+            const prefixKey = m ? m[1] : '';
+            const wl = WEIGHT_LEVELS[prefixKey] || {
               level: '中',
               color: '#15803d',
               desc: '自定义'
             };
-            var tk = countTokens(e.content || '');
-            var ext = e.extensions || {};
-            var tmpl = getEntryTemplate(comment);
-            var isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
-            var pos = ext.position !== undefined ? ext.position : (tmpl ? tmpl.position : 4);
-            var depth = ext.depth !== undefined ? ext.depth : (tmpl ? tmpl.depth : 4);
-            var sticky = ext.sticky || 0;
-            var cd = ext.cooldown || 0;
-            var pr = ext.prevent_recursion;
-            var prob = ext.probability !== undefined ? ext.probability : 100;
-            var sl = ext.selectiveLogic || 0;
+            const tk = countTokens(e.content || '');
+            const ext = e.extensions || {};
+            const tmpl = getEntryTemplate(comment);
+            const isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
+            const pos = ext.position !== undefined ? ext.position : (tmpl ? tmpl.position : 4);
+            const depth = ext.depth !== undefined ? ext.depth : (tmpl ? tmpl.depth : 4);
+            const sticky = ext.sticky || 0;
+            const cd = ext.cooldown || 0;
+            const pr = ext.prevent_recursion;
+            const prob = ext.probability !== undefined ? ext.probability : 100;
+            const sl = ext.selectiveLogic || 0;
 
             h += '<div class="wv-entry" style="border-left-color:' + wl.color + '">' +
               '<div class="wv-entry-header">' +
@@ -15394,9 +15781,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-ghost" id="wvCloseBtn">关闭</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
+        const modalEl = tmp.firstElementChild;
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) {
           if (e.target === modalEl) modalEl.remove();
@@ -15408,36 +15795,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 分组管理（规范4.4：分组自动适配） =====
       function showGroupMgr() {
-        var entries = (cardData.character_book || {}).entries || [];
+        const entries = (cardData.character_book || {}).entries || [];
         if (entries.length === 0) {
           showToast('还没有世界书条目', 'warning');
           return;
         }
-        var groups = {};
+        const groups = {};
         entries.forEach(function(e) {
-          var g = getDisplayGroup(e);
+          const g = getDisplayGroup(e);
           if (!groups[g]) groups[g] = [];
           groups[g].push(e);
         });
-        var groupColors = {
+        const groupColors = {
           '常驻体系': '#15803d',
           '触发体系': '#a16207',
           '叙事': '#ca8a04',
           '动态系统': '#ca8a04',
           '自定义': '#667085'
         };
-        var h = '<div class="modal" id="groupModal">' +
+        let h = '<div class="modal" id="groupModal">' +
           '<div class="modal-content">' +
           '<h3 style="color:#a16207;margin-bottom:4px;font-size:1em">🗂️ 分组管理</h3>' +
           '<p style="font-size:.72em;color:#667085;margin-bottom:8px">每个体系对应一个世界书分组，支持批量开关（对齐ST分组管理功能）</p>' +
           '<div class="group-mgr-list">';
         Object.keys(groups).forEach(function(g) {
-          var gEntries = groups[g];
-          var gTok = 0;
+          const gEntries = groups[g];
+          let gTok = 0;
           gEntries.forEach(function(e) {
             gTok += countTokens(e.content || '');
           });
-          var allEnabled = gEntries.every(function(e) {
+          const allEnabled = gEntries.every(function(e) {
             return e.enabled !== false;
           });
           h += '<div class="group-mgr-item">' +
@@ -15453,9 +15840,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-primary" id="groupReassignBtn">🔄 按前缀重新分组</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
+        const modalEl = tmp.firstElementChild;
         doc.body.appendChild(modalEl);
         modalEl.addEventListener('click', function(e) {
           if (e.target === modalEl) modalEl.remove();
@@ -15463,13 +15850,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         doc.getElementById('groupCloseBtn').addEventListener('click', function() {
           modalEl.remove();
         });
-        var toggles = modalEl.querySelectorAll('.gm-toggle');
-        for (var i = 0; i < toggles.length; i++) {
+        const toggles = modalEl.querySelectorAll('.gm-toggle');
+        for (let i = 0; i < toggles.length; i++) {
           toggles[i].addEventListener('click', function() {
-            var g = this.getAttribute('data-group');
-            var turnOn = !this.classList.contains('on');
+            const g = this.getAttribute('data-group');
+            const turnOn = !this.classList.contains('on');
             entries.forEach(function(e) {
-              var eg = getDisplayGroup(e);
+              const eg = getDisplayGroup(e);
               if (eg === g) e.enabled = turnOn;
             });
             this.classList.toggle('on', turnOn);
@@ -15479,10 +15866,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             showToast((turnOn ? '已启用' : '已禁用') + '分组：' + g, 'success');
           });
         }
-        var reassignBtn = doc.getElementById('groupReassignBtn');
+        const reassignBtn = doc.getElementById('groupReassignBtn');
         if (reassignBtn) reassignBtn.addEventListener('click', function() {
           entries.forEach(function(e) {
-            var tmpl = getEntryTemplate(e.comment || '');
+            const tmpl = getEntryTemplate(e.comment || '');
             if (tmpl) {
               if (!e.extensions) e.extensions = {};
               e.extensions.group = tmpl.group;
@@ -15499,7 +15886,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function buildOptimizeInstructions(failedItems) {
         // 每条指令统一为「问题 · 影响 · 修复」三段式，便于 AI 精准理解与执行
         // field 字段用于在弹窗中按字段分组展示，并驱动 AI 优化目标字段
-        var instructionMap = {
+        const instructionMap = {
           // === 基础字段 ===
           '世界/角色名称': {
             field: 'name',
@@ -15667,9 +16054,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
 
         // 按字段分组，便于 AI 按字段批量处理
-        var groups = {};
+        const groups = {};
         failedItems.forEach(function(item) {
-          var entry = instructionMap[item.name];
+          const entry = instructionMap[item.name];
           if (!entry) return;
           if (!groups[entry.field]) groups[entry.field] = [];
           groups[entry.field].push({
@@ -15678,11 +16065,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         });
 
-        var skippedItems = failedItems.filter(function(it) {
+        const skippedItems = failedItems.filter(function(it) {
           return !instructionMap[it.name];
         });
         // 输出结构化 Markdown，AI 可按字段定位与执行
-        var lines = [];
+        const lines = [];
         lines.push('# 待优化项清单（按字段分组）');
         lines.push('');
         lines.push('共 ' + failedItems.length + ' 项未达标' + (skippedItems.length ? '，其中 ' + (failedItems.length - skippedItems.length) + ' 项可自动优化' : '') + '，涉及字段：' + Object.keys(groups).join('、'));
@@ -15717,14 +16104,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 优化弹窗 =====
-      var selectedOptFields = [];
+      let selectedOptFields = [];
 
       function showOptimizeModal(optInstructions, preselectFields) {
         if (!cardData.name && !cardData.description) {
           showToast('还没有内容可以优化哦', 'warning');
           return;
         }
-        var fields = [{
+        const fields = [{
             key: 'name',
             label: '🌍 世界名称'
           },
@@ -15754,7 +16141,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         ];
         // 正则脚本仅 MVU Tab 可优化：正则1-5由导出自动注入、正则6在 MVU 工作流生成，角色卡Tab不暴露
-        var __optTab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : 'card';
+        const __optTab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : 'card';
         if (__optTab === 'mvu') {
           fields.push({
             key: 'regex_scripts',
@@ -15762,7 +16149,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         selectedOptFields = [];
-        var h = '<div class="modal" id="optModal">' +
+        let h = '<div class="modal" id="optModal">' +
           '<div class="modal-content">' +
           '<h3 style="color:var(--accent-deep);margin-bottom:4px;font-size:1em;display:inline-flex;align-items:center;gap:7px">' + svgIcon('wrench', 17) + ' AI 角色卡优化</h3>' +
           '<p style="font-size:.78em;color:var(--ink-soft);margin-bottom:8px">选择要优化的字段，AI将智能优化并展示对比</p>' +
@@ -15780,9 +16167,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<button class="btn btn-primary" id="startOptBtn">' + svgIcon('sparkle', 15) + ' 开始优化</button>' +
           '</div>' +
           '</div></div>';
-        var tmp = doc.createElement('div');
+        const tmp = doc.createElement('div');
         tmp.innerHTML = h;
-        var optModalEl = tmp.firstElementChild;
+        const optModalEl = tmp.firstElementChild;
         doc.body.appendChild(optModalEl);
         optModalEl.addEventListener('click', function(e) {
           if (e.target === optModalEl) optModalEl.remove();
@@ -15791,12 +16178,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           optModalEl.remove();
         });
 
-        var tags = doc.querySelectorAll('.opt-field-tag');
-        for (var i = 0; i < tags.length; i++) {
+        const tags = doc.querySelectorAll('.opt-field-tag');
+        for (let i = 0; i < tags.length; i++) {
           tags[i].addEventListener('click', function() {
             this.classList.toggle('selected');
-            var k = this.getAttribute('data-key');
-            var idx = selectedOptFields.indexOf(k);
+            const k = this.getAttribute('data-key');
+            const idx = selectedOptFields.indexOf(k);
             if (idx >= 0) selectedOptFields.splice(idx, 1);
             else selectedOptFields.push(k);
           });
@@ -15804,7 +16191,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 从质检弹窗进入：按未达标项所属字段自动勾选标签
         if (Array.isArray(preselectFields)) {
           preselectFields.forEach(function(k) {
-            var tag = doc.querySelector('.opt-field-tag[data-key="' + k + '"]');
+            const tag = doc.querySelector('.opt-field-tag[data-key="' + k + '"]');
             if (tag && selectedOptFields.indexOf(k) < 0) {
               tag.classList.add('selected');
               selectedOptFields.push(k);
@@ -15824,10 +16211,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         isGenerating = true;
-        var customReq = doc.getElementById('optCustom').value.trim();
-        var prog = doc.getElementById('optProgress');
-        var res = doc.getElementById('optResult');
-        var btn = doc.getElementById('startOptBtn');
+        const customReq = doc.getElementById('optCustom').value.trim();
+        const prog = doc.getElementById('optProgress');
+        const res = doc.getElementById('optResult');
+        const btn = doc.getElementById('startOptBtn');
         if (prog) prog.style.display = 'block';
         if (btn) btn.disabled = true;
         // ⚠️修复：与 callAIChat/doGenerate 对齐——生成期间禁用主界面全部交互按钮
@@ -15836,8 +16223,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         setEnabled(false);
 
         try {
-          var cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
-          var optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书规范。请针对指定字段优化角色卡。\n\n' +
+          const cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
+          const optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书规范。请针对指定字段优化角色卡。\n\n' +
             '=== 任务目标 ===\n' +
             '只优化以下字段，其他字段保持不变：' + selectedOptFields.join(', ') + '\n\n' +
             (customReq ? '=== 用户额外要求 ===\n' + customReq + '\n\n' : '') +
@@ -15917,14 +16304,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '6. ⚠️最关键：删除/替换条目必须使用下面「精确comment清单」里的字符串！不要自己编造comment！\n\n' +
             // 注入精确 comment 清单（仅当优化 entries 时）
             (selectedOptFields.indexOf('entries') >= 0 ? (function() {
-              var entries = (cardData.character_book || {}).entries || [];
+              const entries = (cardData.character_book || {}).entries || [];
               if (!entries.length) return '（当前无世界书条目，无需处理删除）\n\n';
-              var t = '=== 🌍 世界书条目精确comment清单（删/改时直接复制使用，字符级精确） ===\n';
+              let t = '=== 🌍 世界书条目精确comment清单（删/改时直接复制使用，字符级精确） ===\n';
               t += '共 ' + entries.length + ' 条条目，按模块分组：\n';
-              var groups = {};
+              const groups = {};
               entries.forEach(function(e, i) {
-                var c = e.comment || ('条目' + (i + 1));
-                var p = extractEntryPrefix(c) || '其他';
+                const c = e.comment || ('条目' + (i + 1));
+                const p = extractEntryPrefix(c) || '其他';
                 if (!groups[p]) groups[p] = [];
                 groups[p].push({
                   idx: i + 1,
@@ -15946,8 +16333,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
 
 
-          var reply = await callAI(optPrompt);
-          var optimized = extractJSON(reply);
+          const reply = await callAI(optPrompt);
+          const optimized = extractJSON(reply);
           if (!optimized) {
             if (prog) prog.style.display = 'none';
             if (res) {
@@ -15959,10 +16346,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               if (prog) prog.style.display = 'none';
               if (res) {
                 res.style.display = 'block';
-                var compH = '';
+                let compH = '';
                 selectedOptFields.forEach(function(field) {
-                  var beforeV = '';
-                  var afterV = '';
+                  let beforeV = '';
+                  let afterV = '';
                   if (field === 'entries') {
                     beforeV = JSON.stringify(((cardData.character_book || {}).entries || []).slice(0, 3), null, 1);
                     afterV = JSON.stringify((optimized.entries || []).slice(0, 3), null, 1);
@@ -15970,13 +16357,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     beforeV = (cardData.alternate_greetings || []).join('\n---\n');
                     afterV = (optimized.alternate_greetings || []).join('\n---\n');
                   } else if (field === 'depth_prompt') {
-                    var beforeDp = (cardData.extensions || {}).depth_prompt || {};
-                    var afterDp = optimized.depth_prompt || {};
+                    const beforeDp = (cardData.extensions || {}).depth_prompt || {};
+                    const afterDp = optimized.depth_prompt || {};
                     beforeV = 'prompt: ' + (beforeDp.prompt || '(空)') + '\ndepth: ' + (beforeDp.depth === undefined ? '(未设置)' : beforeDp.depth);
                     afterV = 'prompt: ' + (afterDp.prompt || '(空)') + '\ndepth: ' + (afterDp.depth === undefined ? '(未设置)' : afterDp.depth);
                   } else if (field === 'regex_scripts') {
-                    var beforeRx = (cardData.extensions || {}).regex_scripts || [];
-                    var afterRx = optimized.regex_scripts || [];
+                    const beforeRx = (cardData.extensions || {}).regex_scripts || [];
+                    const afterRx = optimized.regex_scripts || [];
                     beforeV = JSON.stringify(beforeRx.slice(0, 2), null, 1);
                     afterV = JSON.stringify(afterRx.slice(0, 2), null, 1);
                   } else {
@@ -16009,32 +16396,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   '<button class="btn btn-success" id="applyOptBtn">✅ 应用优化</button>' +
                   '</div>';
                 res.innerHTML = compH;
-                var applyBtn = doc.getElementById('applyOptBtn');
+                const applyBtn = doc.getElementById('applyOptBtn');
                 if (applyBtn) {
                   applyBtn.addEventListener('click', function() {
-                    var modeRadios = doc.getElementsByName('optMode');
-                    var optMode = 'smart';
-                    for (var ri = 0; ri < modeRadios.length; ri++) {
+                    const modeRadios = doc.getElementsByName('optMode');
+                    let optMode = 'smart';
+                    for (let ri = 0; ri < modeRadios.length; ri++) {
                       if (modeRadios[ri].checked) {
                         optMode = modeRadios[ri].value;
                         break;
                       }
                     }
-                    var optModified = false;
+                    let optModified = false;
                     if (optMode === 'replace') {
                       // 彻底替换模式：先清理，再合并
                       // entries 清理：删除所有前缀与新条目前缀相同的旧条目
                       if (Array.isArray(optimized.entries) && optimized.entries.length) {
-                        var newPrefixes = {};
+                        const newPrefixes = {};
                         optimized.entries.forEach(function(e) {
-                          var p = extractEntryPrefix(e.comment || '');
+                          const p = extractEntryPrefix(e.comment || '');
                           if (p) newPrefixes[p] = true;
                         });
-                        var oldEntries = (cardData.character_book || {}).entries || [];
-                        var keptEntries = oldEntries.filter(function(e) {
-                          var p = extractEntryPrefix(e.comment || '');
+                        const oldEntries = (cardData.character_book || {}).entries || [];
+                        const keptEntries = oldEntries.filter(function(e) {
+                          const p = extractEntryPrefix(e.comment || '');
                           // 保留与新条目前缀无关的旧条目；MVU核心条目([InitVar]、变量列表、更新规则、输出格式)始终保留，除非新内容中明确包含对应前缀
-                          var isMvuCore = /\[InitVar\]|变量列表|变量更新规则|变量输出格式|\[mvu_update\]/i.test(e.comment || '');
+                          const isMvuCore = /\[InitVar\]|变量列表|变量更新规则|变量输出格式|\[mvu_update\]/i.test(e.comment || '');
                           if (isMvuCore && !(e.comment && optimized.entries.some(function(ne) {
                               return (ne.comment || '') === e.comment;
                             }))) {
@@ -16058,7 +16445,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                         optModified = true;
                       }
                       // 再用 mergePartial 应用优化结果
-                      var r = mergePartial(optimized, cardData);
+                      const r = mergePartial(optimized, cardData);
                       if (r) optModified = true;
                     } else if (optMode === 'append') {
                       // 纯追加模式：只用新增逻辑
@@ -16130,55 +16517,118 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 预览渲染 =====
       /* 改进V：renderPreview防抖——合并连续渲染请求（如批量更新entries时），避免16+调用点全量重建卡顿 */
-      var _renderPreviewTimer = null;
+      let _renderPreviewTimer = null;
+
+      // ===== 合并 diff 预览高亮 =====
+      // 合并前记录 entries 快照，合并后由 computeEntryDiff 得到差异，
+      // 在 _renderPreviewImpl 重建 DOM 后给对应条目打 3.2s 闪光 class（新增=绿，更新=琥珀）。
+      // 删除的条目已不在 DOM，仅计入 toast 文案。
+      let _pvFlash = {
+        add: {},
+        upd: {},
+        ts: 0
+      };
+      function _snapshotEntries() {
+        const arr = (cardData.character_book && cardData.character_book.entries) || [];
+        try {
+          return arr.map(function(e) {
+            return {
+              comment: e.comment,
+              content: e.content
+            };
+          });
+        } catch (e) {
+          logWarn('entrySnapshot', e);
+          return [];
+        }
+      }
+      function flashPreviewChanges(diff) {
+        if (!diff) return;
+        safeArr(diff.added).forEach(function(k) {
+          _pvFlash.add[String(k)] = 1;
+        });
+        safeArr(diff.updated).forEach(function(d) {
+          if (d && d.comment != null) _pvFlash.upd[String(d.comment)] = 1;
+        });
+        _pvFlash.ts = Date.now();
+        _applyPreviewFlash(); // DOM 若已含目标节点（未触发重建）也能立即生效
+      }
+      function _applyPreviewFlash() {
+        try {
+          if (!_pvFlash.ts || Date.now() - _pvFlash.ts > 5000) {
+            _pvFlash = { add: {}, upd: {}, ts: 0 };
+            return;
+          }
+          const body = doc.getElementById('previewBody');
+          if (!body) return;
+          const nodes = body.querySelectorAll('details.pv-entry[data-pv-comment]');
+          for (let i = 0; i < nodes.length; i++) {
+            const el = nodes[i];
+            const key = el.getAttribute('data-pv-comment');
+            const cls = _pvFlash.add[key] ? 'pv-flash-add' : (_pvFlash.upd[key] ? 'pv-flash-upd' : null);
+            if (cls) {
+              el.classList.remove('pv-flash-add', 'pv-flash-upd');
+              // 强制重排以重启动画（同一节点可能被连续两次合并命中）
+              void el.offsetWidth;
+              el.classList.add(cls);
+              setTimeout(function(node, c) {
+                node.classList.remove(c);
+              }.bind(null, el, cls), 3200);
+            }
+          }
+          _pvFlash = { add: {}, upd: {}, ts: 0 };
+        } catch (e) {
+          logWarn('previewFlash', e);
+        }
+      }
 
       function renderPreview() {
         if (_renderPreviewTimer) clearTimeout(_renderPreviewTimer);
-        _renderPreviewTimer = setTimeout(_renderPreviewImpl, 80);
+        _renderPreviewTimer = setTimeout(_renderPreviewImpl, CONFIG.PREVIEW_DEBOUNCE_MS);
       }
 
       function _renderPreviewImpl() {
         _renderPreviewTimer = null;
-        var body = doc.getElementById('previewBody');
+        const body = doc.getElementById('previewBody');
         if (!body) return;
         updateProgress();
         // ========== Tab 隔离：角色卡Tab 过滤 MVU 内容，MVU Tab 只显示 MVU 相关 ==========
-        var __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
+        const __tab = (typeof window !== 'undefined' && typeof window.__getActiveTab === 'function') ? window.__getActiveTab() : (typeof activeTab !== 'undefined' ? activeTab : 'card');
 
         // 通用段落：完整显示内容（不再截断），支持折叠。icon 支持 emoji 字符串或 SVG 图标名
         // editKey(可选)：传入字段名时，内容区可双击编辑
         function sec(icon, title, content, rightInfo, editKey) {
-          var has = content && (typeof content === 'string' ? content.trim().length > 0 : true);
-          var dot = has ? 'full' : 'empty';
-          var editAttr = editKey ? ' data-edit-type="field" data-edit-key="' + escHtml(editKey) + '"' : '';
-          var editCls = editKey ? ' pv-editable' : '';
-          var editHint = editKey ? '<span class="pv-edit-hint" title="双击编辑">✏️</span>' : '';
-          var inner = has ?
+          const has = content && (typeof content === 'string' ? content.trim().length > 0 : true);
+          const dot = has ? 'full' : 'empty';
+          const editAttr = editKey ? ' data-edit-type="field" data-edit-key="' + escHtml(editKey) + '"' : '';
+          const editCls = editKey ? ' pv-editable' : '';
+          const editHint = editKey ? '<span class="pv-edit-hint" title="双击编辑">✏️</span>' : '';
+          const inner = has ?
             '<div class="pv-content' + editCls + '"' + editAttr + '>' + escHtml(typeof content === 'string' ? content : '') + '</div>' :
             '<div class="pv-empty' + editCls + '"' + editAttr + '>待生成...</div>';
-          var rightHtml = rightInfo ? '<span class="sec-right">' + rightInfo + '</span>' : '';
+          const rightHtml = rightInfo ? '<span class="sec-right">' + rightInfo + '</span>' : '';
           // icon 为 SVG 图标名（无 emoji 字符）时渲染内联 SVG
-          var iconHtml = (/^[a-zA-Z]+$/.test(icon)) ? svgIcon(icon, 14) : icon;
+          const iconHtml = (/^[a-zA-Z]+$/.test(icon)) ? svgIcon(icon, 14) : icon;
           return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dot + '"></span>' + iconHtml + ' ' + title + '</span>' + rightHtml + editHint + '<span class="pv-toggle" title="折叠/展开"></span></h3>' + inner + '</div>';
         }
 
-        var h = '';
+        let h = '';
 
         if (__tab === 'mvu') {
           // ========== MVU Tab 预览：状态栏总览(顶置) + 8步进度 + 变量结构脚本 + 变量条目 + 状态栏HTML源码 + 关联角色卡 ==========
           var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
-          var mvuEntries = allEntries.filter(function(e) {
+          const mvuEntries = allEntries.filter(function(e) {
             return isMVUEntry(e.comment || '');
           });
-          var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
+          const rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
 
           // ① 状态栏总览（顶置突出，含8步进度条 + 操作按钮）
           h += buildStatusBarPreviewSection();
 
           // ② MVU 8步进度详情（逐条展开说明）
-          var _pvChk = checkMvu8Entries(cardData);
-          var _pvD = _pvChk.done;
-          var _pvSteps = [{
+          const _pvChk = checkMvu8Entries(cardData);
+          const _pvD = _pvChk.done;
+          const _pvSteps = [{
               has: _pvD[0],
               icon: 'code',
               name: '第1条 变量结构脚本',
@@ -16227,26 +16677,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               desc: '正则6 [美化]MVU状态栏（markdownOnly=true，前7条完成后才生成）'
             }
           ];
-          var _pvDoneCnt = _pvChk.doneCount + (_pvChk.has8 ? 1 : 0);
+          const _pvDoneCnt = _pvChk.doneCount + (_pvChk.has8 ? 1 : 0);
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (_pvDoneCnt > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('list', 14) + ' MVU 8步进度详情</span><span class="sec-right">' + _pvDoneCnt + '/8</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
           _pvSteps.forEach(function(s) {
-            var _tag = s.has ? '<span class="pv-tag ok">✓ 完成</span>' : '<span class="pv-tag off">待生成</span>';
+            const _tag = s.has ? '<span class="pv-tag ok">✓ 完成</span>' : '<span class="pv-tag off">待生成</span>';
             h += '<details class="pv-entry"><summary><span>' + svgIcon(s.icon, 12) + ' ' + s.name + '</span><span class="sec-right">' + _tag + '</span></summary><div class="pv-entry-body"><div class="pv-entry-content">' + s.desc + '</div></div></details>';
           });
           h += '</div></div>';
 
           // ③ 变量结构脚本 + MVU脚本（tavern_helper.scripts）
-          var mvuScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+          const mvuScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
           if (mvuScripts.length > 0) {
             h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('code', 14) + ' 变量结构脚本</span><span class="sec-right">' + mvuScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
             mvuScripts.forEach(function(s, idx) {
-              var sName = s.name || ('脚本' + (idx + 1));
-              var sTok = countTokens(s.content || '');
-              var isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
-              var isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0);
-              var isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
-              var sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
-              var sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+              const sName = s.name || ('脚本' + (idx + 1));
+              const sTok = countTokens(s.content || '');
+              const isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
+              const isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0 || (s.content || '').indexOf('bundle.js') >= 0);
+              const isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
+              const sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
+              const sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
               h += '<details class="pv-entry"><summary><span>' + (idx + 1) + '. ' + escHtml(sName) + '</span><span class="sec-right">~' + sTok + 'T ' + sTag + sDisabled + '</span></summary>' +
                 '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(s.content || '') + '</div></div></details>';
             });
@@ -16260,9 +16710,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (mvuEntries.length > 0) {
             h += '<div class="pv-entry-list">';
             mvuEntries.forEach(function(e, i) {
-              var eTok = countTokens(e.content || '');
-              var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-              h += '<details class="pv-entry"><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + '</span></summary>' +
+              const eTok = countTokens(e.content || '');
+              const disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+              h += '<details class="pv-entry" data-pv-comment="' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '"><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + '</span></summary>' +
                 '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(e.content || '') + '</div></div></details>';
             });
             h += '</div>';
@@ -16275,8 +16725,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (rxScripts.length > 0) {
             h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('table', 14) + ' 状态栏HTML源码（正则）</span><span class="sec-right">' + rxScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
             rxScripts.forEach(function(r, idx) {
-              var isStatusBar = (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0;
-              var flags = [];
+              const isStatusBar = (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0;
+              const flags = [];
               if (r.markdownOnly) flags.push('<span class="pv-tag">仅显示</span>');
               if (r.promptOnly) flags.push('<span class="pv-tag">仅提示词</span>');
               if (r.disabled) flags.push('<span class="pv-tag off">禁用</span>');
@@ -16284,9 +16734,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               h += '<details class="pv-entry"><summary><span>' + (idx + 1) + '. ' + escHtml(r.scriptName || '正则脚本') + '</span><span class="sec-right">' + flags.join('') + '</span></summary>';
               h += '<div class="pv-entry-body">';
               h += '<div class="pv-code">查找：<code>' + escHtml(r.findRegex || '') + '</code></div>';
-              var rep = r.replaceString || '';
+              const rep = r.replaceString || '';
               if (rep) {
-                var repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断）' : rep;
+                const repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断）' : rep;
                 h += '<div class="pv-code" style="margin-top:3px">替换：\n' + escHtml(repDisplay) + '</div>';
               }
               h += '</div></details>';
@@ -16310,8 +16760,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         h += sec('scroll', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '', 'description');
 
         // 模块进度（独立 pv-section，角色卡Tab：隐藏MVU模块）
-        var mp = getModuleProgress();
-        var modLabels = {
+        const mp = getModuleProgress();
+        const modLabels = {
           axiom: {
             ic: 'axiom',
             txt: '公理'
@@ -16345,11 +16795,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             txt: '动态'
           }
         };
-        var modDone = 0,
+        let modDone = 0,
           modTotal = Object.keys(modLabels).length;
-        var modH = '<div class="module-progress">';
+        let modH = '<div class="module-progress">';
         Object.keys(modLabels).forEach(function(k) {
-          var cls = mp[k] ? 'done' : 'todo';
+          const cls = mp[k] ? 'done' : 'todo';
           if (mp[k]) modDone++;
           modH += '<div class="module-item ' + cls + '" data-mod="' + k + '" title="点击让AI完善此模块">' + svgIcon(modLabels[k].ic, 11) + ' ' + modLabels[k].txt + '</div>';
         });
@@ -16358,27 +16808,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
         // 角色卡Tab：过滤掉 MVU 条目
-        var entries = allEntries.filter(function(e) {
+        const entries = allEntries.filter(function(e) {
           return !isMVUEntry(e.comment || '');
         });
-        var bookName = (cardData.name ? cardData.name + ' · 世界设定集' : '世界设定集');
-        var bookTokCount = 0;
+        const bookName = (cardData.name ? cardData.name + ' · 世界设定集' : '世界设定集');
+        let bookTokCount = 0;
         entries.forEach(function(e) {
           bookTokCount += countTokens(e.content || '');
         });
 
         // 世界书条目：完整显示全部条目，每个条目独立折叠（默认折叠）
         if (entries.length > 0) {
-          var eH = '<div class="pv-entry-list">';
+          let eH = '<div class="pv-entry-list">';
           for (var i = 0; i < entries.length; i++) {
             var e = entries[i];
-            var label = e.comment || ('条目' + (i + 1));
+            const label = e.comment || ('条目' + (i + 1));
             var eTok = countTokens(e.content || '');
-            var constTag = e.constant ? '<span class="pv-tag ok">常驻</span>' : '<span class="pv-tag">触发</span>';
-            var posTag = '<span class="pv-tag">P' + (e.position == null ? '-' : e.position) + '</span>';
-            var depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
+            const constTag = e.constant ? '<span class="pv-tag ok">常驻</span>' : '<span class="pv-tag">触发</span>';
+            const posTag = '<span class="pv-tag">P' + (e.position == null ? '-' : e.position) + '</span>';
+            const depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
             var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-            eH += '<details class="pv-entry"><summary>' +
+            eH += '<details class="pv-entry" data-pv-comment="' + escHtml(label) + '"><summary>' +
               '<span class="pv-entry-summary-main">' + escHtml(label) + '</span>' +
               '<span class="pv-entry-summary-tags">' +
               '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + disabledTag + '</span>' +
@@ -16395,47 +16845,47 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         h += sec('film', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '', 'first_mes');
         // 身份定位（自动提取：personality+description 前 50 字）
-        var autoIdExtract = '';
+        let autoIdExtract = '';
         if (cardData.personality || cardData.description) {
-          var rawId = (cardData.personality ? (cardData.personality + ' ') : '') + (cardData.description || '');
+          const rawId = (cardData.personality ? (cardData.personality + ' ') : '') + (cardData.description || '');
           autoIdExtract = rawId.substring(0, 50) + (rawId.length > 50 ? '...' : '');
         }
-        var idLen = autoIdExtract.length;
+        const idLen = autoIdExtract.length;
         h += sec('bolt', '身份定位（自动提取）', autoIdExtract || '(从 personality/description 自动生成，无需手动写 system_prompt)', idLen > 0 ? ('~' + idLen + '字 · 自动提取') : '');
         // 多开局机制：动态适配分支 X 条 / 开场白内嵌选项 X 个
-        var allEntriesForMulti = (cardData.character_book && cardData.character_book.entries) || [];
-        var multiOpenEntries = allEntriesForMulti.filter(function(e) {
+        const allEntriesForMulti = (cardData.character_book && cardData.character_book.entries) || [];
+        const multiOpenEntries = allEntriesForMulti.filter(function(e) {
           return (e.comment || '').indexOf('<动态适配>') >= 0 || (e.comment || '').indexOf('分支开局') >= 0;
         }).length;
-        var firstForMulti = cardData.first_mes || '';
-        var firstMesHasChoice = firstForMulti.indexOf('①') >= 0 || firstForMulti.indexOf('②') >= 0 || firstForMulti.indexOf('③') >= 0 || firstForMulti.indexOf('选项') >= 0 || firstForMulti.indexOf('选择') >= 0 || (firstForMulti.indexOf('1.') >= 0 && firstForMulti.indexOf('2.') >= 0);
-        var choiceCount = 0;
+        const firstForMulti = cardData.first_mes || '';
+        const firstMesHasChoice = firstForMulti.indexOf('①') >= 0 || firstForMulti.indexOf('②') >= 0 || firstForMulti.indexOf('③') >= 0 || firstForMulti.indexOf('选项') >= 0 || firstForMulti.indexOf('选择') >= 0 || (firstForMulti.indexOf('1.') >= 0 && firstForMulti.indexOf('2.') >= 0);
+        let choiceCount = 0;
         if (firstMesHasChoice) {
-          var circleNum = (firstForMulti.match(/[①②③④⑤⑥⑦⑧⑨⑩]/g) || []).length;
+          const circleNum = (firstForMulti.match(/[①②③④⑤⑥⑦⑧⑨⑩]/g) || []).length;
           choiceCount = circleNum > 0 ? circleNum : 2;
         }
-        var multiDesc = '<动态适配>分支: ' + multiOpenEntries + ' 条';
+        let multiDesc = '<动态适配>分支: ' + multiOpenEntries + ' 条';
         if (firstMesHasChoice) multiDesc += ' | 开场白内嵌选项: ' + choiceCount + ' 个';
-        var multiContent = multiOpenEntries >= 1 || firstMesHasChoice ?
+        const multiContent = multiOpenEntries >= 1 || firstMesHasChoice ?
           ('已配置多开局机制：' + multiDesc) :
           '尚未配置多开局。可通过 <动态适配> 分支开局世界书条目，或在开场白内嵌互动选项实现。';
-        var multiRight = ((multiOpenEntries >= 1 || firstMesHasChoice) ? '✅ ' : '⚠️ ') + multiOpenEntries + '分支 / ' + choiceCount + '选项';
+        const multiRight = ((multiOpenEntries >= 1 || firstMesHasChoice) ? '✅ ' : '⚠️ ') + multiOpenEntries + '分支 / ' + choiceCount + '选项';
         h += sec('refreshCycle', '多开局机制（替代 alternate_greetings）', multiContent, multiRight);
 
         h += sec('edit', '创作者备注', cardData.creator_notes, '', 'creator_notes');
 
         // ===== 脚本（tavern_helper.scripts）：变量结构/MVU/WTC等，可折叠显示 =====
-        var cardScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+        const cardScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
         if (cardScripts.length > 0) {
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('code', 14) + ' 脚本</span><span class="sec-right">' + cardScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
           cardScripts.forEach(function(s, idx) {
-            var sName = s.name || ('脚本' + (idx + 1));
-            var sTok = countTokens(s.content || '');
-            var isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
-            var isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0);
-            var isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
-            var sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
-            var sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+            const sName = s.name || ('脚本' + (idx + 1));
+            const sTok = countTokens(s.content || '');
+            const isSchema = (s.id === 'mvu-schema' || sName.indexOf('变量结构') >= 0 || (s.content || '').indexOf('mvu_zod') >= 0);
+            const isBundle = (s.id === '961f366d-e403-45c2-8155-3d14ec86de53' || (s.content || '').indexOf('MagVarUpdate') >= 0);
+            const isWTC = (s.id === 'wtc-lorebook-call' || (s.content || '').indexOf('LorebookToolCall') >= 0);
+            const sTag = isSchema ? '<span class="pv-tag ok">变量结构</span>' : (isBundle ? '<span class="pv-tag">MVU本体</span>' : (isWTC ? '<span class="pv-tag">WTC</span>' : ''));
+            const sDisabled = s.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
             h += '<details class="pv-entry"><summary><span>' + (idx + 1) + '. ' + escHtml(sName) + '</span><span class="sec-right">~' + sTok + 'T ' + sTag + sDisabled + '</span></summary>' +
               '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(s.content || '') + '</div></div></details>';
           });
@@ -16443,20 +16893,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // ===== 正则脚本：可折叠显示 =====
-        var cardRxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
+        const cardRxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
         if (cardRxScripts.length > 0) {
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('table', 14) + ' 正则脚本</span><span class="sec-right">' + cardRxScripts.length + '条</span><span class="pv-toggle"></span></h3><div class="pv-sub">';
           cardRxScripts.forEach(function(r, idx) {
-            var flags = [];
+            const flags = [];
             if (r.markdownOnly) flags.push('<span class="pv-tag">仅显示</span>');
             if (r.promptOnly) flags.push('<span class="pv-tag">仅提示词</span>');
             if (r.disabled) flags.push('<span class="pv-tag off">禁用</span>');
             h += '<details class="pv-entry"><summary><span>' + (idx + 1) + '. ' + escHtml(r.scriptName || '正则脚本') + '</span><span class="sec-right">' + flags.join('') + '</span></summary>';
             h += '<div class="pv-entry-body">';
             h += '<div class="pv-code">查找：<code>' + escHtml(r.findRegex || '') + '</code></div>';
-            var rep = r.replaceString || '';
+            const rep = r.replaceString || '';
             if (rep) {
-              var repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断）' : rep;
+              const repDisplay = rep.length > 1200 ? rep.substring(0, 1200) + '\n…（共' + rep.length + '字符，已截断）' : rep;
               h += '<div class="pv-code" style="margin-top:3px">替换：\n' + escHtml(repDisplay) + '</div>';
             }
             h += '</div></details>';
@@ -16467,40 +16917,42 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         body.innerHTML = h;
         // 绑定折叠/按钮事件（每次重渲染后重新绑定）
         bindPreviewInteractions();
+        // 合并 diff 闪光（DOM 重建后消费本次变更记录）
+        _applyPreviewFlash();
       }
 
       // 状态栏预览区块：展示生成状态 + 已收集模块 + 预览/重置按钮
       function buildStatusBarPreviewSection() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var hasMVU = entries.some(function(e) {
+        const entries = (cardData.character_book || {}).entries || [];
+        const hasMVU = entries.some(function(e) {
           return isMVUEntry(e.comment || '');
         });
-        var rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
-        var statusBarRegex = null;
-        for (var i = 0; i < rxScripts.length; i++) {
-          var r = rxScripts[i];
+        const rxScripts = normalizeRegexScripts(cardData.extensions && cardData.extensions.regex_scripts);
+        let statusBarRegex = null;
+        for (let i = 0; i < rxScripts.length; i++) {
+          const r = rxScripts[i];
           if ((r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly && !r.promptOnly) {
             statusBarRegex = r;
             break;
           }
         }
-        var hasStatusBar = !!statusBarRegex;
-        var mvuChk = checkMvu8Entries(cardData);
-        var _d = mvuChk.done;
+        const hasStatusBar = !!statusBarRegex;
+        const mvuChk = checkMvu8Entries(cardData);
+        const _d = mvuChk.done;
 
-        var dotCls = hasStatusBar ? 'full' : 'empty';
-        var right = hasStatusBar ? '已生成' : (mvuChk.all7Done ? '待生成' : (hasMVU ? mvuChk.doneCount + '/7' : '未启用'));
-        var sH = '<div class="pv-sub">';
+        const dotCls = hasStatusBar ? 'full' : 'empty';
+        const right = hasStatusBar ? '已生成' : (mvuChk.all7Done ? '待生成' : (hasMVU ? mvuChk.doneCount + '/7' : '未启用'));
+        let sH = '<div class="pv-sub">';
 
         // ===== 8步进度可视化条（紧凑方块，绿=完成/灰=待办）=====
-        var _stepNames = ['①zod变量结构', '②[InitVar]初始变量', '③[mvu_update]更新规则', '④变量列表', '⑤[mvu_update]输出格式', '⑥输出格式强调', '⑦<状态栏>占位提醒', '⑧状态栏HTML(正则6)'];
-        var _stepStates = [_d[0], _d[1], _d[2], _d[3], _d[4], _d[5], _d[6], mvuChk.has8];
-        var _stepShort = ['1', '2', '3', '4', '5', '6', '7', '栏'];
+        const _stepNames = ['①zod变量结构', '②[InitVar]初始变量', '③[mvu_update]更新规则', '④变量列表', '⑤[mvu_update]输出格式', '⑥输出格式强调', '⑦<状态栏>占位提醒', '⑧状态栏HTML(正则6)'];
+        const _stepStates = [_d[0], _d[1], _d[2], _d[3], _d[4], _d[5], _d[6], mvuChk.has8];
+        const _stepShort = ['1', '2', '3', '4', '5', '6', '7', '栏'];
         sH += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 10px 0">';
-        for (var si = 0; si < 8; si++) {
-          var _done = _stepStates[si];
-          var _cls = _done ? 'sb-step ok' : 'sb-step todo';
-          var _ic = _done ? svgIcon('checkCircle', 11) : svgIcon('circle', 11);
+        for (let si = 0; si < 8; si++) {
+          const _done = _stepStates[si];
+          const _cls = _done ? 'sb-step ok' : 'sb-step todo';
+          const _ic = _done ? svgIcon('checkCircle', 11) : svgIcon('circle', 11);
           sH += '<span class="' + _cls + '" title="' + _stepNames[si] + '">' + _ic + _stepShort[si] + '</span>';
         }
         sH += '</div>';
@@ -16509,7 +16961,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         sH += '<details class="pv-entry"' + (hasMVU ? '' : ' open') + '><summary><span>变量系统</span><span class="sec-right">' + (hasMVU ? '<span class="pv-tag ok">已启用</span> ' + mvuChk.doneCount + '/7' : '<span class="pv-tag off">未启用</span>') + '</span></summary><div class="pv-entry-body"><div class="pv-entry-content">' + (hasMVU ? 'MVU变量系统已检测到。<br>导出时自动注入：bundle.js(MVU本体)、正则1-5(思维链移除/变量更新截断/状态栏隐藏等)。<br>状态栏HTML需前7条完成后生成。' : '未检测到MVU变量系统。请先在MVU Tab生成变量系统。') + '</div></div></details>';
 
         if (hasStatusBar) {
-          var repLen = (statusBarRegex.replaceString || '').length;
+          const repLen = (statusBarRegex.replaceString || '').length;
           sH += '<details class="pv-entry" open><summary><span>状态栏HTML（正则6）</span><span class="sec-right">' + repLen + ' 字符</span></summary>';
           sH += '<div class="pv-entry-body"><div style="margin:2px 0"><span class="pv-tag ok">已生成</span><span class="pv-tag">仅显示</span></div>';
           sH += '<div class="pv-entry-content">findRegex: ' + escHtml(statusBarRegex.findRegex || '') + '</div></div></details>';
@@ -16538,45 +16990,45 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // 预览面板交互绑定：段落折叠 + 状态栏按钮
       function bindPreviewInteractions() {
-        var body = doc.getElementById('previewBody');
+        const body = doc.getElementById('previewBody');
         if (!body) return;
         // 段落折叠（点击 h3 标题区或 pv-toggle）
-        var toggles = body.querySelectorAll('.pv-toggle');
-        for (var i = 0; i < toggles.length; i++) {
+        const toggles = body.querySelectorAll('.pv-toggle');
+        for (let i = 0; i < toggles.length; i++) {
           toggles[i].addEventListener('click', function(e) {
             e.stopPropagation();
-            var section = this.closest('.pv-section');
+            const section = this.closest('.pv-section');
             if (section) section.classList.toggle('collapsed');
           });
         }
         // 标题点击也可折叠（除按钮/链接/details外）
-        var heads = body.querySelectorAll('.pv-section > h3');
-        for (var j = 0; j < heads.length; j++) {
+        const heads = body.querySelectorAll('.pv-section > h3');
+        for (let j = 0; j < heads.length; j++) {
           heads[j].addEventListener('click', function(e) {
             if (e.target.closest('.pv-mini-btn') || e.target.closest('.pv-book-name') || e.target.closest('.pv-toggle') || e.target.closest('.module-item') || e.target.closest('.pv-entry') || e.target.closest('details') || e.target.closest('summary')) return;
-            var section = this.closest('.pv-section');
+            const section = this.closest('.pv-section');
             if (section) section.classList.toggle('collapsed');
           });
         }
         // 模块进度项点击：让 AI 完善对应模块
-        var modItems = body.querySelectorAll('.module-item[data-mod]');
-        for (var mi = 0; mi < modItems.length; mi++) {
+        const modItems = body.querySelectorAll('.module-item[data-mod]');
+        for (let mi = 0; mi < modItems.length; mi++) {
           modItems[mi].style.cursor = 'pointer';
           modItems[mi].addEventListener('click', function(e) {
             e.stopPropagation();
-            var mod = this.getAttribute('data-mod');
+            const mod = this.getAttribute('data-mod');
             if (mod) handleQuickAction(mod);
           });
         }
         // 状态栏按钮
-        var btns = body.querySelectorAll('.pv-mini-btn[data-pv-action]');
-        for (var k = 0; k < btns.length; k++) {
+        const btns = body.querySelectorAll('.pv-mini-btn[data-pv-action]');
+        for (let k = 0; k < btns.length; k++) {
           btns[k].addEventListener('click', function() {
-            var act = this.getAttribute('data-pv-action');
+            const act = this.getAttribute('data-pv-action');
             if (act === 'preview-statusbar') {
               showMvuStatusBarPreview();
             } else if (act === 'gen-statusbar') {
-              var input = doc.getElementById('chatInput');
+              const input = doc.getElementById('chatInput');
               if (input) {
                 input.value = '请根据已配置的MVU变量系统，生成状态栏HTML。输出一个完整的HTML文档（含CSS和JS），使用 populateCharacterData + getAllVariables + eventOn(Mvu.events.VARIABLE_UPDATE_ENDED) + errorCatched 标准模式。';
                 updateCharCount();
@@ -16588,8 +17040,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             } else if (act === 'reset-statusbar') {
               if (!confirm('确定清除已生成的美化状态栏正则（正则6）吗？')) return;
               cardData.extensions = cardData.extensions || {};
-              var rx = cardData.extensions.regex_scripts || [];
-              for (var m = rx.length - 1; m >= 0; m--) {
+              const rx = cardData.extensions.regex_scripts || [];
+              for (let m = rx.length - 1; m >= 0; m--) {
                 if ((rx[m].findRegex || '').indexOf('StatusPlaceHolder') >= 0 && rx[m].markdownOnly && !rx[m].promptOnly) {
                   rx.splice(m, 1);
                 }
@@ -16602,8 +17054,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
         }
         // ========== 双击编辑：预览内容区双击弹出编辑窗口 ==========
-        var editables = body.querySelectorAll('[data-edit-type]');
-        for (var ei = 0; ei < editables.length; ei++) {
+        const editables = body.querySelectorAll('[data-edit-type]');
+        for (let ei = 0; ei < editables.length; ei++) {
           editables[ei].style.cursor = 'pointer';
           editables[ei].addEventListener('dblclick', function(e) {
             e.stopPropagation();
@@ -16612,15 +17064,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               showToast('AI正在生成中，请等待完成后再编辑', 'warning');
               return;
             }
-            var type = this.getAttribute('data-edit-type');
-            var key = this.getAttribute('data-edit-key');
-            var index = this.getAttribute('data-edit-index');
+            const type = this.getAttribute('data-edit-type');
+            const key = this.getAttribute('data-edit-key');
+            const index = this.getAttribute('data-edit-index');
             showPreviewEditModal(type, key, index);
           });
         }
         // ========== 预览面板条目折叠头：悬浮删除按钮一键删（不用进编辑弹窗）==========
-        var pvDels = body.querySelectorAll('button.pv-entry-del[data-pv-entry-del]');
-        for (var pdi = 0; pdi < pvDels.length; pdi++) {
+        const pvDels = body.querySelectorAll('button.pv-entry-del[data-pv-entry-del]');
+        for (let pdi = 0; pdi < pvDels.length; pdi++) {
           pvDels[pdi].addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
@@ -16629,19 +17081,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               showToast('AI正在生成中，请等待完成后再删除条目', 'warning');
               return;
             }
-            var rawIdx = this.getAttribute('data-entry-idx');
-            var idx = parseInt(rawIdx);
+            const rawIdx = this.getAttribute('data-entry-idx');
+            const idx = parseInt(rawIdx);
             if (rawIdx == null || isNaN(idx)) {
               showToast('⚠️ 无法确定要删除的条目索引', 'warning');
               return;
             }
-            var allEntries = (cardData.character_book || {}).entries || [];
-            var en = allEntries[idx];
+            const allEntries = (cardData.character_book || {}).entries || [];
+            const en = allEntries[idx];
             if (!en) {
               showToast('⚠️ 未找到该条目，可能已被删除', 'warning');
               return;
             }
-            var name = en.comment || ('条目' + (idx + 1));
+            const name = en.comment || ('条目' + (idx + 1));
             if (!window.confirm('确认删除该条目吗？\n\n条目：' + name + '\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
             // 这里用 allEntries 里的真实引用直接 splice 掉
             allEntries.splice(idx, 1);
@@ -16656,15 +17108,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ===== 预览双击编辑弹窗 =====
       function showPreviewEditModal(type, key, index) {
         // 读取当前值
-        var currentVal = '';
-        var title = '';
+        let currentVal = '';
+        let title = '';
         if (type === 'field') {
           currentVal = cardData[key] != null ? String(cardData[key]) : '';
           title = '编辑字段：' + key;
         } else if (type === 'entry') {
-          var idx = parseInt(index);
-          var entries = (cardData.character_book || {}).entries || [];
-          var entry = entries[idx];
+          const idx = parseInt(index);
+          const entries = (cardData.character_book || {}).entries || [];
+          const entry = entries[idx];
           if (!entry) return;
           currentVal = entry.content || '';
           title = '编辑条目：' + (entry.comment || ('条目' + (idx + 1)));
@@ -16672,56 +17124,56 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 创建弹窗
-        var overlay = doc.createElement('div');
+        const overlay = doc.createElement('div');
         overlay.className = 'json-modal';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px';
-        var modal = doc.createElement('div');
+        const modal = doc.createElement('div');
         modal.style.cssText = 'background:var(--surface);border-radius:var(--radius);box-shadow:0 20px 60px rgba(15,23,42,.2);width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden';
-        var header = doc.createElement('div');
+        const header = doc.createElement('div');
         header.style.cssText = 'padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:10px';
         header.innerHTML = '<span style="font-weight:600;color:var(--accent-deep);font-size:.95em">' + escHtml(title) + '</span>';
-        var closeBtn = doc.createElement('button');
+        const closeBtn = doc.createElement('button');
         closeBtn.className = 'icon-btn icon-btn-square';
         closeBtn.innerHTML = svgIcon('close', 16);
         closeBtn.onclick = function() {
           overlay.remove();
         };
         header.appendChild(closeBtn);
-        var textareaWrap = doc.createElement('div');
+        const textareaWrap = doc.createElement('div');
         textareaWrap.style.cssText = 'flex:1;overflow:auto;padding:14px 18px';
-        var textarea = doc.createElement('textarea');
+        const textarea = doc.createElement('textarea');
         textarea.style.cssText = 'width:100%;min-height:200px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;color:var(--ink);background:var(--surface-soft)';
         textarea.value = currentVal;
         textareaWrap.appendChild(textarea);
-        var footer = doc.createElement('div');
+        const footer = doc.createElement('div');
         footer.style.cssText = 'padding:10px 18px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;gap:8px';
-        var footerLeft = doc.createElement('div');
+        const footerLeft = doc.createElement('div');
         footerLeft.style.cssText = 'display:flex;align-items:center;gap:8px';
         // 删除按钮：给 entry / 顶层 field / 数组 field 三种情况用（用户反馈"AI删不掉时预览里没法手动删"）
-        var canDelete = false;
-        var deleteHint = '';
+        let canDelete = false;
+        const deleteHint = '';
         if (type === 'entry') canDelete = true;
         else if (type === 'field') {
-          var idxNum = parseInt(index);
+          const idxNum = parseInt(index);
           if (index != null && !isNaN(idxNum) && Array.isArray(cardData[key])) canDelete = true;
           else canDelete = true; // 顶层字段也允许一键清空（删除按钮文案写"清空"而不是删除）
         }
         if (canDelete) {
-          var delBtn = doc.createElement('button');
+          const delBtn = doc.createElement('button');
           delBtn.className = 'btn';
           delBtn.style.cssText = 'background:var(--terra-soft);color:var(--terra-text);border:1px solid transparent;display:inline-flex;align-items:center;gap:6px';
           delBtn.innerHTML = svgIcon('trash', 14) + (type === 'field' && (index == null || isNaN(parseInt(index))) ? ' 清空字段' : ' 删除');
           delBtn.onclick = function() {
-            var what = '';
+            let what = '';
             if (type === 'entry') {
-              var idxE = parseInt(index);
-              var en = (((cardData.character_book || {}).entries || [])[idxE] || {}).comment || ('条目' + (idxE + 1));
+              const idxE = parseInt(index);
+              const en = (((cardData.character_book || {}).entries || [])[idxE] || {}).comment || ('条目' + (idxE + 1));
               what = '条目「' + en + '」';
               if (!window.confirm('确认删除该条目吗？\n\n条目：' + en + '\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
-              var es = (cardData.character_book || {}).entries || [];
+              const es = (cardData.character_book || {}).entries || [];
               if (idxE >= 0 && idxE < es.length) es.splice(idxE, 1);
             } else if (type === 'field') {
-              var iF = parseInt(index);
+              const iF = parseInt(index);
               if (index != null && !isNaN(iF) && Array.isArray(cardData[key])) {
                 what = '字段「' + key + '」第' + (iF + 1) + '项';
                 if (!window.confirm('确认删除该数组项吗？\n\n' + what)) return;
@@ -16741,24 +17193,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           footerLeft.appendChild(delBtn);
         }
         footer.appendChild(footerLeft);
-        var footerRight = doc.createElement('div');
+        const footerRight = doc.createElement('div');
         footerRight.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
-        var cancelBtn = doc.createElement('button');
+        const cancelBtn = doc.createElement('button');
         cancelBtn.className = 'btn btn-ghost';
         cancelBtn.textContent = '取消';
         cancelBtn.onclick = function() {
           overlay.remove();
         };
-        var saveBtn = doc.createElement('button');
+        const saveBtn = doc.createElement('button');
         saveBtn.className = 'btn btn-primary';
         saveBtn.innerHTML = svgIcon('save', 14) + ' 保存';
         saveBtn.onclick = function() {
-          var newVal = textarea.value;
+          const newVal = textarea.value;
           if (type === 'field') {
             cardData[key] = newVal;
           } else if (type === 'entry') {
-            var idx2 = parseInt(index);
-            var entries2 = (cardData.character_book || {}).entries || [];
+            const idx2 = parseInt(index);
+            const entries2 = (cardData.character_book || {}).entries || [];
             if (entries2[idx2]) {
               entries2[idx2].content = newVal;
             }
@@ -16791,36 +17243,36 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           return;
         }
         // 检测酒馆 API 可用性（必须在 try 之前判断，给出清晰提示）
-        var st = (typeof _tavern === 'function') ? _tavern() : null;
+        const st = (typeof _tavern === 'function') ? _tavern() : null;
         if (!st) {
           showToast('未检测到酒馆环境，无法直接写入角色卡', 'error');
           return;
         }
-        var saveBtn = doc.getElementById('saveBtn');
-        var originalHTML = saveBtn ? saveBtn.innerHTML : '';
+        const saveBtn = doc.getElementById('saveBtn');
+        const originalHTML = saveBtn ? saveBtn.innerHTML : '';
         if (saveBtn) {
           saveBtn.disabled = true;
           saveBtn.innerHTML = svgIcon('spinner', 14, 'ic-spin') + ' 写入中…';
         }
         try {
           // 复用 buildExportCard 完成MVU条目检测/填充、StatusPlaceHolderImpl注入、CRLF规范化等逻辑
-          var exportCard = buildExportCard(cardData);
-          var data = exportCard.data || {};
+          const exportCard = buildExportCard(cardData);
+          const data = exportCard.data || {};
           // 世界书名称：优先 extensions.world（buildExportCard 写入位置），其次角色名
-          var worldbookName = (data.extensions && data.extensions.world) || data.world || exportCard.name || cardData.name;
-          var entries = (data.character_book && data.character_book.entries) || [];
+          const worldbookName = (data.extensions && data.extensions.world) || data.world || exportCard.name || cardData.name;
+          const entries = (data.character_book && data.character_book.entries) || [];
 
           // MVU 系统检测（与 buildExportCard 内部判定保持一致）
-          var filledForMvu = entries.some(function(e) {
+          const filledForMvu = entries.some(function(e) {
             return isMVUEntry(e.comment || '');
           });
-          var hasMVU = !!(filledForMvu || entries.some(function(e) {
-            var c = (e.comment || '').toLowerCase();
+          const hasMVU = !!(filledForMvu || entries.some(function(e) {
+            const c = (e.comment || '').toLowerCase();
             return c.indexOf('[initvar]') >= 0 || c.indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量列表') >= 0 || (e.comment || '').indexOf('变量输出格式') >= 0;
           }));
 
           // 提取角色名列表（用于状态栏 HTML 生成）
-          var charNames = extractCharNames(cardData, (cardData.character_book || {}).entries || []);
+          const charNames = extractCharNames(cardData, (cardData.character_book || {}).entries || []);
 
           // ===== 步骤1：创建或获取角色卡 =====
           await _tavernCreateOrGet(cardData.name);
@@ -16852,10 +17304,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // 4b. 写入变量结构 zod schema 脚本
             // ⚠️优先使用 AI 在 MVU Tab 按 9.1.5/9.1.6 工作流生成的变量结构脚本；
             //   若 AI 未生成，则从 [InitVar] 条目内容兜底生成（保证导出到酒馆不缺 schema）
-            var existingScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
-            var aiSchemaScript = null;
-            for (var _si = 0; _si < existingScripts.length; _si++) {
-              var _ss = existingScripts[_si];
+            const existingScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+            let aiSchemaScript = null;
+            for (let _si = 0; _si < existingScripts.length; _si++) {
+              const _ss = existingScripts[_si];
               if (!_ss) continue;
               if (_ss.id === 'mvu-schema' || String(_ss.name || '').indexOf('变量结构') >= 0 ||
                 String(_ss.content || '').indexOf('mvu_zod') >= 0) {
@@ -16863,27 +17315,27 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 break;
               }
             }
-            var schemaContent = '';
+            let schemaContent = '';
             if (aiSchemaScript && aiSchemaScript.content && String(aiSchemaScript.content).indexOf('z.object') >= 0) {
               schemaContent = aiSchemaScript.content;
             } else {
-              var initVarEntry = entries.filter(function(e) {
+              const initVarEntry = entries.filter(function(e) {
                 return (e.comment || '').toLowerCase().indexOf('[initvar]') >= 0;
               })[0];
-              var schemaInitContent = initVarEntry ? (initVarEntry.content || '') : '';
+              const schemaInitContent = initVarEntry ? (initVarEntry.content || '') : '';
               schemaContent = generateMvuSchemaScript(schemaInitContent);
             }
             await _tavernWriteMvuSchema(cardData.name, schemaContent);
             // 4c. 写入正则脚本（5条固定正则1-5 + 1条正则6状态栏HTML）
             // ⚠️优先使用 AI 在 MVU Tab 按 9.1.6 工作流生成的状态栏 HTML；若 AI 未生成，才用默认状态栏兜底（保证不空）
-            var statusBarHtml = '';
+            let statusBarHtml = '';
             // 4c-1. 检查 cardData 中是否已保存 AI 生成的状态栏正则（来自 saveStatusBarToCard）
-            var existingRx = (cardData.extensions && cardData.extensions.regex_scripts) || [];
-            var customSb = null;
-            for (var si = 0; si < existingRx.length; si++) {
-              var rxs = existingRx[si];
+            const existingRx = (cardData.extensions && cardData.extensions.regex_scripts) || [];
+            let customSb = null;
+            for (let si = 0; si < existingRx.length; si++) {
+              const rxs = existingRx[si];
               if (!rxs) continue;
-              var isSb = (rxs.id === 'mvu-status-bar') ||
+              const isSb = (rxs.id === 'mvu-status-bar') ||
                 ((rxs.findRegex || rxs.find_regex || '').indexOf('StatusPlaceHolder') >= 0 &&
                   (rxs.markdownOnly || (rxs.destination && rxs.destination.display)) &&
                   !(rxs.promptOnly || (rxs.destination && rxs.destination.prompt)));
@@ -16921,7 +17373,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           }
 
-          var mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构脚本+世界书条目+正则1-5+正则6状态栏+开场白占位符）' : '';
+          const mvuTip = hasMVU ? '（MVU变量系统已写入：bundle.js+变量结构脚本+世界书条目+正则1-5+正则6状态栏+开场白占位符）' : '';
           showToast('✅ 角色卡已成功写入酒馆' + mvuTip, 'success');
         } catch (e) {
           console.error('[时之写卡器] 写入酒馆失败:', e);
@@ -16949,20 +17401,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ============================================================================
   // ⚠️保存事件注销句柄：pagehide 时用 eventOff 注销框架事件总线上的监听（tavern-helper 规范），
   // 防止脚本重载后旧 handler 残留导致重复触发/旧闭包复活
-  var _btnEvtOff = null;
+  let _btnEvtOff = null;
 
   function registerButton() {
     try {
-      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
+      const evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
+      const getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
-        var handler = function() {
+        const handler = function() {
           openEditor();
         };
         evtOn(getBtnEvt('时之写卡器'), handler);
         // 若框架提供 eventOff，保存句柄供卸载时注销
         try {
-          var evtOff = typeof eventOff === 'function' ? eventOff : (typeof window.eventOff === 'function' ? window.eventOff : null);
+          const evtOff = typeof eventOff === 'function' ? eventOff : (typeof window.eventOff === 'function' ? window.eventOff : null);
           if (evtOff) _btnEvtOff = function() {
             try {
               evtOff(getBtnEvt('时之写卡器'), handler);
@@ -16971,16 +17423,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         } catch (_e2) {}
         return true;
       }
-    } catch (e) {}
+    } catch (e) { logWarn("registerButton", e); }
     return false;
   }
 
   function addFloatingButton() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var old = pDoc.getElementById(SCRIPT_ID + '-btn');
+      const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      const old = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (old) old.remove();
-      var btn = pDoc.createElement('button');
+      const btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '⚡ 时之写卡器';
       btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:all .3s;font-size:14px;';
@@ -17002,34 +17454,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // SECTION 11.5 动态悬浮图标（借鉴"狐神撫"悬浮宠物：呼吸动画·拖拽·位置记忆·缩放·右键菜单）
   // ============================================================================
   // 悬浮图标：jsDelivr 固定 commit 链接，永久有效（原图 384×580 竖版全身图）
-  var FLOAT_ICON_URL = 'https://cdn.jsdelivr.net/gh/Neohero521/Messy@3eeb1ac14e65bd33330b3fd38abf04f5c82939c0/mmexport1788704514544.webp';
-  var FLOAT_ICON_KEY = 'szxq_float_icon_v1';
-  var FLOAT_ICON_BASE = 64; // 100%缩放时的图标宽度(px)
-  var FLOAT_ICON_RATIO = 580 / 384; // 图标宽高比（384×580），高度=宽度×此值
-  var _floatIconCleanups = []; // 卸载清理句柄（DOM移除 + 父页面监听器注销）
-  var _floatIconActive = false; // 悬浮图标是否挂载成功（成功后旧兜底按钮不再叠加）
+  const FLOAT_ICON_URL = 'https://cdn.jsdelivr.net/gh/Neohero521/Messy@3eeb1ac14e65bd33330b3fd38abf04f5c82939c0/mmexport1788704514544.webp';
+  const FLOAT_ICON_KEY = 'szxq_float_icon_v1';
+  const FLOAT_ICON_BASE = 64; // 100%缩放时的图标宽度(px)
+  const FLOAT_ICON_RATIO = 580 / 384; // 图标宽高比（384×580），高度=宽度×此值
+  const _floatIconCleanups = []; // 卸载清理句柄（DOM移除 + 父页面监听器注销）
+  let _floatIconActive = false; // 悬浮图标是否挂载成功（成功后旧兜底按钮不再叠加）
 
   function addDynamicFloatIcon() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var pWin = (window.parent && window.parent.document) ? window.parent : window;
+      const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      const pWin = (window.parent && window.parent.document) ? window.parent : window;
       // ---- 去重：脚本重载时清掉旧实例 ----
       ['float-icon', 'float-menu', 'float-style'].forEach(function(suffix) {
-        var old = pDoc.getElementById(SCRIPT_ID + '-' + suffix);
+        const old = pDoc.getElementById(SCRIPT_ID + '-' + suffix);
         if (old) old.remove();
       });
 
       // ---- 设置状态（位置/缩放/动画开关，localStorage持久化） ----
-      var st = {
+      const st = {
         posX: null,
         posY: null,
         scale: 100,
         animEnabled: true
       };
       try {
-        var rawFi = localStorage.getItem(FLOAT_ICON_KEY);
+        const rawFi = localStorage.getItem(FLOAT_ICON_KEY);
         if (rawFi) {
-          var dFi = JSON.parse(rawFi);
+          const dFi = JSON.parse(rawFi);
           if (dFi) {
             if (typeof dFi.scale === 'number') st.scale = Math.max(40, Math.min(160, dFi.scale));
             if (dFi.animEnabled !== undefined) st.animEnabled = !!dFi.animEnabled;
@@ -17051,7 +17503,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ---- 注入样式（图标 + 右键菜单，深色玻璃风，z-index低于弹窗99999） ----
-      var styleEl = pDoc.createElement('style');
+      const styleEl = pDoc.createElement('style');
       styleEl.id = SCRIPT_ID + '-float-style';
       styleEl.textContent = '' +
         '#' + SCRIPT_ID + '-float-icon{position:fixed;z-index:99990;width:64px;height:97px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}' +
@@ -17075,13 +17527,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       pDoc.head.appendChild(styleEl);
 
       // ---- 悬浮图标（wrap=定位层/拖拽热区，anim=呼吸动画层，img=图标本体） ----
-      var wrap = pDoc.createElement('div');
+      const wrap = pDoc.createElement('div');
       wrap.id = SCRIPT_ID + '-float-icon';
       wrap.title = '时之写卡器 · 单击打开 / 拖拽移动 / 右键菜单 / 滚轮缩放';
       wrap.setAttribute('aria-label', '时之写卡器悬浮图标');
-      var animLayer = pDoc.createElement('div');
+      const animLayer = pDoc.createElement('div');
       animLayer.className = 'szxq-fi-anim';
-      var img = pDoc.createElement('img');
+      const img = pDoc.createElement('img');
       img.alt = '时之写卡器';
       img.draggable = false;
       img.referrerPolicy = 'no-referrer';
@@ -17090,7 +17542,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       wrap.appendChild(animLayer);
 
       // ---- 右键菜单 ----
-      var menu = pDoc.createElement('div');
+      const menu = pDoc.createElement('div');
       menu.id = SCRIPT_ID + '-float-menu';
       menu.setAttribute('role', 'menu');
       menu.innerHTML = '' +
@@ -17104,20 +17556,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '<div class="szxq-fm-divider"></div>' +
         '<button class="szxq-fm-item" data-action="reset-pos"><span>📍</span> 重置位置</button>' +
         '<button class="szxq-fm-item danger" data-action="hide"><span>✕</span> 隐藏图标（刷新后恢复）</button>';
-      var slider = menu.querySelector('input[type=range]');
-      var scaleVal = menu.querySelector('.szxq-fm-val');
-      var animStateLabel = menu.querySelector('.szxq-fi-state');
+      const slider = menu.querySelector('input[type=range]');
+      const scaleVal = menu.querySelector('.szxq-fm-val');
+      const animStateLabel = menu.querySelector('.szxq-fi-state');
 
       pDoc.body.appendChild(wrap);
       pDoc.body.appendChild(menu);
 
       // ---- 位置/缩放应用（含视口钳制） ----
-      var baseH = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO); // 默认高度兜底（布局未就绪时）
+      const baseH = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO); // 默认高度兜底（布局未就绪时）
       function applyPosition() {
-        var w = pWin.innerWidth || pDoc.documentElement.clientWidth || 0;
-        var h = pWin.innerHeight || pDoc.documentElement.clientHeight || 0;
-        var bw = wrap.offsetWidth || FLOAT_ICON_BASE;
-        var bh = wrap.offsetHeight || baseH;
+        const w = pWin.innerWidth || pDoc.documentElement.clientWidth || 0;
+        const h = pWin.innerHeight || pDoc.documentElement.clientHeight || 0;
+        const bw = wrap.offsetWidth || FLOAT_ICON_BASE;
+        const bh = wrap.offsetHeight || baseH;
         if (st.posX == null || st.posY == null) {
           st.posX = w - bw - 24;
           st.posY = h - bh - 96;
@@ -17129,9 +17581,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function applyScale() {
-        var s = st.scale / 100;
-        var w = Math.round(FLOAT_ICON_BASE * s);
-        var h = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO * s); // 384×580 竖版全身图，高度按比例
+        const s = st.scale / 100;
+        const w = Math.round(FLOAT_ICON_BASE * s);
+        const h = Math.round(FLOAT_ICON_BASE * FLOAT_ICON_RATIO * s); // 384×580 竖版全身图，高度按比例
         wrap.style.width = w + 'px';
         wrap.style.height = h + 'px';
         applyPosition();
@@ -17150,10 +17602,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function showMenu(x, y) {
         menu.style.display = 'flex';
-        var r = menu.getBoundingClientRect();
-        var w = pWin.innerWidth,
+        const r = menu.getBoundingClientRect();
+        const w = pWin.innerWidth,
           h = pWin.innerHeight;
-        var l = x,
+        let l = x,
           t = y;
         if (l + r.width > w - 8) l = Math.max(8, w - r.width - 8);
         if (t + r.height > h - 8) t = Math.max(8, h - r.height - 8);
@@ -17168,11 +17620,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ---- 拖拽 + 单击打开（位移<4px视为单击；拖拽期间暂停呼吸动画避免transform冲突） ----
-      var drag = null;
+      let drag = null;
 
       function onDown(e) {
         if (e.button === 2) return; // 右键留给菜单
-        var rect = wrap.getBoundingClientRect();
+        const rect = wrap.getBoundingClientRect();
         drag = {
           ox: e.clientX - rect.left,
           oy: e.clientY - rect.top,
@@ -17188,9 +17640,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function onMove(e) {
         if (!drag) return;
         if (Math.abs(e.clientX - drag.sx) > 4 || Math.abs(e.clientY - drag.sy) > 4) drag.moved = true;
-        var w = pWin.innerWidth,
+        const w = pWin.innerWidth,
           h = pWin.innerHeight;
-        var bw = wrap.offsetWidth || FLOAT_ICON_BASE,
+        const bw = wrap.offsetWidth || FLOAT_ICON_BASE,
           bh = wrap.offsetHeight || baseH;
         st.posX = Math.max(4, Math.min(w - bw - 4, e.clientX - drag.ox));
         st.posY = Math.max(4, Math.min(h - bh - 4, e.clientY - drag.oy));
@@ -17200,7 +17652,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       function onUp() {
         if (!drag) return;
-        var wasClick = !drag.moved;
+        const wasClick = !drag.moved;
         drag = null;
         wrap.classList.remove('szxq-fi-dragging');
         applyAnim(); // 恢复呼吸动画
@@ -17248,9 +17700,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ---- 菜单项交互 ----
       menu.addEventListener('click', function(e) {
-        var item = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+        const item = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
         if (!item) return;
-        var act = item.getAttribute('data-action');
+        const act = item.getAttribute('data-action');
         if (act === 'open') {
           hideMenu();
           try {
@@ -17280,9 +17732,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         saveFi();
       });
 
-      // ---- 视口变化时钳制位置 ----
+      // ---- 视口变化时钳制位置（节流，避免拖拽分屏/移动端地址栏伸缩时高频重排）----
+      let _resizeThrottleTimer = null;
       function onResize() {
-        applyPosition();
+        if (_resizeThrottleTimer) return;
+        _resizeThrottleTimer = setTimeout(function() {
+          _resizeThrottleTimer = null;
+          applyPosition();
+        }, CONFIG.RESIZE_THROTTLE_MS);
       }
       pWin.addEventListener('resize', onResize);
 
@@ -17312,8 +17769,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
   }
 
-  var retryCount = 0;
-  var _initRetryTimer = null; // ⚠️保存重试定时器句柄：pagehide 时取消，防止卸载后浮动按钮"复活"
+  let retryCount = 0;
+  let _initRetryTimer = null; // ⚠️保存重试定时器句柄：pagehide 时取消，防止卸载后浮动按钮"复活"
   function tryInit() {
     if (registerButton()) {
       return;
@@ -17348,10 +17805,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       // ⚠️修复（卸载清理不完整）：释放 window.__* 编辑器访问器（持有整份 cardData + 双Tab聊天历史）
       _releaseEditorGlobals();
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var btn = pDoc.getElementById(SCRIPT_ID + '-btn');
+      const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      const btn = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (btn) btn.remove();
-      var md = pDoc.getElementById(SCRIPT_ID + '-modal');
+      const md = pDoc.getElementById(SCRIPT_ID + '-modal');
       if (md) md.remove();
       // 悬浮图标（SECTION 11.5）：移除DOM + 注销父页面监听器
       while (_floatIconCleanups.length) {
