@@ -39,6 +39,7 @@
     // —— 定时器 / 防抖（毫秒）——
     IFRAME_LOAD_TIMEOUT_MS: 4000,   // iframe 加载超时
     PREVIEW_DEBOUNCE_MS: 80,        // 预览面板刷新防抖
+    INPUT_TOKEN_DEBOUNCE_MS: 150,   // 输入框 token 估算防抖（字数显示仍即时）
     CTX_BAR_DEBOUNCE_MS: 0,         // 上下文操作条合并刷新（0=下一个事件循环即执行，保持即时）
     RESIZE_THROTTLE_MS: 100,        // 视口 resize 节流
     // —— 条目匹配引擎（findEntryMatch）——
@@ -281,6 +282,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .qa-mini:hover:not(:disabled) svg{transform:scale(1.1)}
 .qa-mini:active:not(:disabled){transform:translateY(0) scale(.98)}
 .qa-mini:disabled{opacity:.4;cursor:not-allowed}
+/* 常驻指令组：继续/重做/查看进度（轻量填充样式，与右侧写入/清空区分）*/
+.qa-cmd-sep{flex:1 1 auto;min-width:6px}
+.qa-mini.qa-cmd{margin-left:0;background:var(--surface-soft);font-size:.78em;padding:6px 11px}
+.qa-mini.qa-cmd+.qa-mini.qa-cmd{margin-left:6px}
+#saveBtn{margin-left:10px}
 .chat-input-area{flex-shrink:0;padding:12px 14px;border-top:1px solid var(--line-soft);background:linear-gradient(180deg,var(--surface) 0%,var(--surface) 60%,rgba(79,70,229,.02) 100%)}
 .chat-input-row{display:flex;gap:9px;align-items:flex-end}
 .chat-input{width:100%;padding:11px 15px;background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font-size:14px;resize:none;min-height:44px;max-height:140px;font-family:inherit;line-height:1.55;transition:border-color .25s cubic-bezier(.4,0,.2,1),box-shadow .25s cubic-bezier(.4,0,.2,1),background .2s;box-shadow:inset 0 1px 3px rgba(15,23,42,.03);overflow-y:auto}
@@ -352,6 +358,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-entry-del{flex-shrink:0;display:none;align-items:center;justify-content:center;width:20px;height:20px;border:none;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:0;margin-left:2px}
 .pv-section .pv-entry summary:hover .pv-entry-del{display:inline-flex}
 .pv-entry-del:hover{background:var(--terra-soft);color:var(--terra-text)}
+/* —— 预览-世界书：搜索/筛选/批量操作工具条 —— */
+.pv-filter-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 2px 8px}
+.pv-f-search{flex:1 1 140px;min-width:120px;padding:5px 10px;font-size:.78em;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink)}
+.pv-f-search:focus{outline:none;border-color:var(--accent-border);box-shadow:0 0 0 2px var(--accent-soft)}
+.pv-f-kind,.pv-f-group{padding:5px 8px;font-size:.76em;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-soft);cursor:pointer;max-width:130px}
+.pv-f-batch{padding:5px 12px;font-size:.76em;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .18s;flex-shrink:0}
+.pv-f-batch:hover{border-color:var(--accent-border);color:var(--accent-deep)}
+.pv-f-batch.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pv-batch-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;margin:0 0 8px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:var(--radius-sm);font-size:.76em}
+.pv-batch-bar button{padding:4px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink-soft);cursor:pointer;font-size:1em;transition:all .15s}
+.pv-batch-bar button:hover{border-color:var(--accent-border);color:var(--accent-deep)}
+.pv-batch-bar button.danger{color:var(--terra-text)}
+.pv-batch-bar button.danger:hover{background:var(--terra-soft);border-color:var(--terra-text)}
+.pv-batch-bar select{padding:3px 6px;font-size:1em;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink-soft)}
+.pv-batch-all{display:inline-flex;align-items:center;gap:4px;color:var(--ink-soft);cursor:pointer;font-weight:600}
+.pv-batch-count{margin-left:auto;color:var(--muted);white-space:nowrap}
+.pv-batch-check{flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:var(--accent);margin:0 4px 0 2px}
+.pv-entry.selected{border-left-color:var(--accent);background:var(--accent-soft)}
+.pv-tag.grp{background:var(--sage-soft-strong);color:var(--sage-text)}
 .pv-section .pv-entry .pv-entry-body{padding:0 12px 10px 12px}
 .pv-section .pv-entry-content{font-size:.82em;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;line-height:1.65}
 /* 合并 diff 闪光：新增=绿，更新=琥珀；3.2s 淡出，仅提示不打扰 */
@@ -9803,7 +9828,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '</div>' +
           '<div class="chat-input-foot">' +
           '<span class="chat-input-hint" id="chatInputHint"><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 发送 · <span class="kbd">Enter</span> 换行</span>' +
-          '<span class="chat-input-char-count" id="charCount">0 / 2000</span>' +
+          '<span class="chat-input-char-count" id="charCount">0 字 / 2000</span>' +
           '</div>' +
           '</div>' +
           '</div>' +
@@ -10971,15 +10996,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       }
 
+      let _inputTokenTimer = null;
       function updateCharCount() {
         const input = doc.getElementById('chatInput');
         const cnt = doc.getElementById('charCount');
         if (!input || !cnt) return;
         const len = input.value.length;
-        cnt.textContent = len + ' / 2000';
+        // 字数即时刷新（O(1)）；token 估算走正则分词，按键高频触发时 150ms 防抖
+        cnt.setAttribute('data-chars', String(len));
+        cnt.textContent = len + ' 字 / 2000';
         cnt.className = 'chat-input-char-count';
         if (len > 1500) cnt.classList.add('warn');
         if (len > 1900) cnt.classList.add('over');
+        if (_inputTokenTimer) clearTimeout(_inputTokenTimer);
+        _inputTokenTimer = setTimeout(function() {
+          _inputTokenTimer = null;
+          const input2 = doc.getElementById('chatInput');
+          const cnt2 = doc.getElementById('charCount');
+          if (!input2 || !cnt2) return;
+          const chars = Number(cnt2.getAttribute('data-chars') || '0');
+          if (!chars) {
+            cnt2.textContent = '0 字 / 2000';
+            return;
+          }
+          cnt2.textContent = chars + ' 字 · ~' + countTokens(input2.value) + 'T / 2000';
+        }, CONFIG.INPUT_TOKEN_DEBOUNCE_MS);
       }
 
       function updateSendBtnPulse() {
@@ -11866,6 +11907,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           const ariaLabel = a.title ? (' aria-label="' + a.title.replace(/"/g, '&quot;') + '"') : '';
           h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '"' + titleAttr + ariaLabel + '>' + icHtml + a.label + '</button>';
         });
+        // 常驻指令组（两 Tab 通用）：继续 / 重做上一条 / 查看进度
+        h += '<span class="qa-cmd-sep"></span>';
+        h += '<button class="qa-mini qa-cmd" data-action="continue" title="一键发送「继续」，让AI接着上一步输出">' + svgIcon('play', 13) + ' 继续</button>';
+        h += '<button class="qa-mini qa-cmd" data-action="redo" title="撤销并重新生成最后一条AI回复（自动回滚该次卡片修改）">' + svgIcon('refreshCycle', 13) + ' 重做</button>';
+        h += '<button class="qa-mini qa-cmd" data-action="summary" title="让AI梳理当前已完成内容、缺口与下一步">' + svgIcon('gauge', 13) + ' 查看进度</button>';
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
@@ -11873,6 +11919,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const btns = qa.querySelectorAll('.quick-btn');
         for (let i = 0; i < btns.length; i++) {
           btns[i].addEventListener('click', function() {
+            handleQuickAction(this.getAttribute('data-action'));
+          });
+        }
+        // 常驻指令按钮绑定
+        const cmdBtns = qa.querySelectorAll('.qa-cmd');
+        for (let ci2 = 0; ci2 < cmdBtns.length; ci2++) {
+          cmdBtns[ci2].addEventListener('click', function() {
             handleQuickAction(this.getAttribute('data-action'));
           });
         }
@@ -12010,6 +12063,39 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           updateQuickActions();
           updateCtxBar();
           showToast('✅ 已清除状态栏正则，可重新生成', 'success');
+          return;
+        }
+
+        // 通用快捷指令（两个 Tab 通用）：继续 / 重做最后一条AI回复
+        if (action === 'continue') {
+          if (isGenerating) {
+            showToast('AI正在处理中，请稍候再点「继续」', 'warning');
+            return;
+          }
+          if (input) {
+            input.value = '继续';
+            handleSend();
+          }
+          return;
+        }
+        if (action === 'redo') {
+          if (isGenerating) {
+            showToast('AI正在处理中，请稍候再点「重做」', 'warning');
+            return;
+          }
+          const msgs = getCurrentMessages();
+          let lastAi = -1;
+          for (let ri = msgs.length - 1; ri >= 0; ri--) {
+            if (msgs[ri].role === 'assistant') {
+              lastAi = ri;
+              break;
+            }
+          }
+          if (lastAi < 0) {
+            showToast('当前还没有AI回复可以重做', 'info');
+            return;
+          }
+          regenerateAIMessage(lastAi);
           return;
         }
 
@@ -16528,6 +16614,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         upd: {},
         ts: 0
       };
+      // ===== 世界书条目搜索/筛选/批量操作状态（预览面板重建后仍保留）=====
+      // kind: all=全部 / constant=常驻 / triggered=关键词触发 / off=已禁用；group 取 e.extensions.group
+      const _pvFilter = {
+        q: '',
+        kind: 'all',
+        group: '',
+        batch: false,
+        selected: {}
+      };
+      let _pvSearchHadFocus = false;
       function _snapshotEntries() {
         const arr = (cardData.character_book && cardData.character_book.entries) || [];
         try {
@@ -16817,28 +16913,95 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           bookTokCount += countTokens(e.content || '');
         });
 
-        // 世界书条目：完整显示全部条目，每个条目独立折叠（默认折叠）
+        // 世界书条目：搜索/筛选 + 批量操作工具条，每个条目独立折叠（默认折叠）
         if (entries.length > 0) {
-          let eH = '<div class="pv-entry-list">';
-          for (var i = 0; i < entries.length; i++) {
-            var e = entries[i];
+          // —— 收集分组（e.extensions.group）——
+          const groupSet = {};
+          entries.forEach(function(e) {
+            const g = (e.extensions && e.extensions.group) || '';
+            if (g) groupSet[g] = 1;
+          });
+          const groupNames = Object.keys(groupSet).sort();
+          const optSel = function(v) {
+            return _pvFilter.group === v ? ' selected' : '';
+          };
+          const kindSel = function(v) {
+            return _pvFilter.kind === v ? ' selected' : '';
+          };
+          // —— 工具条 ——
+          let barH = '<div class="pv-filter-bar">';
+          barH += '<input type="search" class="pv-f-search" placeholder="搜索条目名 / 内容…" value="' + escHtml(_pvFilter.q) + '" aria-label="搜索世界书条目">';
+          barH += '<select class="pv-f-kind" aria-label="按启用方式筛选"><option value="all"' + kindSel('all') + '>全部</option><option value="constant"' + kindSel('constant') + '>常驻</option><option value="triggered"' + kindSel('triggered') + '>关键词触发</option><option value="off"' + kindSel('off') + '>已禁用</option></select>';
+          barH += '<select class="pv-f-group" aria-label="按分组筛选"' + (groupNames.length ? '' : ' disabled') + '><option value="">全部分组</option>';
+          groupNames.forEach(function(g) {
+            barH += '<option value="' + escHtml(g) + '"' + optSel(g) + '>' + escHtml(g) + '</option>';
+          });
+          barH += '</select>';
+          barH += '<button type="button" class="pv-f-batch' + (_pvFilter.batch ? ' on' : '') + '" data-pv-batch-toggle title="进入批量选择模式，可批量启用/禁用/删除/改分组">' + (_pvFilter.batch ? '退出批量' : '批量操作') + '</button>';
+          barH += '</div>';
+          // —— 批量操作条 ——
+          if (_pvFilter.batch) {
+            const selCount = Object.keys(_pvFilter.selected).length;
+            barH += '<div class="pv-batch-bar">';
+            barH += '<label class="pv-batch-all"><input type="checkbox" data-pv-check-all' + (selCount > 0 ? ' checked' : '') + '> 全选当前结果</label>';
+            barH += '<button type="button" data-pv-batch-act="enable">启用</button>';
+            barH += '<button type="button" data-pv-batch-act="disable">禁用</button>';
+            barH += '<select data-pv-batch-group aria-label="批量修改分组"><option value="">改分组…</option><option value="__none__">（移出分组）</option>';
+            groupNames.forEach(function(g) {
+              barH += '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>';
+            });
+            barH += '</select>';
+            barH += '<button type="button" class="danger" data-pv-batch-act="delete">删除</button>';
+            barH += '<span class="pv-batch-count">已选 <b data-pv-sel-count>' + selCount + '</b> 条</span>';
+            barH += '</div>';
+          }
+          // —— 过滤 ——
+          const fq = _pvFilter.q.trim().toLowerCase();
+          const fk = _pvFilter.kind;
+          const fg = _pvFilter.group;
+          const shown = entries.filter(function(e) {
+            if (fk === 'constant' && !e.constant) return false;
+            if (fk === 'triggered' && (e.constant || e.enabled === false)) return false;
+            if (fk === 'off' && e.enabled !== false) return false;
+            const g = (e.extensions && e.extensions.group) || '';
+            if (fg && g !== fg) return false;
+            if (fq) {
+              const hay = ((e.comment || '') + '\n' + (e.content || '')).toLowerCase();
+              if (hay.indexOf(fq) < 0) return false;
+            }
+            return true;
+          });
+          let eH = barH + '<div class="pv-entry-list">';
+          if (!shown.length) {
+            eH += '<div class="pv-empty">没有匹配的条目</div>';
+          }
+          for (var i = 0; i < shown.length; i++) {
+            var e = shown[i];
             const label = e.comment || ('条目' + (i + 1));
             var eTok = countTokens(e.content || '');
             const constTag = e.constant ? '<span class="pv-tag ok">常驻</span>' : '<span class="pv-tag">触发</span>';
             const posTag = '<span class="pv-tag">P' + (e.position == null ? '-' : e.position) + '</span>';
             const depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
             var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-            eH += '<details class="pv-entry" data-pv-comment="' + escHtml(label) + '"><summary>' +
+            const grp = (e.extensions && e.extensions.group) || '';
+            const grpTag = grp ? '<span class="pv-tag grp">' + escHtml(grp) + '</span>' : '';
+            const checkBox = _pvFilter.batch ?
+              ('<input type="checkbox" class="pv-batch-check" data-pv-check-comment="' + escHtml(label) + '" title="选择该条目"' + (_pvFilter.selected[label] ? ' checked' : '') + '>') : '';
+            eH += '<details class="pv-entry' + (_pvFilter.selected[label] ? ' selected' : '') + '" data-pv-comment="' + escHtml(label) + '"><summary>' +
+              checkBox +
               '<span class="pv-entry-summary-main">' + escHtml(label) + '</span>' +
               '<span class="pv-entry-summary-tags">' +
-              '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + disabledTag + '</span>' +
-              '<button type="button" class="pv-entry-del" data-pv-entry-del data-entry-idx="' + allEntries.indexOf(e) + '" title="删除该条目">🗑</button>' +
+              '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + grpTag + disabledTag + '</span>' +
+              '<button type="button" class="pv-entry-del" data-pv-entry-del data-entry-comment="' + escHtml(label) + '" title="删除该条目">🗑</button>' +
               '</span>' +
               '</summary>' +
               '<div class="pv-entry-body"><div class="pv-entry-content pv-editable" data-edit-type="entry" data-edit-index="' + allEntries.indexOf(e) + '">' + escHtml(e.content || '') + '</div></div></details>';
           }
           eH += '</div>';
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + eH + '</div>';
+          const countTxt = shown.length === entries.length ?
+            (entries.length + '条 · ~' + bookTokCount + 'T') :
+            ('匹配 ' + shown.length + '/' + entries.length + '条 · ~' + bookTokCount + 'T');
+          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + countTxt + '</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + eH + '</div>';
         } else {
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('book', 14) + ' <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="pv-toggle"></span></h3><div class="pv-empty">待生成...</div></div>';
         }
@@ -17082,12 +17245,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               return;
             }
             const rawIdx = this.getAttribute('data-entry-idx');
-            const idx = parseInt(rawIdx);
-            if (rawIdx == null || isNaN(idx)) {
-              showToast('⚠️ 无法确定要删除的条目索引', 'warning');
+            const comment = this.getAttribute('data-entry-comment');
+            const allEntries = (cardData.character_book || {}).entries || [];
+            let idx = -1;
+            if (comment != null) {
+              // 筛选视图下索引会漂移，优先按 comment 精确定位
+              for (let fi2 = 0; fi2 < allEntries.length; fi2++) {
+                if ((allEntries[fi2].comment || '') === comment) {
+                  idx = fi2;
+                  break;
+                }
+              }
+            } else {
+              idx = parseInt(rawIdx);
+            }
+            if (isNaN(idx) || idx < 0) {
+              showToast('⚠️ 无法确定要删除的条目', 'warning');
               return;
             }
-            const allEntries = (cardData.character_book || {}).entries || [];
             const en = allEntries[idx];
             if (!en) {
               showToast('⚠️ 未找到该条目，可能已被删除', 'warning');
@@ -17097,10 +17272,178 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!window.confirm('确认删除该条目吗？\n\n条目：' + name + '\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
             // 这里用 allEntries 里的真实引用直接 splice 掉
             allEntries.splice(idx, 1);
+            delete _pvFilter.selected[name];
             updateProgress();
             renderPreview();
             saveToStorage();
             showToast('🗑️ 已删除条目：' + name, 'success');
+          });
+        }
+        // ========== 世界书：搜索/筛选/批量操作（每次重建后重绑，状态存于 _pvFilter）==========
+        const fSearch = body.querySelector('.pv-f-search');
+        if (fSearch) {
+          fSearch.addEventListener('focus', function() {
+            _pvSearchHadFocus = true;
+          });
+          fSearch.addEventListener('blur', function() {
+            _pvSearchHadFocus = false;
+          });
+          fSearch.addEventListener('input', function() {
+            _pvFilter.q = this.value;
+            renderPreview();
+            _pvSearchHadFocus = true; // 重建后恢复焦点
+          });
+          if (_pvSearchHadFocus) {
+            try {
+              fSearch.focus();
+              const vlen = fSearch.value.length;
+              fSearch.setSelectionRange(vlen, vlen);
+            } catch (_) {}
+          }
+        }
+        const fKind = body.querySelector('.pv-f-kind');
+        if (fKind) {
+          fKind.addEventListener('change', function() {
+            _pvFilter.kind = this.value;
+            renderPreview();
+          });
+        }
+        const fGroup = body.querySelector('.pv-f-group');
+        if (fGroup) {
+          fGroup.addEventListener('change', function() {
+            _pvFilter.group = this.value;
+            renderPreview();
+          });
+        }
+        const batchToggle = body.querySelector('[data-pv-batch-toggle]');
+        if (batchToggle) {
+          batchToggle.addEventListener('click', function() {
+            _pvFilter.batch = !_pvFilter.batch;
+            if (!_pvFilter.batch) _pvFilter.selected = {};
+            renderPreview();
+          });
+        }
+        // 条目勾选（checkbox 在 summary 内，必须阻止冒泡否则会折叠 details）
+        const batchChecks = body.querySelectorAll('.pv-batch-check[data-pv-check-comment]');
+        for (let bci = 0; bci < batchChecks.length; bci++) {
+          batchChecks[bci].addEventListener('click', function(ev) {
+            ev.stopPropagation();
+          });
+          batchChecks[bci].addEventListener('change', function() {
+            const c = this.getAttribute('data-pv-check-comment');
+            if (this.checked) _pvFilter.selected[c] = 1;
+            else delete _pvFilter.selected[c];
+            const de = this.closest('.pv-entry');
+            if (de) de.classList.toggle('selected', !!this.checked);
+            const cntEl = body.querySelector('[data-pv-sel-count]');
+            if (cntEl) cntEl.textContent = String(Object.keys(_pvFilter.selected).length);
+          });
+        }
+        // 全选当前过滤结果
+        const checkAll = body.querySelector('[data-pv-check-all]');
+        if (checkAll) {
+          checkAll.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+          });
+          checkAll.addEventListener('change', function() {
+            const checks = body.querySelectorAll('.pv-batch-check[data-pv-check-comment]');
+            for (let cai = 0; cai < checks.length; cai++) {
+              checks[cai].checked = this.checked;
+              const c = checks[cai].getAttribute('data-pv-check-comment');
+              if (this.checked) _pvFilter.selected[c] = 1;
+              else delete _pvFilter.selected[c];
+              const de = checks[cai].closest('.pv-entry');
+              if (de) de.classList.toggle('selected', this.checked);
+            }
+            const cntEl = body.querySelector('[data-pv-sel-count]');
+            if (cntEl) cntEl.textContent = String(Object.keys(_pvFilter.selected).length);
+          });
+        }
+        // 批量动作：启用/禁用/删除/改分组（按 comment 命中，MVU 条目不受角色卡批量操作影响）
+        const batchActs = body.querySelectorAll('[data-pv-batch-act]');
+        const runBatch = function(act) {
+          if (isGenerating) {
+            showToast('AI正在生成中，请等待完成后再批量操作', 'warning');
+            return;
+          }
+          const allEnt = (cardData.character_book || {}).entries || [];
+          const targets = allEnt.filter(function(en) {
+            return !isMVUEntry(en.comment || '') && _pvFilter.selected[en.comment || ''];
+          });
+          if (!targets.length) {
+            showToast('请先勾选要操作的条目', 'warning');
+            return;
+          }
+          if (act === 'delete') {
+            if (!window.confirm('确认删除勾选的 ' + targets.length + ' 个条目吗？\n（此操作无法撤回，误删可用头像菜单→撤回AI修改恢复快照）')) return;
+          }
+          let changed = 0;
+          for (let tai = targets.length - 1; tai >= 0; tai--) {
+            const t = targets[tai];
+            if (act === 'enable') {
+              if (t.enabled === false) {
+                t.enabled = true;
+                changed++;
+              }
+            } else if (act === 'disable') {
+              if (t.enabled !== false) {
+                t.enabled = false;
+                changed++;
+              }
+            } else if (act === 'delete') {
+              const di = allEnt.indexOf(t);
+              if (di >= 0) {
+                allEnt.splice(di, 1);
+                delete _pvFilter.selected[t.comment || ''];
+                changed++;
+              }
+            }
+          }
+          if (changed > 0 || act !== 'delete') {
+            updateProgress();
+            saveToStorage();
+            renderPreview();
+            const verb = act === 'enable' ? '启用' : (act === 'disable' ? '禁用' : '删除');
+            if (changed === 0 && act !== 'delete') {
+              showToast('选中的条目已全部是该状态，无需变更', 'info');
+            } else {
+              showToast('已批量' + verb + ' ' + (act === 'enable' || act === 'disable' ? changed : targets.length) + ' 个条目', 'success');
+            }
+          }
+        };
+        for (let bai = 0; bai < batchActs.length; bai++) {
+          batchActs[bai].addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            runBatch(this.getAttribute('data-pv-batch-act'));
+          });
+        }
+        const batchGroupSel = body.querySelector('[data-pv-batch-group]');
+        if (batchGroupSel) {
+          batchGroupSel.addEventListener('change', function() {
+            const val = this.value;
+            this.value = '';
+            if (!val) return;
+            if (isGenerating) {
+              showToast('AI正在生成中，请等待完成后再改分组', 'warning');
+              return;
+            }
+            const allEnt = (cardData.character_book || {}).entries || [];
+            let changed = 0;
+            allEnt.forEach(function(en) {
+              if (!isMVUEntry(en.comment || '') && _pvFilter.selected[en.comment || '']) {
+                en.extensions = en.extensions || {};
+                if (val === '__none__') delete en.extensions.group;
+                else en.extensions.group = val;
+                changed++;
+              }
+            });
+            if (changed > 0) {
+              saveToStorage();
+              renderPreview();
+              showToast('已将 ' + changed + ' 个条目' + (val === '__none__' ? '移出分组' : ('移入分组「' + val + '」')), 'success');
+            } else {
+              showToast('请先勾选要操作的条目', 'warning');
+            }
           });
         }
       }
