@@ -2203,7 +2203,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     let bestKey = null;
     let bestLen = 0;
     for (let i = 0; i < keys.length; i++) {
-      var k = keys[i];
+      const k = keys[i];
       if (comment.indexOf(k) >= 0 && k.length > bestLen) {
         bestKey = k;
         bestLen = k.length;
@@ -2599,6 +2599,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // UI显示分组（基于条目类型，非ST group字段）
   function getDisplayGroup(e) {
+    e = e || {};
     const comment = e.comment || '';
     // 变量系统优先判断（避免被 constant=true 的常驻体系拦截）
     if (isMVUEntry(comment)) return '变量系统';
@@ -4313,10 +4314,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const mvuTypeMap = {}; // type → index in entries
         const indicesToRemove = [];
         for (let ei = 0; ei < cd.character_book.entries.length; ei++) {
-          var e = cd.character_book.entries[ei];
+          const e = cd.character_book.entries[ei];
           if (!e) continue;
-          var cmt = String(e.comment || '');
-          var cnt = String(e.content || '');
+          const cmt = String(e.comment || '');
+          const cnt = String(e.content || '');
           let mvuType = null;
           // 分类 MVU 条目类型（注意：先检查"格式强调"再检查"输出格式"，否则前者会被后者误匹配）
           if (_isInitVarComment(cmt, cnt)) mvuType = 'initvar';
@@ -4358,7 +4359,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         for (let ri = 0; ri < rxList.length; ri++) {
           if (!rxList[ri]) continue;
           const rxr = rxList[ri];
-          var rxFind = (rxr.findRegex || '');
+          const rxFind = (rxr.findRegex || '');
           const hasStatusPH = rxFind.indexOf('StatusPlaceHolder') >= 0 || rxr.id === 'mvu-status-bar';
           if (!hasStatusPH) continue;
           // 区分两类：promptOnly 的是「隐藏占位符」脚本，markdownOnly 且非 promptOnly 的是「美化状态栏」脚本
@@ -4411,7 +4412,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (partial.character && !partial.spec) {
       const ch = partial.character;
       delete partial.character;
-      for (var k in ch) {
+      for (const k in ch) {
         if (ch.hasOwnProperty(k)) partial[k] = ch[k];
       }
     }
@@ -4811,7 +4812,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }
     delete partial._nochange;
 
-    var fields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'creator_notes', 'system_prompt', 'creator', 'character_version', 'alternate_greetings', 'group_only_greetings'];
+    const fields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'creator_notes', 'system_prompt', 'creator', 'character_version', 'alternate_greetings', 'group_only_greetings'];
     fields.forEach(function(f) {
       if (partial[f] !== undefined) {
         const val = partial[f];
@@ -5001,7 +5002,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (partial.extensions) {
       cd.extensions = cd.extensions || {};
       const extProcessedKeys = {}; // 防止与顶层重复处理
-      for (var ek in partial.extensions) {
+      for (const ek in partial.extensions) {
         if (partial.extensions.hasOwnProperty(ek)) {
           if (ek === 'depth_prompt') {
             // 顶层已处理过 depth_prompt（delete partial.depth_prompt 已执行），这里仅当 partial.extensions 有独立配置时处理
@@ -5168,6 +5169,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //      STScript 会在首个换行处截断，后续行被当作新命令解析执行（命令注入面）
   const CALLAI_TIMEOUT_MS = 300000; // 单后端 5 分钟
   function withTimeout(promise, ms, label) {
+    label = label || 'AI调用';
     return new Promise(function(resolve, reject) {
       const timer = setTimeout(function() {
         reject(new Error(label + ' 超时(' + (ms / 1000) + 's)'));
@@ -5345,14 +5347,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return c.indexOf('状态栏') >= 0 && (c.indexOf('占位符') >= 0 || c.indexOf('提醒') >= 0);
     });
     // 第8条检测（状态栏HTML正则）
-    var has8 = rxScripts.some(function(r) {
+    const has8 = rxScripts.some(function(r) {
       return (r.findRegex || '').indexOf('StatusPlaceHolder') >= 0 && r.markdownOnly === true && r.promptOnly !== true;
     });
-    var done = [has1, has2, has3, has4, has5, has6, has7];
-    var doneCount = done.filter(Boolean).length;
-    var all7Done = doneCount === 7;
+    const done = [has1, has2, has3, has4, has5, has6, has7];
+    const doneCount = done.filter(Boolean).length;
+    const all7Done = doneCount === 7;
     const names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
-    var missing = [];
+    const missing = [];
     for (let i = 0; i < 7; i++) {
       if (!done[i]) missing.push(names7[i]);
     }
@@ -5368,6 +5370,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 公共函数：生成"缺失条目提示文本"（供 isSBRequest / start_sb 共用）
   function buildMissingMvuHint(missing) {
+    missing = safeArr(missing);
     const hint = missing.map(function(item, i) {
       return '  ' + (i + 1) + '. ' + item;
     }).join('\n');
@@ -5764,7 +5767,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (cd.description) parts.push('世界观描述(完整' + (cd.description || '').length + '字，不截断)：' + (cd.description || ''));
       if (cd.system_prompt) parts.push('系统指令(完整' + (cd.system_prompt || '').length + '字，不截断)：' + (cd.system_prompt || ''));
       if (cd.first_mes) parts.push('开场白(完整' + (cd.first_mes || '').length + '字，不截断)：' + (cd.first_mes || ''));
-      var entries = (cd.character_book || {}).entries || [];
+      const entries = (cd.character_book || {}).entries || [];
       if (entries.length > 0) {
         // ========== 角色卡Tab：过滤掉MVU相关条目，不让AI看到MVU内容，也禁止它生成 ==========
         const filteredEntries = entries.filter(function(e) {
@@ -5815,7 +5818,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       const failed = qcResults.filter(function(r) {
         return !r.pass;
       });
-      var entries = (cd.character_book || {}).entries || [];
+      const entries = (cd.character_book || {}).entries || [];
       // 角色卡Tab：过滤MVU条目后再统计各模块条目数
       const nonMvuEntries = entries.filter(function(e) {
         const c = (e.comment || '').toLowerCase();
@@ -7006,7 +7009,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i];
       if (!raw.trim() || raw.trim().indexOf('#') === 0) continue;
-      var indent = 0;
+      let indent = 0;
       while (indent < raw.length && (raw[indent] === ' ' || raw[indent] === '\t')) {
         indent += raw[indent] === '\t' ? 2 : 1;
       }
@@ -7038,10 +7041,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         continue;
       }
 
-      var colonIdx = content.indexOf(':');
+      const colonIdx = content.indexOf(':');
       if (colonIdx < 0) continue;
-      var key = content.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
-      var valStr = content.slice(colonIdx + 1).trim();
+      const key = content.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, '');
+      const valStr = content.slice(colonIdx + 1).trim();
 
       if (valStr === '') {
         top.node[key] = {};
@@ -7456,6 +7459,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 简易 YAML 序列化（仅支持 plain object/数组/标量，用于 InitVar 输出）
   function yamlDumpSimple(obj, indent) {
     indent = indent || 0;
+    obj = safeObj(obj);
     const pad = new Array(indent + 1).join(' ');
     const lines = [];
     const keys = Object.keys(obj);
@@ -7997,6 +8001,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 规范化脚本对象（Hr）— 对齐 tavern_helper Script 规范
   function _normalizeScript(s) {
+    s = s || {};
     return {
       type: s.type || 'script',
       enabled: true,
@@ -8136,13 +8141,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // 用代码块包裹 HTML
   function _wrapHtml(html) {
-    const trimmed = html.trim();
+    const trimmed = safeStr(html).trim();
+    if (!trimmed) return '';
     if (/^```/.test(trimmed)) return trimmed;
     return '```html\n' + trimmed + '\n```';
   }
 
   // 转换内部正则格式到 SillyTavern 正则脚本格式（ri）— 对齐 tavern_helper TavernRegex 规范
   function _convertRegexScript(s) {
+    s = s || {};
     const placement = s.placement || [];
     return {
       id: s.id,
@@ -9573,8 +9580,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       let cardMessages = chatSessions.card.messages;
       let mvuMessages = chatSessions.mvu.messages;
       // ★ 向后兼容别名：旧代码各处仍直接引用 messages 变量（importCardData/loadFromStorage等）
-      // 必须保留 var messages 声明，否则会报 "messages is not defined"
-      var messages = chatSessions.card.messages;
+      // let 与原 var 同作用域语义一致（仅无前向提升，本函数声明前无 messages 引用，已核查）
+      let messages = chatSessions.card.messages;
 
       // 当前Tab的messages访问器（根据activeTab返回对应数组）
       function getCurrentMessages() {
@@ -10932,7 +10939,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           exportLogBtn.addEventListener('click', exportChatLogs);
         }
         const qBtns = doc.querySelectorAll('.quick-btn');
-        for (var i = 0; i < qBtns.length; i++) {
+        for (let i = 0; i < qBtns.length; i++) {
           qBtns[i].addEventListener('click', function() {
             const action = this.getAttribute('data-action');
             handleQuickAction(action);
@@ -10940,7 +10947,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // ctx-bar 模块按钮（updateCtxBar 内部已绑定，这里兜底）
         const ctxMods = doc.querySelectorAll('.ctx-mod');
-        for (var cm = 0; cm < ctxMods.length; cm++) {
+        for (let cm = 0; cm < ctxMods.length; cm++) {
           if (!ctxMods[cm].getAttribute('data-bound')) {
             ctxMods[cm].setAttribute('data-bound', '1');
             ctxMods[cm].addEventListener('click', function() {
@@ -10953,7 +10960,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (sbBtn) {
           sbBtn.addEventListener('click', scrollChat);
         }
-        var cm = doc.getElementById('chatMessages');
+        const cm = doc.getElementById('chatMessages');
         if (cm) {
           cm.addEventListener('scroll', function() {
             const btns = doc.getElementById('scrollBtns');
@@ -11396,10 +11403,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // 全局字体缩放：0.85 (最小) ~ 5.0 (最大，接近无限大)，步进0.1
-      var _MIN_FONT_SCALE = 0.85,
+      const _MIN_FONT_SCALE = 0.85,
         _MAX_FONT_SCALE = 5.0,
         _FONT_STEP = 0.1;
-      var _appFontScale = 1;
+      let _appFontScale = 1;
 
       function applyFontScale(scale) {
         if (typeof scale !== 'number' || isNaN(scale)) scale = 1;
@@ -12178,8 +12185,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // 队列模式：callAIChat处理期间，addAssistantMsg的调用改为收集到队列，最后合并为一条消息
-      var _aiChatNotesQueue = [];
-      var _aiChatQueueMode = false;
+      let _aiChatNotesQueue = [];
+      let _aiChatQueueMode = false;
 
       function addAssistantMsg(content) {
         // 队列模式：不立即显示，收集到队列
@@ -12232,8 +12239,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           URL.revokeObjectURL(url);
           showToast('✅ 角色卡JSON已导出（含世界书、正则、脚本，chara_card_v3格式）', 'success');
         } catch (err) {
-          console.error('[exportCardJson] error:', err);
-          showToast('❌ 导出失败：' + (err && err.message ? err.message : '未知错误'), 'error');
+          logError('exportCardJson', err, '❌ 导出失败：' + (err && err.message ? err.message : '未知错误'));
         }
       }
       /* 导出聊天记录和后台记录（调试用，放在预览面板右上角不起眼位置） */
@@ -12262,8 +12268,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           URL.revokeObjectURL(url);
           showToast('✅ 已导出聊天记录和后台记录', 'success');
         } catch (err) {
-          console.error('[exportChatLogs] error:', err);
-          showToast('❌ 导出失败：' + (err && err.message ? err.message : '未知错误'), 'error');
+          logError('exportChatLogs', err, '❌ 导出失败：' + (err && err.message ? err.message : '未知错误'));
         }
       }
 
@@ -12294,7 +12299,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const sections = parseMessageSections(content);
             bubbleHtml = renderMessageSections(sections, msgId);
           } catch (e) {
-            console.warn('section render error:', e);
+            logWarn('renderMessageSections', e);
             try {
               bubbleHtml = fmtBubble(content);
             } catch (e2) {
@@ -12305,7 +12310,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           try {
             bubbleHtml = fmtBubble(content);
           } catch (e) {
-            console.warn('fmtBubble error:', e);
+            logWarn('fmtBubble', e);
             bubbleHtml = '';
           }
         }
@@ -12453,7 +12458,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // ====================================================================
       // 每个Tab维护独立的快照表：{ card: {msgIndex: cardDataClone}, mvu: {...} }
       // 在每条AI消息应用修改前保存快照，撤回时回滚cardData + 截断消息
-      var cardDataSnapshots = {
+      const cardDataSnapshots = {
         card: {},
         mvu: {}
       };
@@ -12702,7 +12707,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             try {
               it.act();
             } catch (err) {
-              showToast('操作失败：' + (err && err.message ? err.message : ''), 'error');
+              logError('avatarMenu', err, '操作失败：' + (err && err.message ? err.message : ''));
             }
           });
         });
@@ -13067,12 +13072,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       const cpSectionStates = {};
 
       function parseMessageSections(text) {
+        text = safeStr(text);
         const sections = [];
         const thinkingRe = /(?:<thinking>|<reasoning>|<think>)([\s\S]*?)(?:<\/thinking>|<\/reasoning>|<\/think>)|(?:\[metacognition\]|\[思维链\]|\[果农冒泡\]|\[love_qkll\])([\s\S]*?)(?:\[\/metacognition\]|\[\/思维链\]|\[\/果农冒泡\]|\[\/love_qkll\])/gi;
         let match, lastEnd = 0;
         while ((match = thinkingRe.exec(text)) !== null) {
           if (match.index > lastEnd) {
-            var before = text.slice(lastEnd, match.index).trim();
+            const before = text.slice(lastEnd, match.index).trim();
             if (before) sections.push({
               type: 'content',
               content: before
@@ -13310,6 +13316,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function fmtBubble(t) {
+        t = safeStr(t);
         const parts = [];
         const re = /<statusblock>([\s\S]*?)<\/statusblock>/gi;
         let last = 0;
@@ -13741,7 +13748,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== AI回复清理（移除思考链、内部标签等） =====
       function cleanAIReply(text) {
-        if (!text) return text;
+        if (text == null) return '';
+        if (typeof text !== 'string') text = String(text);
         let t = text;
         t = t.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
         t = t.replace(/<!--\s*End of The ECoT\s*-->/gi, '');
@@ -13759,7 +13767,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // ===== 从AI回复中提取JSON =====
       function extractJSON(text) {
-        if (!text) return null;
+        if (typeof text !== 'string') return null;
         const patterns = [
           /```json\s*([\s\S]*?)\s*```/i,
           /```javascript\s*([\s\S]*?)\s*```/i,
@@ -13829,7 +13837,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // 解析 ::: 操作块，返回操作数组
       function parseOpBlocks(rawText) {
-        if (!rawText) return [];
+        if (typeof rawText !== 'string') return [];
         const ops = [];
         // 匹配 ::: action key ... 格式（key 到换行/行尾为止，content 到下一个 ::: 为止）
         // 用单个 \n 分隔 key 和 content，避免 [\r\n]+ 贪婪吃掉多个换行导致 content 起点错误
@@ -13967,7 +13975,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 检测AI回复是否包含:::操作块（行首锚定，避免散文内联引用误判）——同时要求块必须存在闭合:::行，
       // 否则 hasOpBlocks 会误判"我要输出:::协议"这种说明性文本也算有效块，导致旧JSON路径被跳过。
       function hasOpBlocks(rawText) {
-        if (!rawText) return false;
+        if (typeof rawText !== 'string') return false;
         // 至少要有 开始行 + 闭合行 两个:::。写法：:::action key...\n...\n:::（闭合一行）
         return /(?:^|\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]+\n[\s\S]*?\n[ \t]*:::[ \t]*(?:$|\n)/i.test(rawText);
       }
@@ -13984,8 +13992,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             renamed: 0
           }
         };
-        var modified = false;
-        var changeLog = {
+        let modified = false;
+        const changeLog = {
           added: 0,
           updated: 0,
           deleted: 0,
@@ -14418,7 +14426,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 状态栏JS里的 Object.entries()/_.entries()/注释 不会命中
           if (/["']entries["']\s*:/.test(block) || /["']comment["']\s*:/.test(block)) continue;
           // 结构验证：至少出现2个HTML结构标签（非单纯CSS/JS碎片）
-          var structCount = 0;
+          let structCount = 0;
           for (let s = 0; s < mustHaveStructure.length; s++) {
             if (block.indexOf(mustHaveStructure[s]) >= 0) structCount++;
           }
@@ -14922,6 +14930,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== 🆕 ::: 操作块协议优先检测 ==========
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
           // 否则回退到旧JSON路径（兼容）
+          let parsed = null;
           if (hasOpBlocks(aiResponse)) {
             const ops = parseOpBlocks(aiResponse);
             if (ops.length > 0) {
@@ -14971,7 +14980,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 // ⚠️ 删除失败：把所有没命中的 key 明确告诉用户。避免"AI写了删除但预览堆叠"时用户毫无察觉，
                 // 只能眼睁睁看着旧条目越来越多。这里给出精确匹配的指导文案。
                 if (crOps._deleteFailures && crOps._deleteFailures.length > 0) {
-                  var failList = crOps._deleteFailures.map(function(k, i) {
+                  const failList = crOps._deleteFailures.map(function(k, i) {
                     return (i + 1) + '. ⟦' + k + '⟧';
                   }).join('\n');
                   try {
@@ -14987,11 +14996,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 showToast('⚠️ AI返回了操作指令，但未匹配到任何条目。请检查条目名称是否正确', 'warning', 6000);
               }
             }
-            // 跳过旧JSON路径
-            var parsed = null;
+            // 跳过旧JSON路径（parsed 保持 null，下方 if(parsed) 自然跳过）
           } else {
             // ========== 旧JSON路径（兼容） ==========
-            var parsed = extractJSON(aiResponse);
+            parsed = extractJSON(aiResponse);
           }
           if (parsed) {
             // ========== Tab 隔离：角色卡Tab下，严格过滤掉AI违规生成的MVU条目 ==========
@@ -15072,7 +15080,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
                     // mergePartial 路径下同样提示删除失败（AI走旧JSON协议、写 _delete/entries[{_action:delete}] 时的兜底提醒）
                     if (cr._deleteFailures && cr._deleteFailures.length > 0) {
-                      var failList = cr._deleteFailures.map(function(k, i) {
+                      const failList = cr._deleteFailures.map(function(k, i) {
                         return (i + 1) + '. ⟦' + k + '⟧';
                       }).join('\n');
                       try {
@@ -15130,7 +15138,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 }
               }
             } catch (e) {
-              console.warn('statusbar process error:', e);
+              logWarn('statusbar', e);
             }
           } // End of: if (currentTab === 'mvu') - 状态栏处理仅在MVU Tab
 
@@ -15139,7 +15147,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             try {
               addAssistantMsg('🎛️ 当前状态栏预览：\n```html\n' + MVU_STATUS_BAR_HTML + '\n```');
             } catch (_pvErr) {
-              console.warn('statusbar preview error:', _pvErr && _pvErr.message);
+              logWarn('statusbarPreview', _pvErr);
             }
           }
 
@@ -15207,7 +15215,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           try {
             appendMsg('assistant', _aiMsgContent, curTabMessages.length - 1);
           } catch (e) {
-            console.warn('appendMsg error:', e);
+            logWarn('appendMsg', e);
           }
           saveToStorage();
           updateProgress();
@@ -15217,11 +15225,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           scheduleCtxBarUpdate();
           saveToStorage();
         } catch (err) {
+          // 严重错误：AI 调用/响应解析/合并失败。控制台留完整错误栈（带 scope），对话内给用户可读提示
+          logError('callAIChat', err);
           removeTyping();
           _aiChatQueueMode = false;
           _aiChatNotesQueue = [];
           try {
-            addAssistantMsg('😞 出错了：' + err.message + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。');
+            addAssistantMsg('😞 出错了：' + (err && err.message) + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。');
           } catch (e) { logWarn("callAIChat", e); }
           try {
             setEnabled(true);
@@ -15325,14 +15335,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               saveToStorage();
               addAssistantMsg('🎉 角色卡生成成功！点击「💾 导出」查看完整JSON。\n\nMVU变量系统和状态栏请切换到「MVU变量状态栏」Tab独立制作。');
             } catch (e) {
+              logError('doGenerate.parse', e);
               addAssistantMsg('⚠️ 解析失败，请重试。\n\n错误：' + e.message);
             }
           } else {
             addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前' + CONFIG.AI_ERROR_PREVIEW_CHARS + '字：\n' + aiResponse.substring(0, CONFIG.AI_ERROR_PREVIEW_CHARS));
           }
         } catch (err) {
+          logError('doGenerate', err);
           removeTyping();
-          addAssistantMsg('生成出错：' + err.message);
+          addAssistantMsg('生成出错：' + (err && err.message));
           pushWorkToast('生成出错', 'done');
         } finally {
           isGenerating = false;
@@ -16712,7 +16724,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         if (__tab === 'mvu') {
           // ========== MVU Tab 预览：状态栏总览(顶置) + 8步进度 + 变量结构脚本 + 变量条目 + 状态栏HTML源码 + 关联角色卡 ==========
-          var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
+          const allEntries = (cardData.character_book && cardData.character_book.entries) || [];
           const mvuEntries = allEntries.filter(function(e) {
             return isMVUEntry(e.comment || '');
           });
@@ -16902,7 +16914,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         modH += '</div>';
         h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (modDone > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('layers', 14) + ' 模块进度</span><span class="sec-right">' + modDone + '/' + modTotal + ' 完成</span><span class="pv-toggle" title="折叠/展开"></span></h3>' + modH + '</div>';
 
-        var allEntries = (cardData.character_book && cardData.character_book.entries) || [];
+        const allEntries = (cardData.character_book && cardData.character_book.entries) || [];
         // 角色卡Tab：过滤掉 MVU 条目
         const entries = allEntries.filter(function(e) {
           return !isMVUEntry(e.comment || '');
@@ -16975,14 +16987,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (!shown.length) {
             eH += '<div class="pv-empty">没有匹配的条目</div>';
           }
-          for (var i = 0; i < shown.length; i++) {
-            var e = shown[i];
+          for (let i = 0; i < shown.length; i++) {
+            const e = shown[i];
             const label = e.comment || ('条目' + (i + 1));
-            var eTok = countTokens(e.content || '');
+            const eTok = countTokens(e.content || '');
             const constTag = e.constant ? '<span class="pv-tag ok">常驻</span>' : '<span class="pv-tag">触发</span>';
             const posTag = '<span class="pv-tag">P' + (e.position == null ? '-' : e.position) + '</span>';
             const depTag = (e.depth != null) ? '<span class="pv-tag">D' + e.depth + '</span>' : '';
-            var disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
+            const disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
             const grp = (e.extensions && e.extensions.group) || '';
             const grpTag = grp ? '<span class="pv-tag grp">' + escHtml(grp) + '</span>' : '';
             const checkBox = _pvFilter.batch ?
