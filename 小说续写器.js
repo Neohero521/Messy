@@ -1037,7 +1037,7 @@ const ConfigManager = {
         }
         
         // 验证布尔字段
-        const booleanFields = ['example_setting', 'enableQualityCheck', 'graphValidateResultShow', 'qualityResultShow', 'enableAutoParentPreset'];
+        const booleanFields = ['example_setting', 'enableQualityCheck', 'graphValidateResultShow', 'qualityResultShow', 'enableAutoParentPreset', 'enableTavernPresetInject'];
         for (const field of booleanFields) {
             if (config[field] !== undefined && typeof config[field] !== 'boolean') {
                 console.warn(`[ConfigManager] Invalid ${field}, should be boolean`);
@@ -1367,6 +1367,7 @@ const defaultSettings = {
         readProgress: {}
     },
     enableAutoParentPreset: true,
+    enableTavernPresetInject: true,
     batchMergedGraphs: [],
     bookshelf: [],
     currentNovelId: null,
@@ -1497,6 +1498,74 @@ async function rateLimitCheck() {
     apiCallTimestamps.push(Date.now());
 }
 
+/**
+ * 解析酒馆提示预设块（角色卡系统提示 / 人设 / 角色卡描述 / 世界书激活条目）
+ * 开启 enableTavernPresetInject 后，生成图谱与续写章节时自动注入到 systemPrompt 最前部。
+ * 任何子项解析失败均静默跳过，绝不阻断主生成流程。
+ * @returns {Promise<string>} 拼装好的预设文本块；未开启或无内容时返回空字符串
+ */
+async function resolveTavernPresetBlock() {
+    const settings = extension_settings[extensionName];
+
+    if (!settings.enableTavernPresetInject) {
+        return '';
+    }
+
+    const context = getContext();
+    const sections = [];
+
+    // 1. 角色卡字段：系统提示、描述、性格、场景、创作者备注、用户人设
+    try {
+        if (typeof context.getCharacterCardFields === 'function') {
+            const fields = context.getCharacterCardFields();
+            if (fields?.system) {
+                sections.push(`<character_system_prompt>\n${fields.system}\n</character_system_prompt>`);
+            }
+            if (fields?.description) {
+                sections.push(`<character_description>\n${fields.description}\n</character_description>`);
+            }
+            if (fields?.personality) {
+                sections.push(`<character_personality>\n${fields.personality}\n</character_personality>`);
+            }
+            if (fields?.scenario) {
+                sections.push(`<character_scenario>\n${fields.scenario}\n</character_scenario>`);
+            }
+            if (fields?.creatorNotes) {
+                sections.push(`<creator_notes>\n${fields.creatorNotes}\n</creator_notes>`);
+            }
+            if (fields?.persona) {
+                sections.push(`<user_persona>\n${fields.persona}\n</user_persona>`);
+            }
+        }
+    } catch (e) {
+        console.warn('[小说续写器] 解析角色卡字段失败，跳过该部分:', e);
+    }
+
+    // 2. 世界书：干跑扫描当前聊天上下文，获取激活条目（before + after）
+    try {
+        if (typeof context.getWorldInfoPrompt === 'function') {
+            const chat = Array.isArray(context.chat) ? context.chat : [];
+            // maxContext 传中等预算值：世界书条目预算 = world_info_budget% × maxContext，另有全局上限兜底
+            const wi = await context.getWorldInfoPrompt(chat, 8192, true);
+            const wiText = [wi?.worldInfoBefore, wi?.worldInfoAfter]
+                .filter(text => typeof text === 'string' && text.trim())
+                .join('\n');
+            if (wiText) {
+                sections.push(`<world_info>\n${wiText}\n</world_info>`);
+            }
+        }
+    } catch (e) {
+        console.warn('[小说续写器] 解析世界书激活条目失败，跳过该部分:', e);
+    }
+
+    if (sections.length === 0) {
+        console.log('[小说续写器] 酒馆预设注入已开启，但未解析到任何预设内容（未选择角色卡或无激活的世界书条目）');
+        return '';
+    }
+
+    return `<tavern_preset_context>\n以下为酒馆当前启用的提示预设（角色卡、人设、世界书），续写与图谱分析必须严格遵守其中的设定与写作规范：\n\n${sections.join('\n\n')}\n</tavern_preset_context>`;
+}
+
 async function generateRawWithBreakLimit(params) {
     const context = getContext();
     
@@ -1537,7 +1606,19 @@ async function generateRawWithBreakLimit(params) {
     let retryCount = 0;
     let lastError = null;
     let finalResult = null;
-    
+
+    // 酒馆预设注入：在捕获 originalSystemPrompt 之前前置预设块，
+    // 保证首跑与重试路径（重试时基于 originalSystemPrompt 重建）都携带预设
+    try {
+        const tavernPresetBlock = await resolveTavernPresetBlock();
+        if (tavernPresetBlock) {
+            finalParams.systemPrompt = `${tavernPresetBlock}\n\n${finalParams.systemPrompt || ''}`;
+            console.log('[小说续写器] 已注入酒馆提示预设块，长度:', tavernPresetBlock.length);
+        }
+    } catch (e) {
+        console.warn('[小说续写器] 酒馆预设注入失败，按原始提示继续生成:', e);
+    }
+
     // 保存原始的 systemPrompt 用于重试
     const originalSystemPrompt = finalParams.systemPrompt || '';
     let finalSystemPrompt = originalSystemPrompt;
@@ -2975,6 +3056,8 @@ async function loadSettings() {
     $("#write-word-count").val(settings.writeWordCount || 2000);
     $("#auto-parent-preset-switch input").prop("checked", settings.enableAutoParentPreset);
     $("#auto-parent-preset-switch").attr("aria-checked", settings.enableAutoParentPreset);
+    $("#tavern-preset-inject-switch input").prop("checked", settings.enableTavernPresetInject);
+    $("#tavern-preset-inject-switch").attr("aria-checked", settings.enableTavernPresetInject);
     
     const mergedGraph = settings.mergedGraph || {};
     $("#merged-graph-preview").val(Object.keys(mergedGraph).length > 0 ? JSON.stringify(mergedGraph, null, 2) : "");
@@ -5318,9 +5401,10 @@ async function openNovelWriter() {
         console.log(`[小说续写器] ${settingKey} 切换为:`, newState);
     };
     
-    // 设置两个toggle开关
+    // 设置toggle开关
     setupToggleSwitch("#auto-parent-preset-switch", "enableAutoParentPreset");
     setupToggleSwitch("#quality-check-switch", "enableQualityCheck");
+    setupToggleSwitch("#tavern-preset-inject-switch", "enableTavernPresetInject");
     
     $("#select-all-btn").off("click").on("click", () => {
         $(".chapter-select").prop("checked", true);
