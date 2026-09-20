@@ -172,8 +172,8 @@ html,body{height:100%;width:100%;overflow:hidden}
   }
 }
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:calc(14px * var(--app-font-scale,1));-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
-/* 工作区关键模块的字体大小也随缩放走，但保持最小字号保证可读性 */
-.topbar h1{font-size:calc(.95em * var(--app-font-scale,1))}
+/* 顶栏为固定尺寸工具条：基准字号在 .topbar 上固定为 14px，内部 em 均为定值，不随字体缩放变化；
+   其余工作区关键模块的字体大小仍随缩放走，但保持最小字号保证可读性 */
 .quick-btn,.qa-mini{font-size:calc(.8em * var(--app-font-scale,1))}
 .pv-section h3{font-size:calc(.86em * var(--app-font-scale,1))}
 .pv-section .pv-entry-content,.pv-section .pv-entry summary,.pv-section .pv-code,.pv-section .pv-content{font-size:calc(.82em * var(--app-font-scale,1));line-height:calc(1.65 * var(--app-font-scale,1))}
@@ -183,7 +183,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:cal
 svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color .2s}
 .ic-spin{animation:spin 0.8s linear infinite}
 .app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
-.topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 14px;background:linear-gradient(180deg,var(--surface) 0%,var(--surface) 70%,rgba(79,70,229,.02) 100%);border-bottom:1px solid var(--line);min-height:50px;position:relative}
+.topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 14px;font-size:14px;background:linear-gradient(180deg,var(--surface) 0%,var(--surface) 70%,rgba(79,70,229,.02) 100%);border-bottom:1px solid var(--line);min-height:50px;position:relative}
 .topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(79,70,229,.18),transparent)}
 .topbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
@@ -955,29 +955,33 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ws-tree,.ws-editor,.ws-artifact{display:none}
   .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
 }
-/* ===== 手机竖版顶栏：双行化（标题+Tab切换 / 工作区+操作钮），修复窄屏全部挤在一行 =====
-   欢迎页顶栏无 .topbar--main 修饰类，保持单行不变 */
+/* ===== 手机竖版顶栏：始终保持单行，绝不换行；顶栏字号基准已固定14px，不随应用字体缩放变化 =====
+   欢迎页顶栏无 .topbar--main 修饰类，不受以下规则影响 */
 @media(max-width:560px){
-  .topbar--main{flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 12px;min-height:0}
-  /* 第1行：标题在左、Tab切换器在右；两个容器各占整行 */
-  .topbar--main .topbar-left{flex:1 1 100%;justify-content:space-between;gap:8px}
-  /* 第2行：工作区靠左；进度/主题/关闭成组靠右 */
-  .topbar--main .topbar-right{flex:1 1 100%;justify-content:flex-end;gap:4px}
-  .topbar--main #wsMenuWrap{margin-right:auto}
-  .topbar--main h1{font-size:.82em}
-  .topbar--main .tab-switcher{padding:3px 5px;gap:2px}
-  .topbar--main .tab-btn{padding:6px 9px;font-size:.74em;gap:4px}
-  .topbar--main .phase{font-size:.68em;padding:3px 9px}
+  .topbar--main{flex-wrap:nowrap;gap:8px;padding:0 12px}
+  .topbar--main .topbar-left{gap:6px;flex:0 1 auto;min-width:0}
+  .topbar--main .topbar-right{gap:4px;margin-left:auto}
+  /* 长副标题隐藏（分隔符已移入span内一并隐藏），Tab按钮已表达当前模式 */
+  .topbar--main h1 span{display:none}
+  .topbar--main h1{flex:0 1 auto;min-width:0;overflow:hidden}
+  /* Tab 切换器收紧，保持 ≥32px 触摸高度 */
+  .topbar--main .tab-switcher{padding:3px 6px;gap:2px}
+  .topbar--main .tab-btn{padding:6px 10px;gap:5px}
+  /* 「工作区」收为图标方块，文字以 title 提示 */
+  .topbar--main #wsMenuWrap .icon-btn{width:32px;padding:0;font-size:0;gap:0}
+  .topbar--main .phase{padding:4px 10px}
 }
-/* 窄屏手机（≤480px，含iPhone SE）：进一步压缩，隐藏MVU长副标题 */
+/* 窄屏竖版（≤480px，主流手机）：标题文字让位，仅留18px品牌图标槽，保证单行宽松不挤 */
 @media(max-width:480px){
-  .topbar--main{gap:5px 6px;padding:6px 10px}
-  .topbar--main h1{font-size:.78em}
-  .topbar--main h1 span{display:none} /* MVU「· 变量与状态栏」副标题隐藏，Tab按钮已表达当前模式 */
-  .topbar--main .tab-btn{padding:6px 8px;font-size:.72em;gap:3px}
-  .topbar--main .tab-btn .tab-icon svg{width:12px;height:12px}
-  .topbar--main .icon-btn{height:30px}
-  .topbar--main .icon-btn.icon-btn-square{width:30px}
+  .topbar--main{gap:4px;padding:0 8px}
+  .topbar--main .topbar-left{gap:0}
+  .topbar--main h1{flex:0 0 auto;width:18px;gap:0;font-size:0;overflow:hidden}
+  .topbar--main .topbar-right{gap:3px}
+  .topbar--main .tab-switcher{padding:3px 5px;gap:2px}
+  .topbar--main .tab-btn{padding:6px 8px;gap:4px}
+  .topbar--main .phase{padding:4px 7px}
+  .topbar--main #wsMenuWrap .icon-btn,
+  .topbar--main .icon-btn.icon-btn-square{width:30px;height:30px}
 }
 `;
 
@@ -9873,7 +9877,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '</div>' +
           '<div class="topbar-right">' +
           '<div class="ws-dropdown-wrap" id="wsMenuWrap">' +
-          '<button class="icon-btn" id="wsMenuBtn">' + svgIcon('menu', 15) + ' 工作区</button>' +
+          '<button class="icon-btn" id="wsMenuBtn" aria-label="工作区" title="工作区（字体大小/导入导出/质检）">' + svgIcon('menu', 15) + ' 工作区</button>' +
           '<div class="ws-dropdown" id="wsDropdown"></div>' +
           '</div>' +
           '<span class="phase" id="phaseLabel">0%</span>' +
