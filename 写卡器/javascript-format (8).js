@@ -633,17 +633,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .group-mgr-item .gm-count{color:var(--ink-soft);font-size:.85em}
 .group-mgr-item .gm-toggle{padding:3px 9px;border-radius:7px;font-size:.85em;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);transition:all .15s}
 .group-mgr-item .gm-toggle.on{background:var(--sage-soft-strong);color:var(--sage-text);border-color:var(--sage-border)}
-.mobile-tabs{display:none;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--line)}
-.mobile-tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 12px;background:transparent;border:none;color:var(--ink-soft);font-size:.85em;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .15s;font-weight:500;font-family:inherit}
-.mobile-tab svg{width:16px;height:16px}
-.mobile-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-soft)}
 @media(max-width:768px){
-  .main{flex-direction:column}
-  .mobile-tabs{display:flex}
-  .chat-panel,.preview-panel{flex:1 1 0;border:none;min-height:0}
-  .preview-panel{display:none}
-  .main.tab-preview .preview-panel{display:flex}
-  .main.tab-preview .chat-panel{display:none}
+  /* 移动端：对话/预览两面板横向并排等宽，靠 transform 滑入滑出（左滑进预览、右滑回对话）；
+     垂直滚动交给原生（touch-action:pan-y），水平滑动由手势脚本接管 */
+  .main{touch-action:pan-y}
+  .chat-panel,.preview-panel{flex:0 0 100%;max-width:100%;width:100%;border:none;min-height:0;transition:transform .28s cubic-bezier(.22,.61,.36,1);will-change:transform}
+  /* 行排中 chat 自然位[0,w]、preview 自然位[w,2w]（已在屏外），故初始无需位移；
+     切到预览时两页同时 translateX(-100%)：chat→[-w,0]、preview→[0,w] */
+  .preview-panel{display:flex}
+  .main.tab-preview .chat-panel{transform:translateX(-100%)}
+  .main.tab-preview .preview-panel{transform:translateX(-100%)}
+  .main.swiping .chat-panel,.main.swiping .preview-panel{transition:none}
   .topbar h1{font-size:.9em}
   .topbar .phase{font-size:.7em}
   .chat-msg .bubble{max-width:78%}
@@ -767,8 +767,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .group-mgr-item .gm-name{font-size:.88em}
   .group-mgr-item .gm-count{font-size:.78em}
   .group-mgr-item .gm-toggle{font-size:.78em;padding:3px 9px;min-height:30px}
-  /* mobile-tabs：更大触摸区 */
-  .mobile-tab{padding:11px 12px;font-size:.82em}
+  /* mobile 指示器已移除：面板切换改为左右滑动手势 */
   /* tab-switcher：手机端紧凑 + 更大触摸区 */
   .tab-switcher{padding:3px 6px;gap:3px}
   .tab-btn{padding:6px 10px;font-size:.76em}
@@ -784,7 +783,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 }
 /* ===== 触摸设备优化（pointer:coarse）===== */
 @media(pointer:coarse){
-  .quick-btn,.qa-mini,.btn,.pv-section .pv-mini-btn,.pv-book-name,.group-mgr-item .gm-toggle,.mobile-tab{cursor:default;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+  .quick-btn,.qa-mini,.btn,.pv-section .pv-mini-btn,.pv-book-name,.group-mgr-item .gm-toggle{cursor:default;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
   .quick-btn:active:not(:disabled),.qa-mini:active:not(:disabled),.btn:active:not(:disabled){transform:scale(.96);transition:transform .1s}
   .chat-msg .bubble a{-webkit-tap-highlight-color:rgba(91,141,184,.2)}
 }
@@ -9886,10 +9885,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '</div>' +
           '</div>' +
           '<div class="main">' +
-          '<div class="mobile-tabs">' +
-          '<button class="mobile-tab active" data-tab="chat">' + svgIcon('chat', 16) + ' 对话</button>' +
-          '<button class="mobile-tab" data-tab="preview">' + svgIcon('clipboard', 16) + ' 预览</button>' +
-          '</div>' +
           '<div class="chat-panel" style="position:relative">' +
           // ========== 上下文操作条（合并旧 mod-focus + mod-dash + mvu-info-panel）==========
           '<div class="ctx-bar" id="ctxBar">' +
@@ -11047,22 +11042,84 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             }
           });
         }
-        const mTabs = doc.querySelectorAll('.mobile-tab');
-        for (let ti = 0; ti < mTabs.length; ti++) {
-          mTabs[ti].addEventListener('click', function() {
-            const tab = this.getAttribute('data-tab');
-            const mainEl = doc.querySelector('.main');
-            if (!mainEl) return;
-            if (tab === 'preview') {
-              mainEl.classList.add('tab-preview');
+        // ========== 移动端左右滑动切换：对话页左滑进预览，预览页右滑回对话（跟手+阻尼+阈值）==========
+        (function setupSwipeNav() {
+          const mainEl = doc.querySelector('.main');
+          if (!mainEl) return;
+          const win = doc.defaultView || window;
+          const chatPanel = mainEl.querySelector('.chat-panel');
+          const previewPanel = mainEl.querySelector('.preview-panel');
+          if (!chatPanel || !previewPanel) return;
+          const SWIPE_THRESHOLD = 55;   // 超过该位移才切换
+          const EDGE_RATIO = 0.28;      // 首页/末页继续拖动时的阻尼系数
+          let startX = 0, startY = 0, lock = null, dx = 0, fromPanel = 'chat';
+
+          // 起点是否落在可横向滚动的容器内（如快捷按钮横滚条/宽表格），若是则不拦截手势
+          function inHScroller(node) {
+            let el = node;
+            while (el && el !== mainEl && el.nodeType === 1) {
+              const ovx = win.getComputedStyle(el).overflowX;
+              if ((ovx === 'auto' || ovx === 'scroll') && el.scrollWidth - el.clientWidth > 4) return true;
+              el = el.parentNode;
+            }
+            return false;
+          }
+          function applyTransform() {
+            const w = mainEl.clientWidth;
+            if (fromPanel === 'chat') {
+              chatPanel.style.transform = 'translateX(' + dx + 'px)';
+              previewPanel.style.transform = 'translateX(' + (w + dx) + 'px)';
             } else {
-              mainEl.classList.remove('tab-preview');
+              chatPanel.style.transform = 'translateX(' + (-w + dx) + 'px)';
+              previewPanel.style.transform = 'translateX(' + dx + 'px)';
             }
-            for (let tj = 0; tj < mTabs.length; tj++) {
-              mTabs[tj].classList.toggle('active', mTabs[tj].getAttribute('data-tab') === tab);
+          }
+          function finishSwipe() {
+            if (lock !== 'horizontal') { lock = null; return; }
+            mainEl.classList.remove('swiping'); // 恢复过渡；内联 transform 仍占住当前手势位置
+            let goOther = false;
+            if (fromPanel === 'chat' && dx < -SWIPE_THRESHOLD) goOther = true;
+            if (fromPanel === 'preview' && dx > SWIPE_THRESHOLD) goOther = true;
+            // chat 达标→进预览(tab-preview)；preview 达标→回对话(移除)；未达标保持原页
+            mainEl.classList.toggle('tab-preview', fromPanel === 'chat' ? goOther : !goOther);
+            // 双 rAF：先让浏览器按内联位置绘制一帧（与手指离开点一致，无跳变），再清内联触发 CSS 过渡
+            win.requestAnimationFrame(function () {
+              win.requestAnimationFrame(function () {
+                chatPanel.style.transform = '';
+                previewPanel.style.transform = '';
+              });
+            });
+            lock = null;
+          }
+          mainEl.addEventListener('touchstart', function (e) {
+            if (!win.matchMedia('(max-width:768px)').matches) { lock = 'skip'; return; }
+            const t = e.touches[0], node = e.target;
+            startX = t.clientX; startY = t.clientY; lock = null; dx = 0;
+            if (node.closest && node.closest('input,textarea,select,[contenteditable="true"]')) { lock = 'skip'; return; }
+            if (inHScroller(node)) { lock = 'skip'; return; }
+            fromPanel = mainEl.classList.contains('tab-preview') ? 'preview' : 'chat';
+          }, { passive: true });
+          mainEl.addEventListener('touchmove', function (e) {
+            if (lock === 'skip' || lock === 'vertical') return;
+            const t = e.touches[0];
+            const rawDx = t.clientX - startX, rawDy = t.clientY - startY;
+            if (lock !== 'horizontal') {
+              if (Math.abs(rawDx) < 6 && Math.abs(rawDy) < 6) return;
+              // 水平意图明显强于垂直才接管，保证聊天/预览的上下滚动不受影响
+              if (Math.abs(rawDx) > Math.abs(rawDy) * 1.2) {
+                lock = 'horizontal';
+                mainEl.classList.add('swiping');
+              } else { lock = 'vertical'; return; }
             }
-          });
-        }
+            dx = rawDx;
+            if (fromPanel === 'chat' && dx > 0) dx = rawDx * EDGE_RATIO;
+            if (fromPanel === 'preview' && dx < 0) dx = rawDx * EDGE_RATIO;
+            applyTransform();
+            if (e.cancelable) e.preventDefault();
+          }, { passive: false });
+          mainEl.addEventListener('touchend', finishSwipe, { passive: true });
+          mainEl.addEventListener('touchcancel', finishSwipe, { passive: true });
+        })();
         // ========== Tab 切换按钮：角色卡 / MVU状态栏，完全隔离两边聊天记录与AI上下文 ==========
         const tabBtns = doc.querySelectorAll('.tab-btn');
         for (let tbi = 0; tbi < tabBtns.length; tbi++) {
