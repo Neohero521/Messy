@@ -955,6 +955,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .ws-tree,.ws-editor,.ws-artifact{display:none}
   .ws-tree.active,.ws-editor.active,.ws-artifact.active{display:block;position:absolute;inset:0}
 }
+/* ===== 手机竖版顶栏：双行化（标题+Tab切换 / 工作区+操作钮），修复窄屏全部挤在一行 =====
+   欢迎页顶栏无 .topbar--main 修饰类，保持单行不变 */
+@media(max-width:560px){
+  .topbar--main{flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 12px;min-height:0}
+  /* 第1行：标题在左、Tab切换器在右；两个容器各占整行 */
+  .topbar--main .topbar-left{flex:1 1 100%;justify-content:space-between;gap:8px}
+  /* 第2行：工作区靠左；进度/主题/关闭成组靠右 */
+  .topbar--main .topbar-right{flex:1 1 100%;justify-content:flex-end;gap:4px}
+  .topbar--main #wsMenuWrap{margin-right:auto}
+  .topbar--main h1{font-size:.82em}
+  .topbar--main .tab-switcher{padding:3px 5px;gap:2px}
+  .topbar--main .tab-btn{padding:6px 9px;font-size:.74em;gap:4px}
+  .topbar--main .phase{font-size:.68em;padding:3px 9px}
+}
+/* 窄屏手机（≤480px，含iPhone SE）：进一步压缩，隐藏MVU长副标题 */
+@media(max-width:480px){
+  .topbar--main{gap:5px 6px;padding:6px 10px}
+  .topbar--main h1{font-size:.78em}
+  .topbar--main h1 span{display:none} /* MVU「· 变量与状态栏」副标题隐藏，Tab按钮已表达当前模式 */
+  .topbar--main .tab-btn{padding:6px 8px;font-size:.72em;gap:3px}
+  .topbar--main .tab-btn .tab-icon svg{width:12px;height:12px}
+  .topbar--main .icon-btn{height:30px}
+  .topbar--main .icon-btn.icon-btn-square{width:30px}
+}
 `;
 
   function showToast(msg, type) {
@@ -9783,7 +9807,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (targetTab === 'card') {
             titleH1.innerHTML = svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器';
           } else {
-            titleH1.innerHTML = svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">变量与状态栏</span>';
+            titleH1.innerHTML = svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统<span style="font-weight:400;font-size:.85em;color:var(--ink-soft)"> · 变量与状态栏</span>';
           }
         }
         // ===== 8. 保存切换后的状态到 storage =====
@@ -9839,7 +9863,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function renderChatUI() {
         doc.body.innerHTML =
           '<div class="app">' +
-          '<div class="topbar">' +
+          '<div class="topbar topbar--main">' +
           '<div class="topbar-left">' +
           '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器</h1>' +
           '<div class="tab-switcher" id="tabSwitcher">' +
@@ -11682,8 +11706,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           const titleH1 = doc.querySelector('.topbar h1');
           if (titleH1) {
             titleH1.innerHTML = activeTab === 'card' ?
-              svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">角色卡生成</span>' :
-              svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统 · <span style="font-weight:400;font-size:.85em;color:var(--ink-soft)">变量与状态栏</span>';
+              svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器<span style="font-weight:400;font-size:.85em;color:var(--ink-soft)"> · 角色卡生成</span>' :
+              svgIcon('sliders', 18, 'topbar-ic') + ' MVU变量系统<span style="font-weight:400;font-size:.85em;color:var(--ink-soft)"> · 变量与状态栏</span>';
           }
           updateProgress();
           updateQuickActions();
