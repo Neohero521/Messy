@@ -4910,6 +4910,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· 修改/删除已有条目时，必须使用上方提供的精确comment字符串\n' +
       '· MVU/前端资产与角色卡其他内容相互配合：变量路径决定状态栏渲染路径，界面风格贴合世界观\n' +
       '· 写卡器会自动提取你输出中的 :::操作块 和 HTML代码块 并保存，你只管按协议输出\n' +
+      '· ReAct观察机制：你每轮输出后，写卡器执行并把**【执行结果】**附在你消息尾部（✅成功明细/❌失败原因）——对话历史里能看到。若上轮结果有❌失败，本轮必须优先修正失败项再继续新任务，禁止无视失败硬走\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
     // ========== 5. 领域规范块（按意图注入：MVU / 前端）==========
@@ -8429,12 +8430,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       let cardGenerated = false;
       let progress = 0;
 
-      // ========== Agent自主执行循环（Agent Loop）状态 ==========
+      // ========== Agent自主执行循环（Agent Loop · ReAct模式）状态 ==========
       // agentPlan：AI输出的创作计划 { goal, steps:[{desc,done}], createdAt, stepRuns }
       // agentLoopActive：循环运行中（每步=一次完整AI调用+应用+提取）
+      // agentLastObservation：上一步的执行结果观察（ReAct核心：行动→观察→决策，供下一步任务指令注入）
       let agentPlan = null;
       let agentLoopActive = false;
       let agentConsecutiveFailures = 0;
+      let agentLastObservation = '';
       let moduleProgress = {
         total: 0,
         constant: 0,
@@ -11572,6 +11575,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 注：计划块解析 parseAgentPlan / 步数上限 AGENT_LOOP_MAX_STEPS 已提升至 IIFE 顶层（parseAgentPlan 无闭包依赖）
 
       // ===== 构造Agent执行指令（agentLoop每步传入buildPrompt第4参数）=====
+      // ReAct核心：注入上一步执行结果观察 + 决策规则（修正失败→继续/重规划），让AI基于反馈动态决策
       function buildAgentDirective(stepIdx) {
         if (!agentPlan || !agentPlan.steps[stepIdx]) return null;
         let planText = '用户总目标：' + agentPlan.goal + '\n执行计划（✅已完成 / ▫️待执行）：\n';
@@ -11579,9 +11583,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           planText += (s.done ? '✅' : '▫️') + ' 第' + (i + 1) + '步：' + s.desc + '\n';
         });
         let d = '';
-        d += '你正在按上述计划自主创作，无需用户参与。\n';
+        d += '你正在按上述计划自主创作（ReAct模式：行动→观察执行结果→决策），无需用户参与。\n';
         d += planText + '\n';
+        // —— 上轮观察注入（本步可能因此被重试：上轮产出为空时写卡器不会标记完成）——
+        if (agentLastObservation) {
+          d += '【上一轮执行结果（观察）】\n' + agentLastObservation + '\n\n';
+        }
         d += '▶【当前任务】执行第' + (stepIdx + 1) + '步：「' + agentPlan.steps[stepIdx].desc + '」\n\n';
+        d += '决策规则（先检查观察，再行动）：\n' +
+          '1. 若上轮观察中有失败（❌/⚠️标记）：本轮**优先修正**失败项——删除未命中就改用上轮提示的精确comment重删；HTML未识别就按对应模板重新输出完整代码块。修正成功后再执行当前任务。\n' +
+          '2. 若你判断当前计划已与实际不符（依赖缺失/顺序不对/内容已存在/目标已变）：直接输出一个新的 <agent_plan> 计划块替换剩余步骤（写卡器会自动采纳），并简述重规划原因。\n' +
+          '3. 正常情况：直接执行当前任务。\n\n';
         d += '执行要求：\n' +
           '1. ★★★【最大化单次产出】当前任务范围内的全部内容，必须在这一次回复中**全部输出**——不要保守拆分、不要只做一小部分、不要等下一轮再补。多个:::操作块、多个```html代码块、操作块与HTML代码块，都可以也应当混排在同一次回复中（写卡器会全部自动提取保存，不存在"一次只能做一个"的限制）。\n' +
           '2. 直接执行，不要向用户提问、不要等待确认、不要只做说明不产出内容。\n' +
@@ -11590,7 +11602,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '5. 完成后在回复末尾单独一行输出控制标记：\n' +
           '   <agent:done> ——当前是计划的最后一步（或本步完成后目标已达成）\n' +
           '   <agent:next> ——后面还有待执行步骤\n' +
-          '   <agent:skip> ——本步因信息不足/依赖缺失确实无法执行，说明原因后跳过\n';
+          '   <agent:skip> ——本步因信息不足/依赖缺失确实无法执行，说明原因后跳过\n' +
+          '写卡器执行你的操作后会把【执行结果】附在你消息尾部，并在下一轮作为观察反馈给你。\n';
         return d;
       }
 
@@ -11631,10 +11644,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             pushWorkToast('Agent执行 ' + (idx + 1) + '/' + agentPlan.steps.length + '：' + stepDesc, 'working');
             // 执行单步（callAIChat内含完整应用链路：操作块/JSON/状态栏/前端HTML自动提取保存）
             const r = await callAIChat({ agentStep: true, stepIdx: idx });
+            // ReAct：保存本步执行结果观察，作为下一步任务指令的反馈
+            if (r && r.observation) agentLastObservation = r.observation;
             // 用户中途停止
             if (!agentLoopActive) {
               showToast('⏹ Agent已停止（当前步骤成果已保留，剩余' + agentPlan.steps.filter(function(s) { return !s.done; }).length + '步可点「继续执行计划」）', 'info', 6000);
               break;
+            }
+            // 重试信号：本步无产出（callAIChat未标记done）→ 循环回到同一步，带失败观察重试
+            if (r && r.control === 'retry') {
+              showToast('⚠️ 本步未产出有效内容，Agent将结合执行结果重试', 'warning', 5000);
             }
             // 产出检测（防AI空转）
             if (r && r.produced) {
@@ -11646,12 +11665,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 break;
               }
             }
+            // 动态重规划信号：新计划已在callAIChat中替换agentPlan，继续循环从新计划第一步执行
+            if (r && r.control === 'replan') {
+              showToast('🔄 Agent已重规划，从新计划第一步继续', 'info', 5000);
+            }
             // 完成信号
             if (r && r.control === 'done') {
               agentPlan.steps.forEach(function(s) { s.done = true; });
               addAssistantMsg('🎉 Agent计划「' + agentPlan.goal + '」执行完成！\n\n' +
                 '你可以：\n• 继续对话微调（对哪步不满意直接说，可单条重做）\n• 点「生成并写入酒馆」\n• 点「查看进度」检视成果');
               agentPlan = null;
+              agentLastObservation = ''; // 计划完成，观察随之作废
               break;
             }
           }
@@ -13572,6 +13596,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
           // ========== Agent步骤产出跟踪：本轮AI回复是否产生了实际内容（操作块/JSON合并/HTML提取） ==========
           let _stepProduced = false;
+          // ========== ReAct观察收集器：记录本轮每个行动的执行结果（成功明细/失败原因） ==========
+          // 用途：①追加到AI消息尾部（用户可见+下轮AI可见）②agentLoop下一步的任务指令（观察→决策→修正）
+          let _execNotes = [];
 
           // ========== 🆕 ::: 操作块协议优先检测 ==========
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
@@ -13624,12 +13651,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   if (addLO || delLO) partsOps.push('📝正文 +' + addLO + '/-' + delLO + '行');
                 }
                 if (partsOps.length) showToast('✅ 已应用修改：' + partsOps.join('，'), 'success');
+                // ReAct观察：操作应用成功明细
+                if (partsOps.length) _execNotes.push('✅ 操作块已应用：' + partsOps.join('，'));
                 // ⚠️ 删除失败：把所有没命中的 key 明确告诉用户。避免"AI写了删除但预览堆叠"时用户毫无察觉，
                 // 只能眼睁睁看着旧条目越来越多。这里给出精确匹配的指导文案。
                 if (crOps._deleteFailures && crOps._deleteFailures.length > 0) {
                   const failList = crOps._deleteFailures.map(function(k, i) {
                     return (i + 1) + '. ⟦' + k + '⟧';
                   }).join('\n');
+                  _execNotes.push('❌ 删除未命中（comment不精确，这些条目仍保留）：\n' + failList);
                   try {
                     showToast('⚠️ AI 想要删除以下条目，但未匹配到（comment 不精确）：\n' +
                       failList +
@@ -13640,6 +13670,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 renderPreview();
                 saveToStorage();
               } else if (ops.length > 0) {
+                // ReAct观察：操作未产生任何修改（常见：delete的comment不精确）——带上具体未命中key便于下轮修正
+                const _dfOps = (opResult.changeLog && opResult.changeLog._deleteFailures) || [];
+                _execNotes.push('❌ 操作块已解析但未匹配到任何条目（未产生修改）——' +
+                  (_dfOps.length ? '删除未命中：⟦' + _dfOps.join('⟧、⟦') + '⟧；请从上方「精确comment清单」复制字符级一致的字符串重试' : 'comment不精确/字段名无效；请从上方「精确comment清单」复制字符级一致的字符串重试'));
                 showToast('⚠️ AI返回了操作指令，但未匹配到任何条目。请检查条目名称是否正确', 'warning', 6000);
               }
             }
@@ -13716,11 +13750,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                       if (addL || delL) parts.push('📝正文 +' + addL + '/-' + delL + '行');
                     }
                     if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
+                    if (parts.length) _execNotes.push('✅ JSON修改已应用：' + parts.join('，'));
                     // mergePartial 路径下同样提示删除失败（AI走旧JSON协议、写 _delete/entries[{_action:delete}] 时的兜底提醒）
                     if (cr._deleteFailures && cr._deleteFailures.length > 0) {
                       const failList = cr._deleteFailures.map(function(k, i) {
                         return (i + 1) + '. ⟦' + k + '⟧';
                       }).join('\n');
+                      _execNotes.push('❌ 删除未命中（这些条目仍保留）：\n' + failList);
                       try {
                         showToast('⚠️ AI 想要删除以下条目，但未匹配到（comment 不精确 / 模糊匹配命中多条已跳过）：\n' +
                           failList +
@@ -13733,6 +13769,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               } else if (hasData) {
                 // AI输出了JSON但实际上没修改到任何东西（可能comment不匹配导致只加不删没生效）
                 // 提示用户可能需要调整comment
+                _execNotes.push('❌ 修改指令未匹配到任何条目（comment不精确，未产生修改）——需要用精确comment重试');
                 showToast('⚠️ AI返回了修改指令，但未匹配到任何条目（可能comment不精确）。请让AI使用精确comment或在JSON中加_action:delete明确删除', 'warning', 6000);
               }
             }
@@ -13766,6 +13803,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _sbSavedMain = tryExtractStatusBarHtml(aiResponse);
             if (_sbSavedMain) {
               _htmlSavedCount++;
+              _execNotes.push('✅ MVU状态栏HTML已提取保存（正则6）');
               showToast('✅ 已从AI回答中提取MVU状态栏HTML并保存', 'success');
               progress = calcProgress();
               // ⚠️P0修复：立即持久化——若后续步骤异常/用户直接关闭，内存里的状态栏正则不落盘会丢失
@@ -13780,6 +13818,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _stPanels = extractStructuredPanelsBatch(aiResponse);
             if (_stPanels && _stPanels.length > 0) {
               _htmlSavedCount += _stPanels.length;
+              _execNotes.push('✅ 结构化面板已保存：[界面]' + _stPanels.join('、[界面]') + '（含规范条目+开场白示例注入）');
               showToast('✅ 已保存 ' + _stPanels.length + ' 个结构化面板：[界面]' + _stPanels.join('、[界面]') + '（含规范AI输出的世界书条目）', 'success');
               saveToStorage();
               renderPreview();
@@ -13795,6 +13834,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _feSaved = tryExtractFrontendRegexHtml(aiResponse);
             if (_feSaved) {
               _htmlSavedCount++;
+              _execNotes.push('✅ 正文美化HTML已保存（[界面]正文美化正则 + 规范条目 + 开场白已包裹<story>）');
               showToast('✅ 已从AI回答中提取正文美化HTML并保存为「[界面]正文美化」正则', 'success');
               saveToStorage();
               renderPreview();
@@ -13809,23 +13849,45 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _hasFence = /```/.test(aiResponse || '');
             const _fenceLooksHtml = /```html|<!doctype|<html/i.test(aiResponse || '');
             if (_hasFence && _fenceLooksHtml) {
+              _execNotes.push('❌ 回复中有HTML代码块但未识别为状态栏/前端界面（未保存）——请检查是否符合模板结构（getMessageData/parseData或populateCharacterData特征）');
               showToast('⚠️ AI回复中有HTML代码块，但未识别为状态栏/前端界面（未保存）。\n详情见浏览器Console的 [statusbar] / [frontend] 日志', 'warning', 7000);
             }
           }
           if (_htmlSavedCount > 0) _stepProduced = true;
 
-          // ========== Agent Loop 收尾：计划检测 / 步骤状态标记（agentLoop 核心）==========
+          // ========== Agent Loop 收尾（ReAct核心：观察反馈 + 动态重规划 + 失败重试）==========
           let _agentCtl = null;
           if (opts.agentStep && agentPlan && agentPlan.steps && typeof opts.stepIdx === 'number' && agentPlan.steps[opts.stepIdx]) {
-            // —— Agent步骤模式：解析控制标记，标记当前步完成 ——
             const _skipMark = /<agent:skip>/i.test(aiResponse || '');
             const _doneMark = /<agent:done>/i.test(aiResponse || '');
-            agentPlan.steps[opts.stepIdx].done = true; // skip也算处理完毕（跳过）
-            if (_skipMark && !_stepProduced) agentPlan.steps[opts.stepIdx].skipped = true;
-            _agentCtl = {
-              produced: _stepProduced,
-              control: _doneMark ? 'done' : (_skipMark ? 'skip' : 'next')
-            };
+            // —— 动态重规划：AI在执行中途输出新 <agent_plan> → 替换剩余步骤（基于观察调整策略）——
+            const _replan = parseAgentPlan(aiResponse);
+            if (_replan && _replan.steps && _replan.steps.length >= 2) {
+              _replan.stepRuns = agentPlan.stepRuns || 0; // 继承防失控计数
+              agentPlan = _replan;
+              _execNotes.push('📋 已采纳Agent的新计划（' + _replan.steps.length + '步，替换剩余步骤）');
+              showToast('📋 Agent已重规划：新计划共 ' + _replan.steps.length + ' 步', 'info', 6000);
+              saveToStorage();
+              updateQuickActions();
+              updateCtxBar();
+              _agentCtl = { produced: true, control: 'replan' };
+            } else if (_stepProduced || _skipMark) {
+              // —— 本步有产出（或显式跳过）→ 标记完成 ——
+              agentPlan.steps[opts.stepIdx].done = true;
+              if (_skipMark && !_stepProduced) agentPlan.steps[opts.stepIdx].skipped = true;
+              _agentCtl = {
+                produced: _stepProduced,
+                control: _doneMark ? 'done' : (_skipMark ? 'skip' : 'next')
+              };
+            } else {
+              // —— 本步无任何产出且未跳过 → 不标记完成，agentLoop将带失败观察重试本步 ——
+              if (_execNotes.length === 0) _execNotes.push('⚠️ 本轮没有产生任何卡片修改（未检测到有效操作块/HTML）');
+              _agentCtl = {
+                produced: false,
+                control: 'retry',
+                retryStepIdx: opts.stepIdx
+              };
+            }
           } else if (!opts.agentStep) {
             // —— 普通对话模式：检测AI输出的 <agent_plan> 计划块 → 自动进入Agent循环执行 ——
             const _newPlan = parseAgentPlan(aiResponse);
@@ -13843,6 +13905,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }, 300);
             }
           }
+
+          // ========== ReAct观察合成：执行结果 + 当前卡片状态摘要（下轮决策依据）==========
+          let _observation = '';
+          if (_execNotes.length > 0) {
+            try {
+              const _obsCd = cardData || {};
+              const _obsEntries = ((_obsCd.character_book || {}).entries) || [];
+              const _obsNonMvu = _obsEntries.filter(function(e) { return !isMVUEntry((e && e.comment) || ''); }).length;
+              let _obsState = '';
+              _obsState += '当前卡片状态：名称' + (_obsCd.name ? '✅' : '✗') + ' / 描述' + ((_obsCd.description || '').length >= 200 ? '✅' : ((_obsCd.description || '') ? '偏短' : '✗')) + ' / 开场白' + (_obsCd.first_mes ? '✅' : '✗') + ' / 普通条目' + _obsNonMvu + '条';
+              try {
+                const _obsChk = checkMvu8Entries(_obsCd);
+                _obsState += ' / MVU' + (_obsChk.doneCount + (_obsChk.has8 ? 1 : 0)) + '/8';
+              } catch (_oe) {}
+              const _obsRx = ((_obsCd.extensions || {}).regex_scripts) || [];
+              const _obsFe = _obsRx.filter(function(r) { return r && (r.id === 'frontend-beautify' || String(r.scriptName || '').indexOf('[界面]') === 0); }).length;
+              _obsState += ' / 界面产物' + _obsFe + '个';
+              _observation = _execNotes.join('\n') + '\n' + _obsState;
+            } catch (_obsErr) {
+              logWarn('observation', _obsErr);
+              _observation = _execNotes.join('\n');
+            }
+          }
+          if (_agentCtl) _agentCtl.observation = _observation;
 
           // 检测AI发出的 <preview_statusbar> 命令（Agent模式：不限Tab）
           if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
@@ -13865,6 +13951,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               .replace(/<agent:(?:next|done|skip)>/gi, '')
               .replace(/\n{3,}/g, '\n\n')
               .trim();
+          }
+          // ReAct观察入消息流：执行结果区块持久化（用户可见，下一轮AI也能从对话历史读取）
+          if (_execNotes.length > 0) {
+            rawContent = (rawContent || '') + '\n\n---\n**【执行结果】**\n' + _execNotes.join('\n');
           }
 
           // 1. 先存储到历史（Agent模式：单一会话数组）
