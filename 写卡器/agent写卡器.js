@@ -1177,7 +1177,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       const keys = ['__cardData', '__tab_activeTab', '__getActiveTab', '__getCurrentTab',
         '__getCurrentMessages', '__setCurrentMessages', '__getChatSessions',
         '__setChatSessionsCardMessages', '__setChatSessionsMvuMessages',
-        '__mvuDiscussMode', 'setMvuDiscussMode'
+        '__mvuDiscussMode', 'setMvuDiscussMode',
+        '__agentMode', '__agentLoopApi', '__setChatSessionsFrontendMessages'
       ];
       for (let i = 0; i < keys.length; i++) {
         try {
@@ -4951,7 +4952,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       MVU_8STEPS_DETAIL + '\n' +
       MVU_VAR_SPEC + '\n\n' +
       MVU_8STEPS_COMMON_RULES + '\n' +
-      MVU_MODIFY_RULE + '\n';
+      MVU_MODIFY_RULE + '\n' +
+      '⚠️【逐条生成铁则的批量豁免】上述"一次只输出1条/停下等继续"仅适用于：①用户要求逐条确认，或②你处于Agent自主执行模式（任务指令另有说明）。\n' +
+      '   普通对话中用户要求"全部生成/一次生成多条/批量生成MVU 1-7条"时，按用户要求在**一次回复中批量输出全部条目**（顺序仍需1→7保持依赖正确）。\n';
     // —— MVU 轻量速览（未命中时注入）——
     const mvuBrief = '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
@@ -8705,9 +8708,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ⚠️竞态修复：生成期间关闭编辑器 → 旧闭包的 callAI 返回后仍会写 storage，与用户重新打开的
         // 新闭包形成双写者竞态（AI 修改可能被覆盖丢失）。改为关闭前二次确认
         doc.getElementById('closeBtn').addEventListener('click', function() {
-          if (isGenerating) {
-            const okToClose = window.confirm('AI 正在生成中，关闭后本次生成的内容可能丢失（后台任务仍会继续写数据）。\n确定要关闭吗？');
+          if (isGenerating || agentLoopActive) {
+            const okToClose = window.confirm((agentLoopActive ? 'Agent自动循环正在执行中' : 'AI 正在生成中') + '，关闭后当前步骤的内容可能丢失。\n' + (agentLoopActive ? 'Agent循环将一并停止（已完成步骤全部保留，可重开后「继续执行计划」）。\n' : '后台任务仍会继续写数据。\n') + '确定要关闭吗？');
             if (!okToClose) return;
+            // Agent循环中关闭：停止循环（当前AI调用无法中断，本步完成后不再继续）
+            if (agentLoopActive) {
+              try {
+                stopAgentLoop();
+              } catch (_e) {}
+            }
             closeModal();
             // 后台任务仍在运行：保留 window.__* 访问器（后台闭包仍经其读写数据），下次 openEditor 覆盖
           } else {
@@ -9190,6 +9199,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         agentPlan = null;
         agentLoopActive = false;
         agentConsecutiveFailures = 0;
+        agentLastObservation = '';
         renderChatUI();
         applyFontScale(_appFontScale);
         const entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
@@ -9314,10 +9324,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         try {
           _aiChatNotesQueue = [];
         } catch (_eQ) {}
-        // 6. Agent Loop 状态归零（计划/循环/失败计数）
+        // 6. Agent Loop 状态归零（计划/循环/失败计数/观察）
         agentPlan = null;
         agentLoopActive = false;
         agentConsecutiveFailures = 0;
+        agentLastObservation = '';
         // 7. localStorage 存档：移除旧 STORAGE_KEY，避免"关闭重开又带回来旧卡"
         clearStorage();
       }
@@ -9381,6 +9392,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 progress: progress,
                 moduleProgress: moduleProgress,
                 fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
+                agentPlan: agentPlan, // Agent计划不可丢（丢=执行中计划无法继续）
                 timestamp: Date.now()
               };
               localStorage.setItem(STORAGE_KEY, JSON.stringify(slimState));
@@ -9674,10 +9686,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const qa = doc.getElementById('quickActions');
         if (!qa) return;
         const p = progress || 0;
-        const hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
-        const hasMVU = hasEntries && cardData.character_book.entries.some(function(e) {
-          return isMVUEntry(e.comment || '');
-        });
 
         // ========== Agent模式：统一快捷动作（按当前卡片缺口自适应，不分Tab）==========
         // 结构：Agent循环动作（自动创作/停止/继续计划） + MVU动作 + 前端动作 + 常驻组（继续/重做/进度/写入/清空）
@@ -11646,6 +11654,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const r = await callAIChat({ agentStep: true, stepIdx: idx });
             // ReAct：保存本步执行结果观察，作为下一步任务指令的反馈
             if (r && r.observation) agentLastObservation = r.observation;
+            // ⚠️并发让位：用户在循环间隙插话（isGenerating=true导致本步被跳过）→ 短暂等待让用户那轮完成，
+            //    等待期间本步未实际执行（补偿stepRuns后continue重试，不计失败）；超时仍占用则暂停循环让位
+            if (r === null && isGenerating) {
+              for (let w = 0; w < 3 && isGenerating; w++) {
+                await new Promise(function(res) { setTimeout(res, 2000); });
+                if (!agentLoopActive) break;
+              }
+              if (!agentLoopActive) break;
+              if (isGenerating) {
+                addAssistantMsg('💬 检测到对话正被用户消息占用，Agent循环已暂停让位——\n剩余步骤可稍后点「继续执行计划」恢复执行。');
+                break;
+              }
+              agentPlan.stepRuns = Math.max(0, (agentPlan.stepRuns || 1) - 1); // 补偿：本步未实际执行
+              continue;
+            }
             // 用户中途停止
             if (!agentLoopActive) {
               showToast('⏹ Agent已停止（当前步骤成果已保留，剩余' + agentPlan.steps.filter(function(s) { return !s.done; }).length + '步可点「继续执行计划」）', 'info', 6000);
@@ -11655,8 +11678,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (r && r.control === 'retry') {
               showToast('⚠️ 本步未产出有效内容，Agent将结合执行结果重试', 'warning', 5000);
             }
-            // 产出检测（防AI空转）
-            if (r && r.produced) {
+            // 产出检测（防AI空转；skip是显式跳过，不算失败）
+            if (r && (r.produced || r.control === 'skip' || r.control === 'replan')) {
               agentConsecutiveFailures = 0;
             } else {
               agentConsecutiveFailures++;
@@ -13893,6 +13916,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _newPlan = parseAgentPlan(aiResponse);
             if (_newPlan && _newPlan.steps && _newPlan.steps.length >= 2 && !agentLoopActive) {
               agentPlan = _newPlan;
+              agentLastObservation = ''; // 新计划从零观察开始（防旧观察误导第一步）
               saveToStorage();
               updateQuickActions();
               updateCtxBar();
