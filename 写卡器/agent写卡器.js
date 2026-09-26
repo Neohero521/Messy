@@ -4888,17 +4888,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '1. 世界观/角色/设定/条目/开场白/剧情 → 领域A\n' +
       '2. 变量/数值追踪/好感度/金钱/物品/状态栏/MVU → 领域B（普通对话模式：先需求收集，再按8条固定顺序逐条生成，一次一条等"继续"）\n' +
       '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C（普通对话模式：先确认风格需求，再输出完整HTML代码块）\n' +
-      '4. 大型复合需求（需要≥3个步骤才能完成，如"生成完整角色卡，带MVU变量系统和前端界面"/"从头做一张卡"/用户要求你接管或自动完成）→ 输出「Agent计划块」，写卡器会解析并自动循环执行，无需用户每步催促：\n' +
+      '4. 大型复合需求（如"生成完整角色卡，带MVU变量系统和前端界面"/"从头做一张卡"/用户要求你接管或自动完成）→ 输出「Agent计划块」，写卡器会解析并自动循环执行，无需用户每步催促：\n' +
       '   <agent_plan>\n' +
       '   目标：一句话总目标\n' +
       '   步骤：\n' +
-      '   1. 生成世界观描述与角色名\n' +
-      '   2. 生成核心世界书条目（3-5条）\n' +
-      '   3. 生成开场白\n' +
-      '   4. 设计MVU变量结构脚本（第1条）\n' +
-      '   ...（按需继续，覆盖全部缺口）\n' +
+      '   1. 生成角色卡主体：世界观+角色名+全部核心条目+开场白+备选开场白\n' +
+      '   2. 生成MVU变量系统第1-7条资产（一批操作块全部输出）\n' +
+      '   3. 生成状态栏HTML+前端界面（各用独立```html代码块混排输出）\n' +
       '   </agent_plan>\n' +
-      '   拆步原则：每步=一次可独立完成的具体产出（一批:::操作块 或 一个HTML代码块）；MVU 8条工作流按1-2条/步拆分；MVU前7条未完成前不要把状态栏（第8条）排进计划。计划块后写1-2句说明即可，随后写卡器自动逐步执行。\n' +
+      '   拆步原则（★节省调用次数是最高优先级）：**步骤越少越好，典型2-4步完成整个计划**。每一步都要把该步骤范围内的全部产物**打包在同一次回复中输出**——多个:::操作块、多个```html代码块可以自由混排在一次回复里，写卡器会全部自动提取保存，不存在"一次只能做一个"的限制。\n' +
+      '   示例：完整角色卡（带MVU+前端）的理想3步计划——\n' +
+      '   1. 生成角色卡主体：世界观描述 + 全部核心世界书条目 + 开场白 + 备选开场白（一批:::操作块）\n' +
+      '   2. 生成MVU变量系统第1-7条资产：变量结构脚本 + [InitVar] + 更新规则 + 变量列表 + 输出格式 + 强调 + 占位提醒（一批:::操作块全部输出，无需一条一条来）\n' +
+      '   3. 生成状态栏HTML + 前端界面（正文美化/数据面板各用独立```html代码块，混排一次输出）\n' +
+      '   只有单次输出容量确实装不下时才进一步拆分。计划块后写1-2句说明即可，随后写卡器自动逐步执行。\n' +
       '5. 需求模糊时：主动追问关键决策（内容尺度/风格/范围），不要擅自展开大规模生成（用户明确要求"直接做/你看着办"则按合理默认执行并在计划前说明）\n' +
       '6. 普通单步需求（1-2个操作就能完成）不需要计划块，直接执行\n\n' +
       '【通用行为准则】\n' +
@@ -5019,18 +5022,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '   ::: upsert 条目名\n   keys=触发词1,触发词2\n   constant=false\n   position=4\n   selectiveLogic=0\n   depth=4\n   probability=100\n   order=100\n   match_whole_words=false\n\n   身份：……\n   外貌：……\n   性格：……\n   能力：\n     - ……\n     - ……\n   :::\n' +
       '2. 五种动作：upsert增改 / update只改 / delete删 / set顶层字段 / rename重命名；set可修改 description(世界观描述)/first_mes(开场白)/alternate_greetings(备选开场白，多条用---分割)/name 等顶层字段\n' +
       '3. 用户要求"生成世界观/开场白/完整世界书"时：用 set 设置 description/first_mes/alternate_greetings，用 upsert 生成条目\n' +
-      '4. MVU状态栏HTML（第8条）与前端界面HTML：输出完整```html代码块，写卡器自动提取保存——严禁塞进操作块/JSON\n' +
-      '5. 先输出1-2句自然语言说明，再输出操作块/代码块，之后不再解释\n' +
-      '6. 没有需要修改的内容就回复"本次无修改"或正常回答用户问题\n' +
-      '7. ⚠️【语义优先】用户说话=要增删改！反问句/不满句=隐含修改需求，不要当聊天。例如"白娅是不是太普通"=要改白娅，不是回答"是/否"\n' +
-      '8. ⚠️【混合打包】改+增+删可以混在同一回复，按语义→操作组合自由搭配，无需分多次\n' +
-      '9. ⚠️【upsert覆盖必填完整】当要改已有条目：先读上方「当前角色卡已有内容」拿完整旧content，:::upsert时输出完整旧内容+改动部分，严禁只输出变化字段（会导致原信息清空）\n' +
-      '10. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n' +
-      '11. ★★★【只增不删·冲突才改·不冲突保留】用户每条新信息都是在丰富世界书，不是重写。新信息=新条目直接upsert；与旧内容不冲突=补充条目或upsert追加；同一字段矛盾=才upsert覆盖该字段（其余旧内容原样保留）。禁止因"觉得旧内容不够好"就覆盖或删除。\n' +
-      '12. ★★★【自由生成】不要受任何固定体系/标签前缀束缚！用户要什么就生成什么条目，条目标签自由命名，字段配置按上方ST世界书JSON规则设置。\n' +
-      '13. ★★★【结合已有内容调整条目元素】生成或修改条目时，必须参考上方「当前角色卡已有内容」（name/description/开场白/已有条目），据此调整新条目的 keys触发词、constant常驻或触发、position位置、depth深度、selectiveLogic逻辑、group分组等元素，使其与世界观描述和已有条目协调一致，不重复不冲突。\n' +
-      '14. ★★★【正文YAML中文格式】条目正文（content）禁止写成一大段无结构文字！必须用YAML中文格式：每行一个「维度：内容」（身份/外貌/性格/能力/背景/关系等），列表用缩进+短横线逐项列出，层级用缩进表达。描述类正文（世界观/开场白）同样分段分点。\n' +
-      '15. ★★★【逐项决策40元素】每次生成/修改条目，必须把条目内的每一个元素过一遍（触发词/常驻/位置/深度/触发逻辑/概率/全词匹配/分组/递归/黏性冷却延迟/匹配字段等，完整清单见上方系统提示「条目元素逐项决策清单」）：需自定义的写进操作块元信息行，默认值的不用写。禁止漏掉影响触发的字段，禁止只写keys和content。';
+      '4. ★★★【一次多任务】用户一次提出多项内容（如"生成5个条目+开场白"、"做变量系统+状态栏+界面"）→ 全部在**同一次回复中**完成：多个:::操作块、多个```html代码块、操作块与HTML代码块可自由混排一次输出，写卡器会全部自动提取保存。严禁"一次只做一项、剩下的等用户再问"——节省调用次数优先。\n' +
+      '5. MVU状态栏HTML（第8条）与前端界面HTML：各用独立完整```html代码块输出，写卡器自动提取保存——严禁塞进操作块/JSON\n' +
+      '6. 先输出1-2句自然语言说明，再输出操作块/代码块，之后不再解释\n' +
+      '7. 没有需要修改的内容就回复"本次无修改"或正常回答用户问题\n' +
+      '8. ⚠️【语义优先】用户说话=要增删改！反问句/不满句=隐含修改需求，不要当聊天。例如"白娅是不是太普通"=要改白娅，不是回答"是/否"\n' +
+      '9. ⚠️【混合打包】改+增+删可以混在同一回复，按语义→操作组合自由搭配，无需分多次\n' +
+      '10. ⚠️【upsert覆盖必填完整】当要改已有条目：先读上方「当前角色卡已有内容」拿完整旧content，:::upsert时输出完整旧内容+改动部分，严禁只输出变化字段（会导致原信息清空）\n' +
+      '11. ⚠️只处理用户「最新一条」消息的指令！不要重复处理之前已经回答过的旧指令！\n' +
+      '12. ★★★【只增不删·冲突才改·不冲突保留】用户每条新信息都是在丰富世界书，不是重写。新信息=新条目直接upsert；与旧内容不冲突=补充条目或upsert追加；同一字段矛盾=才upsert覆盖该字段（其余旧内容原样保留）。禁止因"觉得旧内容不够好"就覆盖或删除。\n' +
+      '13. ★★★【自由生成】不要受任何固定体系/标签前缀束缚！用户要什么就生成什么条目，条目标签自由命名，字段配置按上方ST世界书JSON规则设置。\n' +
+      '14. ★★★【结合已有内容调整条目元素】生成或修改条目时，必须参考上方「当前角色卡已有内容」（name/description/开场白/已有条目），据此调整新条目的 keys触发词、constant常驻或触发、position位置、depth深度、selectiveLogic逻辑、group分组等元素，使其与世界观描述和已有条目协调一致，不重复不冲突。\n' +
+      '15. ★★★【正文YAML中文格式】条目正文（content）禁止写成一大段无结构文字！必须用YAML中文格式：每行一个「维度：内容」（身份/外貌/性格/能力/背景/关系等），列表用缩进+短横线逐项列出，层级用缩进表达。描述类正文（世界观/开场白）同样分段分点。\n' +
+      '16. ★★★【逐项决策40元素】每次生成/修改条目，必须把条目内的每一个元素过一遍（触发词/常驻/位置/深度/触发逻辑/概率/全词匹配/分组/递归/黏性冷却延迟/匹配字段等，完整清单见上方系统提示「条目元素逐项决策清单」）：需自定义的写进操作块元信息行，默认值的不用写。禁止漏掉影响触发的字段，禁止只写keys和content。';
 
     let fullPrompt = sysPrompt + stateInfo + existingInfo + qcBlock + jsonReminder + '\n\n=== 对话历史（Agent单会话） ===\n';
 
@@ -5065,9 +5069,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     fullPrompt += '助手: ';
 
-    // 额外追加锚点提示（Agent自主执行模式：直接执行当前步骤+控制标记；普通模式：只回答最新指令）
+    // 额外追加锚点提示（Agent自主执行模式：批量执行当前步骤+控制标记；普通模式：只回答最新指令）
     fullPrompt += agentDirective ?
-      '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接执行上方任务指令中的「当前任务」——输出完成它所需的:::操作块/HTML代码块，不要向用户提问、不要只做说明不产出内容；MVU顺序铁则中的"停下等继续"在本模式下不适用，直接执行当前任务并在回复末尾输出控制标记。）' :
+      '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接批量执行上方任务指令中的「当前任务」——把该步骤全部产物在本次回复中一次性输出（多个:::操作块/多个```html代码块混排均可，写卡器全部自动提取），不要向用户提问、不要只做说明不产出内容；MVU顺序铁则中"一次只输出1条/停下等继续"的限制在本模式下不适用。完成当前步骤后在回复末尾输出控制标记。）' :
       '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
 
     return fullPrompt;
@@ -11579,9 +11583,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         d += planText + '\n';
         d += '▶【当前任务】执行第' + (stepIdx + 1) + '步：「' + agentPlan.steps[stepIdx].desc + '」\n\n';
         d += '执行要求：\n' +
-          '1. 直接执行当前任务——输出完成它所需的 :::操作块 和/或 HTML代码块，不要向用户提问、不要等待确认、不要只做说明不产出内容\n' +
-          '2. 本轮只做当前这一步（后续步骤由写卡器逐步派发），不要抢跑生成后续步骤的内容\n' +
-          '3. 完成后在回复末尾单独一行输出控制标记：\n' +
+          '1. ★★★【最大化单次产出】当前任务范围内的全部内容，必须在这一次回复中**全部输出**——不要保守拆分、不要只做一小部分、不要等下一轮再补。多个:::操作块、多个```html代码块、操作块与HTML代码块，都可以也应当混排在同一次回复中（写卡器会全部自动提取保存，不存在"一次只能做一个"的限制）。\n' +
+          '2. 直接执行，不要向用户提问、不要等待确认、不要只做说明不产出内容。\n' +
+          '3. 本轮只做当前步骤范围（后续步骤由写卡器逐步派发），不要抢跑生成后续步骤的内容。\n' +
+          '4. MVU顺序铁则中"一次只输出1条/停下等继续"的限制在本模式下**不适用**——当前任务若包含多条MVU条目，全部一次性输出。\n' +
+          '5. 完成后在回复末尾单独一行输出控制标记：\n' +
           '   <agent:done> ——当前是计划的最后一步（或本步完成后目标已达成）\n' +
           '   <agent:next> ——后面还有待执行步骤\n' +
           '   <agent:skip> ——本步因信息不足/依赖缺失确实无法执行，说明原因后跳过\n';
@@ -11679,7 +11685,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (isGenerating || agentLoopActive) return;
         const input = doc.getElementById('chatInput');
         if (!input) return;
-        input.value = '请作为写卡Agent接管创作：检查「当前创作进度总览」中的全部缺口（角色卡主体：名称/世界观/开场白/世界书条目；MVU 8步工作流；前端界面），输出 <agent_plan> 计划块（目标+分步骤清单）。要求：覆盖尚未完成的全部缺口；每步=一次可独立完成的具体产出；MVU按1-2条/步拆分；缺口全无时也要给出打磨优化计划。写卡器会自动逐步执行你的计划。';
+        input.value = '请作为写卡Agent接管创作：检查「当前创作进度总览」中的全部缺口（角色卡主体：名称/世界观/开场白/世界书条目；MVU 8步工作流；前端界面），输出 <agent_plan> 计划块（目标+分步骤清单）。硬性要求：①覆盖尚未完成的全部缺口；②★步骤越少越好（典型2-4步），每步把该范围内的全部产物打包在一次回复中（多个:::操作块/多个HTML代码块可混排一次输出，节省调用次数优先）；③缺口全无时也要给出打磨优化计划。写卡器会自动逐步执行你的计划。';
         handleSend();
       }
 
@@ -13159,6 +13165,68 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         };
       }
 
+      // ===== 批量提取结构化面板（Agent Loop 批量产出配套）=====
+      // 一次AI回复可包含多个面板组（【页面名称】+【标签名】+【HTML】代码块 各自成组），
+      // 按【页面名称】分段逐一提取保存。返回保存成功的页面名称数组（空数组=无面板）。
+      // 兼容单面板：只有一组时行为与 tryExtractStructuredFrontendHtml 等价。
+      function extractStructuredPanelsBatch(aiText) {
+        if (!aiText) return [];
+        const saved = [];
+        // 按【页面名称】分段（前瞻分割，每段含一个完整的 页面名+标签+HTML 组）
+        const segments = String(aiText).split(/(?=【页面名称】)/).filter(function(p) {
+          return p.indexOf('【页面名称】') >= 0;
+        });
+        const stBlacklist = ['<statusblock>', '</statusblock>', 'stat_data', 'getAllVariables',
+          'VARIABLE_UPDATE_ENDED', 'Mvu.events', 'InitVar', 'mvu_update', '变量更新规则',
+          '变量输出格式', 'character_book', 'insertion_order', '信息完整度'
+        ];
+        for (let si = 0; si < segments.length; si++) {
+          try {
+            const seg = segments[si];
+            const pm = seg.match(/【页面名称】\s*([^\n【]+)/);
+            const tm = seg.match(/【标签名】\s*([^\n【]+)/);
+            let pageName = pm ? String(pm[1]).trim() : '';
+            let tagName = tm ? String(tm[1]).trim() : '';
+            if (!pageName) continue;
+            // 段内HTML代码块（```html 优先，回退任意```）
+            const htmlMatch = seg.match(/```html[ \t]*\r?\n?([\s\S]*?)\r?\n?```/i) ||
+              seg.match(/```[ \t]*\r?\n?([\s\S]*?)\r?\n?```/);
+            if (!htmlMatch || !htmlMatch[1]) continue;
+            const block = htmlMatch[1];
+            // 完整HTML文档特征
+            if (!/<!doctype|<html|<head/i.test(block)) continue;
+            // 黑名单：状态栏/MVU/世界书内容不是面板
+            let hitBlack = false;
+            for (let b = 0; b < stBlacklist.length; b++) {
+              if (block.indexOf(stBlacklist[b]) >= 0) { hitBlack = true; break; }
+            }
+            if (hitBlack) continue;
+            // 类型互斥：extractContent无parseData = 正文美化块，不属于面板
+            if (block.indexOf('extractContent') >= 0 && block.indexOf('parseData') < 0) continue;
+            // 标签名兜底：从 parseData 的 match(/<xxx>...<\/xxx>/) 正则推断
+            if (!tagName) {
+              const tagGuess = block.match(/match\(\s*\/<([a-zA-Z][\w-]*)/);
+              tagName = tagGuess ? tagGuess[1] : 'panel';
+            }
+            const okRx = saveStructuredFrontendRegex(pageName, tagName, block);
+            if (!okRx) continue;
+            const dataFormat = detectStructuredDataFormat(block);
+            saveStructuredWorldInfoEntry(pageName, tagName, dataFormat);
+            // 开场白示例注入（按段提取，多面板各自注入）
+            try {
+              const sampleText = extractFirstMesSampleFromReply(seg) || buildStructuredSampleByFormat(dataFormat);
+              injectStructuredSampleToFirstMes(tagName, sampleText);
+            } catch (_injErr) {
+              logWarn('frontendBatch', _injErr);
+            }
+            saved.push(pageName);
+          } catch (e) {
+            logWarn('frontendBatch', e);
+          }
+        }
+        return saved;
+      }
+
       // ===== 进入MVU Tab时自动注入固定资产（bundle.js + 正则1-5）=====
       // ⚠️仅自动注入 bundle.js 和正则1-5；变量结构脚本/WTC/<状态栏>占位符提醒/正则6 由 AI 按 9.1.6 工作流一条一条生成
       // 这些资产固定不变，由写卡器自动管理，AI无权写入/删除（白名单拦截）
@@ -13687,17 +13755,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
             }
           }
-          // ===== Agent模式：内容级自动提取（不再按Tab路由，按代码块特征自动判定归属）=====
-          // 提取器自带特征判定且互斥：
-          //   状态栏HTML = populateCharacterData/getAllVariables/stat_data/waitGlobalInitialized(MVU特征)
-          //   前端界面HTML = getMessageData/extractContent/renderPage/getChatMessages(界面特征，且黑名单排除MVU词)
-          // 顺序：先试状态栏 → 未命中再试前端（结构化→正文美化）→ 都未命中且有代码块时统一提示
-          let _htmlSavedKind = '';
+          // ===== Agent模式：批量内容级自动提取（一次回复可同时包含多种产物，全部提取互不短路）=====
+          // 提取器按代码块特征自判归属且互斥：
+          //   状态栏HTML = populateCharacterData/getAllVariables/stat_data(MVU特征) — 唯一，存为正则6
+          //   结构化面板 = getMessageData+parseData(【页面名称】分组) — 可多个，批量提取
+          //   正文美化 = getMessageData+extractContent(renderPage) — 唯一，存为[界面]正文美化
+          // 批量产出场景：状态栏 + 多个面板 + 美化 可混在同一次回复中，这里逐一全部提取保存
+          let _htmlSavedCount = 0;
           try {
             const _sbSavedMain = tryExtractStatusBarHtml(aiResponse);
             if (_sbSavedMain) {
-              _htmlSavedKind = 'statusbar';
-              showToast('✅ 已从AI回答中提取状态栏HTML并保存', 'success');
+              _htmlSavedCount++;
+              showToast('✅ 已从AI回答中提取MVU状态栏HTML并保存', 'success');
               progress = calcProgress();
               // ⚠️P0修复：立即持久化——若后续步骤异常/用户直接关闭，内存里的状态栏正则不落盘会丢失
               saveToStorage();
@@ -13706,47 +13775,44 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } catch (e) {
             logWarn('statusbar', e);
           }
-          if (!_htmlSavedKind) {
-            try {
-              // ⚠️不再按模板模式分发——AI根据用户输入自动判断类型。
-              // 识别策略：若回复含【页面名称】/【标签名】标记 → 结构化数据面板；否则 → 正文美化正则
-              const _feLooksStructured = (aiResponse || '').indexOf('【页面名称】') >= 0 || (aiResponse || '').indexOf('【标签名】') >= 0;
-              if (_feLooksStructured) {
-                // 结构化数据：[界面]页面名称 正则 + 世界书条目
-                const _feSt = tryExtractStructuredFrontendHtml(aiResponse);
-                if (_feSt) {
-                  _htmlSavedKind = 'frontend';
-                  showToast('✅ 已保存「[界面]' + _feSt.pageName + '」结构化正则 + 规范AI输出的世界书条目', 'success');
-                  saveToStorage();
-                  renderPreview();
-                  updateQuickActions();
-                  updateCtxBar();
-                }
-              } else {
-                // 正文美化：[界面]正文美化 正则 + 自动生成对应世界书条目
-                const _feSaved = tryExtractFrontendRegexHtml(aiResponse);
-                if (_feSaved) {
-                  _htmlSavedKind = 'frontend';
-                  showToast('✅ 已从AI回答中提取前端界面HTML并保存为「[界面]正文美化」正则', 'success');
-                  saveToStorage();
-                  renderPreview();
-                  updateQuickActions();
-                  updateCtxBar();
-                }
-              }
-            } catch (e) {
-              logWarn('frontend', e);
+          try {
+            // 结构化数据面板：按【页面名称】分组批量提取（单面板兼容）
+            const _stPanels = extractStructuredPanelsBatch(aiResponse);
+            if (_stPanels && _stPanels.length > 0) {
+              _htmlSavedCount += _stPanels.length;
+              showToast('✅ 已保存 ' + _stPanels.length + ' 个结构化面板：[界面]' + _stPanels.join('、[界面]') + '（含规范AI输出的世界书条目）', 'success');
+              saveToStorage();
+              renderPreview();
+              updateQuickActions();
+              updateCtxBar();
             }
+          } catch (e) {
+            logWarn('frontend', e);
           }
-          // ⚠️失败可见化：回复里有HTML代码块但两个提取器都未识别时给出提示（Console有判定详情日志）
-          if (!_htmlSavedKind) {
+          try {
+            // 正文美化：[界面]正文美化 正则 + 自动生成对应世界书条目
+            // （特征自检互斥：状态栏块被MVU词黑名单排除；结构化面板块有parseData无extractContent被跳过）
+            const _feSaved = tryExtractFrontendRegexHtml(aiResponse);
+            if (_feSaved) {
+              _htmlSavedCount++;
+              showToast('✅ 已从AI回答中提取正文美化HTML并保存为「[界面]正文美化」正则', 'success');
+              saveToStorage();
+              renderPreview();
+              updateQuickActions();
+              updateCtxBar();
+            }
+          } catch (e) {
+            logWarn('frontend', e);
+          }
+          // ⚠️失败可见化：回复里有HTML代码块但所有提取器都未识别时给出提示（Console有判定详情日志）
+          if (_htmlSavedCount === 0) {
             const _hasFence = /```/.test(aiResponse || '');
             const _fenceLooksHtml = /```html|<!doctype|<html/i.test(aiResponse || '');
             if (_hasFence && _fenceLooksHtml) {
               showToast('⚠️ AI回复中有HTML代码块，但未识别为状态栏/前端界面（未保存）。\n详情见浏览器Console的 [statusbar] / [frontend] 日志', 'warning', 7000);
             }
           }
-          if (_htmlSavedKind) _stepProduced = true;
+          if (_htmlSavedCount > 0) _stepProduced = true;
 
           // ========== Agent Loop 收尾：计划检测 / 步骤状态标记（agentLoop 核心）==========
           let _agentCtl = null;
