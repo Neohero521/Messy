@@ -49,8 +49,9 @@
   const AGENT_LOOP_MAX_STEPS = 30;
 
   // ===== 解析AI输出的计划块 <agent_plan>...</agent_plan>（Agent Loop 入口协议）=====
-  // 返回 { goal, steps:[{desc,done}], createdAt, stepRuns } 或 null（无计划块/步骤<2）
-  function parseAgentPlan(text) {
+  // minSteps（可选，默认2）：最小步骤数门槛——初始计划≥2步才触发循环；动态重规划传1（剩余工作可能只有一件）
+  // 返回 { goal, steps:[{desc,done}], createdAt, stepRuns } 或 null
+  function parseAgentPlan(text, minSteps) {
     if (!text) return null;
     const m = String(text).match(/<agent_plan>([\s\S]*?)<\/agent_plan>/i);
     if (!m) return null;
@@ -68,7 +69,8 @@
         if (desc && desc.length > 1) steps.push({ desc: desc, done: false });
       }
     });
-    if (steps.length < 2) return null; // 少于2步不算计划
+    const _minNeed = (typeof minSteps === 'number') ? minSteps : 2;
+    if (steps.length < _minNeed) return null; // 初始计划少于2步不触发循环；重规划由调用方放宽门槛
     if (steps.length > AGENT_LOOP_MAX_STEPS) steps.length = AGENT_LOOP_MAX_STEPS; // 超长计划截断
     return { goal: goal, steps: steps, createdAt: Date.now(), stepRuns: 0 };
   }
@@ -4135,7 +4137,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     }).join('\n');
     return '⚠️ 前7条未齐全（第8条=状态栏HTML，必须前7条完成后才生成）。\n' +
       '当前缺失 ' + missing.length + ' 条：\n' + hint + '\n\n' +
-      '请在 MVU Tab 按以下8条固定顺序**一条一条**生成，每生成一条说"继续"再写下一条：\n' +
+      '请按以下8条固定顺序补齐（依赖顺序是铁律；支持一次回复连续批量输出多条）：\n' +
       '  第1条：变量结构脚本（zod 4 schema）\n' +
       '  第2条：[InitVar]初始变量\n' +
       '  第3条：[mvu_update]变量更新规则\n' +
@@ -4144,17 +4146,18 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '  第6条：[mvu_update]变量输出格式强调\n' +
       '  第7条：<状态栏>占位符提醒条目\n' +
       '  第8条：正则6 [美化]MVU状态栏（即状态栏 HTML）—— 前7条完成后才生成\n\n' +
-      '⚠️ 铁律：每生成一条立即停下，等用户说"继续"再写下一条。禁止一次性输出多条！';
+      '生成时请从缺失的第一条开始，按顺序在**一次回复中连续全部输出**（已存在的不要重复生成）；用户要求逐条确认时才逐条来。';
   }
 
   // ====================================================================
   // 公共常量：MVU 8条工作流规范文本（供 mvuPrompts.init_var / var_update_rule / buildMissingMvuHint 引用，避免多处重复维护）
   // ====================================================================
-  // 逐条生成铁则（最高优先级）
+  // 生成顺序规则（批量默认：多条可一次输出，顺序与依赖关系是铁律）
   const MVU_SEQUENTIAL_RULE =
-    '【逐条生成铁则（最高优先级）】\n' +
-    '⚠️ 一次只输出1条内容（脚本/条目/正则），输出后立即停下，不要写后面的。结尾只问用户："已生成第N条，说\'继续\'生成下一条"——不要一次性输出多条！\n' +
-    '用户说"继续"后，再按顺序生成下一条。前7条全部完成后，才生成第8条（状态栏HTML）。\n\n';
+    '【生成顺序规则】\n' +
+    '1. 顺序铁律：必须按 1→2→3→4→5→6→7→8 的固定顺序生成（依赖关系：第2/3条严格依据第1条schema；第8条状态栏HTML依赖前7条，前7条未完成前禁止生成第8条）。\n' +
+    '2. ★【批量生成是默认模式】多条内容（脚本/条目/正则）应当**在一次回复中按顺序连续全部输出**，无需逐条停下等确认——除非用户明确要求"逐条生成/一条一条来/每条等我确认"。\n' +
+    '3. 用户说"继续"时，从缺失或未完成的下一条继续生成（已完成的不重复输出）。\n\n';
   // 8条固定顺序（含每条详细规范）—— 第3/4条顺序已调整为：更新规则在前，变量列表在后
   const MVU_8STEPS_DETAIL =
     '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
@@ -4887,8 +4890,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '  C. 前端界面：正文美化正则、结构化数据面板（输出```html完整代码块，结构化时带【页面名称】【标签名】标记）\n\n' +
       '【意图路由 · 每轮先判断用户要什么，再决定输出什么】\n' +
       '1. 世界观/角色/设定/条目/开场白/剧情 → 领域A\n' +
-      '2. 变量/数值追踪/好感度/金钱/物品/状态栏/MVU → 领域B（普通对话模式：先需求收集，再按8条固定顺序逐条生成，一次一条等"继续"）\n' +
-      '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C（普通对话模式：先确认风格需求，再输出完整HTML代码块）\n' +
+      '2. 变量/数值追踪/好感度/金钱/物品/属性/阶段/境界/状态栏/MVU → 领域B：**一律生成MVU体系资产**（zod脚本→[InitVar]→更新规则→变量列表→输出格式→格式强调→占位提醒→状态栏HTML，按固定顺序，可一次回复批量输出）。⚠️【铁律】变量追踪内容必须以MVU条目形式实现，禁止做成普通世界书条目、禁止写进description/开场白——变量系统只有走MVU体系才能在酒馆运行。需求不明时先做需求收集（要追踪什么/怎么展示），用户说"直接做/你看着办"则按合理默认批量生成\n' +
+      '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C：先确认风格需求，再输出完整HTML代码块（用户说"直接做/你看着办"则按合理默认执行）\n' +
       '4. 大型复合需求（如"生成完整角色卡，带MVU变量系统和前端界面"/"从头做一张卡"/用户要求你接管或自动完成）→ 输出「Agent计划块」，写卡器会解析并自动循环执行，无需用户每步催促：\n' +
       '   <agent_plan>\n' +
       '   目标：一句话总目标\n' +
@@ -4929,7 +4932,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '第6条: [mvu_update]变量输出格式强调（默认enabled=false）\n' +
       '第7条: <状态栏>占位符提醒（constant=true，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>）\n' +
       '第8条: 正则6 [美化]MVU状态栏（markdownOnly=true, promptOnly=false，完整HTML文档）\n\n' +
-      '⚠️【生成顺序铁则】按1→8固定顺序逐条生成，一次只输出1条，输出后停下等用户说"继续"再生成下一条；前7条全部完成后才生成第8条状态栏。\n\n' +
+      '⚠️【生成顺序与批量】严格按1→8固定顺序（依赖铁律：前7条完成后才生成第8条状态栏）；**多条可在一次回复中按顺序连续全部输出（批量是默认模式）**——只有用户明确要求逐条确认时才逐条来。\n' +
+      '⚠️【MVU体系边界】变量追踪相关的一切内容（包括用户额外要求的阶段判定/人设切换/派生字段/EJS控制器等附加条目）都必须以MVU体系条目形式生成，禁止做成普通世界书条目或写进description/开场白。\n\n' +
       '【MVU条目输出方式（第1-7条）】一律用:::操作块：\n' +
       '::: upsert [InitVar]初始变量\\n世界:\\n  境界: 炼气\\n:::\n' +
       '⚠️【InitVar正文纯净铁律】content只写YAML变量内容（不写stat_data根键，MVU底层自动挂载）；绝不把enabled/content/comment等配置字段写进content。\n' +
@@ -4952,16 +4956,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       MVU_8STEPS_DETAIL + '\n' +
       MVU_VAR_SPEC + '\n\n' +
       MVU_8STEPS_COMMON_RULES + '\n' +
-      MVU_MODIFY_RULE + '\n' +
-      '⚠️【逐条生成铁则的批量豁免】上述"一次只输出1条/停下等继续"仅适用于：①用户要求逐条确认，或②你处于Agent自主执行模式（任务指令另有说明）。\n' +
-      '   普通对话中用户要求"全部生成/一次生成多条/批量生成MVU 1-7条"时，按用户要求在**一次回复中批量输出全部条目**（顺序仍需1→7保持依赖正确）。\n';
+      MVU_MODIFY_RULE + '\n';
     // —— MVU 轻量速览（未命中时注入）——
     const mvuBrief = '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎛️【领域速览 · MVU变量系统】（完整规范将在你处理变量/状态栏需求时自动提供）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '· MVU=MagVarUpdate变量框架，8条固定资产：zod脚本/[InitVar]/更新规则/变量列表/输出格式/强调/占位提醒/状态栏HTML\n' +
-      '· 若用户提到变量/数值追踪/好感度/状态栏等：先做需求收集（要追踪什么/怎么展示），再按8条固定顺序逐条生成\n' +
+      '· 若用户提到变量/数值追踪/好感度/状态栏等：一律生成MVU体系资产（批量生成是默认模式），先做需求收集（要追踪什么/怎么展示），用户说"直接做"则按合理默认批量生成\n' +
       '· 本轮用户未涉及变量需求时忽略本速览，不要主动生成MVU内容\n';
     // —— 前端完整规范（意图命中或已有前端正则时注入）——
     const feSpecBlock = '\n' +
@@ -5073,10 +5075,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     fullPrompt += '助手: ';
 
-    // 额外追加锚点提示（Agent自主执行模式：批量执行当前步骤+控制标记；普通模式：只回答最新指令）
+    // 额外追加锚点提示（Agent自主执行模式：批量执行当前步骤+控制标记；自由对话模式：只回答最新指令+自主续跑标记）
     fullPrompt += agentDirective ?
-      '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接批量执行上方任务指令中的「当前任务」——把该步骤全部产物在本次回复中一次性输出（多个:::操作块/多个```html代码块混排均可，写卡器全部自动提取），不要向用户提问、不要只做说明不产出内容；MVU顺序铁则中"一次只输出1条/停下等继续"的限制在本模式下不适用。完成当前步骤后在回复末尾输出控制标记。）' :
-      '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
+      '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接批量执行上方任务指令中的「当前任务」——把该步骤全部产物在本次回复中一次性输出（多个:::操作块/多个```html代码块混排均可，写卡器全部自动提取），不要向用户提问、不要只做说明不产出内容；MVU依赖顺序（前7条后才生成第8条）仍需遵守但无需逐条停顿。完成当前步骤后在回复末尾输出控制标记。）' :
+      '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。若本次任务的产物一次回复装不下、或做完本轮还有紧接的必要后续行动，在回复末尾单独一行输出 <agent:continue>，写卡器会自动让你继续行动（最多自动续3轮），无需用户再催；全部做完则不要输出该标记。）';
 
     return fullPrompt;
   }
@@ -9737,7 +9739,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               action: 'init_var',
               icon: 'code',
               label: '生成MVU变量系统',
-              title: '启动MVU 8条工作流：从第1条zod变量结构脚本开始逐条生成'
+              title: '启动MVU 8条工作流：从第1条zod变量结构脚本开始批量生成（一次回复输出全部缺失条目）'
             });
           } else {
             actions.push({
@@ -10058,11 +10060,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           summary: '帮我作为写卡Agent梳理当前创作进度：\n1) 角色卡主体：名称/世界观描述/开场白/世界书条目现状\n2) MVU变量系统：按8条顺序检查完成情况（' + MVU_8STEPS_SHORT + '）\n3) 前端界面：正文美化正则与结构化数据面板状态\n4) 还缺什么、推荐的下一步。用简洁列表呈现。',
           opening: '请根据现有世界观设定生成开场白。开场白1用 ::: set first_mes（500-800字：场景描写→主角出场→冲突/悬念→结尾留钩；用 {{char}}/{{user}} 代角色与玩家名，可结合 {{time}}/{{date}}/{{random}}/{{pick}}/{{idleDuration}}/{{roll}} 等酒馆宏增强真实感，但禁止占位符/未定文案）；同时生成2条以上备选开场白用 ::: set alternate_greetings（多条用---分割，与开场白1不同的场景/视角/时机；酒馆聊天界面可切换，{{charFirstMessage::N}} 可取第N条）。全部用:::操作块输出。',
           generate_entry: '请帮我自由生成世界书条目（不限制标签前缀，用户要什么就生成什么）。只用:::upsert操作块输出，生成/修改条目时必须按「条目元素逐项决策清单」把40个元素全部过一遍：需自定义的写进元信息行（keys/constant/position/selectiveLogic/depth/probability/order/match_whole_words/role/group/triggers等），用默认值的不写；正文用YAML中文格式。',
-          init_var: '请帮我设计MVU变量系统：先收集我的变量需求（角色/世界观/场景/需要追踪什么状态），' +
-            '然后按8条固定顺序逐条生成，一次只输出1条，输出后停下等我说"继续"。\n' +
-            '现在从【第1条：变量结构脚本(zod 4 schema)】开始。',
-          var_update_rule: '请检查当前MVU系统已有的条目，按8条固定顺序从缺失的第一条开始补。\n' +
-            '一次只补1条，输出后立即停下等我确认。前7条全部完成后才生成第8条状态栏。',
+          init_var: '请帮我设计MVU变量系统（注意：变量相关内容一律走MVU体系，不要做成普通条目）：先收集我的变量需求（角色/世界观/场景/需要追踪什么状态）；若我已说清需求或让你看着办，则按8条固定顺序**一次回复批量生成全部条目**（第1条zod脚本→第7条占位提醒连续输出，前7条完成后可继续生成第8条状态栏HTML）。',
+          var_update_rule: '请检查当前MVU系统已有的条目，按8条固定顺序从缺失的第一条开始补齐，**一次回复批量输出所有缺失条目**（已存在的不重复生成）；前7条全部完成后才生成第8条状态栏。',
           generate_frontend: '请根据现有角色卡风格设计一个前端界面。AI根据我的需求自动判断类型：若为正文美化（信纸/日记/气泡等）输出```html完整HTML（getMessageData+extractContent+renderPage）；若为结构化数据面板（任务面板/论坛/状态栏等）输出【页面名称】+【标签名】+```html完整HTML（getMessageData+parseData+renderPage+handleClick）。写卡器会自动保存为正则并生成世界书条目。'
         };
         if (prompts[action] && input) {
@@ -11606,7 +11605,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '1. ★★★【最大化单次产出】当前任务范围内的全部内容，必须在这一次回复中**全部输出**——不要保守拆分、不要只做一小部分、不要等下一轮再补。多个:::操作块、多个```html代码块、操作块与HTML代码块，都可以也应当混排在同一次回复中（写卡器会全部自动提取保存，不存在"一次只能做一个"的限制）。\n' +
           '2. 直接执行，不要向用户提问、不要等待确认、不要只做说明不产出内容。\n' +
           '3. 本轮只做当前步骤范围（后续步骤由写卡器逐步派发），不要抢跑生成后续步骤的内容。\n' +
-          '4. MVU顺序铁则中"一次只输出1条/停下等继续"的限制在本模式下**不适用**——当前任务若包含多条MVU条目，全部一次性输出。\n' +
+          '4. MVU生成顺序规则中"前7条完成后才生成第8条"的依赖顺序必须遵守，但无需逐条停顿——当前任务若包含多条MVU条目，按顺序一次性全部输出。\n' +
           '5. 完成后在回复末尾单独一行输出控制标记：\n' +
           '   <agent:done> ——当前是计划的最后一步（或本步完成后目标已达成）\n' +
           '   <agent:next> ——后面还有待执行步骤\n' +
@@ -13884,8 +13883,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const _skipMark = /<agent:skip>/i.test(aiResponse || '');
             const _doneMark = /<agent:done>/i.test(aiResponse || '');
             // —— 动态重规划：AI在执行中途输出新 <agent_plan> → 替换剩余步骤（基于观察调整策略）——
-            const _replan = parseAgentPlan(aiResponse);
-            if (_replan && _replan.steps && _replan.steps.length >= 2) {
+            // 门槛放宽到1步：重规划时剩余工作可能只有一件（初始计划仍需≥2步才触发循环）
+            const _replan = parseAgentPlan(aiResponse, 1);
+            if (_replan && _replan.steps && _replan.steps.length >= 1) {
               _replan.stepRuns = agentPlan.stepRuns || 0; // 继承防失控计数
               agentPlan = _replan;
               _execNotes.push('📋 已采纳Agent的新计划（' + _replan.steps.length + '步，替换剩余步骤）');
@@ -13912,7 +13912,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               };
             }
           } else if (!opts.agentStep) {
-            // —— 普通对话模式：检测AI输出的 <agent_plan> 计划块 → 自动进入Agent循环执行 ——
+            // —— 自由对话模式（全程Agent化）：检测 <agent_plan> 计划块 或 <agent:continue> 自主续跑标记 ——
             const _newPlan = parseAgentPlan(aiResponse);
             if (_newPlan && _newPlan.steps && _newPlan.steps.length >= 2 && !agentLoopActive) {
               agentPlan = _newPlan;
@@ -13927,6 +13927,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                   logError('agentLoop.auto', err);
                 });
               }, 300);
+            } else if (/<agent:continue>/i.test(aiResponse || '') && !agentLoopActive) {
+              // —— 自主续跑：AI本轮没做完，自动让它继续下一轮（带执行结果观察），最多3轮防失控 ——
+              const _contRuns = (opts._autoRuns || 0) + 1;
+              if (_contRuns <= 3) {
+                showToast('🤖 Agent自主续跑（第 ' + _contRuns + '/3 轮）：本轮任务未完成，自动继续…', 'info', 5000);
+                setTimeout(function() {
+                  callAIChat({ _autoRuns: _contRuns }).catch(function(err) {
+                    logError('agentAutoContinue', err);
+                  });
+                }, 300);
+              } else {
+                showToast('ℹ️ Agent已连续自主续跑3轮，本轮到此为止——如需继续请再告诉我', 'info', 6000);
+              }
             }
           }
 
@@ -13969,13 +13982,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (_aiChatNotesQueue.length > 0) {
             rawContent = (rawContent || '') + '\n\n---\n' + _aiChatNotesQueue.join('\n\n');
           }
-          // Agent步骤模式：剥掉控制标记（<agent:next>/<agent:done>/<agent:skip>），聊天中不显示协议噪音
-          if (opts.agentStep) {
-            rawContent = String(rawContent || '')
-              .replace(/<agent:(?:next|done|skip)>/gi, '')
-              .replace(/\n{3,}/g, '\n\n')
-              .trim();
-          }
+          // 剥掉控制标记（<agent:next>/<agent:done>/<agent:skip>/<agent:continue>），聊天中不显示协议噪音
+          rawContent = String(rawContent || '')
+            .replace(/<agent:(?:next|done|skip|continue)>/gi, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
           // ReAct观察入消息流：执行结果区块持久化（用户可见，下一轮AI也能从对话历史读取）
           if (_execNotes.length > 0) {
             rawContent = (rawContent || '') + '\n\n---\n**【执行结果】**\n' + _execNotes.join('\n');
