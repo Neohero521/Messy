@@ -45,6 +45,34 @@
   // 在 Agent 版中全部依据此常量跳过，改为内容级自动路由。
   const AGENT_MODE = true;
 
+  // ===== Agent Loop 步数上限（防失控：单个计划最多自动执行的AI调用次数）=====
+  const AGENT_LOOP_MAX_STEPS = 30;
+
+  // ===== 解析AI输出的计划块 <agent_plan>...</agent_plan>（Agent Loop 入口协议）=====
+  // 返回 { goal, steps:[{desc,done}], createdAt, stepRuns } 或 null（无计划块/步骤<2）
+  function parseAgentPlan(text) {
+    if (!text) return null;
+    const m = String(text).match(/<agent_plan>([\s\S]*?)<\/agent_plan>/i);
+    if (!m) return null;
+    const body = m[1] || '';
+    const goalMatch = body.match(/目标[：:]\s*([^\n]+)/);
+    const goal = goalMatch ? goalMatch[1].trim() : 'Agent创作计划';
+    const steps = [];
+    body.split(/\n/).forEach(function(line) {
+      const l = line.trim();
+      if (!l) return;
+      // 步骤行：1. / 1、/ 1) / 1）等开头，或 - / • / • 列表符（兼容全角标点）
+      const sm = l.match(/^\d+\s*[\.、．)）]\s*(.+)$/) || l.match(/^[-•▪]\s*(.+)$/);
+      if (sm) {
+        const desc = sm[1].trim();
+        if (desc && desc.length > 1) steps.push({ desc: desc, done: false });
+      }
+    });
+    if (steps.length < 2) return null; // 少于2步不算计划
+    if (steps.length > AGENT_LOOP_MAX_STEPS) steps.length = AGENT_LOOP_MAX_STEPS; // 超长计划截断
+    return { goal: goal, steps: steps, createdAt: Date.now(), stepRuns: 0 };
+  }
+
   // ============================================================================
   // 全局调参常量（唯一事实源）：阈值/超时/防抖统一在此，禁止再散落魔法数字
   // ============================================================================
@@ -4694,7 +4722,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 </html>`;
 
   // ===== 构建完整提示词（Agent 版：单会话统一提示词，按「意图检测+卡片状态」注入领域规范）=====
-  function buildPrompt(cardData, cardGenerated, messages) {
+  // agentDirective（可选）：Agent自主执行模式的任务指令（agentLoop 每步传入：计划总览+当前步骤+控制标记协议）
+  function buildPrompt(cardData, cardGenerated, messages, agentDirective) {
     const cd = cardData;
 
     // ★ 优先使用传入的 messages 参数（callAIChat 传的是当前会话消息，权威），
@@ -4857,10 +4886,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '  C. 前端界面：正文美化正则、结构化数据面板（输出```html完整代码块，结构化时带【页面名称】【标签名】标记）\n\n' +
       '【意图路由 · 每轮先判断用户要什么，再决定输出什么】\n' +
       '1. 世界观/角色/设定/条目/开场白/剧情 → 领域A\n' +
-      '2. 变量/数值追踪/好感度/金钱/物品/状态栏/MVU → 领域B（先需求收集，再按8条固定顺序逐条生成，一次一条等"继续"）\n' +
-      '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C（先确认风格需求，再输出完整HTML代码块）\n' +
-      '4. 混合需求（如"生成完整角色卡，带变量系统和界面"）→ 先给出创作计划，按 A→B→C 顺序分步执行，每步完成后停下等用户确认\n' +
-      '5. 需求模糊时：主动追问关键决策（内容尺度/风格/范围），不要擅自展开大规模生成\n\n' +
+      '2. 变量/数值追踪/好感度/金钱/物品/状态栏/MVU → 领域B（普通对话模式：先需求收集，再按8条固定顺序逐条生成，一次一条等"继续"）\n' +
+      '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C（普通对话模式：先确认风格需求，再输出完整HTML代码块）\n' +
+      '4. 大型复合需求（需要≥3个步骤才能完成，如"生成完整角色卡，带MVU变量系统和前端界面"/"从头做一张卡"/用户要求你接管或自动完成）→ 输出「Agent计划块」，写卡器会解析并自动循环执行，无需用户每步催促：\n' +
+      '   <agent_plan>\n' +
+      '   目标：一句话总目标\n' +
+      '   步骤：\n' +
+      '   1. 生成世界观描述与角色名\n' +
+      '   2. 生成核心世界书条目（3-5条）\n' +
+      '   3. 生成开场白\n' +
+      '   4. 设计MVU变量结构脚本（第1条）\n' +
+      '   ...（按需继续，覆盖全部缺口）\n' +
+      '   </agent_plan>\n' +
+      '   拆步原则：每步=一次可独立完成的具体产出（一批:::操作块 或 一个HTML代码块）；MVU 8条工作流按1-2条/步拆分；MVU前7条未完成前不要把状态栏（第8条）排进计划。计划块后写1-2句说明即可，随后写卡器自动逐步执行。\n' +
+      '5. 需求模糊时：主动追问关键决策（内容尺度/风格/范围），不要擅自展开大规模生成（用户明确要求"直接做/你看着办"则按合理默认执行并在计划前说明）\n' +
+      '6. 普通单步需求（1-2个操作就能完成）不需要计划块，直接执行\n\n' +
       '【通用行为准则】\n' +
       '· 语义优先：用户说话=要增删改！反问句/不满句=隐含修改需求，不要当聊天\n' +
       '· 只处理用户最新一条消息的指令，不重复处理旧指令\n' +
@@ -4963,10 +5003,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     specBlock += mvuIntent ? mvuSpecBlock : mvuBrief;
     specBlock += feIntent ? feSpecBlock : feBrief;
 
-    // ========== 6. 状态信息 ==========
-    const stateInfo = cardGenerated ?
-      '\n\n=== 当前状态：角色卡主体内容已具备 ===\n用户可继续完善细节（角色卡/MVU/前端均可），或要求生成完整角色卡写入酒馆。' :
-      '\n\n=== 当前状态：创作进行中 ===\n请根据用户描述按意图路由推进（角色卡主体优先，MVU/前端按用户需求）。';
+    // ========== 6. 状态信息（Agent自主执行模式下替换为任务指令）==========
+    const stateInfo = agentDirective ?
+      ('\n\n=== 🤖 Agent自主执行模式（任务指令，最高优先级）===\n' + agentDirective) :
+      (cardGenerated ?
+        '\n\n=== 当前状态：角色卡主体内容已具备 ===\n用户可继续完善细节（角色卡/MVU/前端均可），或要求生成完整角色卡写入酒馆。' :
+        '\n\n=== 当前状态：创作进行中 ===\n请根据用户描述按意图路由推进（角色卡主体优先，MVU/前端按用户需求）。');
 
     // ========== 7. 组装系统提示词（Agent版：SYS_PROMPT完整版 + 按需领域规范）==========
     const sysPrompt = agentIdentity + SYS_PROMPT + specBlock;
@@ -5023,8 +5065,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     });
     fullPrompt += '助手: ';
 
-    // 额外追加一句"只回答最新指令"的锚点提示
-    fullPrompt += '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
+    // 额外追加锚点提示（Agent自主执行模式：直接执行当前步骤+控制标记；普通模式：只回答最新指令）
+    fullPrompt += agentDirective ?
+      '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接执行上方任务指令中的「当前任务」——输出完成它所需的:::操作块/HTML代码块，不要向用户提问、不要只做说明不产出内容；MVU顺序铁则中的"停下等继续"在本模式下不适用，直接执行当前任务并在回复末尾输出控制标记。）' :
+      '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。）';
 
     return fullPrompt;
   }
@@ -8365,11 +8409,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           chatSessions.frontend.messages = arr;
           frontendMessages = arr;
         };
+        /* ===== Agent Loop 调试/自动化接口（控制台可操作，不影响正常使用）===== */
+        window.__agentLoopApi = {
+          startAgentFlow: startAgentFlow,
+          agentLoop: agentLoop,
+          stopAgentLoop: stopAgentLoop,
+          handleSend: handleSend,
+          getPlan: function() { return agentPlan; },
+          setPlan: function(p) { agentPlan = p; },
+          isLoopActive: function() { return agentLoopActive; }
+        };
       }
 
       let isGenerating = false;
       let cardGenerated = false;
       let progress = 0;
+
+      // ========== Agent自主执行循环（Agent Loop）状态 ==========
+      // agentPlan：AI输出的创作计划 { goal, steps:[{desc,done}], createdAt, stepRuns }
+      // agentLoopActive：循环运行中（每步=一次完整AI调用+应用+提取）
+      let agentPlan = null;
+      let agentLoopActive = false;
+      let agentConsecutiveFailures = 0;
       let moduleProgress = {
         total: 0,
         constant: 0,
@@ -8423,7 +8484,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ✅ 点击「开始创作」= 全新开始：自动清空之前所有记录（角色卡数据 + 会话聊天记录 + localStorage存档）
           resetAllWorkForNewCard();
           renderChatUI();
-          addAssistantMsg('你好！我是你的全能写卡Agent 🤖\n\n在一个对话里，我可以帮你完成角色卡创作的一切：\n   • **角色卡主体**：世界观、角色设定、世界书条目、开场白（:::操作块生成，可随时增删改）\n   • **MVU变量系统**：变量结构、初始变量、更新规则等8条工作流资产 + HTML状态栏\n   • **前端界面**：正文美化（信纸/日记/气泡）、结构化数据面板（论坛/任务面板等）\n   • **混合需求**：直接说"生成完整角色卡，带变量系统和界面"，我会给出计划分步执行\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事（默认，不含任何成人内容）\n   • 暗黑向：残酷、血腥、深刻、绝望的剧情——包含暴力/死亡/折磨/背叛/创伤/精神崩溃，不含色情\n   • NSFW（18禁）：成人内容——包含露骨的情欲/性行为描写，器官直呼、过程逐帧、不回避不省略\n   • 暗黑+NSFW 叠加：性暴力/黑暗调教/末世堕落/人身支配等极端内容，两套标准同时全开\n   ⚠️ 一旦选定，本卡将**严格按照该尺度执行**——不会打码、不会留白、不会用"省略号/成语"敷衍。\n\n**2. 核心方向**：你想做什么样的世界？要哪些配套？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），并说明是否需要变量系统/状态栏/界面美化，我会据此制定创作计划。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+          addAssistantMsg('你好！我是你的全能写卡Agent 🤖\n\n在一个对话里，我可以帮你完成角色卡创作的一切：\n   • **角色卡主体**：世界观、角色设定、世界书条目、开场白（:::操作块生成，可随时增删改）\n   • **MVU变量系统**：变量结构、初始变量、更新规则等8条工作流资产 + HTML状态栏\n   • **前端界面**：正文美化（信纸/日记/气泡）、结构化数据面板（论坛/任务面板等）\n   • **全自动托管**：点「✨ 自动创作」或直接说"帮我做一张完整的卡，带变量和界面"——我会制定计划并**自动逐步执行到完成**，无需你每步催促，中途可随时停止\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事（默认，不含任何成人内容）\n   • 暗黑向：残酷、血腥、深刻、绝望的剧情——包含暴力/死亡/折磨/背叛/创伤/精神崩溃，不含色情\n   • NSFW（18禁）：成人内容——包含露骨的情欲/性行为描写，器官直呼、过程逐帧、不回避不省略\n   • 暗黑+NSFW 叠加：性暴力/黑暗调教/末世堕落/人身支配等极端内容，两套标准同时全开\n   ⚠️ 一旦选定，本卡将**严格按照该尺度执行**——不会打码、不会留白、不会用"省略号/成语"敷衍。\n\n**2. 核心方向**：你想做什么样的世界？要哪些配套？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），并说明是否需要变量系统/状态栏/界面美化。说清需求后我就能接管创作；也可以现在就点「✨ 自动创作」让我按缺口自主推进。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
         });
         doc.getElementById('importBtn').addEventListener('click', showImportModal);
         const contBtn = doc.getElementById('continueBtn');
@@ -9118,7 +9179,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         frontendMessages = chatSessions.frontend.messages;
         // 同步到全局 messages 别名（向后兼容）
         messages = [];
-        // Agent模式：activeTab 恒为 'card'，无需切回
+        // Agent模式：activeTab 恒为 'card'，无需切回；导入新卡时作废旧Agent计划
+        agentPlan = null;
+        agentLoopActive = false;
+        agentConsecutiveFailures = 0;
         renderChatUI();
         applyFontScale(_appFontScale);
         const entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
@@ -9243,6 +9307,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         try {
           _aiChatNotesQueue = [];
         } catch (_eQ) {}
+        // 6. Agent Loop 状态归零（计划/循环/失败计数）
+        agentPlan = null;
+        agentLoopActive = false;
+        agentConsecutiveFailures = 0;
         // 7. localStorage 存档：移除旧 STORAGE_KEY，避免"关闭重开又带回来旧卡"
         clearStorage();
       }
@@ -9289,6 +9357,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             progress: progress,
             moduleProgress: moduleProgress,
             fontScale: typeof _appFontScale === 'number' ? _appFontScale : 1,
+            agentPlan: agentPlan, // Agent计划（含步骤done状态，重开后可「继续执行计划」）
             timestamp: Date.now()
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -9424,6 +9493,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             };
             if (typeof state.fontScale === 'number') _appFontScale = state.fontScale;
 
+            // ========== Agent模式：恢复未完成的Agent计划（含步骤done状态）==========
+            if (state.agentPlan && state.agentPlan.steps && Array.isArray(state.agentPlan.steps) && state.agentPlan.steps.length >= 2) {
+              agentPlan = {
+                goal: String(state.agentPlan.goal || 'Agent创作计划'),
+                steps: state.agentPlan.steps.map(function(s) {
+                  return { desc: String((s && s.desc) || ''), done: !!(s && s.done) };
+                }).filter(function(s) {
+                  return s.desc.length > 1;
+                }),
+                createdAt: state.agentPlan.createdAt || Date.now(),
+                stepRuns: 0 // 重开后重置执行计数（防失控上限按新一轮会话计）
+              };
+              if (agentPlan.steps.length < 2) agentPlan = null;
+            } else {
+              agentPlan = null;
+            }
+
             return true;
           }
         } catch (e) { logWarn("loadFromStorage", e); }
@@ -9484,10 +9570,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const actions = doc.getElementById('ctxActions');
         if (!stage || !actions) return;
         const p = progress || 0;
-        // ===== Agent模式：统一阶段提示（整体创作进度）=====
+        // ===== Agent模式：统一阶段提示（Agent循环执行中显示计划进度，否则显示整体创作进度）=====
         let stageName, stageIcon;
-        stageIcon = 'info';
-        stageName = p < 20 ? 'Agent创作中 · 补齐主体设定' : p < 40 ? 'Agent创作中 · 丰富世界书' : p < 60 ? 'Agent创作中 · 深化条目' : p < 80 ? 'Agent创作中 · 完善细节' : p < 95 ? 'Agent创作中 · 精修打磨' : '内容完备 · 可写入酒馆';
+        const _planActive = agentLoopActive && agentPlan && agentPlan.steps;
+        const _planPendingN = agentPlan && agentPlan.steps ? agentPlan.steps.filter(function(s) { return !s.done; }).length : 0;
+        if (_planActive) {
+          const _doneN = agentPlan.steps.filter(function(s) { return s.done; }).length;
+          stageIcon = 'sparkle';
+          stageName = '🤖 Agent自动执行中 · 第' + Math.min(_doneN + 1, agentPlan.steps.length) + '/' + agentPlan.steps.length + '步';
+        } else if (agentPlan && agentPlan.steps && _planPendingN > 0) {
+          stageIcon = 'play';
+          stageName = '计划待续 · 剩' + _planPendingN + '步（点「继续执行计划」）';
+        } else {
+          stageIcon = 'info';
+          stageName = p < 20 ? 'Agent创作中 · 补齐主体设定' : p < 40 ? 'Agent创作中 · 丰富世界书' : p < 60 ? 'Agent创作中 · 深化条目' : p < 80 ? 'Agent创作中 · 完善细节' : p < 95 ? 'Agent创作中 · 精修打磨' : '内容完备 · 可写入酒馆';
+        }
         stage.innerHTML = svgIcon(stageIcon, 13) + ' <strong>' + stageName + '</strong>';
         // ===== Agent模式：三领域统一状态胶囊（条目统计 + MVU 8步摘要 + 前端产物）=====
         let h = '';
@@ -9576,20 +9673,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
 
         // ========== Agent模式：统一快捷动作（按当前卡片缺口自适应，不分Tab）==========
-        // 结构：主操作（智能推进/一键生成） + MVU动作 + 前端动作 + 常驻组（继续/重做/进度/写入/清空）
+        // 结构：Agent循环动作（自动创作/停止/继续计划） + MVU动作 + 前端动作 + 常驻组（继续/重做/进度/写入/清空）
         const actions = [];
         const _chk = checkMvu8Entries(cardData);
         const _feB = getFrontendBeautifyRegex();
         const _feS = getFrontendStructuredRegexes();
         const _hasFe = !!_feB || _feS.length > 0;
+        const _planPending = agentPlan && agentPlan.steps && agentPlan.steps.some(function(s) { return !s.done; });
 
-        // —— 主操作：Agent智能推进（hl）——
-        if (p < 95) {
+        // —— Agent Loop 主操作（三态）——
+        if (agentLoopActive) {
           actions.push({
-            action: 'smart_advance',
+            action: 'stop_agent',
+            icon: 'close',
+            label: '停止Agent',
+            title: '在当前步骤完成后停止自动执行（成果保留，剩余步骤可随时继续）',
+            hl: true
+          });
+        } else if (_planPending) {
+          actions.push({
+            action: 'resume_agent',
+            icon: 'play',
+            label: '继续执行计划',
+            title: '继续自动执行未完成的Agent计划（剩余' + agentPlan.steps.filter(function(s) { return !s.done; }).length + '步）',
+            hl: true
+          });
+        } else {
+          actions.push({
+            action: 'auto_create',
             icon: 'sparkle',
-            label: '智能推进',
-            title: 'Agent检查当前缺口（角色卡主体/MVU/前端），自主选择最重要的下一步并生成',
+            label: '自动创作',
+            title: 'Agent接管：检查全部缺口→制定计划→自动逐步执行（角色卡/MVU/前端全自动，可随时停止）',
             hl: true
           });
         }
@@ -9732,16 +9846,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
         // ========== Agent模式：无Tab跳转（旧 goto_mvu/goto_card 与跨Tab跳转器已移除）==========
 
-        // —— Agent智能推进：让AI检查缺口并自主选择下一步 ——
-        if (action === 'smart_advance') {
+        // —— Agent Loop 三态动作 ——
+        if (action === 'auto_create') {
           if (isGenerating) {
-            showToast('AI正在处理中，请稍候再点「智能推进」', 'warning');
+            showToast('AI正在处理中，请稍候再点「自动创作」', 'warning');
             return;
           }
-          if (input) {
-            input.value = '请作为写卡Agent智能推进当前创作：先检查「当前创作进度总览」中的缺口（角色卡主体：名称/世界观描述/开场白/世界书条目；MVU 8步工作流；前端界面），自主选择当前最重要的1个缺口直接生成（不需要问我），生成完成后告诉我剩余缺口。';
-            handleSend();
+          if (agentLoopActive) return;
+          startAgentFlow(); // 发送计划请求消息 → AI输出<agent_plan> → callAIChat自动触发循环
+          return;
+        }
+        if (action === 'stop_agent') {
+          stopAgentLoop();
+          return;
+        }
+        if (action === 'resume_agent') {
+          if (isGenerating) {
+            showToast('AI正在处理中，请稍候再继续计划', 'warning');
+            return;
           }
+          agentLoop().catch(function(err) {
+            logError('agentLoop.resume', err);
+          });
           return;
         }
 
@@ -11431,6 +11557,133 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       let lastUserInput = '';
       // ============================================================================
       // SECTION 10 聊天消息发送 + AI 写卡流程主循环（callAIChat）
+      // ============================================================================
+
+      // ============================================================================
+      // ========== Agent自主执行循环（Agent Loop · 真·Agent核心） ==========
+      // 流程：AI输出 <agent_plan> 计划块 → 写卡器解析 → 自动循环执行每一步
+      //（每步=一次完整AI调用+操作块/HTML自动应用）→ 全部完成汇报，用户可随时停止
+      // 控制标记（AI在每步回复末尾输出）：<agent:next> 还有后续步骤 / <agent:done> 全部完成 / <agent:skip> 本步跳过
+      // ============================================================================
+      // 注：计划块解析 parseAgentPlan / 步数上限 AGENT_LOOP_MAX_STEPS 已提升至 IIFE 顶层（parseAgentPlan 无闭包依赖）
+
+      // ===== 构造Agent执行指令（agentLoop每步传入buildPrompt第4参数）=====
+      function buildAgentDirective(stepIdx) {
+        if (!agentPlan || !agentPlan.steps[stepIdx]) return null;
+        let planText = '用户总目标：' + agentPlan.goal + '\n执行计划（✅已完成 / ▫️待执行）：\n';
+        agentPlan.steps.forEach(function(s, i) {
+          planText += (s.done ? '✅' : '▫️') + ' 第' + (i + 1) + '步：' + s.desc + '\n';
+        });
+        let d = '';
+        d += '你正在按上述计划自主创作，无需用户参与。\n';
+        d += planText + '\n';
+        d += '▶【当前任务】执行第' + (stepIdx + 1) + '步：「' + agentPlan.steps[stepIdx].desc + '」\n\n';
+        d += '执行要求：\n' +
+          '1. 直接执行当前任务——输出完成它所需的 :::操作块 和/或 HTML代码块，不要向用户提问、不要等待确认、不要只做说明不产出内容\n' +
+          '2. 本轮只做当前这一步（后续步骤由写卡器逐步派发），不要抢跑生成后续步骤的内容\n' +
+          '3. 完成后在回复末尾单独一行输出控制标记：\n' +
+          '   <agent:done> ——当前是计划的最后一步（或本步完成后目标已达成）\n' +
+          '   <agent:next> ——后面还有待执行步骤\n' +
+          '   <agent:skip> ——本步因信息不足/依赖缺失确实无法执行，说明原因后跳过\n';
+        return d;
+      }
+
+      // ===== Agent主循环：自动逐步执行计划直到完成/停止/超限 =====
+      async function agentLoop() {
+        if (agentLoopActive) return;
+        if (!agentPlan) return;
+        const pending = agentPlan.steps.filter(function(s) { return !s.done; }).length;
+        if (pending <= 0) {
+          addAssistantMsg('🎉 该Agent计划的所有步骤均已完成。你可以继续对话微调，或点「写入酒馆」。');
+          agentPlan = null;
+          saveToStorage();
+          updateQuickActions();
+          updateCtxBar();
+          return;
+        }
+        agentLoopActive = true;
+        agentConsecutiveFailures = 0;
+        try {
+          while (agentLoopActive && agentPlan) {
+            const idx = agentPlan.steps.findIndex(function(s) { return !s.done; });
+            if (idx < 0) {
+              addAssistantMsg('🎉 Agent计划「' + agentPlan.goal + '」已全部执行完成！\n\n' +
+                '你可以：\n• 继续对话微调任何内容（角色卡/MVU/前端均可）\n• 点「生成并写入酒馆」直接写入\n• 对不满意的部分直接说"重做XX"');
+              agentPlan = null;
+              break;
+            }
+            // 防失控：步数上限
+            if ((agentPlan.stepRuns || 0) >= AGENT_LOOP_MAX_STEPS) {
+              addAssistantMsg('⚠️ Agent已连续执行 ' + AGENT_LOOP_MAX_STEPS + ' 步达到安全上限，循环已停止。\n剩余未完成步骤可点「继续执行计划」或对话继续。');
+              break;
+            }
+            agentPlan.stepRuns = (agentPlan.stepRuns || 0) + 1;
+            saveToStorage();
+            updateCtxBar();
+            updateQuickActions();
+            const stepDesc = String(agentPlan.steps[idx].desc || '').slice(0, 50);
+            pushWorkToast('Agent执行 ' + (idx + 1) + '/' + agentPlan.steps.length + '：' + stepDesc, 'working');
+            // 执行单步（callAIChat内含完整应用链路：操作块/JSON/状态栏/前端HTML自动提取保存）
+            const r = await callAIChat({ agentStep: true, stepIdx: idx });
+            // 用户中途停止
+            if (!agentLoopActive) {
+              showToast('⏹ Agent已停止（当前步骤成果已保留，剩余' + agentPlan.steps.filter(function(s) { return !s.done; }).length + '步可点「继续执行计划」）', 'info', 6000);
+              break;
+            }
+            // 产出检测（防AI空转）
+            if (r && r.produced) {
+              agentConsecutiveFailures = 0;
+            } else {
+              agentConsecutiveFailures++;
+              if (agentConsecutiveFailures >= 2) {
+                addAssistantMsg('⚠️ Agent连续两步没有产出有效内容（可能AI未按协议输出操作块），循环已自动停止。\n可对话说明需求后让我继续，或重开「自动创作」。');
+                break;
+              }
+            }
+            // 完成信号
+            if (r && r.control === 'done') {
+              agentPlan.steps.forEach(function(s) { s.done = true; });
+              addAssistantMsg('🎉 Agent计划「' + agentPlan.goal + '」执行完成！\n\n' +
+                '你可以：\n• 继续对话微调（对哪步不满意直接说，可单条重做）\n• 点「生成并写入酒馆」\n• 点「查看进度」检视成果');
+              agentPlan = null;
+              break;
+            }
+          }
+        } catch (err) {
+          logError('agentLoop', err);
+          try {
+            addAssistantMsg('⚠️ Agent循环异常中断：' + (err && err.message) + '\n已执行的步骤成果均已保留。');
+          } catch (_e) {}
+        } finally {
+          agentLoopActive = false;
+          agentConsecutiveFailures = 0;
+          try {
+            saveToStorage();
+            updateQuickActions();
+            updateCtxBar();
+            renderPreview();
+          } catch (_e2) {}
+        }
+      }
+
+      // ===== 停止Agent循环（当前AI调用无法中断，本步完成后停止）=====
+      function stopAgentLoop() {
+        if (!agentLoopActive) return;
+        agentLoopActive = false;
+        showToast('⏹ 将在当前步骤完成后停止Agent', 'info');
+        updateQuickActions();
+      }
+
+      // ===== 启动入口：快捷动作「自动创作」——发送计划请求消息，AI回复<agent_plan>后callAIChat自动触发循环 =====
+      function startAgentFlow() {
+        if (isGenerating || agentLoopActive) return;
+        const input = doc.getElementById('chatInput');
+        if (!input) return;
+        input.value = '请作为写卡Agent接管创作：检查「当前创作进度总览」中的全部缺口（角色卡主体：名称/世界观/开场白/世界书条目；MVU 8步工作流；前端界面），输出 <agent_plan> 计划块（目标+分步骤清单）。要求：覆盖尚未完成的全部缺口；每步=一次可独立完成的具体产出；MVU按1-2条/步拆分；缺口全无时也要给出打磨优化计划。写卡器会自动逐步执行你的计划。';
+        handleSend();
+      }
+
+      // ===== Agent Loop 结束 =====
       // ============================================================================
       async function handleSend() {
         const input = doc.getElementById('chatInput');
@@ -13217,19 +13470,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== AI对话调用 =====
-      async function callAIChat() {
-        if (isGenerating) return;
+      // opts（可选）：{ agentStep: true, stepIdx: N } —— Agent循环单步执行模式（agentLoop 调用）
+      //   agentStep 模式：使用 Agent 任务指令提示词，应用后解析控制标记并返回步骤结果给 agentLoop
+      // 返回值：agentStep 时返回 { produced, control: 'next'|'done'|'skip' }；普通模式返回 null
+      async function callAIChat(opts) {
+        opts = opts || {};
+        if (isGenerating) return null;
         isGenerating = true;
         setEnabled(false);
         addTyping();
-        pushWorkToast('正在思考...', 'working');
+        pushWorkToast(opts.agentStep ? 'Agent执行中...' : '正在思考...', 'working');
         try {
           // ========== 启用队列模式：所有addAssistantMsg调用收集到队列，最后合并为一条消息 ==========
           _aiChatQueueMode = true;
           _aiChatNotesQueue = [];
-          // ========== Tab 隔离：使用当前Tab专属的聊天记录数组 ==========
           const curTabMessages = getCurrentMessages();
-          let prompt = buildPrompt(cardData, cardGenerated, curTabMessages);
+          // ========== Agent步骤模式：注入任务指令（计划总览+当前步骤+控制标记协议）；普通模式走统一提示词 ==========
+          let prompt = opts.agentStep ?
+            buildPrompt(cardData, cardGenerated, curTabMessages, buildAgentDirective(opts.stepIdx)) :
+            buildPrompt(cardData, cardGenerated, curTabMessages);
           // 注入全局人设（AI/用户人设，从 localStorage 读取，头像菜单可编辑）
           const _personaHdr = getPersonaHeader();
           if (_personaHdr) prompt = _personaHdr + '\n\n' + prompt;
@@ -13243,6 +13502,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             saveCardDataSnapshot(curTabMessages.length);
           } catch (_snapErr) {}
 
+          // ========== Agent步骤产出跟踪：本轮AI回复是否产生了实际内容（操作块/JSON合并/HTML提取） ==========
+          let _stepProduced = false;
+
           // ========== 🆕 ::: 操作块协议优先检测 ==========
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
           // 否则回退到旧JSON路径（兼容）
@@ -13253,6 +13515,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               const _entriesBeforeOps = _snapshotEntries();
               const opResult = applyOps(ops, cardData);
               if (opResult.modified) {
+                _stepProduced = true;
                 if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
                   cardGenerated = true;
                 }
@@ -13338,6 +13601,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 actuallyModified = !!mergeResult;
               }
               if (actuallyModified) {
+                _stepProduced = true;
                 if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
                   cardGenerated = true;
                 }
@@ -13482,6 +13746,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               showToast('⚠️ AI回复中有HTML代码块，但未识别为状态栏/前端界面（未保存）。\n详情见浏览器Console的 [statusbar] / [frontend] 日志', 'warning', 7000);
             }
           }
+          if (_htmlSavedKind) _stepProduced = true;
+
+          // ========== Agent Loop 收尾：计划检测 / 步骤状态标记（agentLoop 核心）==========
+          let _agentCtl = null;
+          if (opts.agentStep && agentPlan && agentPlan.steps && typeof opts.stepIdx === 'number' && agentPlan.steps[opts.stepIdx]) {
+            // —— Agent步骤模式：解析控制标记，标记当前步完成 ——
+            const _skipMark = /<agent:skip>/i.test(aiResponse || '');
+            const _doneMark = /<agent:done>/i.test(aiResponse || '');
+            agentPlan.steps[opts.stepIdx].done = true; // skip也算处理完毕（跳过）
+            if (_skipMark && !_stepProduced) agentPlan.steps[opts.stepIdx].skipped = true;
+            _agentCtl = {
+              produced: _stepProduced,
+              control: _doneMark ? 'done' : (_skipMark ? 'skip' : 'next')
+            };
+          } else if (!opts.agentStep) {
+            // —— 普通对话模式：检测AI输出的 <agent_plan> 计划块 → 自动进入Agent循环执行 ——
+            const _newPlan = parseAgentPlan(aiResponse);
+            if (_newPlan && _newPlan.steps && _newPlan.steps.length >= 2 && !agentLoopActive) {
+              agentPlan = _newPlan;
+              saveToStorage();
+              updateQuickActions();
+              updateCtxBar();
+              showToast('📋 已收到Agent计划：「' + _newPlan.goal + '」共 ' + _newPlan.steps.length + ' 步，即将自动逐步执行（可随时停止）', 'success', 7000);
+              // 延迟启动：等本轮消息渲染/落盘完成后进入循环（isGenerating在本函数finally中复位）
+              setTimeout(function() {
+                agentLoop().catch(function(err) {
+                  logError('agentLoop.auto', err);
+                });
+              }, 300);
+            }
+          }
 
           // 检测AI发出的 <preview_statusbar> 命令（Agent模式：不限Tab）
           if (aiResponse && aiResponse.indexOf('<preview_statusbar>') >= 0) {
@@ -13497,6 +13792,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           let rawContent = aiResponse;
           if (_aiChatNotesQueue.length > 0) {
             rawContent = (rawContent || '') + '\n\n---\n' + _aiChatNotesQueue.join('\n\n');
+          }
+          // Agent步骤模式：剥掉控制标记（<agent:next>/<agent:done>/<agent:skip>），聊天中不显示协议噪音
+          if (opts.agentStep) {
+            rawContent = String(rawContent || '')
+              .replace(/<agent:(?:next|done|skip)>/gi, '')
+              .replace(/\n{3,}/g, '\n\n')
+              .trim();
           }
 
           // 1. 先存储到历史（Agent模式：单一会话数组）
@@ -13520,6 +13822,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           renderPreview();
           scheduleCtxBarUpdate();
           saveToStorage();
+          // Agent步骤模式：返回步骤执行结果（produced/control）给 agentLoop；普通模式返回 null
+          return _agentCtl;
         } catch (err) {
           // 严重错误：AI 调用/响应解析/合并失败。控制台留完整错误栈（带 scope），对话内给用户可读提示
           logError('callAIChat', err);
