@@ -180,6 +180,14 @@ html,body{height:100%;width:100%;overflow:hidden}
   --scrollbar-track:transparent;
   /* 链接色（走变量，便于主题化）*/
   --link:#2563eb;
+  /* 权重可视化等级色（7 级 × {main/bg/border}，供 WEIGHT_LEVELS / _inferWeightLevel 引用，避免 JS 内联 hex）*/
+  --w-level-max:      #c98b7a;  --w-level-max-bg:      rgba(201,139,122,.13);  --w-level-max-border:      rgba(201,139,122,.31);
+  --w-level-max2:     #c98b7a;  --w-level-max2-bg:     rgba(201,139,122,.13);  --w-level-max2-border:     rgba(201,139,122,.31);
+  --w-level-high:     #ca8a04;  --w-level-high-bg:     rgba(202,138,4,.13);    --w-level-high-border:     rgba(202,138,4,.31);
+  --w-level-mid:      #15803d;  --w-level-mid-bg:      rgba(21,128,61,.13);    --w-level-mid-border:      rgba(21,128,61,.31);
+  --w-level-midlow:   #667085;  --w-level-midlow-bg:   rgba(102,112,133,.13);  --w-level-midlow-border:   rgba(102,112,133,.31);
+  --w-level-low:      #667085;  --w-level-low-bg:      rgba(102,112,133,.13);  --w-level-low-border:      rgba(102,112,133,.31);
+  --w-level-min:      #b3aa98;  --w-level-min-bg:      rgba(179,170,152,.13);  --w-level-min-border:      rgba(179,170,152,.31);
 }
 /* ============ 暗黑主题：跟随系统（未显式选择时）或 html[data-theme="dark"] ============ */
 :root[data-theme="dark"]{
@@ -222,6 +230,14 @@ html,body{height:100%;width:100%;overflow:hidden}
   --shadow-float:0 20px 60px rgba(0,0,0,.5);
   --scrollbar-thumb:rgba(255,255,255,.22);
   --link:#93b4ff;
+  /* 权重等级色·暗色主题 */
+  --w-level-max:      #f8a58e;  --w-level-max-bg:      rgba(248,165,142,.18);  --w-level-max-border:      rgba(248,165,142,.42);
+  --w-level-max2:     #f8a58e;  --w-level-max2-bg:     rgba(248,165,142,.18);  --w-level-max2-border:     rgba(248,165,142,.42);
+  --w-level-high:     #fbbf24;  --w-level-high-bg:     rgba(251,191,36,.18);   --w-level-high-border:     rgba(251,191,36,.42);
+  --w-level-mid:      #4ade80;  --w-level-mid-bg:      rgba(74,222,128,.18);   --w-level-mid-border:      rgba(74,222,128,.42);
+  --w-level-midlow:   #8f97a8;  --w-level-midlow-bg:   rgba(143,151,168,.18);  --w-level-midlow-border:   rgba(143,151,168,.42);
+  --w-level-low:      #8f97a8;  --w-level-low-bg:      rgba(143,151,168,.18);  --w-level-low-border:      rgba(143,151,168,.42);
+  --w-level-min:      #b8b0a0;  --w-level-min-bg:      rgba(184,176,160,.18);  --w-level-min-border:      rgba(184,176,160,.42);
   color-scheme:dark;
 }
 @media (prefers-color-scheme: dark){
@@ -239,7 +255,15 @@ html,body{height:100%;width:100%;overflow:hidden}
   --terra-border:rgba(248,113,113,.28);--terra-border-strong:rgba(248,113,113,.5);--terra-text:#f87171;
   --line:rgba(255,255,255,.10);--line-soft:rgba(255,255,255,.06);
   --shadow-soft:0 6px 20px rgba(0,0,0,.3);--shadow-card:0 12px 30px rgba(0,0,0,.38);--shadow-float:0 20px 60px rgba(0,0,0,.5);
-  --scrollbar-thumb:rgba(255,255,255,.22);--link:#93b4ff;color-scheme:dark;
+  --scrollbar-thumb:rgba(255,255,255,.22);--link:#93b4ff;
+  --w-level-max:#f8a58e;--w-level-max-bg:rgba(248,165,142,.18);--w-level-max-border:rgba(248,165,142,.42);
+  --w-level-max2:#f8a58e;--w-level-max2-bg:rgba(248,165,142,.18);--w-level-max2-border:rgba(248,165,142,.42);
+  --w-level-high:#fbbf24;--w-level-high-bg:rgba(251,191,36,.18);--w-level-high-border:rgba(251,191,36,.42);
+  --w-level-mid:#4ade80;--w-level-mid-bg:rgba(74,222,128,.18);--w-level-mid-border:rgba(74,222,128,.42);
+  --w-level-midlow:#8f97a8;--w-level-midlow-bg:rgba(143,151,168,.18);--w-level-midlow-border:rgba(143,151,168,.42);
+  --w-level-low:#8f97a8;--w-level-low-bg:rgba(143,151,168,.18);--w-level-low-border:rgba(143,151,168,.42);
+  --w-level-min:#b8b0a0;--w-level-min-bg:rgba(184,176,160,.18);--w-level-min-border:rgba(184,176,160,.42);
+  color-scheme:dark;
   }
 }
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:calc(14px * var(--app-font-scale,1));-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
@@ -275,7 +299,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .main{flex:1 1 0;display:flex;min-height:0;overflow:hidden}
 .chat-panel{flex:1.4 1 0;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);min-height:0;overflow:hidden;background:var(--bg)}
 .preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--surface-soft)}
-.chat-messages{flex:1 1 0;overflow-y:auto;padding:14px 8px;min-height:0;-webkit-overflow-scrolling:touch}
+.chat-messages{flex:1 1 0;overflow-y:auto;padding:12px 4px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;align-items:flex-start}
 .chat-msg.user{align-items:flex-end}
 .chat-msg .avatar-row{display:flex;align-items:center;gap:6px}
@@ -309,8 +333,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .avatar-menu-item .am-tip{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(3px);background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;padding:4px 10px;border-radius:6px;font-size:.7em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;z-index:501;font-weight:500;box-shadow:0 6px 18px rgba(15,23,42,.22);letter-spacing:.2px}
 .avatar-menu-item:hover .am-tip{opacity:1;transform:translateX(-50%) translateY(0)}
 .avatar-menu-sep{width:1px;height:22px;background:linear-gradient(180deg,transparent,var(--line),transparent);margin:0 3px;flex-shrink:0}
-.chat-msg .bubble{max-width:82%;padding:10px 8px;border-radius:var(--radius);font-size:1em;line-height:1.65;word-break:break-word}
-.chat-msg.assistant .bubble{background:var(--surface);border:1px solid var(--line-soft);color:var(--ink);font-size:1.1em;padding:12px 10px;max-width:100%;width:100%;border-radius:var(--radius);box-shadow:var(--shadow-soft)}
+.chat-msg .bubble{max-width:92%;padding:8px 4px;border-radius:var(--radius);font-size:1.14em;line-height:1.7;word-break:break-word}
+.chat-msg.assistant .bubble{background:var(--surface);border:1px solid var(--line-soft);color:var(--ink);font-size:1.24em;padding:10px 6px;max-width:100%;width:100%;border-radius:var(--radius);box-shadow:var(--shadow-soft)}
 .chat-msg.user .bubble{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-bottom-right-radius:var(--radius-sm);box-shadow:var(--shadow-soft)}
 .chat-msg .bubble b{color:var(--accent-deep)}
 .chat-msg .bubble code{background:var(--surface-sink);padding:1px 6px;border-radius:var(--radius-sm);font-size:.82em;color:var(--accent-deep);font-family:var(--font-mono)}
@@ -391,6 +415,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .btn-send .send-spinner{animation:spin .8s linear infinite;display:none}
 .btn-send.is-waiting .send-icon{display:none}
 .btn-send.is-waiting .send-spinner{display:block}
+/* 生成中：隐藏发送箭头和 spinner，改显示"停止"方块 */
+.btn-send .stop-icon{display:none;color:#fff}
+.btn-send.is-waiting .stop-icon{display:block}
+.btn-send.is-waiting .send-spinner{display:none}   /* 覆盖：生成中用停止图标替代 spinner */
+/* 已请求停止：按钮变琥珀色提示 */
+.btn-send.is-aborting{background:linear-gradient(135deg,var(--amber),#a16207)!important;animation:pulse-send 1.4s infinite}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 17px;border:none;border-radius:var(--radius-sm);font-size:.8em;cursor:pointer;font-weight:600;transition:all .2s cubic-bezier(.4,0,.2,1);font-family:inherit;letter-spacing:.15px;position:relative;overflow:hidden}
 .btn svg{width:15px;height:15px;transition:transform .2s ease}
@@ -801,9 +831,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   .topbar .phase{font-size:.68em}
   .topbar-right{gap:3px}
   /* 聊天气泡：手机端更宽，提升阅读体验 */
-  .chat-messages{padding:10px 6px}
-  .chat-msg .bubble{max-width:88%;font-size:1em;padding:8px 6px}
-  .chat-msg.assistant .bubble{font-size:1.08em}
+  .chat-messages{padding:8px 4px}
+  .chat-msg .bubble{max-width:94%;font-size:1.14em;padding:7px 4px}
+  .chat-msg.assistant .bubble{font-size:1.24em;padding:9px 6px}
   .chat-msg .avatar{width:64px;height:64px;font-size:32px;border-radius:12px}
   /* 输入区：防止 iOS 聚焦缩放（≥16px），增大触摸区 */
   .chat-input-area{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
@@ -885,14 +915,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 /* Tab 隔离已由 updateCtxBar 按 activeTab 分支渲染，无需 CSS 切换 */
 
 /* ===== 消息 section 分区（参考专家工作区设计）===== */
-.cp-section{margin:6px 0;border-radius:var(--radius-sm);overflow:hidden}
-.cp-section-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none;transition:background .15s;border-radius:var(--radius-sm)}
+.cp-section{margin:2px 0;border-radius:var(--radius-sm);overflow:hidden}
+.cp-section-header{display:flex;align-items:center;gap:4px;padding:4px 6px;cursor:pointer;user-select:none;transition:background .15s;border-radius:var(--radius-sm)}
 .cp-section-header:hover{background:var(--surface-sink)}
 .cp-section-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;background:var(--surface-sink);color:var(--muted)}
-.cp-section-label{font-size:.78em;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cp-section-preview{font-size:.72em;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
-.cp-section-toggle{font-size:.68em;color:var(--accent);flex-shrink:0;padding:0 4px}
-.cp-section-body{padding:8px 12px 10px 28px;font-size:.88em;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.cp-section-label{font-size:.9em;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-section-preview{font-size:.8em;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.cp-section-toggle{font-size:.78em;color:var(--accent);flex-shrink:0;padding:0 4px}
+.cp-section-body{padding:6px 6px 8px 8px;font-size:1.02em;line-height:1.75;white-space:pre-wrap;word-break:break-word}
 .cp-section-body.collapsed{display:none}
 /* section 类型着色 */
 .cp-section-thinking .cp-section-header{background:var(--amber-soft)}
@@ -900,10 +930,32 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .cp-section-thinking .cp-section-body{color:var(--ink-soft);font-size:.85em;font-style:italic}
 .cp-section-content .cp-section-header{background:var(--sage-soft)}
 .cp-section-content .cp-section-label,.cp-section-content .cp-section-icon{color:var(--sage-text)}
-.cp-section-code .cp-section-body{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto}
+.cp-section-code .cp-section-body{font-family:var(--font-mono);font-size:.96em;background:var(--surface-soft);border:1px solid var(--line-soft);border-radius:8px;margin:4px 4px 6px 6px;padding:8px 8px;tab-size:2;overflow-x:auto}
 .cp-section-opblock .cp-section-header{background:var(--accent-soft)}
 .cp-section-opblock .cp-section-label,.cp-section-opblock .cp-section-icon{color:var(--accent-text)}
-.cp-opblock-pre{font-family:var(--font-mono);font-size:.82em;background:var(--surface-soft);border:1px solid var(--accent-border);border-radius:8px;margin:4px 8px 8px 28px;padding:10px 12px;tab-size:2;overflow-x:auto;white-space:pre-wrap;word-break:break-word;color:var(--ink-soft)}
+.cp-opblock-pre{font-family:var(--font-mono);font-size:.96em;background:var(--surface-soft);border:1px solid var(--accent-border);border-radius:8px;margin:4px 4px 6px 6px;padding:8px 8px;tab-size:2;overflow-x:auto;white-space:pre-wrap;word-break:break-word;color:var(--ink-soft)}
+/* ===== 执行结果卡片（失败置顶，红色高亮）===== */
+.cp-section-execnotes .cp-section-header{background:var(--terra-soft)}
+.cp-section-execnotes .cp-section-label,
+.cp-section-execnotes .cp-section-icon{color:var(--terra-text)}
+.cp-section-execnotes .cp-section-body{
+  font-family:var(--font-mono);font-size:.94em;line-height:1.6;
+  background:var(--surface-soft);border:1px solid var(--line-soft);
+  border-radius:8px;margin:4px 4px 6px 6px;padding:8px 10px;
+}
+.cp-section-execnotes .exec-line{padding:2px 0;word-break:break-word}
+.cp-section-execnotes .exec-fail{
+  color:var(--terra-text);font-weight:600;
+  background:var(--terra-soft);border-left:3px solid var(--terra);
+  padding:4px 8px;border-radius:0 6px 6px 0;margin:4px 0;
+}
+.cp-section-execnotes .exec-warn{
+  color:var(--amber-text);font-weight:500;
+  background:var(--amber-soft);border-left:3px solid var(--amber);
+  padding:4px 8px;border-radius:0 6px 6px 0;margin:4px 0;
+}
+.cp-section-execnotes .exec-ok{color:var(--sage-text)}
+.cp-section-execnotes .exec-title{color:var(--ink);font-weight:700;margin-top:2px}
 
 /* ===== Work Toast 顶部工作提示 ===== */
 .work-toast-layer{position:fixed;top:56px;left:50%;transform:translateX(-50%);width:min(340px,calc(100% - 32px));display:flex;flex-direction:column;gap:8px;z-index:200;pointer-events:none}
@@ -1214,6 +1266,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 通用操作
     close: 'M6 6l12 12M18 6L6 18',
     send: 'M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z',
+    stop: 'M7 7h10v10H7z',
     spinner: 'M21 12a9 9 0 1 1-6.219-8.56',
     arrowDown: 'M12 5v14M5 12l7 7 7-7',
     bolt: 'M13 2L3 14h7v8l10-12h-7V2z',
@@ -1306,7 +1359,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       try {
         const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
         const old = parentDoc.getElementById(SCRIPT_ID + '-modal');
-        if (old) old.remove();
+        if (old) {
+          // 先走完整关闭流程（触发 __cwBeforeClose / about:blank 销毁旧 document），再移除
+          try { closeModal(); } catch (_) {}
+          const stillOld = parentDoc.getElementById(SCRIPT_ID + '-modal');
+          if (stillOld) stillOld.remove();
+        }
         const iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
@@ -1374,6 +1432,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           }
         }
       } catch (_) {}
+      // ★ 加固 Bug3：清理分析相关标志，防止关闭后残留触发
+      try {
+        if (typeof window !== 'undefined') {
+          window.__cwForceUnderstandNext = false;
+          window.__cwAbortRequested = false;
+          window.__cwCurrentGenId = null;
+        }
+      } catch (_flagClear) {}
       // 2) 导航到 about:blank：旧 iframe document/window 随之销毁，
       //    其内部 setInterval/setTimeout、事件监听、闭包引用一并释放（仅 remove() 不会终止定时器）
       try {
@@ -1398,7 +1464,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         '__setChatSessionsCardMessages', '__setChatSessionsMvuMessages',
         '__mvuDiscussMode', 'setMvuDiscussMode',
         '__agentMode', '__agentLoopApi', '__setChatSessionsFrontendMessages',
-        '__agentAutoMode', '__getAgentAutoMode'
+        '__agentAutoMode', '__getAgentAutoMode',
+        // ↓ 新增：临时状态
+        '__cwCurrentGenId', '__cwAbortRequested', '__cwForceUnderstandNext',
+        '__cwBeforeClose'
       ];
       for (let i = 0; i < keys.length; i++) {
         try {
@@ -1658,12 +1727,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       group_weight: 100,
       enabled: false
     },
-    '变量列表': {
+    '变量当前状态': {
       constant: true,
       selective: false,
       position: 4,
-      depth: 0,
-      order: 200,
+      depth: 1,
+      order: 69000,
       prevent_recursion: true,
       exclude_recursion: false,
       delay_until_recursion: 0,
@@ -1684,7 +1753,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       selective: false,
       position: 4,
       depth: 0,
-      order: 200,
+      order: 79000,
       prevent_recursion: true,
       exclude_recursion: false,
       delay_until_recursion: 0,
@@ -1705,7 +1774,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       selective: false,
       position: 4,
       depth: 0,
-      order: 200,
+      order: 79001,
       prevent_recursion: true,
       exclude_recursion: false,
       delay_until_recursion: 0,
@@ -1726,7 +1795,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       selective: false,
       position: 4,
       depth: 0,
-      order: 200,
+      order: 79002,
       prevent_recursion: true,
       exclude_recursion: false,
       delay_until_recursion: 0,
@@ -1790,79 +1859,80 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if ((ext.useProbability || ext.useProbability === undefined) && ext.probability < 100) {
       score -= 10;
     }
-    if (score >= 95) return { level: '最高', color: '#c98b7a', desc: 'ignoreBudget 强制保留 / AN 底部强约束' };
-    if (score >= 80) return { level: '极高', color: '#c98b7a', desc: 'AN 区 / @D depth≤1 / order≥200' };
-    if (score >= 65) return { level: '高',   color: '#ca8a04', desc: 'AN 区中部 / @D depth≤3 / order≥150' };
-    if (score >= 50) return { level: '中高', color: '#ca8a04', desc: '角色定义后 / @D depth≤4' };
-    if (score >= 38) return { level: '中',   color: '#15803d', desc: '常规触发条目 / 示例区' };
-    if (score >= 25) return { level: '中低', color: '#667085', desc: '角色定义之前 / order 偏小' };
-    if (score >= 12) return { level: '低',   color: '#667085', desc: '角色定义之前 / order 极小的常驻' };
-    return { level: '极低', color: '#b3aa98', desc: '底层打底条目 / 常驻弱影响' };
+    // ⚠️E1：不再返回裸 hex，改用 CSS 变量 + 显式 bg/border（避免 'var(...)' + '20' 拼接非法）
+    if (score >= 95) return { level: '最高', color: 'var(--w-level-max)',   bg: 'var(--w-level-max-bg)',   border: 'var(--w-level-max-border)',   desc: 'ignoreBudget 强制保留 / AN 底部强约束' };
+    if (score >= 80) return { level: '极高', color: 'var(--w-level-max2)',  bg: 'var(--w-level-max2-bg)',  border: 'var(--w-level-max2-border)',  desc: 'AN 区 / @D depth≤1 / order≥200' };
+    if (score >= 65) return { level: '高',   color: 'var(--w-level-high)',  bg: 'var(--w-level-high-bg)',  border: 'var(--w-level-high-border)',  desc: 'AN 区中部 / @D depth≤3 / order≥150' };
+    if (score >= 50) return { level: '中高', color: 'var(--w-level-high)',  bg: 'var(--w-level-high-bg)',  border: 'var(--w-level-high-border)',  desc: '角色定义后 / @D depth≤4' };
+    if (score >= 38) return { level: '中',   color: 'var(--w-level-mid)',   bg: 'var(--w-level-mid-bg)',   border: 'var(--w-level-mid-border)',   desc: '常规触发条目 / 示例区' };
+    if (score >= 25) return { level: '中低', color: 'var(--w-level-midlow)',bg: 'var(--w-level-midlow-bg)',border: 'var(--w-level-midlow-border)',desc: '角色定义之前 / order 偏小' };
+    if (score >= 12) return { level: '低',   color: 'var(--w-level-low)',   bg: 'var(--w-level-low-bg)',   border: 'var(--w-level-low-border)',   desc: '角色定义之前 / order 极小的常驻' };
+    return { level: '极低', color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)', desc: '底层打底条目 / 常驻弱影响' };
   }
   const WEIGHT_LEVELS = {
     '世界元数据': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: 'position=0 常驻，底层背景'
     },
     '状态栏': {
       level: '极高',
-      color: '#c98b7a',
+      color: 'var(--w-level-max2)', bg: 'var(--w-level-max2-bg)', border: 'var(--w-level-max2-border)',
       desc: 'position=2 depth=2 sticky粘性'
     },
     '统一输出格式': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: 'position=0 常驻'
     },
     '角色边界': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: 'position=0 常驻'
     },
     '禁止项': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: 'position=0 常驻，禁止规则'
     },
     '自定义条目': {
       level: '中',
-      color: '#15803d',
+      color: 'var(--w-level-mid)', bg: 'var(--w-level-mid-bg)', border: 'var(--w-level-mid-border)',
       desc: '用户自定义'
     },
     '[InitVar]初始变量': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: '第2条 | position=0(before_character_definition) insertion_order=100 常驻(enabled=false)，MVU变量初始化YAML'
     },
-    '变量列表': {
+    '变量当前状态': {
       level: '极低',
-      color: '#b3aa98',
-      desc: '第3条 | position=4(at_depth d=0) 常驻，注入当前变量值给LLM'
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
+      desc: '第4条 | position=4(at_depth d=1) order=69000 常驻，注入当前变量状态给LLM'
     },
     '[mvu_update]变量更新规则': {
       level: '低',
-      color: '#667085',
-      desc: '第4条 | position=4(at_depth d=0) 常驻，依据schema生成check/type/range'
+      color: 'var(--w-level-low)', bg: 'var(--w-level-low-bg)', border: 'var(--w-level-low-border)',
+      desc: '第3条 | position=4(at_depth d=0) 常驻，依据schema生成check/type/range'
     },
     '[mvu_update]变量输出格式': {
       level: '低',
-      color: '#667085',
-      desc: '第5条 | position=4(at_depth d=0) 常驻，固定YAML定义<UpdateVariable>输出格式'
+      color: 'var(--w-level-low)', bg: 'var(--w-level-low-bg)', border: 'var(--w-level-low-border)',
+      desc: '第5条 | position=4(at_depth d=0) 常驻，固定中文格式定义<UpdateVariable>输出格式'
     },
     '[mvu_update]变量输出格式强调': {
       level: '低',
-      color: '#667085',
+      color: 'var(--w-level-low)', bg: 'var(--w-level-low-bg)', border: 'var(--w-level-low-border)',
       desc: '第6条 | position=4(at_depth d=0) 默认enabled=false，AI不输出<UpdateVariable>时启用'
     },
     '<状态栏>占位符提醒': {
       level: '极低',
-      color: '#b3aa98',
+      color: 'var(--w-level-min)', bg: 'var(--w-level-min-bg)', border: 'var(--w-level-min-border)',
       desc: '第7条 | position=4(at_depth d=0) 常驻，提醒AI输出<StatusPlaceHolderImpl/>'
     },
     '状态变量输出': {
       level: '中',
-      color: '#15803d',
+      color: 'var(--w-level-mid)', bg: 'var(--w-level-mid-bg)', border: 'var(--w-level-mid-border)',
       desc: 'position=2 触发，输出当前变量状态给LLM'
     }
   };
@@ -1891,13 +1961,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       if (comment.indexOf('变量输出格式强调') >= 0) return ENTRY_TEMPLATES['变量输出格式强调'];
       if (comment.indexOf('变量输出格式') >= 0) return ENTRY_TEMPLATES['变量输出格式'];
     }
-    if (comment.indexOf('变量列表') >= 0) return ENTRY_TEMPLATES['变量列表'];
+    if (comment.indexOf('变量当前状态') >= 0) return ENTRY_TEMPLATES['变量当前状态'];
     if (comment.indexOf('状态变量输出') >= 0) return ENTRY_TEMPLATES['状态变量输出'];
     // 第7条：<状态栏>占位符提醒条目（含"状态栏"+"占位符"或"提醒"）
     if (comment.indexOf('状态栏') >= 0 && (comment.indexOf('占位') >= 0 || comment.indexOf('提醒') >= 0)) {
       // 复用"状态栏"模板（selective触发式），但实际第7条应为constant=true常驻
-      // 这里返回变量列表模板作为基础（constant=true, position=4, depth=0）
-      return ENTRY_TEMPLATES['变量列表'];
+      // 这里返回变量当前状态模板作为基础（constant=true, position=4, depth=1, order=69000）
+      return ENTRY_TEMPLATES['变量当前状态'];
     }
     // 4. 通用匹配：遍历模板键找最长匹配
     const keys = Object.keys(ENTRY_TEMPLATES);
@@ -2027,7 +2097,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ===== 条目 comment 核心名提取：剥装饰括号 + 剥 [xxx]/<xxx> 前缀（可多层）=====
   // 用于判定 comment 是否为某个 MVU 系统条目"本体"，避免宽泛子串误伤普通条目
-  // （如 <自定义条目>变量列表使用说明 的核心名是"变量列表使用说明"，不等于"变量列表"，不应被规范化）
+  // （如 <自定义条目>变量当前状态使用说明 的核心名是"变量当前状态使用说明"，不等于"变量当前状态"，不应被规范化）
   function _entryCommentCore(comment) {
     if (!comment) return '';
     let c = _stripOuterBrackets(String(comment)).trim();
@@ -2048,17 +2118,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return core.indexOf('初始变量') === 0 && typeof content === 'string' && content.indexOf('stat_data') >= 0;
   }
 
-  // ===== 判定是否为"变量列表"MVU条目 =====
-  // ⚠️ 原先多处写成 comment 同时含"变量列表"和"format_message_variable"才识别——
-  // 但 comment 本身就是"变量列表"，永远不含 format_message_variable，导致该条目在
+  // ===== 判定是否为"变量当前状态"MVU条目 =====
+  // ⚠️ 原先多处写成 comment 同时含"变量当前状态"和"format_message_variable"才识别——
+  // 但 comment 本身就是"变量当前状态"，永远不含 format_message_variable，导致该条目在
   // 角色卡Tab过滤/MVU Tab收集/解析拦截三处全部漏网（隔离失效+重复建条）
   function _isVarListEntry(comment, content) {
     const c = String(comment || '');
-    if (_entryCommentCore(c) === '变量列表') return true;
-    if (c.indexOf('变量列表') >= 0) {
+    if (_entryCommentCore(c) === '变量当前状态') return true;
+    if (c.indexOf('变量当前状态') >= 0) {
       const ct = String(content || '');
-      // 新格式 <status_current_variables>null</...> 或旧宏 format_message_variable
-      if (ct.indexOf('format_message_variable') >= 0 || ct.indexOf('status_current_variables') >= 0) return true;
+      // 内容含 {{format_message_variable::stat_data}} 宏（新版固定模板的唯一注入宏）
+      if (ct.indexOf('format_message_variable') >= 0) return true;
     }
     return false;
   }
@@ -2175,7 +2245,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   function _stripEntryConfigFromContent(comment, content) {
     if (!content || typeof content !== 'string') return content;
     const c = (comment || '').toLowerCase();
-    const isMvu = c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+    const isMvu = c.indexOf('[initvar]') >= 0 || c.indexOf('变量当前状态') >= 0 ||
       c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
       c.indexOf('mvu_update') >= 0 || c.indexOf('状态变量输出') >= 0;
     if (!isMvu) return content;
@@ -2291,7 +2361,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ⚠️变量分段/EJS 已按六大标准模板规范移除，不再视为 MVU 体系条目
   function isMVUEntry(comment) {
     const c = (comment || '').toLowerCase();
-    return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+    return c.indexOf('[initvar]') >= 0 || c.indexOf('变量当前状态') >= 0 ||
       c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
       c.indexOf('状态变量输出') >= 0 || c.indexOf('updatevariable') >= 0 ||
       c.indexOf('状态栏') >= 0 || c.indexOf('statusplaceholder') >= 0 ||
@@ -2369,6 +2439,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   }
 
   // ============================================================================
+  // 档位判定信号词（顶层唯一事实源）：client 提示注入 + option 剥离共用
+  // 档 3 · 重大调整 = 用户消息含删除/清空/方向冲突信号
+  // ⚠️只放"明显信号"，避免误伤档 1/2；宁可漏判走档 2，不可错判剥夺 AI 判档权
+  // ============================================================================
+  const MAJOR_CHANGE_SIGNALS_RE = /(删[除掉]|清空|重做|重构|改成.{2,}方向|换成|改成.{2,}世界|另一个|不要这[个些]|全部删|所有.{0,4}删|推翻|重来|彻底改|完全改|另起炉灶|换一种)/;
+  const MAJOR_CHANGE_SIGNALS = [MAJOR_CHANGE_SIGNALS_RE];
+
+  // ============================================================================
   // SECTION 4  写卡预设 + 系统提示词（注入到每一次 AI 请求的 system prompt）
   // ============================================================================
   // ===== 【写卡预设】生成参数默认值（对齐写卡.json 数值） =====
@@ -2402,7 +2480,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · 世界观描述（description）\n' +
     '   · 多个世界书条目（尤其"世界观/地理/势力/规则/主角/配角"一把抓）\n' +
     '   · 开场白（first_mes / alternate_greetings）\n' +
-    '   · MVU变量系统（zod脚本/[InitVar]/更新规则/变量列表/输出格式/状态栏）\n' +
+    '   · MVU变量系统（zod脚本/[InitVar]/更新规则/变量当前状态/输出格式/状态栏）\n' +
     '   · 前端界面（正文美化HTML / 结构化面板HTML）\n' +
     '每次只做用户本次明确要求的、范围最小的一件事：\n' +
     '   · 用户只提到某个角色 → 只生成/更新该角色的条目（1-2条）\n' +
@@ -2411,7 +2489,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '   · 用户只提到开场白 → 只生成 first_mes（如需备选再补 alternate_greetings）\n' +
     '   · 用户只提到变量 → 只走 MVU 工作流（不掺入条目/界面）\n' +
     '★若用户描述笼统★（如"帮我做张卡"/"生成角色卡"/"随便来点什么"/"看看缺啥"）：\n' +
-    '   禁止直接生成！必须先在回复里输出「当前卡片概览 + 缺失清单 + 本次拟生成方向（发挥想象列出 3-6 条具体小任务）」让用户选择；\n' +
+    '   禁止直接生成！必须先在回复里输出「生成计划报告」（意图深度解析 + 现状盘点/世界观构想 + 拟新增清单 + 权重布局）让用户确认；\n' +
     '   用户确认方向后，才只生成被确认的那一小部分（例如只做世界观总纲，不做其他）。\n' +
     '★禁止"顺手多做"★：用户没要求的角色/条目/开场白/变量/界面，一律不准生成，即使你觉得"没它不完整"也不行——先问用户要不要。\n' +
     '═══════════════════════════════════════════════════════════════════\n\n' +
@@ -3364,7 +3442,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       });
       // 过滤 entries/character_book.entries：
       // 允许所有MVU体系条目通过（8条工作流条目+附加条目），只拦截明确是角色卡Tab专属的内容
-      // 允许通过的：MVU变量条目（InitVar/变量列表/更新规则/输出格式/格式强调/占位提醒等）/ 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
+      // 允许通过的：MVU变量条目（InitVar/变量当前状态/更新规则/输出格式/格式强调/占位提醒等）/ 阶段判定 / EJS控制器 / 人设切换 / 派生字段 / 状态机 / 自定义变量相关条目 等
       // 拦截的：明确属于角色卡Tab常驻体系/世界观体系的专有模板条目（世界元数据/统一输出格式/角色边界等）
       const CARD_ONLY_TEMPLATES_RE = /^<(世界元数据|统一输出格式|角色边界|禁止项|自定义条目|观察锚点)>/i;
       const filterMvuOnlyEntries = function(arr, srcName) {
@@ -3743,15 +3821,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         // ===== 再规范化（确保规范化结果是最终值，不被后续清洗破坏）=====
         // ⚠️ 用核心名严格匹配（_entryCommentCore 剥前缀后 === 系统名），不再用宽泛子串 indexOf：
-        // 原先 <自定义条目>变量列表使用说明 这类普通条目会被 normalizeVarListContent 无条件覆盖为固定串，内容被摧毁
+        // 原先 <自定义条目>变量当前状态使用说明 这类普通条目会被 normalizeVarListContent 无条件覆盖为固定串，内容被摧毁
         const neCore = _entryCommentCore(ne.comment || '');
         if (_isInitVarComment(ne.comment, ne.content)) {
           if (typeof ne.content === 'string') ne.content = normalizeInitVarContent(ne.content);
         }
-        if (neCore === '变量列表' && typeof ne.content === 'string') {
+        if (neCore === '变量当前状态' && typeof ne.content === 'string') {
           ne.content = normalizeVarListContent(ne.content);
         }
-        // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
+        // 变量输出格式/强调条目：强制使用固定模板，丢弃AI混入的变量值/配置字段
         if ((neCore === '变量输出格式' || neCore === '变量输出格式强调') && typeof ne.content === 'string') {
           ne.content = normalizeVarOutputFormatContent(ne.comment || '', ne.content);
         }
@@ -3778,7 +3856,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // MVU 系统条目（变量输出格式/变量更新规则/InitVar等）的 selective/constant 必须强制使用模板值
           // AI 经常误写 selective:true，导致条目变为选择性触发而非常驻
           const isMvuSystemEntry = (neCore === '变量输出格式' || neCore === '变量输出格式强调' || neCore === '变量更新规则' ||
-            _isInitVarComment(ne.comment, ne.content) || neCore === '变量列表');
+            _isInitVarComment(ne.comment, ne.content) || neCore === '变量当前状态');
           if (isMvuSystemEntry) {
             ne.selective = tmpl.selective;
             ne.constant = tmpl.constant;
@@ -4422,12 +4500,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '当输出实际创作内容（角色卡/故事/世界观/场景等）时，条目的content字段必须使用YAML中文格式，用缩进+冒号+短横线表达层级关系，键名和内容均为中文，保持结构清晰。解释说明或回答问题时直接用自然语言。\n' +
       '</output_format>\n\n' +
       '你同时是时之写卡器助手，基于SillyTavern原生世界书（World Info）机制，帮助用户自由生成符合ST官方Schema的世界书条目。';
+    // ===== 生成中止（真中断）：为本次生成分配唯一 generation_id，requestAbort 用它精准停止 =====
+    // 酒馆助手(JS-Slash-Runner)的 stopGenerationById 只认这个 ID；静默生成下这是唯一能真正中断请求的方式
+    const _genId = 'szxq-writer-' + Date.now();
+    try { window.__cwCurrentGenId = _genId; } catch (_gidErr) {}
     try {
       if (typeof generate === 'function') {
         const result = await withTimeout(generate(Object.assign({
           user_input: prompt,
           should_silence: true,
-          max_chat_history: 0
+          max_chat_history: 0,
+          generation_id: _genId
         }, genParams)), CALLAI_TIMEOUT_MS, 'generate');
         if (isValidAIReply(result)) return result.trim();
         if (result && typeof result === 'object' && result.content && String(result.content).trim().length > 0) return String(result.content).trim();
@@ -4436,6 +4519,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     } catch (e) {
       errors.push('generate: ' + e.message);
     }
+    // ⚠️用户已请求停止：主路径被中止后不得落到下一条回退策略（否则会发起一次新的生成，停止失效）
+    if (window.__cwAbortRequested) throw new Error('__USER_ABORT__');
     try {
       if (typeof generateQuietPrompt === 'function') {
         const r6 = await withTimeout(generateQuietPrompt(prompt, false, false, false), CALLAI_TIMEOUT_MS, 'generateQuietPrompt');
@@ -4457,7 +4542,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const r2 = await withTimeout(window.TavernHelper.generate(Object.assign({
           user_input: prompt,
           should_silence: true,
-          max_chat_history: 0
+          max_chat_history: 0,
+          generation_id: _genId
         }, genParams)), CALLAI_TIMEOUT_MS, 'TavernHelper.generate');
         if (isValidAIReply(r2)) return r2.trim();
       }
@@ -4519,14 +4605,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       done: [false, false, false, false, false, false, false],
       doneCount: 0,
       all7Done: false,
-      missing: ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'],
+      missing: ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量当前状态', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'],
       missingCount: 7,
       has8: false
     };
     const entries = (cd.character_book || {}).entries || [];
     const thScripts = (cd.extensions && cd.extensions.tavern_helper && cd.extensions.tavern_helper.scripts) || [];
     const rxScripts = (cd.extensions && cd.extensions.regex_scripts) || [];
-    // 前7条检测（按8条工作流顺序：第3条=更新规则，第4条=变量列表）
+    // 前7条检测（按8条工作流顺序：第3条=更新规则，第4条=变量当前状态）
     // ⚠️脚本存为对象（含content/name/id字段），非string；兼容两种形态
     const has1 = thScripts.some(function(s) {
       if (!s) return false;
@@ -4542,8 +4628,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       return (c.indexOf('[mvu_update]') >= 0 || c.indexOf('<mvu_update>') >= 0) && c.indexOf('变量更新规则') >= 0;
     });
     const has4 = entries.some(function(e) {
-      // 严格核心名匹配：避免"<自定义条目>变量列表使用说明"被误判为第4条已完成
-      return _entryCommentCore(e.comment || '') === '变量列表';
+      // 严格核心名匹配：避免"<自定义条目>变量当前状态使用说明"被误判为第4条已完成
+      return _entryCommentCore(e.comment || '') === '变量当前状态';
     });
     const has5 = entries.some(function(e) {
       return _entryCommentCore(e.comment || '') === '变量输出格式';
@@ -4562,7 +4648,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     const done = [has1, has2, has3, has4, has5, has6, has7];
     const doneCount = done.filter(Boolean).length;
     const all7Done = doneCount === 7;
-    const names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量列表', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
+    const names7 = ['第1条 变量结构脚本(zod)', '第2条 [InitVar]初始变量', '第3条 [mvu_update]更新规则', '第4条 变量当前状态', '第5条 [mvu_update]输出格式', '第6条 [mvu_update]输出格式强调', '第7条 <状态栏>占位提醒'];
     const missing = [];
     for (let i = 0; i < 7; i++) {
       if (!done[i]) missing.push(names7[i]);
@@ -4630,7 +4716,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '  第1条：变量结构脚本（zod 4 schema）\n' +
       '  第2条：[InitVar]初始变量\n' +
       '  第3条：[mvu_update]变量更新规则\n' +
-      '  第4条：变量列表\n' +
+      '  第4条：变量当前状态\n' +
       '  第5条：[mvu_update]变量输出格式\n' +
       '  第6条：[mvu_update]变量输出格式强调\n' +
       '  第7条：<状态栏>占位符提醒条目\n' +
@@ -4647,18 +4733,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '1. 顺序铁律：必须按 1→2→3→4→5→6→7→8 的固定顺序生成（依赖关系：第2/3条严格依据第1条schema；第8条状态栏HTML依赖前7条，前7条未完成前禁止生成第8条）。\n' +
     '2. ★【批量生成是默认模式】多条内容（脚本/条目/正则）应当**在一次回复中按顺序连续全部输出**，无需逐条停下等确认——除非用户明确要求"逐条生成/一条一条来/每条等我确认"。\n' +
     '3. 用户说"继续"时，从缺失或未完成的下一条继续生成（已完成的不重复输出）。\n\n';
-  // 8条固定顺序（含每条详细规范）—— 第3/4条顺序已调整为：更新规则在前，变量列表在后
+  // 8条固定顺序（含每条详细规范）—— 第3/4条顺序已调整为：更新规则在前，变量当前状态在后
   const MVU_8STEPS_DETAIL =
     '【8条固定顺序（严格按此顺序，不能跳步）】\n' +
-    '  第1条：变量结构脚本（tavern_helper.scripts，zod 4 Schema + registerMvuSchema注册）\n' +
+    '  第1条：变量结构脚本（tavern_helper.scripts，MVU Zod）\n' +
     '       · 文件头固定：import { registerMvuSchema } from \'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js\';\n' +
     '       · 文件尾固定：$(() => { registerMvuSchema(Schema); })\n' +
-    '       · 严格遵循zod 4规范（详见MVU变量结构脚本创作指导）\n' +
+    '       · 变量结构导出：export const Schema = z.object({ ... });\n' +
+    '       · 严格遵循 zod 4 规范；不使用 MVU 原版 _.set/_.add 语法\n' +
     '  第2条：[InitVar]初始变量（世界书条目，enabled=false）—— YAML格式，严格依据第1条schema生成；schema有z.prefault()的字段可省略；enabled必须=false\n' +
-    '  第3条：[mvu_update]变量更新规则（世界书条目，constant=true）—— 依据第1条schema生成每个变量路径的type/range/format/check\n' +
-    '  第4条：变量列表（世界书条目，constant=true depth=0）—— 固定内容（模板4原样）：---\\n<status_current_variables>\\nnull\\n</status_current_variables>\n' +
-    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true depth=0）—— 固定YAML格式，<UpdateVariable>+<Analysis>+<JSONPatch>（5种操作：replace/delta/insert/remove/move）\n' +
-    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定YAML原样输出，AI不输出<UpdateVariable>时启用\n' +
+    '  第3条：[mvu_update]变量更新规则（世界书条目，constant=true，position=4/depth=0/order=79000）—— 依据第1条schema生成每个变量路径的type/range/check；不含 `_`/`$` 开头字段\n' +
+    '  第4条：变量当前状态（世界书条目，constant=true，position=4/depth=1/order=69000）—— 固定内容：\n' +
+    '<status_current_variable>\n当前剧情末尾的变量状态如下：\n\n{{format_message_variable::stat_data}}\n\n</status_current_variable>\n' +
+    '  第5条：[mvu_update]变量输出格式（世界书条目，constant=true，position=4/depth=0/order=79001）—— 固定中文格式：<UpdateVariable>+<Analysis>+<JSONPatch>（4种操作：replace/delta/insert/remove），路径占位符用中文 ${/到/变量/的路径}\n' +
+    '  第6条：[mvu_update]变量输出格式强调（世界书条目，constant=true，默认enabled=false）—— 固定内容原样输出，AI不输出<UpdateVariable>时启用\n' +
     '  第7条：<状态栏>占位符提醒（世界书条目，constant=true）—— 提醒AI每条回复底部必须输出 <StatusPlaceHolderImpl/>\n' +
     '  第8条：正则6 [美化]MVU状态栏（regex_scripts，markdownOnly=true promptOnly=false）—— 前7条完成后才生成！走状态栏Step 2-6共5模块生成流程\n\n';
   // 通用生成规范（适用于所有8条）—— 第3/4条顺序已调整
@@ -4673,15 +4761,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '【修改场景防漏铁律】：修改变量结构时（哪怕只加一个字段），必须按顺序把第1/2/3/8条全部跟改一遍（第4/5/6/7条原样保留）。';
   // 8条简短列表（供 mvuPrompts.next/summary 等引用）—— 第3/4条顺序已调整
   const MVU_8STEPS_SHORT =
-    '①zod脚本 ②InitVar ③更新规则 ④变量列表 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
+    '①zod脚本 ②InitVar ③更新规则 ④变量当前状态 ⑤输出格式 ⑥格式强调 ⑦占位提醒 ⑧状态栏HTML';
   // MVU变量系统创作指导（第1-6条详细规范）—— 供 mvuPrompts 按用户"写变量xxx"指令逐条输出对应规范
   const MVU_VAR_SPEC =
     '═══════════════════════════════════════════════════════════════════\n' +
     '📋 MVU变量系统创作指导（第1-6条详细规范）\n' +
     '═══════════════════════════════════════════════════════════════════\n\n' +
     '===== 第1条：变量结构脚本（zod 4 Schema）=====\n\n' +
+    '【版本说明】本写卡器仅支持 MVU Zod 规范（zod 4 Schema + registerMvuSchema 注册），不支持 MVU 原版 _.set/_.add 格式。请勿使用 MVU 原版语法。\n\n' +
     '【任务】帮助用户创作一个完全符合zod 4库的MVU变量结构脚本\n\n' +
-    '★★★【批量铁律·最高优先级】除用户明确要求"逐条生成/一条一条来/每条等我确认"外，禁止逐条输出、禁止中途停下询问或等确认：用户需求已明确（或已说"直接做/你看着办/批量生成"）时，跳过下方第一/二步的询问与确认，直接在同一次回复中按 1→8 固定顺序把全部缺失的MVU资产**连续批量输出完毕**（zod脚本:::操作块 + [InitVar]/更新规则/变量列表/输出格式/格式强调/占位提醒:::操作块 + 状态栏```html，混排一次输出，写卡器全部自动提取）。只有当用户完全没有说明要追踪什么时，才一次性问完下方问题（禁止逐条追问）。\n\n' +
+    '★★★【批量铁律·最高优先级】除用户明确要求"逐条生成/一条一条来/每条等我确认"外，禁止逐条输出、禁止中途停下询问或等确认：用户需求已明确（或已说"直接做/你看着办/批量生成"）时，跳过下方第一/二步的询问与确认，直接在同一次回复中按 1→8 固定顺序把全部缺失的MVU资产**连续批量输出完毕**（zod脚本:::操作块 + [InitVar]/更新规则/变量当前状态/输出格式/格式强调/占位提醒:::操作块 + 状态栏```html，混排一次输出，写卡器全部自动提取）。只有当用户完全没有说明要追踪什么时，才一次性问完下方问题（禁止逐条追问）。\n\n' +
     '【工作流程（第一/二步仅在需求确实不明时执行）】\n' +
     '第一步：了解需求（仅当用户未说明需求时，一次性问完以下问题）\n' +
     '  询问用户：\n' +
@@ -4816,20 +4905,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '     - xxx变量在该剧情下是否有特殊设定？\n\n' +
     '第二步：确认结构\n' +
     '  根据变量结构脚本使用YAML编写初始变量\n\n' +
-    '【示例】\n' +
-    '  络络:\n' +
-    '    亲密度: 0\n' +
-    '    阅读日记数量: 0\n' +
-    '    拥有联系方式: false\n' +
-    '    物品栏: {}\n' +
+    '【示例（严格对齐第二个文件规范）】\n' +
+    '  角色:\n' +
+    '    奥利弗:\n' +
+    '      好感度: 20\n' +
+    '      心情: 平静\n' +
+    '      物品: [宿舍钥匙, 篮球, 课本]\n' +
+    '      衣着:\n' +
+    '        上衣: 黑色T恤\n' +
+    '        下装: 白色短裤\n' +
+    '      _关系阶段: 泛泛之交\n' +
     '  世界:\n' +
-    '    当前日期: 2025-07-26\n' +
-    '    当前星期: 星期五\n' +
-    '    当前时间: 17:36\n\n' +
+    '    日期: 2025-10-22\n' +
+    '    时间: 09:00\n' +
+    '    天气: 晴\n' +
+    '  $成就:\n' +
+    '    知彼知己: false\n' +
+    '    初露锋芒: false\n' +
+    '    慷慨之举: false\n\n' +
     '【注意事项】\n' +
-    '  1. 条目命名：[initvar]变量初始化勿开\n' +
-    '  2. 合理初始值：根据故事开局设置合理的初始值\n' +
-    '  3. 后续配置：提醒用户这只是初始变量，还需要配置世界书条目和变量规则\n\n' +
+    '  1. 条目命名：[initvar] 变量初始化（enabled=false）\n' +
+    '  2. YAML 格式，不带 stat_data 根键（MVU 底层自动挂载）\n' +
+    '  3. ★允许包含 `_`/`$` 开头字段（只读派生字段 / AI 不可见字段），与第二个文件一致\n' +
+    '  4. schema 有 z.prefault() 的字段可省略；无 schema 时按用户需求写全\n' +
+    '  5. 后续配置：变量规则、变量当前状态、输出格式需另行生成\n\n' +
     '【沟通风格】\n' +
     '  - 用自然语言和用户交流\n' +
     '  - 逐步确认需求，不要一次性问太多\n' +
@@ -4845,125 +4944,89 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '【前置条件】用户应该已经完成MVU变量结构脚本\n\n' +
     '【变量规则文件结构】\n' +
     '  ---\n' +
-    '  变量更新规则:\n' +
-    '    ${变量名}:\n' +
-    '      type: ${变量类型，如果类型是string则省略这一字段，否则要么是number、boolean等基础类型，要么使用typescript类型定义或zod schema定义（使用|-字符串块）}\n' +
-    '      ${其他合适字段，仅当非常需要时才添加如format、range等...}\n' +
-    '      check:\n' +
-    '        - ${该变量更新时需要检查的更新规则，如：根据角色对行为的反应调整，单次不超过±5}\n' +
-    '        - ...$(根据需要列出更新条件)\n' +
-    '    ...\n\n' +
+    '  在你的回复最后，必须根据新输出剧情末尾的实际状态，判断变量是否需要更新，如需要更新，则遵循下述规则：\n\n' +
+    '  interface State {\n' +
+    '    角色: {\n' +
+    '      ${角色名}: {\n' +
+    '        好感度: number; // 范围为 0~100；除非发生重大事件，否则单次增减必须在 ±5 以内\n' +
+    '        心情: string; // 根据角色的实际情绪更新\n' +
+    '        物品: string[]; // 获得、消耗、遗失或转移物品时新增或删除对应元素\n' +
+    '        衣着: { // 明确更换服装时更新\n' +
+    '          上衣: string;\n' +
+    '          下装: string;\n' +
+    '        };\n' +
+    '      };\n' +
+    '    };\n\n' +
+    '    世界: {\n' +
+    '      日期: string; // 格式为 YYYY-MM-DD，在剧情时间跨日时更新\n' +
+    '      时间: string; // 格式为 HH:mm，根据剧情实际经过的时间合理推进\n' +
+    '      天气: \'晴\' | \'多云\' | \'雨\' | \'暴雨\' | \'雪\'; // 在剧情明确表现天气变化时更新\n' +
+    '    };\n' +
+    '  }\n\n' +
     '【要求】\n' +
-    '  - 合并同类型变量规则：\n' +
-    '    * 固定键：z.object({...})和z.record(z.enum(...), ...)的键总是存在，可合并为 主角.能力面板.${力量|敏捷|体质}\n' +
-    '    * 动态键：z.record(z.string(), ...)和z.partialRecord(z.enum(...), ...)可能为空，将key放入type的索引签名\n' +
-    '  - 嵌套同对象字段：主角.能力面板和主角.装备栏都是主角的字段，嵌套在主角下\n' +
-    '  - string类型变量省略type字段\n' +
-    '  - 不更新只读字段：_开头字段只读，不列更新规则\n' +
-    '  - 避免为自解释变量列规则（除非用户指定特殊规则）\n\n' +
-    '【字段说明】\n' +
-    '  - type: 变量支持的类型（number/boolean/typescript类型定义/zod schema定义）\n' +
-    '  - range: 仅当 zod 未做数值 clamp 处理时才填写，否则删除此字段（zod已约束，更新规则侧不重复约束）\n' +
-    '  - format: 变量必须满足的特定格式（如YYYY年MM月DD日 星期X HH:MM）\n' +
-    '  - check: AI在更新变量时应该考虑的因素（自然语言描述）——更新规则的核心，应侧重描述"何时更新"、"更新幅度"、"触发条件"等\n\n' +
-    '【示例】（zod已对数值做clamp时，删除 range 重复约束，侧重建check逻辑）\n' +
+    '  - interface 中不要包含以 `_` 和 `$` 开头的变量\n' +
+    '  - 在各个字段定义后用 `//` 注释写明更新规则\n' +
+    '  - 如果同一字段下的多个子字段更新规则一致，宜写在父字段后\n' +
+    '  - 合并同类型变量规则\n' +
+    '  - string 类型变量不需要写 type（interface 中直接写 string 即可）\n\n' +
+    '【示例】\n' +
     '  ---\n' +
-    '  变量更新规则:\n' +
-    '    世界:\n' +
-    '      当前时间:\n' +
-    '        format: ${xx历}-${YYYY/MM/DD}-${HH:MM}\n' +
-    '        check:\n' +
-    '          - 每次事件推进、休息或旅行后更新，保持时间流逝合理\n' +
-    '          - 若场景跳转跨度较大，应说明跳跃原因\n' +
-    '    角色.好感度:\n' +
-    '      type: number\n' +
-    '      check:\n' +
-    '        - 仅在{{user}}有显著互动且角色感知到时更新\n' +
-    '        - 单次变动建议 ±(1~3)\n' +
-    '    主角:\n' +
-    '      能力面板.${力量|敏捷|体质|感知|意志|魅力}.数值:\n' +
-    '        type: number\n' +
-    '        check:\n' +
-    '          - 训练、战斗、重伤、系统奖励等显著事件才调整\n' +
-    '          - 单次变化不超过 ±10，除非剧情有明确强化/削弱\n' +
-    '      装备栏.${部位}:\n' +
-    '        type: |-\n' +
-    '          {\n' +
-    '            装备: string; // 装备名称 + 状态; 若未装备，使用"空置"或"无"\n' +
-    '            主角评价: string;\n' +
-    '          }\n' +
-    '        check:\n' +
-    '          - 穿戴、损毁、替换装备时更新装备描述\n' +
-    '    _只读字段:\n' +
-    '      check:\n' +
-    '        - ❌禁止更新：此字段由系统脚本自动维护\n' +
-    '    任务列表:\n' +
-    '      type: |-\n' +
-    '        {\n' +
-    '          [任务名: string]: {\n' +
-    '            类型: \'主线\' | \'支线\' | \'每日\' | \'临危受命\' ;\n' +
-    '            说明: string; # 面向主角的任务背景或细则\n' +
-    '            目标: string; # 明确可执行的目标描述，可包含步骤\n' +
-    '            奖励: string;\n' +
-    '            惩罚: string; # 失败后触发的负面效果\n' +
-    '          }\n' +
-    '        }\n' +
-    '      check:\n' +
-    '        - 避免一次性添加超过3个主线任务，保持焦点\n' +
-    '        - 日常任务完成后可重置但需记录冷却\n' +
-    '  ${变量}.主角评价:\n' +
-    '    check:\n' +
-    '      - 在对应变量值发生变化或遭遇相关事件后可更新，其他情况不应更新\n' +
-    '      - 语言应保持第一人称/贴近主角口吻\n' +
-    '      - 主角的评价并不会被主角本人看到，也不会在剧情中出现\n\n' +
-    '  开始协作吧！\n\n' +
-    '  ---\n\n' +
-    '  完成后的引导\n\n' +
-    '  当变量更新规则创作完成并输出后：\n\n' +
-    '  下一步：创建变量列表。对我说"写变量列表"。\n\n' +
-    '===== 第4条：变量列表（固定格式，原样输出）=====\n\n' +
-    '  ---\n' +
-    '  <status_current_variables>\n' +
-    '  null\n' +
-    '  </status_current_variables>\n\n' +
+    '  在你的回复最后，必须根据新输出剧情末尾的实际状态，判断变量是否需要更新，如需要更新，则遵循下述规则：\n\n' +
+    '  interface State {\n' +
+    '    角色: {\n' +
+    '      奥利弗: {\n' +
+    '        好感度: number; // 范围为 0~100；除非发生重大事件，否则单次增减必须在 ±5 以内\n' +
+    '        心情: string; // 根据奥利弗的实际情绪更新\n' +
+    '        物品: string[]; // 获得、消耗、遗失或转移物品时新增或删除对应元素\n' +
+    '        衣着: { // 明确更换服装时更新\n' +
+    '          上衣: string;\n' +
+    '          下装: string;\n' +
+    '        };\n' +
+    '      };\n' +
+    '    };\n\n' +
+    '    世界: {\n' +
+    '      日期: string; // 格式为 YYYY-MM-DD，在剧情时间跨日时更新\n' +
+    '      时间: string; // 格式为 HH:mm，根据剧情实际经过的时间合理推进\n' +
+    '      天气: \'晴\' | \'多云\' | \'雨\' | \'暴雨\' | \'雪\'; // 在剧情明确表现天气变化时更新\n' +
+    '    };\n' +
+    '  }\n\n' +
+    '  完成后的引导：\n' +
+    '  下一步：创建变量当前状态。对我说"写变量当前状态"。\n\n' +
+    '===== 第4条：变量当前状态（固定格式，原样输出）=====\n\n' +
+    '  <status_current_variable>\n' +
+    '  当前剧情末尾的变量状态如下：\n\n' +
+    '  {{format_message_variable::stat_data}}\n\n' +
+    '  </status_current_variable>\n\n' +
     '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
     '  开始协作吧！\n\n' +
     '  ---\n\n' +
     '  完成后的引导\n\n' +
-    '  当变量列表创作完成并输出后：\n\n\n' +
+    '  当变量当前状态创作完成并输出后：\n\n\n' +
     '  下一步：创建变量输出格式。对我说"写变量输出格式"。\n\n' +
     '===== 第5条：变量输出格式（固定格式，原样输出）=====\n\n' +
     '  ---\n' +
-    '  变量输出格式:\n' +
-    '    rule:\n' +
-    '      - you must output the update analysis and the actual update commands at once in the end of the next reply\n' +
-    '      - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\n' +
-    '        - replace: replace the value of existing paths\n' +
-    '        - delta: update the value of existing number paths by a delta value\n' +
-    '        - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\n' +
-    '        - remove\n' +
-    '        - move\n' +
-    '      - don\'t update field names starts with `_` as they are readonly, such as `_变量`\n' +
-    '    format: |-\n' +
-    '      <UpdateVariable>\n' +
-    '      <Analysis>$(IN ENGLISH, no more than 80 words)\n' +
-    '      - ${calculate time passed: ...}\n' +
-    '      - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\n' +
-    '      - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\n' +
-    '      </Analysis>\n' +
-    '      <JSONPatch>\n' +
-    '      [\n' +
-    '        { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\n' +
-    '        { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\n' +
-    '        { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\n' +
-    '        { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\n' +
-    '        { "op": "remove", "path": "${/path/to/object/key}" },\n' +
-    '        { "op": "remove", "path": "${/path/to/array/0}" },\n' +
-    '        { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\n' +
-    '        ...\n' +
-    '      ]\n' +
-    '      </JSONPatch>\n' +
-    '      </UpdateVariable>\n\n' +
+    '  更新必须遵循以下语法规则，并包裹在`<UpdateVariable>`标签内：\n' +
+    '  - 使用有效的 JSON 数组，每个元素表示单个操作对象，仅支持`replace`、`delta`、`insert`、`remove`四种操作。\n' +
+    '  - 禁止更新以`_`为开头的变量，这些是只读变量。\n' +
+    '\n' +
+    '  <UpdateVariable>\n' +
+    '  <Analysis>\n' +
+    '  更新列表:\n' +
+    '  - ${变量名称} ${完整操作路径}: ${仅根据本次回复说明更新原因}\n' +
+    '  </Analysis>\n' +
+    '  <JSONPatch>\n' +
+    '  [\n' +
+    '    { "op": "replace", "path": "${/到/变量/的路径}", "value": ${新值} },\n' +
+    '    { "op": "delta", "path": "${/到/数值/变量/的路径}", "value": ${正或负的变动值} },\n' +
+    '    { "op": "insert", "path": "${/到/对象/新键/的路径}", "value": ${新值} },\n' +
+    '    { "op": "insert", "path": "${/到/数组/-}", "value": ${新值} },\n' +
+    '    { "op": "remove", "path": "${/到/对象/键/的路径}" },\n' +
+    '    { "op": "remove", "path": "${/到/数组/的路径/0}" },\n' +
+    '    ...\n' +
+    '  ]\n' +
+    '  </JSONPatch>\n' +
+    '  </UpdateVariable>\n' +
+    '\n' +
     '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
     '  开始协作吧！\n\n' +
     '  ---\n\n' +
@@ -4973,12 +5036,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     '===== 第6条：变量输出格式强调（固定格式，原样输出）=====\n\n' +
     '  注意：这个条目只在测试时发现AI不输出 <UpdateVariable> 块时才需要启用。\n\n' +
     '  ---\n' +
-    '  变量输出格式强调:\n' +
-    '    rule: The following must be inserted to the end of reply, and cannot be omitted\n' +
-    '    format: |-\n' +
-    '      <UpdateVariable>\n' +
-    '      ...\n' +
-    '      </UpdateVariable>\n\n' +
+    '  注意：以下内容必须插入到回复末尾，不可省略。\n' +
+    '\n' +
+    '  <UpdateVariable>\n' +
+    '  ...\n' +
+    '  </UpdateVariable>\n\n' +
     '  重点：这就是你要输出给用户的完整格式！整个内容用代码块包裹，一次性完整输出！\n\n' +
     '  开始协作吧！\n\n' +
     '  ---\n\n' +
@@ -5398,7 +5460,30 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       const feStructured = _allRegex.filter(function(r) { return r && String(r.id || '').indexOf('frontend-structured-') === 0; }).length;
       qcBlock += '【前端界面】正文美化正则:' + (feBeautifyCount > 0 ? ('✅已生成×' + feBeautifyCount) : '未生成') + ' · 结构化数据面板:' + feStructured + '个\n';
       qcBlock += '如需新增条目直接upsert；修改已有条目必须输出完整旧content+改动部分；删除用delete。\n';
-      qcBlock += '★但若用户本次描述笼统（未指明具体做哪一小块），禁止直接upsert——必须先输出「卡片概览+缺口清单+3-6条拟生成方向」让用户确认。\n';
+      qcBlock += '★但若用户本次描述笼统（未指明具体做哪一小块），禁止直接upsert——必须先输出「生成计划报告」（意图深度解析+现状盘点+拟新增清单+权重布局）让用户确认。\n';
+    }
+
+    // ========== 3.5. 空卡/有卡路径指示（客户端主动告诉AI该走哪条路）==========
+    {
+      const _cdForPath = cd || {};
+      const _entriesForPath = (_cdForPath.character_book && _cdForPath.character_book.entries) || [];
+      const _isBlank = !String(_cdForPath.name || '').trim() &&
+                       !String(_cdForPath.description || '').trim() &&
+                       _entriesForPath.length === 0 &&
+                       !String(_cdForPath.first_mes || '').trim();
+      if (_isBlank) {
+        qcBlock += '\n【本次路径 · 空卡起步】当前卡片完全为空。若本轮需要出报告：\n' +
+          '  · 必须走"🗺️ 三、世界观构想（空卡）"路径，给出：时间背景/空间背景/核心冲突/独特设定/氛围基调/世界规则边界\n' +
+          '  · "📋 四、拟新增条目清单"必须按用户意图给出**具体条目数量 + 每条目名称 + 内容概括 + 触发方式 + position/depth/order + 权重理由**\n' +
+          '  · 报告末尾以"以上是我的生成计划，请回复「确认」开始生成，或指出需要调整的地方。"收尾\n';
+      } else {
+        qcBlock += '\n【本次路径 · 有卡迭代】当前卡片已有内容。若本轮需要出报告：\n' +
+          '  · 必须走"📌 三、当前卡现状盘点（有卡）"路径，逐条列出**现有条目的 comment + 触发词 + 一句话内容摘要**，并分析**用户意图与现有内容会碰撞/互补/冲突的地方**\n' +
+          '  · "📋 四、拟新增条目清单"逐条给出：内容概括 + 触发方式 + position/depth/order + 权重理由 + 体验推演\n' +
+          '  · "🔧 五、拟删改的现有内容"必须逐条说明：**删哪条**（为什么必须删而不是保留/改）、**改哪条**（原段落→新段落）、**调整哪些 order/触发词**（理由）\n' +
+          '  · "📊 六、权重布局总览"必须做**权重冲突检查**：是否存在两条 order 相近但作用冲突的条目？如有，如何调整？\n' +
+          '  · 报告末尾以"以上是我的生成计划，请回复「确认」开始生成，或指出需要调整的地方。"收尾\n';
+      }
     }
 
     // ========== 4. Agent 身份 + 意图路由 ==========
@@ -5412,42 +5497,88 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '  C. 前端界面：正文美化正则、结构化数据面板（输出```html完整代码块，结构化时带【页面名称】【标签名】标记）\n\n' +
       '【意图路由 · 每轮先判断用户要什么，再决定输出什么】\n' +
       '1. 世界观/角色/设定/条目/开场白/剧情 → 领域A\n' +
-      '2. 变量/数值追踪/好感度/金钱/物品/属性/阶段/境界/状态栏/MVU → 领域B：**一律生成MVU体系资产**（zod脚本→[InitVar]→更新规则→变量列表→输出格式→格式强调→占位提醒→状态栏HTML，按固定顺序，★默认且必须一次回复批量输出全部缺失条目——禁止逐条停顿等用户确认，除非用户明确要求"逐条生成/每条等确认"）。⚠️【铁律】变量追踪内容必须以MVU条目形式实现，禁止做成普通世界书条目、禁止写进description/开场白——变量系统只有走MVU体系才能在酒馆运行。⚠️【严格模板】第4/5/6条是固定内容模板必须原样输出，第2/3条严格依据第1条schema的字段名生成（路径字字对应），禁止自创格式。\n' +
+      '2. 变量/数值追踪/好感度/金钱/物品/属性/阶段/境界/状态栏/MVU → 领域B：**一律生成MVU体系资产**（zod脚本→[InitVar]→更新规则→变量当前状态→输出格式→格式强调→占位提醒→状态栏HTML，按固定顺序，★默认且必须一次回复批量输出全部缺失条目——禁止逐条停顿等用户确认，除非用户明确要求"逐条生成/每条等确认"）。⚠️【铁律】变量追踪内容必须以MVU条目形式实现，禁止做成普通世界书条目、禁止写进description/开场白——变量系统只有走MVU体系才能在酒馆运行。⚠️【严格模板】第4/5/6条是固定内容模板必须原样输出，第2/3条严格依据第1条schema的字段名生成（路径字字对应），禁止自创格式。\n' +
       '3. 界面/美化/信纸/气泡/面板/论坛/渲染 → 领域C：先确认风格需求，再输出完整HTML代码块（用户说"直接做/你看着办"则按合理默认执行）\n' +
       '\n' +
-      '★★★【需求评估 · 每轮的第一步 · 最高优先级】★★★\n' +
-      '收到用户消息后，先判断需求类型，直接走对应路径——三路径互斥，不要混用：\n' +
+      '★★★【需求评估 · 每轮的第一步 · 最高优先级 · 判定权完全在你】★★★\n' +
+      '收到用户消息后，先判档，走对应路径——四档互斥。\n' +
+      '⚠️【判档由你完成，客户端不越权】客户端只有"保险触发器"（宁可多出报告也不抢跑），\n' +
+      '   真正的档位判定必须由你根据"产出规模"和"是否触发现有卡"来判断。\n' +
       '\n' +
-      '  【A. 明确 + 小任务】—— 1-2 个操作就能完成\n' +
-      '    · 例："给白娅加个条目" / "把名字改成XX" / "开场白加长点" / "删掉⟦XX⟧" / "把描述里的YY改成ZZ"\n' +
-      '    · ✅ 直接执行，一次回复完成全部内容。\n' +
-      '    · ❌ 严禁输出概览/选项/计划块。❌ 末尾不要输出 <agent:continue>。\n' +
-      '  \n' +
-      '  【B. 明确 + 大任务】—— 用户已说清要什么，但体量大\n' +
-      '    · 例："生成完整MVU系统" / "做一张末世卡（含世界观+角色+开场白）" / "从头做一张卡" / "生成完整角色卡" / "生成完整的角色卡带变量和界面"\n' +
-      '    · ✅ 直接开始执行第一部分（不要概览、不要问"要不要继续"、不要输出 <agent_plan>）。\n' +
-      '    · ★ 在本轮回复**末尾单独一行**输出 <agent:continue>，写卡器会自动再调用你继续下一部分。\n' +
-      '    · 下一轮你会看到历史里你上轮的产出与【执行结果】，请基于此继续未完成的部分，**不要重复已完成的内容**。\n' +
-      '    · 全部任务完成时，末尾输出 <agent:done> 停止自动续跑。\n' +
-      '    · 单轮不必贪多：每轮产出 1-3 个操作块 / 1 个 HTML 代码块即可，宁可多轮也不要挤一次。\n' +
-      '  \n' +
-      '  【C. 不明确 / 笼统】—— 无具体方向\n' +
-      '    · 例："帮我做张卡" / "随便来点什么" / "看看缺啥" / "优化一下" / "随便搞点"\n' +
-      '    · ❌ 禁止直接生成！必须先输出「卡片概览 + 缺口清单 + 方向建议」等用户确认：\n' +
-      '      ① 正文里输出【当前卡片概览】+【缺失清单】+【本次拟生成方向 3-6 条】（基于上方"当前角色卡已有内容"实况）\n' +
-      '      ② 输出 <agent_understand>（2-4句话复述理解）\n' +
-      '      ③ 输出 <agent_options>（2-3个方向选项，每行一个，不要写编号）\n' +
-      '    · 用户点选后（形如"我选择：xxx"），下一轮直接进入 B 路径执行，不要再给概览/选项。\n' +
-      '    · 例外：用户消息里明确说了"直接做/别问了/你看着办/你自己决定"→ 跳过 C，直接按 B 执行。\n' +
-      '  \n' +
-      '  ⚠️【默认路径 = A/B · 直接执行】：绝大多数情况都应该直接开始做，不要先问"要不要做"、\n' +
-      '     不要先给"卡片概览"、不要输出 <agent_understand>/<agent_options>。\n' +
-      '     ——用户是来干活的，不是来审方案的。做了不满意可以改；反复问会直接劝退。\n' +
-      '  ⚠️ 只有用户消息**确实缺乏明确方向**（如"随便来点""看看缺啥""你看着办吧"）时才走 C。\n' +
-      '  ⚠️ 判断准则：能否从用户消息中提取出**至少一个具体动作对象**（角色名/字段名/条目主题/系统名）？\n' +
-      '     · 能 → 走 A 或 B（直接做）\n' +
-      '     · 不能 → 才走 C（问）\n' +
-      '  ⚠️ 若犹豫不决，一律选 A/B，不选 C。\n' +
+      '  【档 1 · 微调 · 直接执行】\n' +
+      '    · 判据：产出 ≤2 个操作，且是对现有内容的小范围调整（不生成新体系/新世界观/角色群/变量系统/界面）\n' +
+      '    · 例："把名字改成XX" / "给白娅加个条目" / "开场白加长点" / "删掉⟦XX⟧" / "改一下 InitVar 里的日期" / "把 order 改成 120"\n' +
+      '    · ✅ 直接执行，一次回复完成。❌ 严禁输出分析报告/选项/计划块。\n' +
+      '\n' +
+      '  【档 2 · 生成/大改 · 先出「生成计划报告」（★这是本档唯一的正确产出）】\n' +
+      '    · 判据（任一命中）：\n' +
+      '      ① 产出 ≥3 个操作（≥3 条新条目 / 一次改 3 处以上）\n' +
+      '      ② 生成新世界观 / 新角色体系 / 新势力 / 新地理 / 新规则体系\n' +
+      '      ③ 生成 MVU 8 步工作流 / 生成一整套前端界面 / 生成多条 UI 正则\n' +
+      '      ④ 大范围重构（重写 description、重排多个条目权重、批量改写）\n' +
+      '      ⑤ ★【当前卡为空 + 任何创作请求】——空卡必须走本档（除"改个名字"这类纯微调）\n' +
+      '    · ⛔ 本轮**禁止输出 :::操作块 / ```html / <agent_plan>**（写了会被写卡器强制剥离丢弃）\n' +
+      '    · ⛔ **本轮禁止输出 <agent_understand> / <agent_options> 标签**（那是档 3 的形式）\n' +
+      '    · ⛔ **本轮禁止输出"方案A/方案B/选项1/选项2"这类并列选项**——档 2 的产出是一份**完整的、线性展开的分析报告**，不是让用户"选一个"；\n' +
+      '         报告必须让用户看到：①你为什么这么安排 ②每条权重为什么是这个值 ③你如何权衡现有内容与新增内容。\n' +
+      '         把 8 个段落的报告压缩成 3 句 = 让用户丧失掌控 = 明确禁止。\n' +
+      '         ⛔【档 2 严禁的"偷懒"输出形式 · 出现即被客户端打回】以下是 AI 最容易犯的偷懒形式，一律禁止：\n' +
+      '         ❌ 例1："你可以选：1. 修仙 2. 末世 3. 校园"\n' +
+      '         ❌ 例2："我给你三个方向：① 轻量卡 ② 完整卡 ③ 自定义"\n' +
+      '         ❌ 例3："我可以帮你做：A. 世界观  B. 角色条目  C. 开场白"\n' +
+      '         ❌ 例4："请从以下方案中选择：方案一 xxx / 方案二 xxx / 方案三 xxx"\n' +
+      '         ❌ 例5：任何"给你几个方向 / 请选择 / 推荐路线 / 我建议几个思路" 引导语 + 2~5 条并列短列表\n' +
+      '         ✅ 正确形式：**输出完整的 8 段线性分析报告**（总长 ≥1500 字），逐段按模板最低展开要求写满——\n' +
+      '           让用户看到你的完整推理链（为什么这么安排条目、为什么这个权重值、用户聊天时会获得什么体验），\n' +
+      '           **不是让用户从"几个方向"里选一个**。\n' +
+      '    · ✅ **本轮必须输出下面「生成计划报告模板」的完整 8 段**，每段都按模板里的最低展开要求逐条写满：\n' +
+      '         · 意图解析 4 项（表层/深层/隐含约束/边界确认）**每项 2-4 句**\n' +
+      '         · 规模速览**必须含 3 个以上具体数字**（拟新增X条 / 拟修改Y条 / 拟删改Z处）\n' +
+      '         · 空卡 → 世界观构想 6 项（时间/空间/核心冲突/独特设定/氛围/规则边界）**逐项展开**\n' +
+      '           有卡 → 现状盘点**逐条列出**现有条目（comment + 触发词 + 一句话摘要）+ 与本次意图的关联分析\n' +
+      '         · 拟新增条目清单**逐条独立展开**：每条含 条目名 + 内容概括(2-3句) + 触发方式 + position + depth + order + ★权重理由 + ★体验推演(2-3句)\n' +
+      '         · 有卡时必须写「拟删改的现有内容」——删哪条、改哪条、改什么、为什么\n' +
+      '         · 权重布局总览**含权重冲突检查**（具体判断，不允许一句"无明显冲突"带过）\n' +
+      '    · ★ 客户端会在本轮回复后自动校验：报告长度≥2000字 / 意图解析 4 项都展开 / 规模速览含 ≥3 个具体数字 / ≥90% 条目含 position+depth+order / 有"权重理由" / 有"体验推演" / 有"权重冲突检查" / 无并列选项标签。不达标会弹窗+打回提示。\n' +
+      '    · ⏳ 等用户下一轮"确认/开始/OK/可以/go/做吧"等肯定词 → **下一轮**才输出产物\n' +
+      '\n' +
+      '  【档 3 · 重大调整 · 报告 + 方案选项】（★这是整个系统里唯一允许输出 <agent_options> 的档位）\n' +
+      '    · 判据（必须【同时满足】以下全部）：\n' +
+      '      ① 用户消息中明确出现删除/方向变更/清空重做信号（客户端会二次校验用户原话）\n' +
+      '         —— 仅凭"我判断这属于大调整"是**不够的**，必须有用户原话支撑\n' +
+      '      ② 需删除现有 ≥2 个条目（或删除任意 MVU 固定条目 / 任意含 [InitVar] 前缀条目）\n' +
+      '      ③ 或需改动 description / first_mes / personality / scenario 的**方向性设定**\n' +
+      '         （注意：改措辞/加长/精简 ≠ 方向性；改成另一个世界/另一套人物逻辑 = 方向性）\n' +
+      '      ④ 或需清空/重做某一领域（清空全部条目 / 重做整套 MVU / 重做全部界面）\n' +
+      '      ⑤ 或用户意图与现有卡方向冲突（现有修仙 → 用户要改成科幻；现有现代都市 → 用户要改成古代）\n' +
+      '    · ⛔ 若只是"生成/扩充/增加"，即使体量大，也走档 2（报告即可，不出选项）\n' +
+      '    · ⚠️ 客户端在报告末尾会自动校验：只有"报告达标 + 用户消息含删除/方向变更信号"时才保留 <agent_options>，否则一律剥离\n' +
+      '    · ⛔ 本轮**禁止输出 :::操作块 / ```html**\n' +
+      '    · ✅ 必须输出【生成计划报告】（含"拟删改"段，意图解析同样详尽，权重布局同样展开）\n' +
+      '      + 报告末尾追加两个标签：\n' +
+      '        <agent_understand>一句话点明冲突点/权衡点（≤40字）</agent_understand>\n' +
+      '        <agent_options>\n' +
+      '        方案A：xxx（保守路线——只做必要改动，保留现有 XXX，影响面小）\n' +
+      '        方案B：xxx（激进路线——重构 XXX，效果更好但会丢弃现有 YYY）\n' +
+      '        方案C：xxx（第三角度——先做 XXX，暂不动 YYY，可后续再迭代）\n' +
+      '        </agent_options>\n' +
+      '      （三个方案必须在**范围/取舍/代价**上有实质差异，不能是同一方案的三种说法）\n' +
+      '    · ⏳ 用户点选或回复后下一轮再执行\n' +
+      '\n' +
+      '  【档 4 · 强制跳过确认】\n' +
+      '    · 触发：用户消息含"直接做/别问了/你看着办/你自己决定/不要问/直接生成/立即执行/开始吧/不用确认/我自己看/我自己处理"等\n' +
+      '    · 执行：跳过档 2/3 的报告与选项，按档 1 方式直接输出产物（大任务可配合 <agent:continue> 自动续跑）\n' +
+      '    · ⚠️ 档 4 依然受"不擅自扩大范围"约束——用户说"直接做世界观"，你就只做世界观，不顺手做角色\n' +
+      '\n' +
+      '  ⚠️【默认档位 = 档 1】：能做小任务的绝不做大任务，能直接改的绝不先问。\n' +
+      '  ⚠️【判档看范围，不看用户态度】：用户说得再明确，只要产出范围大（≥3操作/新体系/新世界观），一律走档 2；\n' +
+      '     用户说得再含糊，只要确认是小改动，也可以走档 1。\n' +
+      '  ⚠️【禁止擅自扩大范围】：用户没提到的内容一律不生成——不是"顺手补齐"，是"违反指令"。\n' +
+      '     用户说"加白娅"，就只加白娅一条，不加她的关系网/家族/敌人/装备。\n' +
+      '  ⚠️【绝不替用户做决定】：档 2/3 报告只是"提议"——用户不确认，就一个字都不写进卡片。\n' +
+      '  ⚠️【选项标签的稀缺性】：<agent_understand> + <agent_options> 是**档 3 专用**机制，让用户"选择方向"；\n' +
+      '     档 1/档 2/档 4 一律禁用这两个标签——常规生成/大改应该用 Markdown 报告表达，\n' +
+      '     让用户看到完整的意图分析与条目清单，而不是被几个选项框住。\n' +
       '4. 内容尺度（全年龄/暗黑/NSFW）如果用户没提且任务涉及创作，按下述默认处理，不要停下来问：\n' +
       '   · 默认按"全年龄向"执行；\n' +
       '   · 用户描述里出现暗黑/NSFW倾向关键词时按用户意图执行。\n' +
@@ -5461,6 +5592,114 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '· MVU/前端资产与角色卡其他内容相互配合：变量路径决定状态栏渲染路径，界面风格贴合世界观\n' +
       '· 写卡器会自动提取你输出中的 :::操作块 和 HTML代码块 并保存，你只管按协议输出\n' +
       '· ReAct观察机制：你每轮输出后，写卡器执行并把**【执行结果】**附在你消息尾部（✅成功明细/❌失败原因）——对话历史里能看到。若上轮结果有❌失败，本轮必须优先修正失败项再继续新任务，禁止无视失败硬走\n' +
+      '\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '📋【生成计划报告模板】（档 2/3 必须严格按此结构输出）\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
+      '📖 一、意图深度解析（★必写，详尽展开——这段是整个报告的灵魂，禁止一两个短句了事）\n' +
+      '   ★【深度要求 · 违反视为输出失败】每项必须展开 2-4 句，合计不少于 8 句：\n' +
+      '     · 表层诉求：引用用户原话中的关键短语，说明"他说了什么"\n' +
+      '     · 深层意图：推演"他为什么这么说"——想要什么聊天体验？想解决什么痛点？想达到什么效果？\n' +
+      '     · 隐含约束：从用词/语气/否定句里读出未明说的边界（如"简单点"= 别堆术语；"温柔"= 别写冷硬台词）\n' +
+      '     · 边界确认：明确列出"本次不做"的清单——用户没提到、也不该顺手加的内容\n' +
+      '   ❌ 禁止用"用户想要生成世界观"这种一句话敷衍；每一项都要让用户看到你的推理过程\n' +
+      '\n' +
+      '📊 二、本次规模速览（一眼看懂）\n' +
+      '   · 拟新增 X 条 · 拟修改 Y 条 · 拟删除 Z 条 · 拟改顶层字段 W 处\n' +
+      '   · 预期影响面：□ 小（不影响现有玩法）  □ 中（补充而非取代）  □ 大（改核心设定）\n' +
+      '\n' +
+      '【以下段落二选一，按当前卡状态填】\n' +
+      '\n' +
+      '━━━ A. 当前为空卡时 ━━━\n' +
+      '🗺️ 三、世界观构想（必写，详尽展开）\n' +
+      '   · 时间背景：（如"近未来2077年 / 架空大陆第三纪元"）\n' +
+      '   · 空间背景：（如"由七座悬浮岛组成的天空世界"）\n' +
+      '   · 核心冲突/主线：（如"凡人 vs 神明，凡人试图窃取神力"）\n' +
+      '   · 独特设定：（如"所有魔法都以寿命为代价"）\n' +
+      '   · 氛围基调：（如"冷峻、克制、宿命感重"）\n' +
+      '   · 世界规则的边界：（明确哪些不会发生，避免后续加设定时冲突）\n' +
+      '\n' +
+      '📋 四、拟新增条目清单（共 N 条）\n' +
+      '   —— 逐条列，每条按下方格式 ——\n' +
+      '   条目 1：⟦条目名⟧\n' +
+      '     · 内容概括：这条写什么（2-3 句概要，说清它承载什么信息）\n' +
+      '     · 触发方式：常驻 / 触发（触发词：词1,词2,词3，说明为什么选这些词）\n' +
+      '     · position：N（理由：为什么放在这个位置）\n' +
+      '     · depth：N（仅 position=4 时；理由）\n' +
+      '     · order：N\n' +
+      '     · group：（可选）\n' +
+      '     · ★★权重优先级理由（必写，逐轴展开，禁止空话）：\n' +
+      '         - position=N 理由：为什么放这个大区？（和同类条目比，谁该在前面谁该在后面？）\n' +
+      '         - depth=N 理由（仅 position=4 时填）：为什么这个深度合适？（太深会影响弱、太浅会盖住其它条目）\n' +
+      '         - order=N 理由：为什么这个权重层级？（放在哪个梯度？和谁形成对比？）\n' +
+      '         - ★★用户体验场景推演（必写 2-3 句，否则视为报告不达标）：\n' +
+      '           ① 触发场景：用户会在什么对话场景/时刻碰到这条？（如"玩家第一次见到白娅时"、"战斗失败后"、"进入王城时"）\n' +
+      '           ② AI 反应差异：该场景下 AI 会优先/延后注意到这条 → 输出会有什么不同？\n' +
+      '           ③ 期望体验：期望玩家体验到什么？（沉浸感 / 紧张感 / 代入感 / 惊喜感 / 压迫感）\n' +
+      '           ④ 反事实对比：如果不这样安排（换成 order=X / position=Y），玩家会失去什么体验？\n' +
+      '         ❌ 禁止："这样比较合理"/"符合规范"/"因为是基础条目"——不是理由，是废话\n' +
+      '   条目 2：⟦...⟧（同上格式）\n' +
+      '\n' +
+      '━━━ B. 当前已有内容时 ━━━\n' +
+      '📌 三、当前卡现状盘点（必写，全面核对）\n' +
+      '   · 主体：名称【已有/空】 / description【X字，主题为…】 / 开场白【X字，风格为…】\n' +
+      '   · 世界书：共 N 条（常驻 X / 触发 Y），列出每条 comment + 触发词 + 一句话内容摘要\n' +
+      '   · MVU：X/8 步（缺失第…条）\n' +
+      '   · 前端：X 个界面（类型 + 标签名）\n' +
+      '   · 与本次意图的关联分析：**用户要做的改动，和现有卡的哪些部分会碰撞/互补/冲突**\n' +
+      '\n' +
+      '📋 四、拟新增条目清单（共 N 条）\n' +
+      '   （与空卡版格式相同——逐条列，含权重优先级理由）\n' +
+      '\n' +
+      '### 🔗 四点五、新条目与现有条目的关系分析（有卡时必写）\n' +
+      '对**每一条**拟新增条目，必须逐一回答：\n' +
+      '· 与现有哪几条有**交叉**？（内容重叠/触发词冲突）→ 如何调整 keys/group 避免打架？\n' +
+      '· 与现有哪几条有**互补**？（同题材扩展）→ 用 group 归组还是保持独立？\n' +
+      '· 与现有哪几条有**冲突**？（人物/时间/世界观矛盾）→ 是改新条目、改旧条目、还是两条都改？\n' +
+      '· 是否需要**联动**？（如新条目"白娅的妹妹露芙"提到"白娅"，靠递归激活）→ 正文里应主动写对方触发词\n' +
+      '⚠️ 若拟新增条目与现有条目**零关系**，也要明说"独立条目，无交叉无冲突"，不允许跳过。\n' +
+      '\n' +
+      '🔧 五、拟删改的现有内容（有则必写，无则写"无"）\n' +
+      '   · 删除 ⟦xxx⟧（理由：为什么必须删而不是保留/改）\n' +
+      '   · 修改 ⟦xxx⟧ 的 content「原段落」→「新段落」（理由）\n' +
+      '   · 修改 description 的「xxx」→「yyy」（理由）\n' +
+      '   · 调整 ⟦xxx⟧ 的 order：100 → 220（理由：权重冲突/优先级变化）\n' +
+      '   · 调整 ⟦xxx⟧ 的触发词：删「a」加「b,c」（理由）\n' +
+      '\n' +
+      '━━━ 两版共有部分 ━━━\n' +
+      '\n' +
+      '📊 六、权重布局总览（★这条最能体现你"为用户聊天体验考虑"）\n' +
+      '   · 常驻打底（pos=0, ord 60-100）：[条目列表] —— 作用：世界观持续存在感\n' +
+      '   · 中坚力量（pos=1, ord 100-150）：[条目列表] —— 作用：人物/势力/地点档案\n' +
+      '   · 强约束层（pos=4, ord 200+, depth≤2）：[条目列表] —— 作用：当前剧情状态/必生效规则\n' +
+      '   · 触发型（pos=1/4，有 keys）：[条目列表] —— 作用：随剧情按需浮现\n' +
+      '   · 概率触发（probability <100）：[条目列表] —— 作用：随机事件/稀有剧情\n' +
+      '   · ★权重冲突检查：**是否存在两条 order 相近但作用冲突的条目？如有，如何调整**\n' +
+      '\n' +
+      '⚙️ 七、全局配置建议（若需更新 description/first_mes/personality/scenario，写明方向）\n' +
+      '   · description：新增哪一段，字数从 X 到 Y\n' +
+      '   · first_mes：风格调整方向（不改则写"不改"）\n' +
+      '\n' +
+      '⚠️ 八、待确认事项（可选，1-3 条不确定/需用户决策的点）\n' +
+      '\n' +
+      '—— 报告结束 ——\n' +
+      '\n' +
+      '【档 2 收尾】以一句话结束："以上是我的生成计划，请回复「确认」开始生成，或指出需要调整的地方。"然后**停止**。\n' +
+      '【档 3 收尾】报告正文后追加：\n' +
+      '<agent_options>\n' +
+      '方案A：xxx（保守路线——只做必要改动，保留现有 XXX，影响面小）\n' +
+      '方案B：xxx（激进路线——重构 XXX，效果更好但会丢弃现有 YYY）\n' +
+      '方案C：xxx（第三角度——先做 XXX，暂不动 YYY，可后续再迭代）\n' +
+      '</agent_options>\n' +
+      '（三个方案必须在**范围/取舍/代价**上有实质差异，不能是同一方案的三种说法）\n' +
+      '🔒【档 2 铁律 · 违反视为输出失败】\n' +
+      '  · 本模板是「完整分析报告」，**不是"方案A/B"选项**——档 2 禁止任何并列选项标签。\n' +
+      '  · 8 个段落是**最低要求**，每段都要逐条展开；用户看报告不是为了"选一个"，是为了"看到你的完整推理链"。\n' +
+      '  · 所有数字必须具体（"拟新增 5 条"），禁止"若干""几条""一些"这类模糊词。\n' +
+      '  · **严禁擅自扩大范围**：用户没提到的内容一律不列入报告——不是"顺手补齐"，是"违反指令"。\n' +
+      '    例：用户说"加白娅"，报告就只列"白娅"这一条，不加她的关系网/家族/敌人/装备。\n' +
+      '  · **不要替用户做决定**：报告只是提议——用户不确认，一个字都不写进卡片。\n' +
+      '═══════════════════════════════════════════════════════════════════\n' +
       '═══════════════════════════════════════════════════════════════════\n';
 
     // ========== 5. 领域规范块（按意图注入：MVU / 前端）==========
@@ -5479,8 +5718,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '第1条: 变量结构脚本（zod 4 Schema + registerMvuSchema → tavern_helper.scripts）\n' +
       '第2条: [InitVar]初始变量（constant=true, position=0, insertion_order=100, enabled=false, content=YAML）\n' +
       '第3条: [mvu_update]变量更新规则（constant=true, position=4, depth=0, order=200）\n' +
-      '第4条: 变量列表（constant=true, position=4, depth=0, order=200, 标签内为 null）\n' +
-      '第5条: [mvu_update]变量输出格式（固定YAML：<UpdateVariable>+<Analysis>+<JSONPatch>，5种操作replace/delta/insert/remove/move）\n' +
+      '第4条: 变量当前状态（constant=true, position=4, depth=1, order=69000, 固定模板）\n' +
+      '第5条: [mvu_update]变量输出格式（固定中文格式：<UpdateVariable>+<Analysis>+<JSONPatch>，4种操作replace/delta/insert/remove）\n' +
       '第6条: [mvu_update]变量输出格式强调（默认enabled=false）\n' +
       '第7条: <状态栏>占位符提醒（constant=true，提醒AI每条回复底部输出<StatusPlaceHolderImpl/>）\n' +
       '第8条: 正则6 [美化]MVU状态栏（markdownOnly=true, promptOnly=false，完整HTML文档）\n\n' +
@@ -5514,7 +5753,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '═══════════════════════════════════════════════════════════════════\n' +
       '🎛️【领域速览 · MVU变量系统】（完整规范将在你处理变量/状态栏需求时自动提供）\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
-      '· MVU=MagVarUpdate变量框架，8条固定资产：zod脚本/[InitVar]/更新规则/变量列表/输出格式/强调/占位提醒/状态栏HTML\n' +
+      '· MVU=MagVarUpdate变量框架，8条固定资产：zod脚本/[InitVar]/更新规则/变量当前状态/输出格式/强调/占位提醒/状态栏HTML\n' +
       '· 若用户提到变量/数值追踪/好感度/状态栏等：一律生成MVU体系资产（批量生成是默认模式），先做需求收集（要追踪什么/怎么展示），用户说"直接做"则按合理默认批量生成\n' +
       '· 本轮用户未涉及变量需求时忽略本速览，不要主动生成MVU内容\n';
     // —— 前端完整规范（意图命中或已有前端正则时注入）——
@@ -5569,7 +5808,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       ('\n\n=== 🤖 Agent自主执行模式（任务指令，最高优先级）===\n' + agentDirective) :
       (cardGenerated ?
         '\n\n=== 当前状态：角色卡主体内容已具备 ===\n用户可继续完善细节（角色卡/MVU/前端均可）。★提醒：即使主体已具备，也严禁一次性生成完整卡——每次只做用户明确要求的那一部分。' :
-        '\n\n=== 当前状态：创作进行中 ===\n★若用户本次描述笼统（"做张卡"/"看看缺啥"/"随便来点什么"），必须先输出「卡片概览+缺口清单+本次拟生成方向3-6条」让用户确认，禁止直接生成；用户确认后按细粒度计划分步执行。\n若用户本次已明确指出具体要做的一小块（如"先做世界观总纲"/"加个角色白娅"），则直接按意图路由执行该小块。');
+        '\n\n=== 当前状态：创作进行中 ===\n★若用户本次描述笼统（"做张卡"/"看看缺啥"/"随便来点什么"），按上方「需求评估」四档判档：属档 2/3 则先输出「生成计划报告」让用户确认，禁止直接生成；用户确认后按报告清单分步执行。\n若用户本次已明确指出具体要做的一小块（如"先做世界观总纲"/"加个角色白娅"），则直接按意图路由执行该小块。');
 
     // ========== 7. 组装系统提示词（Agent版：SYS_PROMPT完整版 + 按需领域规范 + 用户历史偏好画像）==========
     // 意图从单选改多选；writing 类规则无条件注入（见 buildPromptHint）
@@ -5604,7 +5843,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '15. ★★★【正文YAML中文格式】条目正文（content）禁止写成一大段无结构文字！必须用YAML中文格式：每行一个「维度：内容」（身份/外貌/性格/能力/背景/关系等），列表用缩进+短横线逐项列出，层级用缩进表达。描述类正文（世界观/开场白）同样分段分点。\n' +
       '16. ★★★【逐项决策40元素】每次生成/修改条目，必须把条目内的每一个元素过一遍（触发词/常驻/位置/深度/触发逻辑/概率/全词匹配/分组/递归/黏性冷却延迟/匹配字段等，完整清单见上方系统提示「条目元素逐项决策清单」）：需自定义的写进操作块元信息行，默认值的不用写。禁止漏掉影响触发的字段，禁止只写keys和content。\n' +
       '17. 🚫【绝不角色扮演·自我检测】回复前自检：若出现引号对话、"她说/他看/我…"、环境描写、情绪独白、动作叙述——立即停止，把这些内容整体挪进 ::: upsert 的 content 或 ::: set first_mes，对话回复只保留1-2句说明 + 操作块。\n' +
-      '18. 🔒【MVU顺序自检】若本轮涉及MVU变量系统：回复前先按 1→2→3→4→5→6→7→8 在心里列一遍序号，从最小缺失序号开始，一次回复内连续输出到当前步骤边界；第2/3条字段名必须逐字照抄第1条zod schema；第4/5/6条必须原样照抄固定模板（不改字段名、不替换${...}占位符、不增删条目）。';
+      '18. 🔒【MVU顺序自检】若本轮涉及MVU变量系统：回复前先按 1→2→3→4→5→6→7→8 在心里列一遍序号，从最小缺失序号开始，一次回复内连续输出到当前步骤边界；第2/3条字段名必须逐字照抄第1条zod schema；第4/5/6条必须原样照抄固定模板（不改字段名、不替换${...}占位符、不增删条目）。\n' +
+      '19. 🎯【报告 vs 选项 · 严格区分】\n' +
+      '    · **报告** = 完整的线性分析（8 段模板），是**档 2 和档 3 的共同产出**——让用户看到你的完整推理链。\n' +
+      '    · **选项** = <agent_options> 标签里的"方案A/B/C"，是**档 3 专属机制**——只在真正需要用户"选择方向"时使用。\n' +
+      '    · 档 2（生成/大改）：**只出报告，禁止任何选项标签**。用户回复"确认/调整意见"后下一轮才执行。\n' +
+      '    · 档 3（重大调整）：报告 + 选项。选项必须体现**范围/取舍/代价**的实质差异，不能是同一方案的三种说法。\n' +
+      '    · 档 1（微调）/ 档 4（强制跳过）：**既不出报告也不出选项**，直接执行。\n' +
+      '    · ⚠️ 客户端检测：档 2 场景若输出 <agent_options>，或报告退化成"方案A/B"线性列表，一律自动剥离并弹窗提示。\n' +
+      '20. 🧭【不要替用户做决定】报告只是提议——用户没确认前，一个字都不写进卡片。\n' +
+      '    用户说"加白娅"，就只加白娅，不加她的关系网/家族/装备；用户说"世界观总纲"，就只做 description，不加地理/势力条目。\n' +
+      '    报告里的"拟新增/拟删改"清单必须每条都对应到用户语义中确实提及或强烈暗示的内容，禁止凭空扩展。\n' +
+      '21. 📜【报告深度下限（违反视为输出失败）】8 个段落是**最低要求**：\n' +
+      '    · 意图解析 4 项**每项 2-4 句**（表层/深层/隐含约束/边界确认）\n' +
+      '    · 规模速览**含 ≥3 个具体数字**\n' +
+      '    · 每个拟新增条目**逐条独立展开**：内容概括 + 触发方式 + position + depth + order + ★权重理由 + ★体验推演\n' +
+      '    · "权重理由"必须回答"让用户聊天时获得什么体验 / 避免什么坑"，禁止"这样比较合理"这类空话\n' +
+      '    · "权重冲突检查"必须给出具体判断，禁止"无明显冲突"一句带过';
 
     // ========== Agent 模式：阶段性提示（只在真正需要时注入）==========
     // 新逻辑：_forceUnderstand 为真→强制理解；"我选择：xxx"→直接执行；其他→不注入，AI 自行判断
@@ -5627,28 +5882,73 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
       const _isConfirmingMsg = /^我选择\s*[:：]/.test(_lastUserTxt);
 
+      // ===== 迭代3：档3粗判布尔（涉及删/方向冲突 → 档 3），供下方 _agentStageBlock 分支使用 =====
+      const _lastUserTxtForStage = (function() {
+        const msgs = tabMessages;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i] && msgs[i].role === 'user') return String(msgs[i].content || '');
+        }
+        return '';
+      })();
+      // 粗判：涉及删/方向冲突 → 档 3（信号词与客户端选项剥离共用 MAJOR_CHANGE_SIGNALS_RE）
+      const _promptIsMajorChange = MAJOR_CHANGE_SIGNALS_RE.test(_lastUserTxtForStage);
+
       if (_forceUnderstand) {
         _agentStageBlock =
           '\n\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
-          '🎯【本轮 · 强制理解阶段】必须先盘卡 + 列缺口 + 给方案，禁止直接生成\n' +
+          '⚖️【AI 判档覆写权 · 优先于客户端的强制信号】\n' +
+          '   客户端基于信号词触发了"强制报告"，但**判档权在你**：\n' +
+          '   · 如果你判断用户消息实际明确指示的是小任务（档 1）→ 直接执行并说明\n' +
+          '     "我理解这是一处微调，无需报告，直接改。"（本轮允许输出产物）\n' +
+          '   · 如果你判断是档 2/3 → 老实出报告，等确认\n' +
+          '   · 判定依据以"用户意图是否真的模糊/是否真的大范围"为准，而非信号词本身\n\n' +
+          '🎯【本轮 · 强制出「生成计划报告」（档 2/3）】\n' +
           '═══════════════════════════════════════════════════════════════════\n' +
-          '用户刚提出的是一个笼统需求。你**必须**先输出「卡片概览 + 缺口清单 + 本次拟执行方案」，等用户确认后才生成。\n\n' +
-          '【本轮必须输出】以下三部分（且只能输出这些 + 1-2句必要铺垫）：\n' +
-          '1. 【当前卡片概览】——直接在正文用 markdown 输出（不要包在标签里）\n' +
-          '   · 已有内容：基于上方「当前角色卡已有内容」实况，逐项列出 世界观/人设/开场白/已有条目数与清单\n' +
-          '   · 缺失清单：AI发挥想象，指出这张卡还缺什么\n' +
-          '   · 结合用户本次意图，给出 3-6 条具体的补充方向\n' +
-          '2. <agent_understand>...</agent_understand>\n' +
-          '   · 用 2-4 句话简洁复述你理解的用户意图\n' +
-          '3. <agent_options>...</agent_options>\n' +
-          '   · 给出 2-3 个具体的方向选项，每行一个（不要写编号）\n' +
-          '   · 选项之间必须是有意义的差异（范围大小 / 是否包含某子系统 / 不同风格取向），不是同义改写\n' +
-          '   · 选项粒度要细：每个选项对应"本次先做哪一小步"\n\n' +
+          '用户刚提出的需求属于"生成/大改/重大调整"范围。你**必须先输出详尽的「生成计划报告」**，等用户确认后才执行。\n\n' +
+          '⛔【本轮禁止输出】\n' +
+          '   · 任何 :::操作块（写了会被写卡器剥离丢弃）\n' +
+          '   · 任何 ```html 代码块\n' +
+          '   · <agent_plan> 计划块\n' +
+          '   · 任何直接写到卡片的动作\n\n' +
+          '✅【本轮必须输出】\n' +
+          '   严格按"生成计划报告模板"完整输出报告（★每个段落都要详尽展开，禁止潦草带过）：\n' +
+          '     一、意图深度解析（表层诉求 / 深层意图 / 隐含约束 / 边界确认）—— 每项至少 2 句\n' +
+          '     二、本次规模速览\n' +
+          '     三、世界观构想（空卡时，必写：时间/空间/核心冲突/独特设定/氛围基调/边界）\n' +
+          '         或 当前卡现状盘点（有卡时，逐条列现有条目 + 与本次意图的关联分析）\n' +
+          '     四、拟新增条目清单（★逐条展开，每条必须包含）：\n' +
+          '         · 条目名 + 内容概括（2-3 句，说清承载什么信息）\n' +
+          '         · 触发方式（常驻 / 触发词列表）\n' +
+          '         · position/depth/order（具体数值 + 为什么这样安排）\n' +
+          '         · ★权重理由：这样安排会让用户聊天时获得什么体验 / 避免什么坑\n' +
+          '     四点五、新条目与现有条目关系分析（有卡时必写：交叉/互补/冲突/联动，零关系也须明说）\n' +
+          '     五、拟删改的现有内容（有卡时，逐条含理由）\n' +
+          '     六、权重布局总览（★含权重冲突检查：是否存在两条 order 相近但作用冲突的条目？如有如何调）\n' +
+          '     七、全局配置建议\n' +
+          '     八、待确认事项\n\n' +
+          '⛔【本轮明确禁止】\n' +
+          '   · 禁止输出任何 :::操作块（写了会被写卡器剥离丢弃）\n' +
+          '   · 禁止输出任何 ```html 代码块\n' +
+          '   · 禁止把报告压缩成 2-3 条简短选项（无论用标签、Markdown 列表、还是"方案A/B/C"）\n' +
+          '   · 禁止用"若干条目""等等""大致"这类模糊词带过段落\n' +
+          '   · 用户看报告不是为了"选一个"，而是为了"看到你的完整推理链"——段落越细越好\n' +
           '【硬性要求】\n' +
-          '· 本轮**只输出**上述三部分 + 必要的1-2句铺垫文字\n' +
-          '· **禁止**输出:::操作块、```html代码块、<agent_plan>、JSON\n' +
-          '· 不要替用户做选择，静待用户点击选项或在输入框自定义输入\n';
+          '  ① 每个拟生成的条目必须列出：**内容概括（2-3句）+ 触发方式 + position + depth + order + 权重理由**\n' +
+          '  ② 权重理由必须回答："这样安排会让用户聊天时获得什么体验 / 避免什么坑"\n' +
+          '  ③ 严禁"顺手多做"——用户没提到的内容一律不列入报告\n' +
+          '  ④ 报告末尾以"以上是我的生成计划，请回复「确认」开始生成，或指出需要调整的地方。"收尾\n' +
+          '  ⑤ 然后**停止**——不要自问自答、不要连续输出第二份报告、不要"确认+生成"一步到位\n' +
+          '  ⑥ ★【报告完成后心里过一遍自检清单，不达标立即补写】：\n' +
+          '      □ 意图解析四项是否都展开？（每项≥2句，合计≥8句）\n' +
+          '      □ 每个拟新增条目是否都写了 position/depth/order？\n' +
+          '      □ 每个条目是否都有"让用户聊天获得什么体验"的具体推演？\n' +
+          '      □ 权重冲突检查是否给出了具体判断（不是一句"无明显冲突"带过）？\n' +
+          '      □ 报告里是否**完全没有任何** :::操作块 / ```html 代码块？\n' +
+          '      □ 是否严格**只列了用户提到或明确暗示**的条目？没有顺手扩张？\n' +
+          (_promptIsMajorChange ?
+            '  ⑦ 只有本次属于档 3（重大调整：需删≥2条/方向性改动/清空重做领域/意图冲突）时，才末尾追加 <agent_understand>+<agent_options> 给出 2-3 个差异化方案；其他情况一律只用 Markdown 报告\n' : '') +
+          '═══════════════════════════════════════════════════════════════════\n';
       } else if (_isConfirmingMsg) {
         _agentStageBlock =
           '\n\n' +
@@ -5686,7 +5986,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           .replace(/:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*/gi, '')
           .replace(/^\s*:::\s*$/gim, '')
           // 清理```代码块：不静默删除（否则AI看不到自己上轮生成的HTML），替换成简短标记保留上下文意识
-          .replace(/```(\w*)\s*([\s\S]*?)```/g, function(_, lang, code) {
+          // ⚠️负向先行断言：execnotes 执行结果块保留原文（失败信息必须完整传给下一轮AI）
+          .replace(/```(?!execnotes\b)(\w*)\s*([\s\S]*?)```/g, function(_, lang, code) {
             return '（已保存的' + (lang ? lang.toUpperCase() : '代码') + '块，约' + String(code||'').split('\n').length + '行）';
           })
           // 清理折叠块和状态栏
@@ -5709,13 +6010,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     fullPrompt += agentDirective ?
       '（你正处于Agent自主执行模式：忽略「最新指令」标记，直接批量执行上方任务指令中的「当前任务」——把该步骤全部产物在本次回复中一次性输出（多个:::操作块/多个```html代码块混排均可，写卡器全部自动提取），不要向用户提问、不要只做说明不产出内容；MVU依赖顺序（前7条后才生成第8条）仍需遵守但无需逐条停顿。完成当前步骤后在回复末尾输出控制标记。）' :
       '（请只针对上方>>>标记的最新指令回复，不要重复处理已回答过的旧指令。\n\n' +
-      '【本轮行动指南 · 三路径互斥 · 最高优先级】\n' +
-      '  A. 需求明确 + 小任务 → 直接完成，一次回复搞定，末尾不要输出任何控制标记\n' +
-      '  B. 需求明确 + 大任务 → 直接开始第一部分，末尾单独一行输出 <agent:continue>，写卡器会自动续跑（最多15轮），全部完成时输出 <agent:done>\n' +
-      '  C. 需求不明确 → 输出【卡片概览】+ <agent_understand> + <agent_options> 等用户确认\n\n' +
-      '★ 优先 A/B（直接做），只有真正模糊时才走 C。\n' +
-      '★ 若你上轮回复末尾输出了 <agent:continue>，本轮请基于历史里你上轮的产出继续未完成的部分，不要重复已完成的内容。\n' +
-      '★ 若用户消息形如"我选择：xxx"，那是选项确认——直接执行该方向，不要再给概览/选项。）';
+      '【本轮行动指南 · 四档判档 · 最高优先级】\n' +
+      '  · 档位判定与各档动作见上方「需求评估 · 每轮的第一步」（档1微调直接执行；档2生成/大改先出「生成计划报告」等确认；档3重大调整报告+<agent_options>方案选项；档4强制跳过确认直接执行）。\n' +
+      '  · 若你上轮已输出「生成计划报告」且用户本轮回复「确认/开始/OK/可以/做吧」等肯定词：严格按上方「本次执行契约」清单执行，只做清单内的内容，严禁越界。\n' +
+      '  · 档 1/档 4 的大任务需多轮完成时：末尾单独一行输出 <agent:continue>，写卡器会自动续跑（最多15轮），全部完成时输出 <agent:done>；下一轮基于历史继续未完成部分，不要重复已完成内容。\n' +
+      '  · 若用户消息形如"我选择：xxx"，那是选项确认——直接执行该方向，不要再给概览/选项。）';
 
     return fullPrompt;
   }
@@ -5726,7 +6025,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     if (!originalPrompt) return originalPrompt;
     // 通过关键词过滤掉MVU专属的大型段落：
     // （正则脚本文档/示例、状态栏Step生成流程、MVU脚本API等已从SYS_PROMPT源头删除，无需运行时过滤）
-    // 1. 条目命名规范中 [InitVar]/变量列表/变量更新规则/变量输出格式/<状态变量输出>
+    // 1. 条目命名规范中 [InitVar]/变量当前状态/变量更新规则/变量输出格式/<状态变量输出>
     // 2. 条目配置规范中 MVU 相关行
     // 3. MVU变量系统设计模式区块（模式1-5 + zod安装清单）
     // 4. 步骤7：配变量系统区块
@@ -5861,9 +6160,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '   第1条：变量结构脚本（zod 4 schema + registerMvuSchema）\n' +
       '   第2条：[InitVar]初始变量（enabled=false，YAML格式，严格依据schema）\n' +
       '   第3条：[mvu_update]变量更新规则（依据schema生成check/type/range）\n' +
-      '   第4条：变量列表（标签内为 null）\n' +
-      '   第5条：[mvu_update]变量输出格式（<UpdateVariable>+<JSONPatch>5种操作）\n' +
-      '   第6条：[mvu_update]变量输出格式强调（固定YAML，默认enabled=false）\n' +
+      '   第4条：变量当前状态（固定模板，注入当前变量状态）\n' +
+      '   第5条：[mvu_update]变量输出格式（<UpdateVariable>+<JSONPatch>4种操作）\n' +
+      '   第6条：[mvu_update]变量输出格式强调（固定内容，默认enabled=false）\n' +
       '   第7条：<状态栏>占位符提醒（constant=true）\n' +
       '   第8条：正则6 [美化]MVU状态栏（前7条完成后才生成，输出完整HTML文档）\n' +
       'B. 动态HTML状态栏设计与实现（第8条）：依据用户需求设计一个完整的HTML状态栏文档，直接输出完整代码，写卡器自动保存为正则脚本\n' +
@@ -5890,12 +6189,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '       content=YAML格式（缩进表示层级），严格依据第1条schema（详见MVU_VAR_SPEC第2条）\n' +
       '第3条: comment="[mvu_update]变量更新规则", constant=true, position=4, depth=0, order=200\n' +
       '       content=依据第1条schema为每个变量路径生成 type/range/check（详见MVU_VAR_SPEC第3条）\n' +
-      '第4条: comment="变量列表", constant=true, position=4, depth=0, order=200\n' +
-      '       content 标签内为 null，由 MVU 脚本展开后显示变量快照（详见MVU_VAR_SPEC第4条）\n' +
+      '第4条: comment="变量当前状态", constant=true, position=4, depth=1, order=69000\n' +
+      '       content 固定模板：{{format_message_variable::stat_data}} 展开当前变量快照（详见MVU_VAR_SPEC第4条）\n' +
       '第5条: comment="[mvu_update]变量输出格式", constant=true, position=4, depth=0, order=200\n' +
-      '       content=固定YAML原样输出，<UpdateVariable>+<Analysis>+<JSONPatch>（详见MVU_VAR_SPEC第5条）\n' +
+      '       content=固定中文格式原样输出，<UpdateVariable>+<Analysis>+<JSONPatch>（详见MVU_VAR_SPEC第5条）\n' +
       '第6条: comment="[mvu_update]变量输出格式强调", constant=true, position=4, depth=0, order=200, enabled=false\n' +
-      '       content=固定YAML原样输出，AI不输出<UpdateVariable>时启用强制提醒（详见MVU_VAR_SPEC第6条）\n' +
+      '       content=固定内容原样输出，AI不输出<UpdateVariable>时启用强制提醒（详见MVU_VAR_SPEC第6条）\n' +
       '第7条: comment="<状态栏>占位符提醒", constant=true, position=4, depth=0, order=200\n' +
       '       content=提醒AI每条回复底部输出 <StatusPlaceHolderImpl/>\n' +
       '第8条: 正则6 [美化]MVU状态栏 → regex_scripts, markdownOnly=true, promptOnly=false（前7条完成后才生成）\n\n' +
@@ -5932,13 +6231,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '1. 【键名语言统一】InitVar 的 YAML 键名 ↔ populateCharacterData 的 _.get 路径 ↔ 变量更新规则引用的路径，三者必须字字相同。\n' +
       '   · 键名语言不限（中文键如 stat_data.世界.当前时间 / 英文键均可，MVU 官方模板两种都支持），但必须三处逐字一致\n' +
       '   · 若上方「当前角色卡内容上下文」已列出 InitVar 的实际键名，populateCharacterData 的 _.get 路径必须逐字引用那些键名，不得自创翻译\n' +
-      '2. 【_.get 根路径统一】populateCharacterData 必须从 _.get(allVars, "stat_data", {}) 取根节点，再逐变量 _.get(statData, "顶层键.子键", 默认值)——MVU 底层自动把 InitVar 的顶层键挂载到 stat_data 下（InitVar 正文**不写** stat_data 根键），变量列表条目标签内为 null，由 MVU 脚本读取 stat_data 注入。\n' +
+      '2. 【_.get 根路径统一】populateCharacterData 必须从 _.get(allVars, "stat_data", {}) 取根节点，再逐变量 _.get(statData, "顶层键.子键", 默认值)——MVU 底层自动把 InitVar 的顶层键挂载到 stat_data 下（InitVar 正文**不写** stat_data 根键），变量当前状态条目由 {{format_message_variable::stat_data}} 宏注入当前变量快照。\n' +
       '3. 【逐变量id填充模式统一（用户模板标准核心）】HTML 中每个需显示的变量必须有**唯一id** ↔ populateCharacterData 中用 $(\'#id\').text(value) / $(\'#id\').html(html) 对应选择器逐变量填充。禁止使用递归 renderTree！\n' +
       '   · HTML 骨架 id 命名 ↔ populateCharacterData $(\'#id\') 选择器必须字字一一对应（错一个字母=该变量永远不显示）\n' +
       '   · 禁止"不为每个变量写id，让递归renderTree自动生成"的旧模式——用户模板已废弃该做法\n' +
       '4. 【覆盖而非新增】修改 MVU 条目或状态栏脚本时，必须用相同的 comment / id 覆盖现有条目，禁止新增重复条目。\n' +
       '   · 美化状态栏正则脚本固定只有一个（id=mvu-status-bar, findRegex=/<StatusPlaceHolderImpl\\\\/>/g），写卡器自动覆盖，你不要在JSON里重复输出\n' +
-      '   · MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量列表 / 变量更新规则 / 变量输出格式 / 变量输出格式强调 / <状态栏>占位符提醒\n' +
+      '   · MVU变量条目各自只保留一条：[InitVar]初始变量 / 变量当前状态 / 变量更新规则 / 变量输出格式 / 变量输出格式强调 / <状态栏>占位符提醒\n' +
       '\n' +
       '═══════════════════════════════════════════════════════════════════\n' +
       '🚫 纯文字状态栏禁令\n' +
@@ -6181,7 +6480,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       '1. ✅唯一输出格式：正文美化=一个完整HTML代码块；结构化=【页面名称】+【标签名】+ 一个完整HTML代码块，写卡器自动提取保存\n' +
       '2. ⚠️严禁把HTML代码放进JSON的entries数组、:::操作块、<statusblock>——HTML代码不属于世界书条目\n' +
       '3. ⚠️不要生成任何角色卡/世界书相关的JSON（name/description/entries）\n' +
-      '4. ⚠️不要生成任何MVU变量内容（zod脚本/[InitVar]/变量列表/<状态栏>）\n' +
+      '4. ⚠️不要生成任何MVU变量内容（zod脚本/[InitVar]/变量当前状态/<状态栏>）\n' +
       '5. 修改已有界面时：直接输出新的HTML代码块（结构化需含新【页面名称】【标签名】），写卡器自动覆盖\n' +
       '6. 只处理用户「最新一条」消息的指令，不要重复处理旧指令\n' +
       '7. 所有前端界面生成成功后，写卡器自动联动「世界书条目 + 开场白」：正文美化 → [前端正文美化]条目 + <story>包裹开场白；结构化 → [前端数据面板]X条目 + 开场白注入<标签名>示例块。你无需手动输出世界书JSON，也不要自己直接改开场白——需要展示什么数据写在【开场白示例】里即可，写卡器自动处理\n';
@@ -6274,7 +6573,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 提取entry comment部分并检查
           const entryCmt = t.replace(/^.*character_book\.entries\./, '');
           if (entryCmt.indexOf('[initvar]') >= 0) isMvuTarget = true;
-          if (entryCmt.indexOf('变量列表') >= 0) isMvuTarget = true;
+          if (entryCmt.indexOf('变量当前状态') >= 0) isMvuTarget = true;
           if (entryCmt.indexOf('变量更新规则') >= 0) isMvuTarget = true;
           if (entryCmt.indexOf('变量输出格式') >= 0) isMvuTarget = true;
           if (entryCmt.indexOf('状态变量输出') >= 0) isMvuTarget = true;
@@ -6296,7 +6595,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (e._action) {
           const cmt = (e.comment || '').toLowerCase();
           if (cmt.indexOf('[initvar]') >= 0) return false;
-          if (cmt.indexOf('变量列表') >= 0) return false;
+          if (cmt.indexOf('变量当前状态') >= 0) return false;
           if (cmt.indexOf('变量更新规则') >= 0) return false;
           if (cmt.indexOf('变量输出格式') >= 0) return false;
           if (cmt.indexOf('状态变量输出') >= 0) return false;
@@ -6495,34 +6794,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
   // ⚠️防御性过滤：剥离 AI 误写的 stat_data 根键（MVU 底层会自动挂载到 stat_data，再写一层会套娃）
   // 同时过滤 _/$ 开头的只读派生字段（由 zod prefault/transform 生成，不应出现在初始变量中）
+  // 剥离 AI 误写的 stat_data 根键，但保留 `_` 和 `$` 字段（初始变量允许只读/派生字段占位）
   function stripStatDataRoot(obj) {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
-    // 若顶层只有一个键且为 stat_data，则下钻一层
     const keys = Object.keys(obj);
+    // 若顶层只有一个键且为 stat_data，则下钻一层
     if (keys.length === 1 && keys[0] === 'stat_data') {
       const inner = obj.stat_data;
       if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
         return stripStatDataRoot(inner);
       }
     }
-    // 递归过滤 _/$ 开头字段（只读派生字段不应出现在初始变量）
-    const filtered = {};
+    // 递归剥离 stat_data 根键，但不再过滤 _/$ 开头字段
+    const result = {};
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i];
-      if (k.charAt(0) === '_' || k.charAt(0) === '$') continue;
       const v = obj[k];
       if (v && typeof v === 'object' && !Array.isArray(v)) {
-        filtered[k] = stripStatDataRoot(v);
+        result[k] = stripStatDataRoot(v);
       } else {
-        filtered[k] = v;
+        result[k] = v;
       }
     }
-    return filtered;
+    return result;
   }
 
   // 规范化 InitVar 条目内容：剥离 AI 误写的 stat_data 根键
   // MVU 底层自动挂载到 stat_data，InitVar 中再写一层会导致套娃
-  // ⚠️ 按需规范化：仅当检测到 stat_data 根键 / _,$ 只读字段 / 代码围栏 / JSON 格式时才重建 YAML，
+  // ⚠️ 按需规范化：仅当检测到 stat_data 根键 / 代码围栏 / JSON 格式时才重建 YAML，
   // 其余情况原样返回（避免无条件 round-trip 丢失注释、破坏字符串类型）
   // 注：本文件曾有第二个同名激进版本（无条件重建）因函数声明提升将其遮蔽，已删除合并至此
   function normalizeInitVarContent(content) {
@@ -6535,17 +6834,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     const hasStatDataRoot = /^stat_data\s*:/.test(trimmed);
     const hadFence = /```/.test(content);
     const wasJson = trimmed.charAt(0) === '{';
-    const hasDerivedFields = (function scan(o) {
-      if (!o || typeof o !== 'object') return false;
-      const ks = Object.keys(o);
-      for (let i = 0; i < ks.length; i++) {
-        if (ks[i].charAt(0) === '_' || ks[i].charAt(0) === '$') return true;
-        const v = o[ks[i]];
-        if (v && typeof v === 'object' && scan(v)) return true;
-      }
-      return false;
-    })(parsed);
-    if (hasStatDataRoot || hadFence || wasJson || hasDerivedFields) {
+    if (hasStatDataRoot || hadFence || wasJson) {
+      // ⚠️_/$ 开头字段（只读/派生）已允许出现在初始变量中，不再作为重建触发条件
       // stripStatDataRoot 已在 parseInitVar 内调用，此处再保险调一次
       return yamlDumpSimple(stripStatDataRoot(parsed));
     }
@@ -6676,16 +6966,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return HEADER + '\n' + bodyStr + '\n' + FOOTER;
   }
 
-  // ===== 变量列表内容规范化 =====
-  // MVU 规范的变量列表固定格式（**严格使用复数标签**，单数标签会导致酒馆助手宏不识别）：
-  //   ---
-  //   <status_current_variables>
-  //   null
-  //   </status_current_variables>
-  // ⚠️注意：标签内是 `null`，不是 `{{format_message_variable::stat_data}}` 宏
+  // ===== 变量当前状态内容规范化 =====
+  // ⚠️固定格式（对齐造物工坊规范）：标签内为 {{format_message_variable::stat_data}} 宏，
+  // 由 MVU 脚本在注入时展开为当前剧情末尾的变量状态快照
   function normalizeVarListContent(content) {
-    // ⚠️强制重建为固定格式（不管 AI 写了什么）：标签内为 null
-    return '---\n<status_current_variables>\nnull\n</status_current_variables>';
+    // ⚠️强制重建为固定格式（不管 AI 写了什么）
+    return '<status_current_variable>\n当前剧情末尾的变量状态如下：\n\n{{format_message_variable::stat_data}}\n\n</status_current_variable>';
   }
 
   // ⚠️已删除：_getParsedInitForEntries —— 模板5为完全固定格式（不按本卡 schema 动态生成
@@ -6695,14 +6981,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 这两个条目的 content 是固定 YAML 模板（用户模板5/6），AI 不应修改。
   // 如果 AI 把变量实际值/配置字段混入，强制重建为标准模板。
   function normalizeVarOutputFormatContent(comment, content) {
-    const c = (comment || '').toLowerCase();
-    const isFormat = c.indexOf('变量输出格式强调') >= 0 || c.indexOf('变量输出格式') >= 0;
-    if (!isFormat) return content;
-    // 强制使用固定模板（原封不动，不修改字段、不加注释、不替换占位符）
-    if (c.indexOf('变量输出格式强调') >= 0) {
-      return generateVarOutputEmphasis();
-    }
-    return generateVarOutputFormat();
+    const core = _entryCommentCore(String(comment || ''));   // 剥 [xxx]/<xxx> 前缀
+    if (core === '变量输出格式强调') return generateVarOutputEmphasis();
+    if (core === '变量输出格式') return generateVarOutputFormat();
+    return content;   // 非系统条目原样返回
   }
 
   // ===== MVU 条目内容自动生成 =====
@@ -6715,113 +6997,91 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   //  - $开头派生显示字段 → 改由 zod 的 .transform(data => { ... return data }) 自动派生
   // ⚠️模板2标准顺序：角色名在前、世界在后（变量名1: 0 / 变量名2: false / 对象变量: {} / 世界: 当前日期+当前时间）
   function generateInitVarYaml(charNames) {
-    // ⚠️纯净初始态：不包含 stat_data 根键；不包含 _/$ 开头字段（由 zod prefault/transform 生成）
+    // 第二个文件规范：InitVar 允许（且鼓励）写出 _/$ 开头的只读/隐藏字段作为初始占位
     const lines = [];
     (charNames || []).forEach(function(name) {
       lines.push(name + ':');
       lines.push('  好感度: 0');
-      lines.push('  状态: 正常');
-      if (name === '主角') lines.push('  物品栏: {}');
+      lines.push('  心情: 平静');
+      lines.push('  物品: []');
+      lines.push('  衣着:');
+      lines.push('    上衣: 未知');
+      lines.push('    下装: 未知');
+      lines.push('  _关系阶段: 泛泛之交');
     });
-    // 如果没有主角，补一个主角最小核心字段
     if (!charNames || charNames.indexOf('主角') < 0) {
       lines.push('主角:');
       lines.push('  好感度: 0');
-      lines.push('  状态: 正常');
-      lines.push('  物品栏: {}');
+      lines.push('  心情: 平静');
+      lines.push('  物品: []');
+      lines.push('  衣着:');
+      lines.push('    上衣: 未知');
+      lines.push('    下装: 未知');
+      lines.push('  _关系阶段: 泛泛之交');
     }
-    // 世界字段固定放最后（对齐模板2）
     lines.push('世界:');
-    lines.push('  当前日期: 2025-07-26');
-    lines.push('  当前时间: 17:36');
+    lines.push('  日期: 2025-10-22');
+    lines.push('  时间: 09:00');
+    lines.push('  天气: 晴');
+    lines.push('$成就:');
+    lines.push('  知彼知己: false');
+    lines.push('  初露锋芒: false');
+    lines.push('  慷慨之举: false');
     return lines.join('\n');
   }
 
-  // 生成变量列表内容（固定格式：标签内为 null）
+  // 生成变量当前状态内容（固定格式，对齐造物工坊规范）
   function generateVarListContent() {
-    return '---\n<status_current_variables>\nnull\n</status_current_variables>';
+    return '<status_current_variable>\n当前剧情末尾的变量状态如下：\n\n{{format_message_variable::stat_data}}\n\n</status_current_variable>';
   }
 
   // ⚠️已删除：generateVarSegmentedPrompt（变量分段/EJS 提示模板）——
-  // 不属于用户规定的 MVU 六大标准模板（结构脚本/初始变量/更新规则/变量列表/输出格式/格式强调），
+  // 不属于用户规定的 MVU 六大标准模板（结构脚本/初始变量/更新规则/变量当前状态/输出格式/格式强调），
   // 且 EJS 分段提示属于8条工作流之外的额外条目，按规范全部移除
 
-  // 生成变量更新规则内容（xr 函数）
-  // ⚠️严格对齐用户模板3结构：
-  //   变量更新规则: → ${变量名}: → type（string省略） → ${其他合适字段仅当非常需要} → check列表
-  //   check 示例即用户模板原文："根据角色对行为的反应调整，单次不超过±5"
+  // 生成变量更新规则内容（TypeScript interface 格式，对齐造物工坊规范）
   function generateVarUpdateRule(charNames) {
-    const lines = [
+    return [
       '---',
-      '变量更新规则:',
-      '  ${角色}.好感度:',
-      '    type: number',
-      '    check:',
-      '      - 根据角色对行为的反应调整，单次不超过±5',
-      '  ${角色}.状态:',
-      '    check:',
-      '      - 仅剧情本质推进时更新（正常/异常/濒死等）'
-    ];
-    return lines.join('\n');
+      '在你的回复最后，必须根据新输出剧情末尾的实际状态，判断变量是否需要更新，如需要更新，则遵循下述规则：',
+      '',
+      'interface State {',
+      '  角色: {',
+      '    ' + (charNames[0] || '角色') + ': {',
+      '      好感度: number; // 范围为 0~100；除非发生重大事件，否则单次增减必须在 ±5 以内',
+      '      心情: string; // 根据角色的实际情绪更新',
+      '      物品: string[]; // 获得、消耗、遗失或转移物品时新增或删除对应元素',
+      '      衣着: { // 明确更换服装时更新',
+      '        上衣: string;',
+      '        下装: string;',
+      '      };',
+      '    };',
+      '  };',
+      '',
+      '  世界: {',
+      '    日期: string; // 格式为 YYYY-MM-DD，在剧情时间跨日时更新',
+      '    时间: string; // 格式为 HH:mm，根据剧情实际经过的时间合理推进',
+      '    天气: \'晴\' | \'多云\' | \'雨\' | \'暴雨\' | \'雪\'; // 在剧情明确表现天气变化时更新',
+      '  };',
+      '}'
+    ].join('\n');
   }
 
-  // ⚠️规范化 AI 生成的变量更新规则内容，修复高频错误：
-  //   1. 缺失「变量更新规则:」YAML 根节点 → 自动补全
-  //   2. 路径带 stat_data. 前缀（如 stat_data.basic.identity）→ 剥离前缀
-  //   3. check 写成单行字符串而非列表 → 转为列表格式
-  //   4. string 类型变量的 type: string 行 → 移除（string 应省略 type 字段）
+  // 规范化变量更新规则内容（TypeScript interface 格式）
   function normalizeVarUpdateRuleContent(content) {
     if (!content || !content.trim()) return generateVarUpdateRule([]);
-    let text = content.replace(/```ya?ml\s*/gi, '').replace(/```\s*$/g, '').trim();
+    let text = content.replace(/```typescript\s*/gi, '').replace(/```ts\s*/gi, '').replace(/```\s*$/g, '').trim();
     // 去除可能的前导 --- 分隔符（保留一个）
     text = text.replace(/^---\s*\n/, '');
-    // 若缺失根节点，补全
-    if (!/^变量更新规则\s*:/.test(text)) {
-      // 去除可能存在的旧根名误写
-      text = text.replace(/^(更新规则|变量规则|规则)\s*:\s*\n/, '');
-      text = '变量更新规则:\n' + text;
-    }
-    // 剥离 stat_data. 前缀（行首或缩进后的路径键）
-    text = text.replace(/(^|\n)(\s*)stat_data\./g, '$1$2');
-    // 移除 string 变量的 type: string 行（规范要求 string 类型省略 type 字段）
-    text = text.replace(/^[ \t]*type\s*:\s*string[ \t]*\r?\n?/gm, '');
-    // ⚠️清理孤立键：type:string 行删除后空悬的变量名（如"主角.心情:"后面直接是下一个同级键）。
-    // 判定：任意缩进的键行，若下一个非空行的缩进不深于本键 → 无子内容，属孤立键。
-    // 根键"变量更新规则:"（缩进0）始终保留
-    const _il = text.split('\n');
-    const _iout = [];
-    for (let _ii = 0; _ii < _il.length; _ii++) {
-      const _cur = _il[_ii];
-      const _km = _cur.match(/^(\s+)(\S[^\n]*):\s*$/); // 有缩进的键行（跳过根键/---）
-      if (_km) {
-        let _next = '';
-        for (let _nj = _ii + 1; _nj < _il.length; _nj++) {
-          if (_il[_nj].trim() !== '') {
-            _next = _il[_nj];
-            break;
-          }
-        }
-        if (_next) {
-          const _ni = (_next.match(/^(\s*)/))[1].length;
-          if (_ni <= _km[1].length) {
-            continue;
-          } // 下一行不深于本键 → 孤立键，删除
-        }
-      }
-      _iout.push(_cur);
-    }
-    text = _iout.join('\n');
-    // 清理因删除行可能产生的多余空行（连续 3 个及以上换行压成 2 个）
-    text = text.replace(/\n{3,}/g, '\n\n');
-    // check 单行字符串转列表：将 "  check: 某段文字" 转为 "  check:\n      - 某段文字"
-    text = text.replace(/^(\s*)check:\s*([^\n]+)$/gm, function(m, indent, desc) {
-      const descTrim = desc.trim();
-      if (!descTrim || descTrim.charAt(0) === '-') return m;
-      const itemIndent = new Array(indent.length + 2 + 1).join(' ');
-      return indent + 'check:\n' + itemIndent + '- ' + descTrim;
-    });
     // 补回前导 ---
     if (!/^---/.test(text)) text = '---\n' + text;
+    // ⚠️只有内容看起来像 TS interface 字段时才包裹为 interface State；
+    // YAML 版规则（旧卡残留/用户粘贴旧规则）原样保留，避免把 YAML 塞进 interface 生成语法错误
+    const _looksLikeTs = /:\s*(number|string|boolean|\[|\{|'|")/.test(text) &&
+      !/^\s*\S+\s*:\s*\n/m.test(text.split('\n').slice(1).join('\n'));
+    if (_looksLikeTs && !/interface\s+State\s*\{/.test(text)) {
+      text = '---\ninterface State {\n' + text.replace(/^---\s*\n/, '') + '\n}';
+    }
     return text;
   }
 
@@ -6871,43 +7131,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     return String(v);
   }
 
-  // 生成变量输出格式内容
+  // 生成变量输出格式内容（四种操作，去掉 move）
   // ⚠️完全固定英文模板，原封不动输出（不要修改字段、不要加注释、不要替换占位符、不要动态生成路径示例）
   // ⚠️使用 ${...} 占位符，路径示例均为占位符（如 ${/path/to/variable}），不根据本卡 schema 动态生成
   // ⚠️已删除 fixVarOutputFormatPaths/derivePatchExamples：模板5属"完全固定格式"，
   //   任何按本卡 schema 动态改写示例路径的行为都违反规范，AI 照抄模板即可
   function generateVarOutputFormat() {
     return ['---',
-      '变量输出格式:',
-      '  rule:',
-      '    - you must output the update analysis and the actual update commands at once in the end of the next reply',
-      '    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:',
-      '      - replace: replace the value of existing paths',
-      '      - delta: update the value of existing number paths by a delta value',
-      '      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)',
-      '      - remove',
-      '      - move',
-      '    - don\'t update field names starts with `_` as they are readonly, such as `_变量`',
-      '  format: |-',
-      '    <UpdateVariable>',
-      '    <Analysis>$(IN ENGLISH, no more than 80 words)',
-      '    - ${calculate time passed: ...}',
-      '    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}',
-      '    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}',
-      '    </Analysis>',
-      '    <JSONPatch>',
-      '    [',
-      '      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },',
-      '      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },',
-      '      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },',
-      '      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },',
-      '      { "op": "remove", "path": "${/path/to/object/key}" },',
-      '      { "op": "remove", "path": "${/path/to/array/0}" },',
-      '      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },',
-      '      ...',
-      '    ]',
-      '    </JSONPatch>',
-      '    </UpdateVariable>'
+      '更新必须遵循以下语法规则，并包裹在`<UpdateVariable>`标签内：',
+      '- 使用有效的 JSON 数组，每个元素表示单个操作对象，仅支持`replace`（替换已存在变量）、`delta`（使用差值更新已存在变量）、`insert`（插入新元素到对象或数组，如使用`-`作为数组索引，则追加到末尾）、remove（移除已存在变量）四种操作。',
+      '- 禁止更新以`_`为开头的变量，这些是只读变量。',
+      '',
+      '<UpdateVariable>',
+      '<Analysis>',
+      '更新列表:',
+      '- ${变量名称} ${完整操作路径}: ${仅根据本次回复说明更新原因，该变量在本次剧情中发生了什么变化，为什么需要更新}',
+      '</Analysis>',
+      '<JSONPatch>',
+      '[',
+      '  { "op": "replace", "path": "${/到/变量/的路径}", "value": ${新值} },',
+      '  { "op": "delta", "path": "${/到/数值/变量/的路径}", "value": ${正或负的变动值} },',
+      '  { "op": "insert", "path": "${/到/对象/新键/的路径}", "value": ${新值} },',
+      '  { "op": "insert", "path": "${/到/数组/-}", "value": ${新值} },',
+      '  { "op": "remove", "path": "${/到/对象/键/的路径}" }, ',
+      '  { "op": "remove", "path": "${/到/数组/的路径/0}" },',
+      '  ...',
+      ']',
+      '</JSONPatch>',
+      '</UpdateVariable>'
     ].join('\n');
   }
 
@@ -6916,12 +7167,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 默认关闭（enabled=false），AI不输出<UpdateVariable>时才启用
   function generateVarOutputEmphasis() {
     return ['---',
-      '变量输出格式强调:',
-      '  rule: The following must be inserted to the end of reply, and cannot be omitted',
-      '  format: |-',
-      '    <UpdateVariable>',
-      '    ...',
-      '    </UpdateVariable>'
+      '注意：以下内容必须插入到回复末尾，不可省略。',
+      '',
+      '<UpdateVariable>',
+      '...',
+      '</UpdateVariable>'
     ].join('\n');
   }
 
@@ -7410,12 +7660,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 按 id 或 name 去重后更新脚本（Qr）
   function _upsertScript(scripts, newScript) {
     const arr = scripts.slice();
+    const newName = String((newScript && newScript.name) || '').toLowerCase();
     let idx = -1;
     for (let i = 0; i < arr.length; i++) {
       const s = arr[i];
       if (s.type !== 'script' && !s.name) continue;
-      const sName = String(s.name || s.scriptName || '');
-      if (s.id === newScript.id || sName.toLowerCase() === newScript.name.toLowerCase()) {
+      const sName = String(s.name || s.scriptName || '').toLowerCase();
+      if (s.id === newScript.id || (newName && sName === newName)) {
         idx = i;
         break;
       }
@@ -7752,9 +8003,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     const validated = _tavernValidateName(name);
     const scripts = (feRegexList || []).map(function(r) {
       if (!r) return null;
+      const name = String(r.scriptName || r.script_name || '').trim();
+      if (!name) return null;   // ← 新增：丢弃无名正则（避免 ST 端写入 script_name=undefined 的脏条目）
       return _convertRegexScript({
         id: r.id,
-        scriptName: r.scriptName || r.script_name,
+        scriptName: name,
         findRegex: r.findRegex || r.find_regex,
         replaceString: r.replaceString || r.replace_string,
         trimStrings: r.trimStrings || r.trim_strings,
@@ -8014,9 +8267,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           : (Array.isArray(e.key) && e.key.length > 0 ? e.key : null));
         if (!rawKeys || rawKeys.length === 0) {
           const isConst = !!(e.constant || (strat.type === 'constant'));
-          if (!isConst) {
+          const cmForDerive = String(e.comment || e.name || '').trim();
+          if (!isConst && cmForDerive) {
             try {
-              const cmForDerive = e.comment || e.name || '';
               const derTmpl = (typeof getEntryTemplate === 'function') ? getEntryTemplate(cmForDerive) : null;
               if (!(derTmpl && derTmpl.constant)) {
                 const derived = (typeof _deriveEntryKeys === 'function') ?
@@ -8046,7 +8299,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (_isInitVarComment(_sanitizeComment, _sanitizeContent)) {
           _sanitizeContent = normalizeInitVarContent(_sanitizeContent);
         }
-        if (_sanitizeCore === '变量列表') {
+        if (_sanitizeCore === '变量当前状态') {
           _sanitizeContent = normalizeVarListContent(_sanitizeContent);
         }
         if (_sanitizeCore === '变量输出格式' || _sanitizeCore === '变量输出格式强调') {
@@ -8158,7 +8411,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ===== 【写卡预设】自动给世界书条目分配并包裹 <名称_idN> 标签（对齐 template_tag_spec）=====
   // 分配规则：角色速览固定 <角色速览_id0> → 世界观条目 id1+ → 角色条目按顺序id → NPC继续递增
   // 同一角色的所有条目（基础信息/三面性/二次解释/衣柜/NSFW）共用同一个 <角色名_idN>
-  // 注意：MVU条目（[InitVar]/[mvu_update]/变量列表/状态栏占位符）不包裹标签
+  // 注意：MVU条目（[InitVar]/[mvu_update]/变量当前状态/状态栏占位符）不包裹标签
   function assignAndWrapTagIds(entries) {
     if (!entries || !entries.length) return entries;
     // 第一步：收集顶层角色名（从comment中提取，非主角/世界/系统）
@@ -8169,7 +8422,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 窄口径：仅 9.1.6 工作流核心条目参与 tag-id 的 mvu 分桶。
     // 故意不复用顶层宽口径 isMVUEntry（后者还含阶段判定/派生字段/控制器等附加条目，
     // 那些在 id 分配时应走普通世界观/NPC 分桶，过宽会把普通条目误分到 mvu 桶）。
-    const MVU_WORKFLOW_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量列表|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
+    const MVU_WORKFLOW_PREFIX_RE = /(\[InitVar\]|\[mvu_update\]|变量当前状态|变量输出格式|变量输出格式强调|<状态栏>|占位符提醒|状态栏占位符)/i;
     const isMvuWorkflowEntry = function(c) {
       return MVU_WORKFLOW_PREFIX_RE.test(c || '');
     };
@@ -8481,12 +8734,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
     // 从角色卡数据提取角色名列表，用于 MVU 条目内容自动生成
     const charNames = extractCharNames(cd, rawEntries);
     // ===== 预填充：自动填充 MVU 条目空内容（独立步骤，确保检测和schema生成使用填充后的数据）=====
-    // ⚠️六大标准模板对齐：InitVar/变量列表/更新规则/输出格式/格式强调；变量分段(EJS)已按规范移除
+    // ⚠️六大标准模板对齐：InitVar/变量当前状态/更新规则/输出格式/格式强调；变量分段(EJS)已按规范移除
     let filledEntries = rawEntries.map(function(e, i) {
       const comment = e.comment || ('条目' + (i + 1));
       const commentLower = comment.toLowerCase();
       const isInitVar = commentLower.indexOf('[initvar]') >= 0;
-      const isVarList = comment.indexOf('变量列表') >= 0;
+      const isVarList = _entryCommentCore(comment) === '变量当前状态';
       const isVarRule = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量更新规则') >= 0;
       const isVarFormat = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式') >= 0 && comment.indexOf('强调') < 0;
       const isVarFormatEmphasis = commentLower.indexOf('[mvu_update]') >= 0 && comment.indexOf('变量输出格式强调') >= 0;
@@ -8556,21 +8809,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         _idx++;
       }
-      // 变量列表（标签内为 null）—— ⚠️insertion_order=200 对齐 ENTRY_TEMPLATES/速查表（原150不一致）
+      // 变量当前状态（固定模板：{{format_message_variable::stat_data}} 宏注入）—— ⚠️depth=1 order=69000 对齐 ENTRY_TEMPLATES/速查表（insertion_order=200 为旧字段兜底）
       if (!mvuEntryExists(function(e) {
-          return (e.comment || '').indexOf('变量列表') >= 0;
+          return (e.comment || '').indexOf('变量当前状态') >= 0;
         })) {
         _toAppend.push({
           id: _idx + 1,
           keys: [],
           secondary_keys: [],
-          comment: '变量列表',
+          comment: '变量当前状态',
           content: generateVarListContent(),
           constant: true,
           selective: false,
-          insertion_order: 200,
+          insertion_order: 69000,
           enabled: true,
           position: 4,
+          depth: 1,
+          order: 69000,
           use_regex: true,
           extensions: {}
         });
@@ -9047,8 +9302,25 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // ============================================================================
   // ===== 主界面 =====
   async function openEditor() {
+    // ★ 修复 Bug1：编辑器重入锁——防止用户连点图标时并发打开/误触发上次会话
+    if (typeof window !== 'undefined' && window.__cwEditorOpening) {
+      try { console.log('[写卡器] 编辑器正在打开，忽略重复调用'); } catch (_) {}
+      return;
+    }
+    if (typeof window !== 'undefined') window.__cwEditorOpening = true;
     try {
       const doc = await createModalIframe();
+      // ★★★ 加固 Bug1：打开即锁欢迎页状态 ★★★
+      try {
+        if (doc && doc.body) doc.body.innerHTML = '';
+        if (typeof renderWelcome === 'function') renderWelcome();
+        if (typeof window !== 'undefined') {
+          window.__cwForceUnderstandNext = false;
+          window.__cwAbortRequested = false;
+          window.__cwCurrentGenId = null;
+          window.__tab_activeTab = 'card';
+        }
+      } catch (_openForce) {}
 
       // ========== 明暗主题 ==========
       // 优先级：localStorage('cw-theme') 显式选择 > 系统 prefers-color-scheme（默认浅色）
@@ -9246,6 +9518,98 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       let isGenerating = false;
+
+      // ==========================================================================
+      // 双层调度器（迭代1 · P0-1）
+      //   · markDirty(flags...) → rAF + setTimeout 竞速 → _flush() 一次消费
+      //   · preview 单独走 debounce（保批量合并只重建 1 次预览）
+      //   · 全部状态收敛在 openEditor 作用域内，随会话销毁（D2）
+      //   · 100ms setTimeout 竞速：解决后台标签页 rAF 被节流（D3）
+      // ==========================================================================
+      const _dirty = { storage:false, progress:false, ctx:false, actions:false, preview:false };
+      let _rafId = 0, _schedTimer = 0, _previewTimer = 0;
+      let _lastCtxHtml = null, _lastActionsHtml = null;   // H3：初始 null，避免"空串"被误判为"未计算"
+      let _sessionAlive = true;
+
+      function markDirty() {
+        for (let _di = 0; _di < arguments.length; _di++) _dirty[arguments[_di]] = true;
+        _schedule();
+      }
+      function _schedule() {
+        if (_rafId || _schedTimer) return;
+        // rAF 与 setTimeout 竞速：先到先跑，另一条立即清掉（后台标签页 rAF 会被节流）
+        _rafId = requestAnimationFrame(function() { _rafId = 0; _flush(); });
+        _schedTimer = setTimeout(function() { _schedTimer = 0; _flush(); }, 100);
+      }
+      function _flush() {
+        if (_rafId) { try { cancelAnimationFrame(_rafId); } catch (_) {} _rafId = 0; }
+        if (_schedTimer) { clearTimeout(_schedTimer); _schedTimer = 0; }
+        if (!_sessionAlive) return;
+        if (_dirty.storage)  { _dirty.storage  = false; saveToStorage(); }
+        if (_dirty.progress) { _dirty.progress = false; updateProgress(); }
+        if (_dirty.ctx)      { _dirty.ctx      = false; updateCtxBar(); }
+        if (_dirty.actions)  { _dirty.actions  = false; updateQuickActions(); }
+        if (_dirty.preview)  {
+          _dirty.preview = false;
+          if (_previewTimer) clearTimeout(_previewTimer);
+          _previewTimer = setTimeout(function() {
+            _previewTimer = 0;
+            if (_sessionAlive) _renderPreviewImpl();
+          }, CONFIG.PREVIEW_DEBOUNCE_MS);
+        }
+      }
+      function clearSessionTimers() {
+        if (_rafId) { try { cancelAnimationFrame(_rafId); } catch (_) {} _rafId = 0; }
+        if (_schedTimer)  { clearTimeout(_schedTimer);  _schedTimer  = 0; }
+        if (_previewTimer){ clearTimeout(_previewTimer); _previewTimer = 0; }
+      }
+      // 统一数据写入口：默认全脏（性能优化交给哨兵，避免"漏标记"新 bug 类）
+      function commitCard(mutator) {
+        try { mutator(cardData); } catch (e) { logError('commitCard', e); return; }
+        markDirty('storage', 'progress', 'ctx', 'actions', 'preview');
+      }
+
+      // ===== 生成中止（软停止）=====
+      // 酒馆的 generate()/generateQuietPrompt() 无 AbortController 支持，无法真正中断；
+      // 本标志语义：AI 响应返回后丢弃本次结果，不写入 cardData、不追加聊天记录。
+      let _abortRequested = false;
+
+      function requestAbort() {
+        if (!isGenerating) return;
+        _abortRequested = true;
+        try { window.__cwAbortRequested = true; } catch (_wa) {}
+
+        // ===== 真中断：调用酒馆助手(JS-Slash-Runner) stopGenerationById 精准停止本次生成 =====
+        const _genId = window.__cwCurrentGenId;
+        if (_genId) {
+          let _stopped = false;
+          try {
+            const _stopById = _tavernFn('stopGenerationById');
+            if (_stopById) {
+              _stopById(_genId);
+              _stopped = true;
+            }
+          } catch (e) {
+            console.warn('[写卡器] stopGenerationById 调用失败，尝试 stopAllGeneration', e);
+          }
+          // 不可用/调用失败 → 兜底全局停止（写卡器同一时间只有一个请求，误伤概率低）
+          if (!_stopped) {
+            try {
+              const _stopAll = _tavernFn('stopAllGeneration');
+              if (_stopAll) _stopAll();
+            } catch (e2) { logWarn('stopAllGeneration', e2); }
+          }
+        }
+
+        // 若 Agent 循环正在跑，一并停掉循环（当前步仍会等 AI 返回后被丢弃）
+        try { if (agentLoopActive) stopAgentLoop(); } catch (_e) {}
+        const _sb = doc.getElementById('sendBtn');
+        if (_sb) {
+          _sb.classList.add('is-aborting');
+          _sb.title = '已请求停止，等待当前 AI 响应结束…';
+        }
+        showToast('⏹ 已请求停止——AI 响应返回后本次结果将被丢弃', 'info', 5000);
+      }
       let cardGenerated = false;
       let progress = 0;
 
@@ -9275,7 +9639,84 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       }
 
+      // ★ 修复 Bug2：iframe 内 window.confirm 常被浏览器/酒馆拦截 → 用 doc 内自定义 modal
+      function showWelcomeConfirmModal(msg, onConfirm) {
+        // ✅ 修复：DOM 弹窗创建失败时降级到原生 confirm，保证用户一定看到提示
+        let mask = null;
+        try {
+          const existing = doc.getElementById('welcomeConfirmModal');
+          if (existing) existing.remove();
+          mask = doc.createElement('div');
+          mask.id = 'welcomeConfirmModal';
+          mask.className = 'modal';
+          // ★ 修复 Bug2：给遮罩与内容加**内联关键样式**，不依赖 IFRAME_CSS 即可正常显示。
+          //   只要 CSS 变量可用就用变量值，不可用则回退到显式色值，保证任何环境都能看到弹窗。
+          mask.style.cssText =
+            'position:fixed;top:0;left:0;width:100%;height:100%;' +
+            'background:rgba(15,23,42,.42);' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'z-index:100002;pointer-events:auto;';
+          mask.innerHTML =
+            '<div class="modal-content" style="' +
+              'max-width:540px;width:90%;' +
+              'background:var(--surface,#ffffff);color:var(--ink,#111827);' +
+              'border:1px solid var(--line,#e5e7eb);border-radius:12px;padding:16px;' +
+              'box-shadow:0 20px 60px rgba(15,23,42,.3);' +
+              'display:flex;flex-direction:column;max-height:85vh;' +
+            '">' +
+            '<h3 style="color:var(--accent-deep,#4338ca);margin:0 0 10px;font-size:1em;' +
+              'display:inline-flex;align-items:center;gap:7px">' +
+              svgIcon('alert', 17) + ' 请确认</h3>' +
+            '<div style="white-space:pre-wrap;font-size:.86em;line-height:1.7;' +
+              'color:var(--ink-soft,#475467);max-height:340px;overflow:auto;margin-bottom:12px">' +
+              escHtml(msg) + '</div>' +
+            '<div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;' +
+              'padding-top:11px;border-top:1px solid var(--line-soft,#e5e7eb)">' +
+              '<button class="btn btn-ghost" id="wcmCancelBtn">取消</button>' +
+              '<button class="btn btn-primary" id="wcmOkBtn">' + svgIcon('check', 15) + ' 确认</button>' +
+            '</div></div>';
+          doc.body.appendChild(mask);
+          // ★ 修复 Bug2：显式校验弹框已挂载到 DOM，否则抛出让 catch 走兜底
+          const _verify = doc.getElementById('welcomeConfirmModal');
+          if (!_verify || !_verify.parentNode) {
+            throw new Error('弹框挂载失败（DOM 未包含 #welcomeConfirmModal）');
+          }
+          // ★ 修复 Bug2：强制同步一次布局 + 尺寸/可见性双重校验
+          void _verify.offsetWidth;
+          const _rect = _verify.getBoundingClientRect();
+          const _cstyle = (doc.defaultView || window).getComputedStyle(_verify);
+          if (_rect.width === 0 || _rect.height === 0 ||
+              _cstyle.display === 'none' ||
+              _cstyle.visibility === 'hidden' ||
+              parseFloat(_cstyle.opacity || '1') === 0) {
+            throw new Error('弹框尺寸为0或不可见');
+          }
+          const close = function() { if (mask && mask.parentNode) mask.parentNode.removeChild(mask); };
+          // 只允许通过明确按钮关闭，遮罩点击不关闭（避免误关后用户以为"没提示"）
+          const _cancelBtn = doc.getElementById('wcmCancelBtn');
+          const _okBtn = doc.getElementById('wcmOkBtn');
+          if (_cancelBtn) _cancelBtn.addEventListener('click', close);
+          if (_okBtn) _okBtn.addEventListener('click', function() {
+            close();
+            try { onConfirm && onConfirm(); } catch (err) { logError('welcomeConfirm', err); }
+          });
+          try { if (_okBtn) _okBtn.focus(); } catch (_) {}
+          return;
+        } catch (e) {
+          logWarn('showWelcomeConfirmModal.dom', e);
+          if (mask && mask.parentNode) { try { mask.parentNode.removeChild(mask); } catch (_) {} }
+        }
+        // ⚠️修复 Bug1/Bug2（v2）：DOM 弹窗失败时**彻底禁用 iframe 内 confirm 兜底**。
+        // 根因：iframe 内 window.confirm 在沙箱 / 严格模式 / 自动化环境下会被静默处理：
+        //   ① 返回 false → 无可见弹窗，用户以为"点了没反应"（Bug ② 点击开始创作没有提示）
+        //   ② 返回 true  → 无可见弹窗，直接执行 onConfirm 进入聊天页，用户以为"自动进入继续上次"（Bug ①）
+        // 修复：DOM 弹窗失败 → 只显示明确的错误提示，让用户重试，绝不静默执行回调。
+        try { showToast('⚠️ 确认对话框无法弹出，请关闭后重新打开写卡器再试', 'error', 8000); } catch (_) {}
+      }
+
       function renderWelcome() {
+        // ★ 明确渲染欢迎页（防止任何异常路径下渲染了聊天界面/残留DOM干扰）
+        try { clearAgentOptionsBar(); } catch (_) {}
         doc.body.innerHTML =
           '<div class="app">' +
           '<div class="topbar">' +
@@ -9290,16 +9731,24 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '<div class="welcome">' +
           '<h2>' + svgIcon('sparkle', 22, 'welcome-ic') + ' 时之写卡器 · Agent</h2>' +
           '<p>全能角色卡创作Agent：在一个对话里智能生成完整角色卡——世界书条目、MVU变量系统、前端界面。<br>说出你的想法，剩下的交给我，直接写入酒馆！</p>' +
+          // ★ 新增：检测到存档时给出明确提示，避免用户误以为"点击图标 = 自动继续上次"
+          (hasSavedData() ?
+            '<div style="margin:8px auto 4px;padding:10px 14px;max-width:480px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:var(--radius-sm);font-size:.82em;color:var(--accent-text);text-align:left">' +
+            '💾 <b>检测到上次保存的创作进度</b>——请明确选择下方按钮：<br>' +
+            '&nbsp;&nbsp;· 点「<b>开始创作</b>」= 清空旧存档，全新开始<br>' +
+            '&nbsp;&nbsp;· 点「<b>继续上次</b>」= 恢复上次的所有内容<br>' +
+            '&nbsp;&nbsp;· 点「<b>导入现有卡</b>」= 从 JSON 导入角色卡' +
+            '</div>' : '') +
           '<div class="welcome-features">' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('chat', 18) + '</div><div class="wf-copy"><div class="wf-title">Agent式对话创作</div><div class="wf-desc">一个界面搞定一切：AI自动理解需求，按意图生成角色卡/MVU/前端</div></div></div>' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('sliders', 18) + '</div><div class="wf-copy"><div class="wf-title">MVU变量系统</div><div class="wf-desc">zod变量结构、初始变量、更新规则等8条工作流资产 + HTML状态栏</div></div></div>' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('layers', 18) + '</div><div class="wf-copy"><div class="wf-title">前端界面</div><div class="wf-desc">正文美化正则、结构化数据面板（论坛/任务面板等），自动提取保存</div></div></div>' +
           '<div class="wf-item"><div class="wf-icon">' + svgIcon('save', 18) + '</div><div class="wf-copy"><div class="wf-title">一键写入酒馆</div><div class="wf-desc">世界书条目+变量系统+界面正则全部装配进角色卡，写入酒馆当前角色</div></div></div>' +
           '</div>' +
-          '<button class="start-btn" id="startBtn">' + svgIcon('play', 18) + ' 开始创作</button>' +
+          '<button class="start-btn" id="startBtn" title="开始新卡（若有正在进行的内容会先二次确认）">' + svgIcon('play', 18) + ' 开始创作</button>' +
           '<div class="welcome-actions">' +
           '<button class="btn btn-ghost" id="importBtn">' + svgIcon('download', 15) + ' 导入现有卡</button>' +
-          '<button class="btn btn-ghost" id="continueBtn" style="display:none">' + svgIcon('folderOpen', 15) + ' 继续上次</button>' +
+          '<button class="btn btn-ghost" id="continueBtn" style="display:none">' + svgIcon('folderOpen', 15) + ' 恢复上次进度</button>' +
           '</div>' +
           '<p style="font-size:.7em;color:var(--muted);margin-top:18px">世界书条目字段对齐ST官方源码（world-info.js）：key/comment/content/constant/selective/position/selectiveLogic/order/depth 等40个字段，不臆造字段名</p>' +
           '<p style="font-size:.65em;color:var(--muted);margin-top:6px">Agent模式：角色卡 / MVU变量 / 前端界面 无需切换，按内容特征自动提取保存</p>' +
@@ -9307,16 +9756,149 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           '</div>';
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
         doc.getElementById('startBtn').addEventListener('click', function() {
-          // ✅ 点击「开始创作」= 全新开始：自动清空之前所有记录（角色卡数据 + 会话聊天记录 + localStorage存档）
-          resetAllWorkForNewCard();
-          renderChatUI();
-          addAssistantMsg('你好！我是你的全能写卡Agent 🤖\n\n在一个对话里，我可以帮你完成角色卡创作的一切：\n   • **角色卡主体**：世界观、角色设定、世界书条目、开场白（:::操作块生成，可随时增删改）\n   • **MVU变量系统**：变量结构、初始变量、更新规则等8条工作流资产 + HTML状态栏\n   • **前端界面**：正文美化（信纸/日记/气泡）、结构化数据面板（论坛/任务面板等）\n   • **全自动托管**：直接说你的需求，我会自己判断体量——小任务一次做完；大任务每轮做完输出 `<agent:continue>` 自动续跑，直到全部完成，无需你每步催促，中途可随时停止\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事（默认，不含任何成人内容）\n   • 暗黑向：残酷、血腥、深刻、绝望的剧情——包含暴力/死亡/折磨/背叛/创伤/精神崩溃，不含色情\n   • NSFW（18禁）：成人内容——包含露骨的情欲/性行为描写，器官直呼、过程逐帧、不回避不省略\n   • 暗黑+NSFW 叠加：性暴力/黑暗调教/末世堕落/人身支配等极端内容，两套标准同时全开\n   ⚠️ 一旦选定，本卡将**严格按照该尺度执行**——不会打码、不会留白、不会用"省略号/成语"敷衍。\n\n**2. 核心方向**：你想做什么样的世界？要哪些配套？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），并说明是否需要变量系统/状态栏/界面美化。说清需求后我就能接管创作；也可以现在就点「检查」让我按缺口自主推进。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+          try {
+            const _entryCount = (cardData.character_book && cardData.character_book.entries || []).length;
+            const _hasWorkInMemory = !!(cardData.name || cardData.description || cardData.first_mes || _entryCount > 0);
+            const _hasSavedWork = hasSavedData();
+
+            let _confirmMsg = '';
+            if (_hasWorkInMemory || _hasSavedWork) {
+              // ===== 有内容/存档：详细确认（包含条目数、字数、对话条数）=====
+              let _cardName = cardData.name || '';
+              let _showEntryCount = _entryCount;
+              let _showDescLen = (cardData.description || '').length;
+              let _showFirstMesLen = (cardData.first_mes || '').length;
+              let _showMsgCount = 0;
+              try { _showMsgCount = getCurrentMessages().length; } catch (_) {}
+              if (!_hasWorkInMemory && _hasSavedWork) {
+                try {
+                  const _raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('modelo_char_generator_state');
+                  if (_raw) {
+                    const _state = JSON.parse(_raw);
+                    const _cd = _state && _state.cardData;
+                    if (_cd) {
+                      _cardName = _cd.name || '';
+                      _showEntryCount = (_cd.character_book && _cd.character_book.entries || []).length;
+                      _showDescLen = (_cd.description || '').length;
+                      _showFirstMesLen = (_cd.first_mes || '').length;
+                    }
+                    if (_state && _state.chatSessions && _state.chatSessions.card &&
+                        Array.isArray(_state.chatSessions.card.messages)) {
+                      _showMsgCount = _state.chatSessions.card.messages.length;
+                    } else if (_state && Array.isArray(_state.cardMessages)) {
+                      _showMsgCount = _state.cardMessages.length;
+                    }
+                  }
+                } catch (_eSaved) { logWarn('startBtn.savedSummary', _eSaved); }
+              }
+              _confirmMsg =
+                '⚠️ 开始新卡会清空当前所有记录，且无法恢复。\n\n' +
+                '当前卡：「' + (_cardName || '(未命名)') + '」\n' +
+                '· 条目 ' + _showEntryCount + ' 条\n' +
+                '· 描述 ' + _showDescLen + ' 字 / 开场白 ' + _showFirstMesLen + ' 字\n' +
+                '· 对话 ' + _showMsgCount + ' 条\n\n' +
+                '确定要清空并开始新卡吗？\n' +
+                '（如需保留，请先点「取消」，用右上「工作区 → 导出角色卡JSON」备份）';
+            } else {
+              _confirmMsg =
+                '🆕 开始创作新的角色卡？\n\n' +
+                '将进入全新的创作会话，所有内容从零开始。\n' +
+                '之后你随时可以让 Agent 生成世界观、角色、MVU变量系统、前端界面等内容。\n\n' +
+                '确定继续？';
+            }
+            // ★ 修复 Bug2：删除"120ms 降级到 window.parent.confirm"逻辑。
+            //   根因：iframe 内 window.parent.confirm 跨域调用会抛异常，catch 分支误把 ok 设为 true
+            //   直接跳过确认进入聊天页（用户看到的"没提示"）。修复后只走 DOM modal。
+            showWelcomeConfirmModal(_confirmMsg, function() {
+              try {
+                resetAllWorkForNewCard();
+                renderChatUI();
+                addAssistantMsg('你好！我是你的全能写卡Agent 🤖\n\n' +
+                  '在一个对话里，我可以帮你完成角色卡创作的一切：\n' +
+                  '   • **角色卡主体**：世界观、角色设定、世界书条目、开场白\n' +
+                  '   • **MVU变量系统**：变量结构、初始变量、更新规则等8条工作流资产 + HTML状态栏\n' +
+                  '   • **前端界面**：正文美化、结构化数据面板\n' +
+                  '   • **全自动托管**：直接说你的需求即可\n\n' +
+                  '请先告诉我尺度和方向，我们就可以开始创作了！');
+              } catch (err) {
+                logError('startBtn.onConfirm', err, '进入创作界面失败：' + (err && err.message ? err.message : '未知错误'));
+              }
+            });
+
+            // 兜底：150ms 后检查 modal 是否渲染成功，若失败则主动走 iframe 内 confirm 兜底（不再静默）
+            setTimeout(function() {
+              let _visible = false;
+              try {
+                const m = doc.getElementById('welcomeConfirmModal');
+                if (m && m.parentNode) {
+                  const r = m.getBoundingClientRect();
+                  const cs = (doc.defaultView || window).getComputedStyle(m);
+                  _visible = r.width > 0 && r.height > 0 && cs.display !== 'none' &&
+                             cs.visibility !== 'hidden' && parseFloat(cs.opacity || '1') > 0;
+                }
+              } catch (_vc) { _visible = false; }
+              if (!_visible) {
+                logWarn('startBtn', '自定义确认框不可见，走兜底路径');
+                // ★ 修复 Bug2：DOM 弹框未渲染 → 主动走 iframe 内 confirm 兜底（不再静默）
+                try {
+                  const _localWin = (doc && doc.defaultView) ? doc.defaultView : null;
+                  const _localConfirm = (_localWin && typeof _localWin.confirm === 'function')
+                    ? _localWin.confirm.bind(_localWin) : null;
+                  if (_localConfirm) {
+                    // 无内容/存档 → 直接进入新卡；有内容 → 走详细确认
+                    const _entryCount2 = (cardData.character_book && cardData.character_book.entries || []).length;
+                    const _hasWork2 = !!(cardData.name || cardData.description || cardData.first_mes || _entryCount2 > 0);
+                    const _msg2 = _hasWork2
+                      ? '⚠️ 开始新卡会清空当前所有记录。\n\n确定要继续吗？'
+                      : '🆕 开始创作新的角色卡？\n\n将进入全新的创作会话。\n\n确定继续？';
+                    if (_localConfirm(_msg2)) {
+                      try {
+                        resetAllWorkForNewCard();
+                        renderChatUI();
+                        addAssistantMsg('你好！我是你的全能写卡Agent 🤖\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+                      } catch (_e) {
+                        logError('startBtn.fallbackConfirm', _e);
+                      }
+                    }
+                  } else {
+                    showToast('⚠️ 确认对话框未能弹出，请刷新酒馆页面后重试', 'error', 8000);
+                  }
+                } catch (_eCf) {
+                  showToast('⚠️ 确认对话框未能弹出，请刷新酒馆页面后重试', 'error', 8000);
+                }
+              }
+            }, 150);
+          } catch (err) {
+            // ✅ 修复：捕获回调内任何异常，并给出可见提示（不再静默失败）
+            logError('startBtn', err);
+            try { showToast('开始创作失败：' + (err && err.message ? err.message : '未知错误'), 'error', 6000); } catch (_) {}
+          }
         });
         doc.getElementById('importBtn').addEventListener('click', showImportModal);
         const contBtn = doc.getElementById('continueBtn');
+        // ★ 修复 Bug1：每次渲染欢迎页先强制隐藏，由 hasSavedData 决定是否显示
+        if (contBtn) contBtn.style.display = 'none';
         if (contBtn && hasSavedData()) {
           contBtn.style.display = 'inline-block';
-          contBtn.addEventListener('click', continueFromSave);
+          // ★ 修复 Bug1：防重入——1秒内只允许触发一次，避免连点图标时二次触发
+          let _contBtnClicked = false;
+          contBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (_contBtnClicked) return;
+            _contBtnClicked = true;
+            setTimeout(function() { _contBtnClicked = false; }, 1000);
+            showWelcomeConfirmModal(
+              '📂 恢复上次的创作进度？\n\n' +
+              '将读取本地存档，恢复上次的角色卡数据与聊天记录。\n\n' +
+              '（若想从零开始，请点「开始创作」）',
+              function() {
+                try { continueFromSave(); } catch (err) {
+                  logError('continueFromSave', err, '恢复存档失败：' + (err && err.message ? err.message : '未知错误'));
+                }
+              }
+            );
+          });
         }
       }
 
@@ -9411,6 +9993,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // bindEvents/initWorkspaceMenu，原先 doc.addEventListener 直接累积（N次导入=N倍监听器+游离DOM引用）
       let _docClickBound = false;
       let _docKeydownBound = false;
+      let _pvToggleBound = false;   // 迭代1·M1：doc 级 toggle 捕获监听的一次性绑定标志
 
       function initWorkspaceMenu() {
         const btn = doc.getElementById('wsMenuBtn');
@@ -9525,8 +10108,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // ⚠️竞态修复：生成期间关闭编辑器 → 旧闭包的 callAI 返回后仍会写 storage，与用户重新打开的
         // 新闭包形成双写者竞态（AI 修改可能被覆盖丢失）。改为关闭前二次确认
         doc.getElementById('closeBtn').addEventListener('click', function() {
-          if (isGenerating || agentLoopActive) {
-            const okToClose = window.confirm((agentLoopActive ? 'Agent自动循环正在执行中' : 'AI 正在生成中') + '，关闭后当前步骤的内容可能丢失。\n' + (agentLoopActive ? 'Agent循环将一并停止（已完成步骤全部保留，可重开后「继续执行计划」）。\n' : '后台任务仍会继续写数据。\n') + '确定要关闭吗？');
+          if (isGenerating || agentLoopActive || (typeof _analyzingPrefs !== 'undefined' && _analyzingPrefs)) {
+            const okToClose = window.confirm((agentLoopActive ? 'Agent自动循环正在执行中' : (_analyzingPrefs ? '正在后台分析写作偏好' : 'AI 正在生成中')) + '，关闭后当前步骤的内容可能丢失。\n' + (agentLoopActive ? 'Agent循环将一并停止（已完成步骤全部保留，可重开后「继续执行计划」）。\n' : '后台任务仍会继续写数据。\n') + '确定要关闭吗？');
             if (!okToClose) return;
             // Agent循环中关闭：停止循环（当前AI调用无法中断，本步完成后不再继续）
             if (agentLoopActive) {
@@ -9537,11 +10120,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             closeModal();
             // 后台任务仍在运行：保留 window.__* 访问器（后台闭包仍经其读写数据），下次 openEditor 覆盖
           } else {
-            // 关闭前采集 accepted 正样本（本轮无撤回 = 默认满意）
-            try {
-              const _cnt = _collectAcceptedSamples('close-editor');
-              if (_cnt > 0) { try { UserProfile.saveNow(); } catch (_) {} }
-            } catch (_ec) { logWarn('closeBtn.accepted', _ec); }
+            // 🐛 修复 Bug3：关闭编辑器时不再自动采集 accepted 样本 / 触发写作偏好分析。
+            //   原因：_collectAcceptedSamples 会用 localStorage 中的历史快照构造"用户接受了 AI 产出"的正样本，
+            //   写入 feedback 后立即触发 _maybeAutoAnalyze() → 后台静默调 AI 分析写作偏好。
+            //   用户每次"打开 → 关闭"写卡器都会被触发，形成"打开/关闭此工具自动分析"的打扰。
+            //   数据采集改由用户明确动作触发：写入酒馆（saveCharacter）/ 导出角色卡 JSON（exportCardJson）。
+            // 便于排查误报：明确打印关闭时不会触发分析
+            if (WRITER_DEBUG) console.log('[写卡诊断] closeBtn: 关闭编辑器，未触发偏好分析（白名单：save-character / export-json）');
             closeModal();
             // ⚠️无后台任务：立即释放 window.__* 持有的整份 cardData + 聊天历史引用，防会话数据泄漏
             _releaseEditorGlobals();
@@ -9549,7 +10134,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
         const input = doc.getElementById('chatInput');
         const sendBtn = doc.getElementById('sendBtn');
-        sendBtn.addEventListener('click', handleSend);
+        sendBtn.addEventListener('click', function() {
+          if (isGenerating) {
+            requestAbort();
+          } else {
+            handleSend();
+          }
+        });
         // 键盘事件：
         //   · 桌面：单纯 Enter = 换行（textarea 默认行为，不拦截）；Ctrl/Cmd + Enter = 发送
         //   · 移动端：软键盘 Enter/Send 键 = 换行（textarea 默认行为），点击纸飞机按钮才发送
@@ -9586,6 +10177,17 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           this.style.height = 'auto';
           this.style.height = this.scrollHeight + 'px';
         });
+        // 迭代1·M1+H2：`<details>` 展开态捕获监听——必须绑 doc（body 随 renderChatUI 重建，绑 body 会丢）
+        if (!_pvToggleBound) {
+          _pvToggleBound = true;
+          doc.addEventListener('toggle', function(e) {
+            const d = e.target;
+            if (!d || d.tagName !== 'DETAILS') return;
+            const c = d.getAttribute('data-pv-comment');
+            if (!c) return;
+            if (d.open) _pvExpanded[c] = true; else delete _pvExpanded[c];
+          }, true);
+        }
         // Esc：关闭最上层模态框
         if (!_docKeydownBound) {
           _docKeydownBound = true;
@@ -9962,7 +10564,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               const defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
               // [InitVar] 条目 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
               const isInitVar = _isInitVarComment(comment, e.content);
-              const isVarList = comment.indexOf('变量列表') >= 0;
+              const isVarList = _entryCommentCore(comment) === '变量当前状态';
               const enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
               const ext = e.extensions || {};
               return {
@@ -10169,6 +10771,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         agentLoopActive = false;
         agentConsecutiveFailures = 0;
         agentLastObservation = '';
+        // 6.5 撤回/重试对照基线 + AI变更摘要 + 预览筛选状态 归零
+        try { _lastAcceptedSnapshot = null; } catch (_e) {}
+        try {
+          for (const _mk in _msgChangeMap) {
+            if (_msgChangeMap.hasOwnProperty(_mk)) delete _msgChangeMap[_mk];
+          }
+        } catch (_e) {}
+        try {
+          if (typeof _pvFilter !== 'undefined' && _pvFilter) {
+            _pvFilter.q = '';
+            _pvFilter.kind = 'all';
+            _pvFilter.group = '';
+            _pvFilter.batch = false;
+            _pvFilter.selected = {};
+          }
+        } catch (_e) {}
+        try { cpSectionStates && Object.keys(cpSectionStates).forEach(function(k){ delete cpSectionStates[k]; }); } catch (_e) {}
         // 7. localStorage 存档：移除旧 STORAGE_KEY，避免"关闭重开又带回来旧卡"
         clearStorage();
         // 8. Agent 理解阶段选项条归零
@@ -10517,6 +11136,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h += '<button class="ctx-mod" data-mod="mvuPreview" style="margin-left:auto;background:var(--accent-soft);color:var(--accent-deep);border-color:var(--accent-border)">' + svgIcon('eye', 13) + ' 预览状态栏</button>';
           }
         }
+        // 迭代1·H3：幂等哨兵——同一批次多次调用时跳过重复 DOM 写
+        if (h === _lastCtxHtml) return;
+        _lastCtxHtml = h;
         actions.innerHTML = h;
         // 绑定模块按钮点击
         const modBtns = actions.querySelectorAll('.ctx-mod');
@@ -10663,6 +11285,9 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 2 mini：写入酒馆 / 清空（右对齐）
         h += '<button class="qa-mini" id="saveBtn" title="直接写入酒馆角色卡">' + svgIcon('save', 14) + ' 写入酒馆</button>';
         h += '<button class="qa-mini" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">' + svgIcon('trash', 14) + ' 清空</button>';
+        // 迭代1·H3：幂等哨兵
+        if (h === _lastActionsHtml) return;
+        _lastActionsHtml = h;
         qa.innerHTML = h;
         const btns = qa.querySelectorAll('.quick-btn');
         for (let i = 0; i < btns.length; i++) {
@@ -11121,11 +11746,14 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
 
         // 2) 同时写剪贴板，作为兜底（无论下载是否成功，用户都能粘贴拿到内容）
+        // ⚠️writeText 异步返回，不参与同步返回值判断：成功仅作为"额外加分"异步提示，失败静默
+        let _asyncCopied = false;
         try {
           const nav = pWin.navigator || (typeof navigator !== 'undefined' ? navigator : null);
           if (nav && nav.clipboard && typeof nav.clipboard.writeText === 'function') {
             nav.clipboard.writeText(content).then(function() {
-              copied = true;
+              _asyncCopied = true;
+              try { showToast('📋 已复制到剪贴板（异步生效）', 'success', 2500); } catch (_) {}
             }, function() {});
           }
         } catch (_cpErr) { logWarn('_exportTextFile.cp', _cpErr); }
@@ -11145,7 +11773,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } catch (_e3) { logWarn('_exportTextFile.execCopy', _e3); }
         }
 
-        return { downloaded: downloaded, copied: copied };
+        return { downloaded: downloaded, copied: copied || _asyncCopied };
       }
 
       // 手动复制兜底模态框：下载与剪贴板都失败时使用
@@ -11214,6 +11842,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           const filename = '角色卡_' + safeName + '_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
           const _res = _exportTextFile(filename, json, 'application/json');
           try { _collectAcceptedSamples('export-json'); } catch (_ea) { logWarn('exportCardJson.accepted', _ea); }
+          // ★ 修复 Bug4：只有 export-json 白名单触发分析
+          try { _maybeAutoAnalyze('export-json'); } catch (_) {}
           if (_res.downloaded || _res.copied) {
             showToast('✅ 角色卡JSON已导出' + (_res.copied ? '（同时已复制到剪贴板，若浏览器拦截下载可直接粘贴保存）' : ''), 'success', 6000);
           } else {
@@ -11275,7 +11905,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (role === 'assistant') {
           try {
             const sections = parseMessageSections(content);
-            bubbleHtml = renderMessageSections(sections, msgId);
+            bubbleHtml = renderMessageSections(sections, msgIdx);
           } catch (e) {
             logWarn('renderMessageSections', e);
             try {
@@ -11834,6 +12464,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         });
       }
 
+      // 迭代1·E4：清理 cpSectionStates 中索引超过 maxKeepIdx 的孤儿键（消息截断后调用）
+      function _clearCpSectionStatesAfter(maxKeepIdx) {
+        try {
+          Object.keys(cpSectionStates).forEach(function(k) {
+            const m = /^m(\d+)-/.exec(k);
+            if (m && parseInt(m[1], 10) > maxKeepIdx) delete cpSectionStates[k];
+          });
+        } catch (_eClearCp) {}
+      }
       // ===== 重放当前Tab所有消息到聊天面板（撤回/重新生成后调用） =====
       function rerenderChatMessages() {
         const chatC = doc.getElementById('chatMessages');
@@ -11846,20 +12485,16 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         try {
           chatC.scrollTop = chatC.scrollHeight;
         } catch (_) {}
+        // 迭代1·E4：清理超出当前消息数的 cpSectionStates 孤儿键
+        _clearCpSectionStatesAfter(msgs.length - 1);
         // 刷新关联UI
         try {
-          renderPreview();
-        } catch (_) {}
-        try {
-          updateQuickActions();
-        } catch (_) {}
-        try {
-          updateCtxBar();
+          markDirty('preview', 'ctx', 'actions');
         } catch (_) {}
       }
 
       // ===== 撤回：移除某条AI消息 + 回滚其cardData修改 =====
-      function revokeAIMessage(aiIdx) {
+      function revokeAIMessage(aiIdx, opts) {
         const msgs = getCurrentMessages();
         if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
           showToast('无法撤回：该消息不是AI回复', 'warning');
@@ -11889,7 +12524,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         if (aiCountAfter > 0) confirmMsg += ' 及其后 ' + aiCountAfter + ' 条AI回复';
         confirmMsg += '\n✅ 回滚对角色卡/变量系统的修改';
         confirmMsg += '\n✅ 保留上一条用户消息，可重新生成';
-        if (!confirm(confirmMsg)) return;
+        // 迭代1·H1：silent 模式（Ctrl+Z / 快捷键）跳过 confirm 弹窗
+        if (!opts || !opts.silent) {
+          if (!confirm(confirmMsg)) return;
+        }
         // 回滚cardData到该AI消息应用修改前的快照
         // 关键：在 restore 之前，把"AI产物 vs 用户基线"对照抓下来
         let _entryPairs = [];
@@ -11912,7 +12550,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               entryPairs: _entryPairs,
               aiReply: _revokedReply.slice(0, 1500)
             });
-            _maybeAutoAnalyze();
           }
           delete _msgChangeMap[aiIdx];
         } catch (_fb) {}
@@ -11922,6 +12559,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 截断消息：保留到aiIdx（不含），即移除该AI消息及其后所有（仅AI）
         msgs.length = aiIdx;
         clearSnapshotsAfter(aiIdx - 1);
+        _clearCpSectionStatesAfter(aiIdx - 1);   // 迭代1·E4
         saveToStorage();
         progress = calcProgress();
         rerenderChatMessages();
@@ -11990,10 +12628,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               entryPairs: _entryPairs,
               aiReply: _firstReply
             });
-            _maybeAutoAnalyze();
           } else if (_firstReply) {
             UserProfile.recordFeedback({ kind: 'revoke', changeSummary: null, aiReply: _firstReply });
-            _maybeAutoAnalyze();
           }
           for (let _ci = _aiIdxForFb; _ci < msgs.length; _ci++) delete _msgChangeMap[_ci];
         } catch (_fb) {}
@@ -12004,6 +12640,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 截断消息：保留到userIdx+1（含用户消息，移除其后所有）
         msgs.length = userIdx + 1;
         clearSnapshotsAfter(userIdx);
+        _clearCpSectionStatesAfter(userIdx);   // 迭代1·E4
         saveToStorage();
         progress = calcProgress();
         rerenderChatMessages();
@@ -12012,7 +12649,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 重新生成：某条AI消息（撤回该AI回复后重新调用AI）=====
-      function regenerateAIMessage(aiIdx) {
+      function regenerateAIMessage(aiIdx, opts) {
         const msgs = getCurrentMessages();
         if (aiIdx < 0 || aiIdx >= msgs.length || msgs[aiIdx].role !== 'assistant') {
           showToast('无法重新生成：该消息不是AI回复', 'warning');
@@ -12041,7 +12678,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           showToast('本条AI之后还有 ' + userCountAfter + ' 条用户消息，无法单独重新生成此条（会导致后续对话上下文断裂）。\n\n请点击【对应那条用户消息的头像→重新生成】，从用户消息整条链路重新生成。', 'warning');
           return;
         }
-        if (aiCountAfter > 0 && !confirm('此条AI之后还有 ' + aiCountAfter + ' 条AI回复，重新生成会将这些AI回复一并移除并重建新回答。确定继续？')) return;
+        if (aiCountAfter > 0 && !(opts && opts.silent) && !confirm('此条AI之后还有 ' + aiCountAfter + ' 条AI回复，重新生成会将这些AI回复一并移除并重建新回答。确定继续？')) return;
         // 用户画像：这是一次重试（摩擦信号）
         try { UserProfile.recordRetry(aiIdx, _snapTabKey()); } catch (_) {}
         // 抓对照
@@ -12064,7 +12701,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               entryPairs: _entryPairs,
               aiReply: _oldReply.slice(0, 1500)
             });
-            _maybeAutoAnalyze();
           }
           delete _msgChangeMap[aiIdx];
         } catch (_) {}
@@ -12072,6 +12708,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         restoreCardDataSnapshot(aiIdx);
         msgs.length = aiIdx;
         clearSnapshotsAfter(aiIdx - 1);
+        _clearCpSectionStatesAfter(aiIdx - 1);   // 迭代1·E4
         saveToStorage();
         progress = calcProgress();
         rerenderChatMessages();
@@ -12130,7 +12767,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               entryPairs: _entryPairs2,
               aiReply: _oldReply2
             });
-            _maybeAutoAnalyze();
             try { UserProfile.recordRetry(_aiIdxForFb2, _snapTabKey()); } catch (_) {}
           }
           delete _msgChangeMap[_aiIdxForFb2];
@@ -12140,10 +12776,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           restoreCardDataSnapshot(aiIdx);
           msgs.length = aiIdx;
           clearSnapshotsAfter(userIdx);
+          _clearCpSectionStatesAfter(userIdx);   // 迭代1·E4
         } else {
           // 没有AI回答：截断到userIdx+1（保留该用户消息）
           msgs.length = userIdx + 1;
           clearSnapshotsAfter(userIdx);
+          _clearCpSectionStatesAfter(userIdx);   // 迭代1·E4
         }
         saveToStorage();
         progress = calcProgress();
@@ -12204,6 +12842,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (aiIdx < msgs.length) restoreCardDataSnapshot(aiIdx);
           // 2. 截断到 userIdx+1（保留[0..userIdx]，移除 userIdx 之后的所有）
           msgs.length = userIdx + 1;
+          _clearCpSectionStatesAfter(userIdx);   // 迭代1·E4
           // 3. 原地修改该用户消息内容
           msgs[userIdx].content = newText;
           // 正/负样本：用户重写自己的提问 = 对之前 AI 回答的不满信号
@@ -12214,7 +12853,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               aiReply: '',
               userEdit: newText.slice(0, 400)
             });
-            _maybeAutoAnalyze();
           } catch (_) {}
           // 4. 清除此消息之后的快照（此后所有被删的AI回答快照都应丢弃）
           clearSnapshotsAfter(userIdx);
@@ -12291,7 +12929,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 userEdit: newText,
                 entryPairs: [{ name: '（用户手改整条消息）', action: 'update', before: origText, after: newText, semantics: 'ai-vs-user' }]
               });
-              _maybeAutoAnalyze();
             } catch (_) {}
           }
           msgs[msgIdx].content = newText;
@@ -12475,7 +13112,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         return finalSections;
       }
 
-      function renderMessageSections(sections, msgId) {
+      function renderMessageSections(sections, msgIdx) {
         // 🐛修复：单段长文本（>200字）也用折叠包裹，让用户可以缩放
         // 之前只有多段才折叠，导致第一句话（欢迎语）等单段长文本无法缩放
         if (!sections || (sections.length === 1 && sections[0].type === 'content' && sections[0].content.length <= 200)) {
@@ -12483,7 +13120,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
         let html = '';
         sections.forEach(function(sec, idx) {
-          const stateKey = msgId + '-' + idx;
+          // 迭代1·E4：stateKey 由 msgIdx 决定（不再用随机 msgId），rerenderChatMessages 重放后仍能命中
+          const stateKey = 'm' + (msgIdx == null ? 'x' : msgIdx) + '-' + idx;
           // ========== 默认收起：所有 section（思维链/正文/代码）初次渲染均为 collapsed ==========
           // cpSectionStates[key] === true  → 用户已手动展开
           // cpSectionStates[key] === false → 用户已手动收起
@@ -12494,6 +13132,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             icon = '思';
             label = '思维链';
             cls = 'cp-section-thinking';
+          } else if (sec.type === 'code' && sec.lang === 'execnotes') {
+            icon = '📋';
+            label = '执行结果';
+            cls = 'cp-section-execnotes';
           } else if (sec.type === 'code') {
             icon = '{}';
             label = escHtml(sec.lang || '代码');
@@ -12523,7 +13165,37 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           html += '<span class="cp-section-toggle">' + (isCollapsed ? '展开' : '收起') + '</span>';
           html += '</div>';
           if (!isCollapsed) {
-            if (sec.type === 'code') {
+            if (sec.type === 'code' && sec.lang === 'execnotes') {
+              // 按行渲染：失败/警告行置顶并加红/琥珀背景，成功行绿色
+              const _lines = String(sec.content || '').split(/\r?\n/);
+              let _bodyHtml = '';
+              _lines.forEach(function(ln) {
+                const _t = ln.trim();
+                if (!_t) { _bodyHtml += '<div style="height:4px"></div>'; return; }
+                if (/^❌|失败|未生效|未命中|未识别|校验失败/.test(_t)) {
+                  _bodyHtml += '<div class="exec-line exec-fail">' + escHtml(_t) + '</div>';
+                } else if (/^✅/.test(_t)) {
+                  _bodyHtml += '<div class="exec-line exec-ok">' + escHtml(_t) + '</div>';
+                } else if (/^⚠️|警告/.test(_t)) {
+                  _bodyHtml += '<div class="exec-line exec-warn">' + escHtml(_t) + '</div>';
+                } else if (/^【|^(❌|✅)\s|项）：$/.test(_t)) {
+                  _bodyHtml += '<div class="exec-line exec-title">' + escHtml(_t) + '</div>';
+                } else {
+                  _bodyHtml += '<div class="exec-line">' + escHtml(_t) + '</div>';
+                }
+              });
+              html += '<div class="cp-section-body">' + _bodyHtml + '</div>';
+            } else if (sec.type === 'code' && (sec.lang === 'html' || (sec.lang === '' && /<!doctype|<html[\s>]|<body[\s>]|<head[\s>]/i.test(sec.content || '')))) {
+              // ★ HTML 代码块：直接渲染成 iframe（状态栏 / 前端界面 等），而不是显示源码文本
+              const _rendered = renderHtmlToIframe(sec.content);
+              if (_rendered) {
+                html += '<div class="cp-section-body">' + _rendered + '</div>';
+              } else {
+                // 内容过短 / 渲染失败 → 回退显示源码，防止丢内容
+                const esc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                html += '<div class="cp-section-body">' + esc + '</div>';
+              }
+            } else if (sec.type === 'code') {
               const esc = sec.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
               html += '<div class="cp-section-body">' + esc + '</div>';
             } else if (sec.type === 'opblock') {
@@ -12561,12 +13233,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               }
               const msgEl = h.closest('.chat-msg');
               if (msgEl) {
-                const msgId = msgEl.getAttribute('data-msg-id');
+                const msgIdx = parseInt(msgEl.getAttribute('data-msg-index'), 10);
                 const bubble = msgEl.querySelector('.bubble');
                 const raw = bubble ? bubble.getAttribute('data-raw-text') : '';
                 if (bubble && raw) {
                   const secs = parseMessageSections(raw);
-                  bubble.innerHTML = renderMessageSections(secs, msgId);
+                  bubble.innerHTML = renderMessageSections(secs, isNaN(msgIdx) ? -1 : msgIdx);
                   bindSectionToggles(bubble);
                 }
               }
@@ -12941,7 +13613,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       function escHtml(t) {
         /* 改进O：改用字符串替换避免每次创建DOM节点（高频调用场景性能提升） */
         if (!t) return '';
-        return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
 
       function escAttr(s) {
@@ -13169,8 +13841,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             updateCtxBar();
             renderPreview();
           } catch (_e2) {}
-          // Agent 循环收尾也触发一次偏好分析
-          try { _maybeAutoAnalyze(); } catch (_) {}
+          // ★ 修复：Agent 循环收尾不再自动触发偏好分析（只在写入酒馆/导出JSON/手动"立即分析"时触发）
         }
       }
 
@@ -13190,40 +13861,104 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         input.value =
           '请作为写卡Agent执行一次全面检查。\n\n' +
           '【检查范围 · 逐项核对「当前创作进度总览」】\n' +
-          '1. 角色卡主体：名称 / 世界观描述 / 开场白 / 备选开场白 / 世界书条目（数量与覆盖、触发词、字段配置、正文格式）\n' +
-          '2. MVU 变量系统 8 步：zod脚本 / [InitVar] / 更新规则 / 变量列表 / 输出格式 / 格式强调 / 占位提醒 / 状态栏HTML\n' +
+          '1. 角色卡主体：名称 / 世界观描述 / 开场白 / 备选开场白 / 世界书条目（数量、覆盖、触发词、字段配置、正文格式）\n' +
+          '2. MVU 变量系统 8 步：zod脚本 / [InitVar] / 更新规则 / 变量当前状态 / 输出格式 / 格式强调 / 占位提醒 / 状态栏HTML\n' +
           '3. 前端界面：[界面]正文美化 / [界面]X 结构化面板 / 对应世界书条目\n\n' +
-          '【输出要求 · 分两轮，本轮只做第一轮】\n' +
-          '★ 本轮**只输出检查结果与方向建议**，不要输出 <agent_plan>，不要输出 :::操作块、```html。\n' +
-          '① 用 3-8 条列表列出所有问题（未完成项 + 可优化项），按优先级排列，每条必须具体指出位置（如"条目 ⟦白娅⟧ 的 keys 为空且 constant=false"）\n' +
-          '② 结合缺口，发挥想象给出 3-6 条具体的补充方向（每条都是可独立生成的小任务，禁止"生成完整角色卡"这种大颗粒）\n' +
-          '③ 末尾列出 2-3 个本次建议优先处理的方向，编号供用户选择\n\n' +
-          '用户确认方向后，下一轮你直接开始执行该方向的内容；若体量大，在本轮回复末尾输出 <agent:continue> 让写卡器自动续跑。';
+          '【输出要求 · 本轮只做检查报告，不生成任何内容】\n' +
+          '★ 本轮**禁止输出 :::操作块、```html 代码块、<agent_plan>**（写了也会被剥离）。\n' +
+          '★ 按"生成计划报告模板"输出：\n' +
+          '   一、意图深度解析（表层诉求 / 深层意图 / 隐含约束 / 边界确认——本次检查意图）\n' +
+          '   二、本次规模速览（拟新增X / 拟修改Y / 拟删除Z）\n' +
+          '   三、当前卡现状盘点（全面核对，逐条列）\n' +
+          '   四、拟新增条目清单（逐条含内容概括 + 触发方式 + position + depth + order + 权重理由）\n' +
+          '   五、拟删改的现有内容（逐条含理由）\n' +
+          '   六、权重布局总览（含权重冲突检查）\n' +
+          '   七、全局配置建议\n' +
+          '   八、待确认事项\n\n' +
+          '★ 报告末尾以"请回复「确认」开始执行，或指出需要调整的地方。"收尾，然后停止。';
         handleSend();
       }
 
-      // ===== Agent Loop 结束 =====
-      // ============================================================================
-      // ===== 笼统请求启发式检测（命中则强制本轮走理解阶段，与 Agent 模式开关无关）=====
-      // 笼统请求启发式检测：宁可漏判（让 AI 判断），也不要误判
-      function _isVagueRequest(text) {
+      // ===== 客户端保险触发器：宁可多出报告，也不能让 AI 抢跑 =====
+      // ⚠️ 职责边界：本函数**不判定档位**，只输出一个"信号"给 AI：
+      //    - true  → 强制本轮走报告阶段（把 __cwForceUnderstandNext 打开）
+      //    - false → 不干预，让 AI 自己判档
+      // 判档的真正决定权在 AI（agentIdentity 里的"需求评估"段）。
+      function _needReport(text, cd) {
         if (!text) return false;
         const t = String(text).trim();
         if (!t) return false;
+        // ---- 明确的"跳过确认" → 不强制报告 ----
+        if (/(直接做|别问了|你看着办|你自己决定|不要问|直接生成|立即执行|马上做|开始吧|不用确认|无需确认|我自己看|我自己处理)/.test(t)) return false;
+        // ---- 选项确认 / 明确肯定 ----
+        if (/^我选择\s*[:：]/.test(t)) return false;
+        if (/^(确认|开始|OK|ok|可以|go|Go|做吧|执行|同意|好的|好|行)\s*[。！!]?\s*$/.test(t)) return false;
+
+        // ========== 新增：卡片状态感知 ==========
+        // 空卡（无名称、无描述、无条目）→ 生成类请求一律走报告
+        // 有卡 → 只有"大改/多条目/方向变更"才走报告
+        const isBlankCard = !cd || (
+          !String(cd.name || '').trim() &&
+          !String(cd.description || '').trim() &&
+          (!cd.character_book || !Array.isArray(cd.character_book.entries) || cd.character_book.entries.length === 0) &&
+          !String(cd.first_mes || '').trim()
+        );
+
+        // 空卡：只要用户提到"想做/来个/帮我" + 主题，即视为大任务
+        if (isBlankCard) {
+          // 空卡上只有"纯改名/纯删字"这类最小动作可以跳过报告
+          if (/(改下?名|改个名字|起个名|改称呼)/.test(t) && t.length < 30) return false;
+          // 空卡上的一切创作请求（生成/做/写/设计/看看缺/随便来点/凭感觉…）都必须走报告
+          // 因为空卡=从零开始，用户看到完整规划才能放心让你落地
+          return true;
+        }
+
+        // ---- 以下是有卡路径 ----
+        // 1. 笼统请求
         const TL = t.length;
-        // 极短（≤5字）+ 无信息量关键词 → 模糊
         if (TL <= 5 && !/[条目设定变量状态栏界面开场白世界观人设角色名剧情卡书]/.test(t)) return true;
-        // 含明确模糊词
-        if (TL <= 20 && /(随便|瞅瞅|瞧瞧|看看缺|你看着办|你自己决定|你决定|凭感觉|随意|搞点|弄点|来点|整点)/.test(t)) return true;
-        // "帮我做张卡"/"做个卡" 这种极简无方向指令
+        if (TL <= 20 && /(随便|瞅瞅|瞧瞧|看看缺|凭感觉|随意|搞点|弄点|来点|整点)/.test(t)) return true;
         if (TL <= 12 && /^(帮我|给我|来|做个|搞个|生成|写个|弄个)?[一]?[张个]?(卡|角色卡|世界书|世界观)[啊吧呢。！～~\s]*$/.test(t)) return true;
+
+        // 2. 生成类大任务
+        if (/(生成|做一张|做个|设计|构建|创建|打造|写一套|写一个完整的|一整套|全套|整个|全量|从头做|从零做|丰富一下|充实一下|扩写|重写|全面|整体|规划|重构|优化整体|加一整套|构建一整套)/.test(t)) {
+          // 排除"一条xxx"这类明确单条微调（<30字内）
+          if (/(一条|1个|单个|这一个|这条)[条个]?(条目|设定|角色|人设|变量|字段)/.test(t) && t.length < 30) return false;
+          return true;
+        }
+        // 3. 探索性提问
+        if (t.length <= 40 && /(能做什么|可以做什么|能干什么|从哪开始|从何入手|有什么建议|给我个思路|怎么开始|能做哪些|有哪些功能|看看缺什么|看看还差)/.test(t)) return true;
+        // 4. 「帮我+生成类动词」
+        if (/^(帮我|给我|替我|求)(做|写|搞|弄|生成|设计|搭|来一?[张个])/.test(t) && t.length < 80 && !/一条|一个条[目人设]/.test(t)) return true;
+        // 4.5 生成/新增类动词 + ≥1 个领域词 → 强制报告（用户描述大块内容时不能直接执行）
+        if (/(生成|创建|设计|构建|打造|做一张|做一套|写一套|新增|添加|加|扩充|丰富|完善)/.test(t)) {
+          const _dc = ['世界','角色','人设','条目','变量','状态栏','界面','MVU','开场白','剧情','势力','地理','系统','体系','种族','职业','NPC','主角','敌人','道具','装备','场景','战斗','技能','等级','经济','宗教','文化','历史','门派','宗门','设定'].filter(function(k){ return t.indexOf(k) >= 0; }).length;
+          if (_dc >= 1 && t.length >= 6 && !/(一条|1个|单个|这一个|这条)[条个]?(条目|设定|角色|人设|变量|字段)/.test(t)) return true;
+        }
+        // 5. 多领域提及
+        const domainCount = ['世界','角色','人设','条目','变量','状态栏','界面','MVU','开场白','剧情','势力','地理','系统','体系','种族','职业'].filter(function(k){ return t.indexOf(k) >= 0; }).length;
+        if (domainCount >= 2) return true;
+        // 6. 长消息 + 修改意图
+        if (t.length >= 50 && /(生成|做|设计|构建|创建|写|添加|新增|加|改|修改|优化|扩充|丰富)/.test(t)) return true;
+
         return false;
       }
 
       // ===== 离线反馈分析：把撤回/重试语料提炼成 avoid/prefer 写作规约 =====
       // 触发：攒够样本且距上次≥冷却，或用户手动调用 analyzeWritingPreferences()
       let _analyzingPrefs = false;
-      async function analyzeWritingPreferences(force) {
+      async function analyzeWritingPreferences(force, source) {
+        // ★ 修复 Bug3（v2）：非 force 调用必须显式传白名单 source（含 undefined/null/空串 一律拒绝）。
+        // 原逻辑 `source !== undefined && source !== null && !_ALLOWED_SOURCES[source]` 允许"未传 source"绕过白名单，
+        // 任何调用点只要漏传参数就会静默触发 AI 分析，用户感知为"打开 / 关闭工具自动分析写作偏好"。
+        // 修复后：只有显式传入 'manual' / 'save-character' / 'export-json' 才允许执行。
+        const _ALLOWED_SOURCES = { 'manual': 1, 'save-character': 1, 'export-json': 1 };
+        if (!force) {
+          if (!source || !_ALLOWED_SOURCES[source]) {
+            try { console.log('[偏好分析] 双重守卫：非白名单来源「' + source + '」已拒绝（仅允许 manual / save-character / export-json）'); } catch (_) {}
+            return;
+          }
+        }
         if (isGenerating || _analyzingPrefs) return;
         let un;
         try { un = UserProfile.getUnanalyzedFeedback(); } catch (_) { return; }
@@ -13372,8 +14107,28 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         }
       }
 
-      // 统一的"检查是否值得自动分析"入口：所有 feedback 采集点调用
-      function _maybeAutoAnalyze() {
+      // 统一的"检查是否值得自动分析"入口
+      // ★ 修复（Bug3 + 用户要求）：只允许「写入酒馆(save-character)」和「导出JSON(export-json)」两个触发点，
+      //   任何其它路径（打开/关闭/AI对话结束/撤回/重试/循环等）一律 return，
+      //   彻底杜绝"打开关闭工具就自动分析写作偏好"。
+      //   注：用户在「我的习惯 → 立即分析」按钮里的手动触发，走的是 analyzeWritingPreferences(true)，
+      //       不经过本函数，所以此处白名单无需包含 'manual'。
+      function _maybeAutoAnalyze(trigger) {
+        // ★ 修复 Bug3：白名单机制 + 显式日志，确保只有用户主动「写入酒馆 / 导出JSON」触发分析。
+        //   打开/关闭/对话结束/撤回/重试/Agent循环 等路径一律不触发。
+        const _ALLOWED = { 'save-character': 1, 'export-json': 1 };
+        if (!trigger || !_ALLOWED[trigger]) {
+          // 用 console.log（非 WRITER_DEBUG 门控），方便用户随时确认"没有触发分析"
+          try { console.log('[偏好分析] 触发点「' + trigger + '」不在白名单内，跳过分析（仅允许 save-character / export-json）'); } catch (_) {}
+          return;
+        }
+        // ★ 加固 Bug3：文档已不可见/iframe 已卸载 → 放弃分析
+        try {
+          const _cwDoc = window.document;
+          if (!_cwDoc || _cwDoc.readyState === 'uninitialized' || !_cwDoc.body) return;
+          const _pDoc = (window.parent && window.parent.document) ? window.parent.document : _cwDoc;
+          if (!_pDoc || !_pDoc.getElementById(SCRIPT_ID + '-modal')) return;
+        } catch (_visGuard) {}
         try {
           if (typeof UserProfile === 'undefined' || UserProfile.isDisabled()) return;
           if (isGenerating || _analyzingPrefs) return;
@@ -13382,7 +14137,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           if (UserProfile.shouldAnalyze()) {
             Promise.resolve().then(function() {
               if (isGenerating || _analyzingPrefs) return;
-              analyzeWritingPreferences().catch(function(e) { logError('autoAnalyze', e); });
+              // ★ 修复 Bug3：传入 trigger 供双重守卫校验
+              analyzeWritingPreferences(false, trigger).catch(function(e) { logError('autoAnalyze', e); });
             });
           }
         } catch (_) {}
@@ -13433,7 +14189,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _accCnt++;
         }
         if (_accCnt > 0) {
-          try { _maybeAutoAnalyze(); } catch (_) {}
+          // ★ 修复 Bug3：分析触发彻底从采集函数剥离——采集只负责采集，触发交给调用方
+          // （仅 saveCharacter / exportCardJson 两处会调用 _maybeAutoAnalyze）
           try { UserProfile.recordFriction('accepted:' + (source || 'unknown'), '', 1); } catch (_) {}
         }
         _markAccepted();
@@ -13443,7 +14200,11 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       async function handleSend() {
         const input = doc.getElementById('chatInput');
         const text = input ? input.value.trim() : '';
-        if (!text || isGenerating) return;
+        if (!text) return;
+        if (isGenerating) {
+          showToast('AI 正在生成中——点击右下角⏹按钮可停止', 'info', 3000);
+          return;
+        }
         // 后台分析写作偏好期间，避免并发调用 AI
         if (typeof _analyzingPrefs !== 'undefined' && _analyzingPrefs) {
           showToast('正在后台分析你的写作偏好，请稍候再发送', 'info', 3000);
@@ -13459,16 +14220,26 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 用户画像：记录用户输入（覆盖「生成角色卡」命令与普通对话两条路径，每发一条只记一次）
         // 带摩擦检测：疑问词/长消息/重复句
         try { UserProfile.recordUserMessageWithFriction(text); } catch (_) {}
-        // 笼统请求：强制本轮走理解阶段（buildPrompt 下一轮会看到标志）
-        if (_isVagueRequest(text) && !/^我选择\s*[:：]/.test(text)) {
+        // 保险信号：涉及生成/大改/笼统需求 → 打标给 AI 走报告流程（判档权仍在 AI）
+        if (_needReport(text, cardData)) {
           try { window.__cwForceUnderstandNext = true; } catch (_) {}
-          showToast('💡 检测到笼统需求——本轮将先给「卡片概览 + 缺口清单 + 建议方向」供你确认，不会直接生成', 'info', 6000);
+          showToast(
+            '💡 本次需求范围较大——AI 会先输出「生成计划报告」（意图深度解析 + 现状盘点 + 条目清单 + 权重安排）供你确认，不会直接改动卡片',
+            'info', 6500
+          );
         }
         // ⚠️已禁用一键生成完整卡：所有用户消息（含"生成角色卡""完整生成"等笼统请求）
-        // 一律走 callAIChat → Agent理解阶段，先输出卡片概览+缺口清单+方案，让用户确认后再分步生成。
+        // 一律走 callAIChat → 报告流程（四档判档），先输出生成计划报告，让用户确认后再分步生成。
         // doGenerate 已废弃，仅保留函数声明防止旧引用报错。
-        addUserMsg(text);
-        await callAIChat();
+        // ★ 补充6：addUserMsg/callAIChat 异常时恢复 __cwForceUnderstandNext 旧值，防标记残留误触"强制报告"
+        const _prevForceUnderstand = window.__cwForceUnderstandNext;
+        try {
+          addUserMsg(text);
+          await callAIChat();
+        } catch (_e) {
+          try { window.__cwForceUnderstandNext = _prevForceUnderstand; } catch (_) {}
+          throw _e;
+        }
       }
 
       // ===== AI回复清理（移除思考链、内部标签等） =====
@@ -13784,7 +14555,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // MVU条目关键词（Tab隔离时代遗留：Agent模式下 ::操作块 可自由增删改全部领域条目，这两个函数保留作参考，不再被调用）
         function _isMvuEntryKey(comment) {
           const c = (comment || '').toLowerCase();
-          return c.indexOf('[initvar]') >= 0 || c.indexOf('变量列表') >= 0 ||
+          return c.indexOf('[initvar]') >= 0 || c.indexOf('变量当前状态') >= 0 ||
             c.indexOf('变量更新规则') >= 0 || c.indexOf('变量输出格式') >= 0 ||
             c.indexOf('mvu_update') >= 0 || c.indexOf('[mvu_update]') >= 0 ||
             c.indexOf('状态变量输出') >= 0;
@@ -13796,7 +14567,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           const t = String(text);
           const head = t.slice(0, 300);
           return /\[initvar\]/i.test(head) || /\[mvu_update\]/i.test(head) ||
-            head.indexOf('变量列表') >= 0 || head.indexOf('变量更新规则') >= 0 ||
+            head.indexOf('变量当前状态') >= 0 || head.indexOf('变量更新规则') >= 0 ||
             head.indexOf('变量输出格式') >= 0 || head.indexOf('状态变量输出') >= 0 ||
             /<statusblock[\s>]/i.test(t) || /<StatusPlaceHolderImpl/.test(t) ||
             t.indexOf('stat_data') >= 0 || t.indexOf('getAllVariables') >= 0;
@@ -13893,16 +14664,19 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             // ===== 🧹清洗 MVU 条目 content 中混入的 enabled/content/comment 等配置字段 =====
             let _cleanedContent = (op.content && op.content.trim().length > 0) ?
               _stripEntryConfigFromContent(cleanComment, op.content) : op.content;
-            // 变量列表条目：强制规范化为标准格式（只保留 null+包裹标签，丢弃变量实际值/配置字段）
-            if (_cleanedContent && cleanComment.indexOf('变量列表') >= 0) {
+            // ⚠️严格核心名判定（剥 [xxx]/<xxx> 前缀后精确匹配）：
+            // 避免"<自定义条目>变量当前状态使用说明"等普通条目被 indexOf 误伤、内容被强制改写成固定模板
+            const _cleanCore = _entryCommentCore(cleanComment);
+            // 变量当前状态条目：强制规范化为标准格式（丢弃变量实际值/配置字段）
+            if (_cleanedContent && _cleanCore === '变量当前状态') {
               _cleanedContent = normalizeVarListContent(_cleanedContent);
             }
-            // 变量输出格式/强调条目：强制使用固定YAML模板，丢弃AI混入的变量值/配置字段
-            if (_cleanedContent && (cleanComment.indexOf('变量输出格式') >= 0)) {
+            // 变量输出格式/强调条目：强制使用固定模板，丢弃AI混入的变量值/配置字段
+            if (_cleanedContent && (_cleanCore === '变量输出格式' || _cleanCore === '变量输出格式强调')) {
               _cleanedContent = normalizeVarOutputFormatContent(cleanComment, _cleanedContent);
             }
             // 变量更新规则条目：规范化缩进/range格式/移除string的type字段
-            if (_cleanedContent && cleanComment.indexOf('变量更新规则') >= 0) {
+            if (_cleanedContent && _cleanCore === '变量更新规则') {
               _cleanedContent = normalizeVarUpdateRuleContent(_cleanedContent);
             }
             if (_cleanedContent && _cleanedContent.trim().length > 0) basePatch.content = _cleanedContent;
@@ -14037,7 +14811,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                     String(newEntry.comment || '').toLowerCase().indexOf('变量更新规则') >= 0 ||
                     String(newEntry.comment || '').toLowerCase().indexOf('[initvar]') >= 0 ||
                     String(newEntry.comment || '').indexOf('初始变量') >= 0 ||
-                    String(newEntry.comment || '').indexOf('变量列表') >= 0);
+                    String(newEntry.comment || '').indexOf('变量当前状态') >= 0);
                   if (_isNewMvuSys) {
                     newEntry.selective = _tmplNew.selective;
                     newEntry.constant = _tmplNew.constant;
@@ -14380,7 +15154,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           rxList[keepIdx].markdownOnly = true;
           rxList[keepIdx].promptOnly = false;
           rxList[keepIdx].placement = [2];
-          rxList[keepIdx].runOnEdit = false; // StageDog标准：避免编辑消息时重复执行
+          rxList[keepIdx].runOnEdit = true; // 与 _tavernWriteRegexScripts 的 run_on_edit=true 一致：编辑历史消息时按当前变量重渲染状态栏
           rxList[keepIdx].disabled = false;
           rxList[keepIdx].id = 'mvu-status-bar';
           rxList[keepIdx].scriptName = '[美化]MVU状态栏';
@@ -15050,8 +15824,12 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             if (!used[i] && panelBlocks[i].start > mk.pos) { target = i; break; }
           }
           if (target < 0) {
-            for (let i = panelBlocks.length - 1; i >= 0; i--) {
-              if (!used[i]) { target = i; break; }
+            // 回退配对：取位置最接近标记的未用块（避免"块1、标记1、块2、标记2"顺序交错时乱配）
+            let bestDist = Infinity;
+            for (let i = 0; i < panelBlocks.length; i++) {
+              if (used[i]) continue;
+              const d = Math.abs(panelBlocks[i].start - mk.pos);
+              if (d < bestDist) { bestDist = d; target = i; }
             }
           }
           if (target >= 0) {
@@ -15418,6 +16196,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         opts = opts || {};
         if (isGenerating) return null;
         isGenerating = true;
+        _abortRequested = false;
+        try { window.__cwAbortRequested = false; } catch (_abReset) {}
         setEnabled(false);
         addTyping();
         pushWorkToast(opts.agentStep ? 'Agent执行中...' : '正在思考...', 'working');
@@ -15426,6 +16206,46 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           _aiChatQueueMode = true;
           _aiChatNotesQueue = [];
           const curTabMessages = getCurrentMessages();
+          // ===== 执行边界锁：上一条AI回复如果是报告，且用户本轮回复了"确认"，注入报告作为执行契约 =====
+          let _execContractBlock = '';
+          try {
+            const _msgs = getCurrentMessages();
+            // 找上一条 assistant 消息
+            let _prevAi = null;
+            for (let _i = _msgs.length - 1; _i >= 0; _i--) {
+              if (_msgs[_i] && _msgs[_i].role === 'assistant') { _prevAi = _msgs[_i].content; break; }
+              if (_msgs[_i] && _msgs[_i].role === 'user') break;   // 只追溯最近一条 assistant
+            }
+            // 找本轮 user 消息
+            const _curUser = (function() {
+              for (let _i = _msgs.length - 1; _i >= 0; _i--) {
+                if (_msgs[_i] && _msgs[_i].role === 'user') return String(_msgs[_i].content || '');
+              }
+              return '';
+            })();
+            // 判定：上一条AI是报告 + 本轮是确认
+            const _isPrevReport = _prevAi && /拟新增\s*\d+\s*条|生成计划报告|本次规模速览|权重布局总览/.test(_prevAi);
+            const _isConfirm = /^(确认|开始|OK|ok|可以|go|Go|做吧|执行|同意|好的|好|行)\s*[。！!]?\s*$/.test(_curUser.trim());
+            if (_isPrevReport && _isConfirm) {
+              // 从报告里抽"拟新增条目清单"段（从"拟新增条目清单"到下一个大段标记为止）
+              const _m = _prevAi.match(/拟新增条目清单[\s\S]*?(?=拟删改|权重布局|全局配置|待确认|——\s*报告结束)/);
+              const _clause = _m ? _m[0].slice(0, 3000) : '';
+              if (_clause) {
+                _execContractBlock =
+                  '\n\n═══════════════════════════════════════════════════════════════════\n' +
+                  '🔒【本次执行契约 · 上轮报告已被用户确认，严格按此执行】\n' +
+                  '═══════════════════════════════════════════════════════════════════\n' +
+                  '用户已确认你上轮输出的生成计划。**本轮只输出该计划范围内的产物，不得越界**。\n\n' +
+                  '【已确认的执行清单】\n' + _clause + '\n\n' +
+                  '【执行铁律】\n' +
+                  '  1. 只生成清单里列出的条目 / 只改动清单里列出的内容\n' +
+                  '  2. 严禁"顺手多做"——清单外的角色/条目/开场白/变量/界面一律不生成\n' +
+                  '  3. 若执行中发现清单有误需要调整：本轮**先停下报告问题**，不要擅自扩大范围\n' +
+                  '  4. 按清单中的 position/depth/order 严格执行，不得擅自改权重\n' +
+                  '═══════════════════════════════════════════════════════════════════\n';
+              }
+            }
+          } catch (_ecErr) { logWarn('execContract', _ecErr); }
           // ========== Agent步骤模式：注入任务指令（计划总览+当前步骤+控制标记协议）；普通模式走统一提示词 ==========
           let prompt = opts.agentStep ?
             buildPrompt(cardData, cardGenerated, curTabMessages, buildAgentDirective(opts.stepIdx)) :
@@ -15433,8 +16253,21 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // 注入全局人设（AI/用户人设，从 localStorage 读取，头像菜单可编辑）
           const _personaHdr = getPersonaHeader();
           if (_personaHdr) prompt = _personaHdr + '\n\n' + prompt;
+          // 执行契约注入：报告确认后，把已确认清单拼进 prompt（放在人设之后、调用 AI 之前）
+          if (_execContractBlock) prompt = prompt + _execContractBlock;
           let aiResponse = await callAI(prompt);
+          // ===== 中止检查点：用户已请求停止 → 丢弃本次结果，不写入任何数据 =====
+          if (_abortRequested) {
+            removeTyping();
+            showToast('⏹ 本次生成已停止，结果未写入卡片', 'info', 4000);
+            return opts.agentStep ? { produced: false, control: 'skip', observation: '用户主动中止' } : null;
+          }
           aiResponse = cleanAIReply(aiResponse);
+          // ===== 中止检查点2：响应清理后再次确认（极少数异步竞态下兜底）=====
+          if (_abortRequested) {
+            removeTyping();
+            return opts.agentStep ? { produced: false, control: 'skip', observation: '用户主动中止' } : null;
+          }
           // 用户画像：一次 AI 调用成功返回
           try { UserProfile.recordAiCall(); } catch (_) {}
 
@@ -15482,30 +16315,223 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // ========== 🆕 ::: 操作块协议优先检测 ==========
           // 如果AI回复包含:::操作块，走新协议路径（更简洁、零语法错误）
           // 否则回退到旧JSON路径（兼容）
-          // ===== 理解阶段守护：AI 若违反协议输出 :::操作块 / ```html，全部剥离，不写入卡片 =====
-          // 🐛修复：原字符串 'Agent模式 · 理解阶段' 在实际 prompt 中不存在（真实文案为
-          // '🎯【本轮 · 强制理解阶段】必须先盘卡 + 列缺口 + 给方案，禁止直接生成'），
-          // 导致该守护逻辑从不触发。改为匹配真实存在的核心文案（双关键句任一命中即视为理解阶段）。
-          const _promptIsUnderstandStage = !!(prompt && (
-            prompt.indexOf('本轮 · 强制理解阶段') >= 0 ||
-            prompt.indexOf('必须先盘卡 + 列缺口 + 给方案，禁止直接生成') >= 0
+          // ===== 报告阶段守护：本轮 prompt 强制要求出报告 → 剥离一切产物，防止 AI 抢跑 =====
+          const _promptNeedsReport = !!(prompt && (
+            prompt.indexOf('本轮 · 强制出「生成计划报告」') >= 0
           ));
-          if (_promptIsUnderstandStage) {
-            const _hasUnderstandBlock = /<agent_understand>/i.test(aiResponse);
-            const _hasOptionsBlock = /<agent_options>/i.test(aiResponse);
-            if (!(_hasUnderstandBlock && _hasOptionsBlock)) {
-              if (hasOpBlocks(aiResponse) || /```html/i.test(aiResponse)) {
-                aiResponse = aiResponse
-                  .replace(/(?:^|\r?\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*[\s\S]*?\r?\n[ \t]*:::[ \t]*(?:\r?\n|$)/gi, '')
-                  .replace(/```html[ \t]*\r?\n?[\s\S]*?\r?\n?```/gi, '')
-                  .replace(/\n{3,}/g, '\n\n')
-                  .trim();
-                _execNotes.push('⚠️ AI在理解阶段违规输出操作块/HTML（已剥离，未写入卡片）——请严格按流程先输出【卡片概览】+ <agent_understand> + <agent_options>');
-                try { showToast('⚠️ AI 未按协议先给「概览 + 选项」，本轮内容已被忽略。\n若你确实想立即生成，请回复"直接做"', 'warning', 8000); } catch (_) {}
-                if (!aiResponse || aiResponse.length < 10) {
-                  aiResponse = '（AI 未按协议输出概览与选项，请重试或回复"直接做"跳过确认）';
+          if (_promptNeedsReport) {
+            const _hasReport = /意图深度解析|本次规模速览|拟新增条目清单|生成计划报告/.test(aiResponse);
+
+            // ========== 强化版报告质量校验（8 维）==========
+            if (_hasReport) {
+              const _quality = {
+                hasIntentAnalysis: /意图深度解析|表层诉求|深层意图|隐含约束|边界确认/.test(aiResponse),
+                hasScopeOverview: /本次规模速览|拟新增\s*\d+\s*条|拟新增.*条|拟修改.*条/.test(aiResponse),
+                hasWeightReason: /权重(优先级)?理由|权重理由|position.*理由|depth.*理由|order.*理由/.test(aiResponse),
+                hasExperience: /体验推演|用户体验场景推演|聊天体验/.test(aiResponse),
+                hasConflictCheck: /权重冲突|冲突检查|是否.*冲突/.test(aiResponse),
+                hasEntryList: /拟新增条目清单/.test(aiResponse),
+                hasWorldview: /世界观构想|时间背景|空间背景|核心冲突|独特设定|氛围基调|世界规则/.test(aiResponse),
+                hasCurrentState: /现状盘点|当前卡现状|现有条目|与本次意图的关联/.test(aiResponse),
+                hasDeleteModify: /拟删改的现有内容|拟删改|拟删除|拟修改的现有/.test(aiResponse),
+                length: (aiResponse || '').length
+              };
+
+              // ---- 意图解析 4 项逐一展开校验（每项至少 20 字有效内容）----
+              const _intentItems = {
+                surface:     /表层诉求[：:]\s*[^\n]{20,}/.test(aiResponse),
+                deep:        /深层意图[：:]\s*[^\n]{20,}/.test(aiResponse),
+                constraint:  /隐含约束[：:]\s*[^\n]{20,}/.test(aiResponse),
+                boundary:    /边界确认[：:]\s*[^\n]{20,}/.test(aiResponse)
+              };
+              const _missIntentItems = Object.keys(_intentItems).filter(function(k) { return !_intentItems[k]; });
+              const _intentAllExpanded = _missIntentItems.length === 0;
+
+              // ---- 逐条目结构检查（每条目必须 position+depth+order）----
+              let _entryBlockCount = 0, _entryBlockWithPos = 0, _entryBlockWithWeight = 0, _entryBlockWithExp = 0;
+              {
+                const _blocks = aiResponse.split(/\n(?=(?:条目\s*\d+|[\d]+[\.、]\s*⟦|[\d]+[\.、]\s*【))/);
+                _blocks.forEach(function(b) {
+                  if (/条目\s*\d+|⟦|【/.test(b) && b.length > 30) {
+                    _entryBlockCount++;
+                    if (/position\s*[:：]?\s*\d|order\s*[:：]?\s*\d/i.test(b)) _entryBlockWithPos++;
+                    if (/权重(优先级)?理由|权重.{0,4}理由|order.{0,4}理由/i.test(b)) _entryBlockWithWeight++;
+                    if (/体验推演|聊天体验|用户体验/.test(b)) _entryBlockWithExp++;
+                  }
+                });
+              }
+              const _entryPosRatio  = _entryBlockCount === 0 ? 1 : (_entryBlockWithPos / _entryBlockCount);
+              const _entryWgtRatio  = _entryBlockCount === 0 ? 1 : (_entryBlockWithWeight / _entryBlockCount);
+              const _entryExpRatio  = _entryBlockCount === 0 ? 1 : (_entryBlockWithExp / _entryBlockCount);
+              const _entryStructOK  = _entryPosRatio >= 0.9;   // 从 0.6 提高到 0.9
+              const _entryWeightOK  = _entryWgtRatio >= 0.9;   // 从 0.6 提高到 0.9（≥10% 缺即不达标）
+              const _entryExpOK     = _entryExpRatio >= 0.9;
+
+              // ---- 规模速览具体数字（≥3 个）----
+              const _hasConcreteNumbers = (function() {
+                try {
+                  const _seg = aiResponse.match(/本次规模速览[\s\S]*?(?=\n\n|━━━|$)/);
+                  if (!_seg) return false;
+                  const _nums = (_seg[0].match(/\d+\s*[条处个]/g) || []).length;
+                  return _nums >= 3;
+                } catch (_eNum) { return false; }
+              })();
+
+              // ---- 并列选项检测：报告里不允许出现"方案A/B"或"选项1/2"这类并列结构 ----
+              const _hasParallelOptions = /(方案\s*[ABCD一二三四1234][：:]|选项\s*[ABCD一二三四1234][：:]|选择\s*[ABCD一二三四1234][：:])/.test(aiResponse);
+
+              // ========== 新增：检测"简短方向选项"（AI 偷懒给 2-5 个方向让用户选）==========
+              const _hasShortChoiceList = (function() {
+                // 模式1：引导语 + 短列表
+                if (/(给你[^\n]{0,8}[几两三四五]?[个条]?方向|你可以选|你可以选择|推荐方向|方向[如：:]|建议方向|可选方向|建议路线|可以往[^\n]{0,8}方向|可选方案|供你选择|请选择[^\n]{0,12}[方向方案路线]|我建议[^\n]{0,6}[几两三四五][个条]方向|给你[几两三四五]个思路)/.test(aiResponse)) {
+                  const _listItems = aiResponse.match(/(?:^|\n)\s*(?:\d+[\.、)）]|[-*•▪①②③④⑤])\s*[^\n]{2,60}/g);
+                  if (_listItems && _listItems.length >= 2 && _listItems.length <= 6) return true;
+                }
+                // 模式2：整体报告很短 + 出现 3 条以上并列短列表项
+                if (aiResponse.length < 900) {
+                  const _shortItems = aiResponse.split(/\n/).filter(function(l) {
+                    const t = l.trim();
+                    return /^(?:\d+[\.、)）]|[-*•▪①②③④⑤])\s*/.test(t) && t.length < 50;
+                  });
+                  if (_shortItems.length >= 3) return true;
+                }
+                // 模式3：显式"方案/选项"标记（原有检测保留）
+                if (/(方案\s*[ABCD一二三四1234][：:]|选项\s*[ABCD一二三四1234][：:]|选择\s*[ABCD一二三四1234][：:])/.test(aiResponse)) return true;
+                return false;
+              })();
+
+              // ---- 综合判定 ----
+              const _tooShort        = _quality.length < 2000;   // 从 1000 提高到 2000
+              const _missIntent      = !_quality.hasIntentAnalysis || !_intentAllExpanded;
+              const _missWeight      = !_quality.hasWeightReason || !_entryWeightOK;
+              const _missExperience  = !_quality.hasExperience  || !_entryExpOK;
+              const _missScope       = !_quality.hasScopeOverview || !_hasConcreteNumbers;
+              const _missEntryList   = !_quality.hasEntryList;
+              const _missWorldview   = !_quality.hasWorldview && !_quality.hasCurrentState;  // 空卡需世界观 / 有卡需现状
+              const _missDeleteMod   = !_quality.hasDeleteModify;   // 有卡时必写（无卡可略）
+              const _badStruct       = !_entryStructOK;
+              const _badOptions      = _hasParallelOptions || _hasShortChoiceList;   // 报告退化为并列/短选项 = 不合格
+
+              // ---- 是否空卡：决定"拟删改"是否是必需项 ----
+              const _isBlankCardNow = !String(cardData.name || '').trim() &&
+                                      !String(cardData.description || '').trim() &&
+                                      ((cardData.character_book && cardData.character_book.entries || []).length === 0) &&
+                                      !String(cardData.first_mes || '').trim();
+
+              const _bad = [];
+              if (_tooShort)        _bad.push('篇幅过短（' + _quality.length + '字，需 ≥2000 字）');
+              if (!_intentAllExpanded) _bad.push('意图解析展开不足（缺 ' + _missIntentItems.join('/') + ' 或各项 <20 字）');
+              if (_missScope)       _bad.push('规模速览缺具体数字（需 ≥3 处"X 条 / Y 处 / Z 个"）');
+              if (_missEntryList)   _bad.push('缺少「拟新增条目清单」段落');
+              if (_badStruct)       _bad.push('≥10% 条目缺 position/order 数值（需 ≥90% 含）');
+              if (!_entryWeightOK)  _bad.push('≥10% 条目缺"权重优先级理由"');
+              if (!_entryExpOK)     _bad.push('≥10% 条目缺"体验推演"（需写"用户聊天时会获得什么体验/避免什么坑"）');
+              if (!_quality.hasConflictCheck) _bad.push('缺少「权重冲突检查」');
+              if (_missWorldview)   _bad.push(_isBlankCardNow ? '缺少「世界观构想」6 项' : '缺少「当前卡现状盘点」');
+              if (!_isBlankCardNow && _missDeleteMod) _bad.push('有卡场景缺「拟删改的现有内容」段');
+              if (_badOptions)      _bad.push('出现"方案A/B/选项1/2"并列选项（档 2 禁选项，应改用线性报告）');
+
+              if (_bad.length > 0) {
+                _execNotes.push('❌ 报告质量不达标：' + _bad.join('；'));
+
+                // 【缺口B修复】短选项是最严重问题：直接折叠拒收，不与正式报告混淆
+                if (_hasShortChoiceList) {
+                  const _lazyReply = aiResponse;  // 保留原文供用户查阅
+                  aiResponse =
+                    '⚠️ **AI 本次只给了方向选项，没有输出完整分析报告**。\n\n' +
+                    '档 2 要求的是一份 **8 段详尽分析报告**（意图深度解析 / 规模速览 / 世界观构想或现状盘点 / 拟新增条目清单+权重理由+体验推演 / 拟删改内容 / 权重布局总览 / 全局配置建议 / 待确认事项），**不是几个方向让我选**。\n\n' +
+                    '**请回复以下任一继续：**\n' +
+                    '  · 「**重新分析**」—— 让 AI 重新输出完整报告\n' +
+                    '  · 「**直接做**」—— 跳过报告，直接生成内容（AI 会自己控制范围）\n' +
+                    '  · 补充需求描述 —— 让 AI 分析得更精准\n\n' +
+                    '<details><summary>（AI 本次的短选项，仅作参考，<b>未采纳</b>）</summary>\n\n' +
+                    _lazyReply + '\n\n</details>';
+                  _stepProduced = false;
+                  try {
+                    showToast('⚠️ AI 本次只给了方向选项，未输出完整报告——请回复「重新分析」让它重做', 'warning', 10000);
+                  } catch (_) {}
+                } else {
+                  // 非短选项的其他不达标 → 保留原「追加提示」逻辑
+                  aiResponse = (aiResponse || '').trim() +
+                    '\n\n---\n⚠️ **本报告未通过质量校验（' + _bad.length + ' 项缺失）**\n' +
+                    '缺失项：\n' + _bad.map(function(b, i) { return '  ' + (i+1) + '. ' + b; }).join('\n') +
+                    '\n\n**请回复「补全报告」**，我会按下面模板重出一份完整版：\n' +
+                    '  📖 一、意图深度解析 —— 表层诉求 / 深层意图 / 隐含约束 / 边界确认（每项 2-4 句）\n' +
+                    '  📊 二、本次规模速览 —— 拟新增X条 / 拟修改Y条 / 拟删改Z处\n' +
+                    (_isBlankCardNow ?
+                      '  🗺️ 三、世界观构想 —— 时间背景 / 空间背景 / 核心冲突 / 独特设定 / 氛围基调 / 世界规则边界（逐项展开）\n' :
+                      '  📌 三、当前卡现状盘点 —— 逐条列出所有现有条目 + 与本次意图的关联分析\n') +
+                    '  📋 四、拟新增条目清单 —— 每条含：条目名 + 内容概括(2-3句) + 触发方式 + position + depth + order + ★权重理由 + ★体验推演\n' +
+                    (_isBlankCardNow ? '' : '  🔧 五、拟删改的现有内容 —— 删哪条 / 改哪条 / 为什么\n') +
+                    '  📊 六、权重布局总览 —— 含权重冲突检查（具体判断，不允许"无明显冲突"带过）\n' +
+                    '  ⚙️ 七、全局配置建议\n' +
+                    '  ⚠️ 八、待确认事项\n' +
+                    '\n⚠️ 注意：档 2 是**完整线性报告**，不是"方案A/B/选项1/2"并列选项。';
+                  _stepProduced = false;
+                  try {
+                    showToast('⚠️ AI 报告不达标（缺 ' + _bad.length + ' 项）：' + _bad.slice(0, 3).join('；') + '\n回复「补全报告」让它重出完整版', 'warning', 10000);
+                  } catch (_) {}
                 }
               }
+
+              // ★ 档 2 场景下若 AI 输出了 <agent_options>，且报告不达标 → 剥离选项
+              const _hasOptions = /<agent_options>/i.test(aiResponse);
+              if (_hasOptions) {
+                // ===== 客户端"档3强校验"：只有以下信号齐全才保留选项 =====
+                // 1) 报告本身达标（至少 1000 字 + 有意向深度解析 + 有权重理由 + 有冲突检查）
+                // 2) 用户消息命中"重大调整"信号词
+                const _lastUserForOpt = (function() {
+                  try {
+                    const _msgs = getCurrentMessages();
+                    for (let _li = _msgs.length - 1; _li >= 0; _li--) {
+                      if (_msgs[_li] && _msgs[_li].role === 'user') return String(_msgs[_li].content || '');
+                    }
+                  } catch (_eM) {}
+                  return '';
+                })();
+                // 档 3 判据（与 agentIdentity 一致，客户端只做**明显信号**的兜底校验；信号词与提示注入共用 MAJOR_CHANGE_SIGNALS）
+                const _majorSignals = MAJOR_CHANGE_SIGNALS.some(function(re) { return re.test(_lastUserForOpt); });
+
+                const _hasDeleteOrConflictPlan = /拟删改的现有内容|删除\s*⟦|清空|方向性改动|重构/.test(aiResponse);
+                const _reportOK = !_tooShort && !_missIntent && !_missWeight && _quality.hasConflictCheck && _quality.hasEntryList;
+                if (!_reportOK || !_majorSignals || !_hasDeleteOrConflictPlan) {
+                  aiResponse = aiResponse
+                    .replace(/<agent_options>[\s\S]*?<\/agent_options>/gi, '')
+                    .replace(/<agent_understand>[\s\S]*?<\/agent_understand>/gi, '')
+                    .replace(/\n{3,}/g, '\n\n').trim();
+                  const _why = !_reportOK ?
+                    '报告不达标（选项只允许搭配完整详尽报告）' :
+                    (!_majorSignals ?
+                      '用户消息未含重大调整信号（选项仅限档 3 重大调整使用）' :
+                      '报告未含「拟删改的现有内容」实质计划（档 3 必须有删改/方向冲突内容）');
+                  _execNotes.push('⚠️ 已剥离 <agent_options>：' + _why);
+                  try { showToast('⚠️ 已剥离本轮选项：' + _why + '。档 2 只允许 Markdown 报告，请继续对话确认方向', 'warning', 8000); } catch (_) {}
+                }
+              }
+            }
+
+            // 无论 AI 有没有输出报告，只要有 :::操作块 或 ```html → 全部剥离（比原方案更严格）
+            if (hasOpBlocks(aiResponse) || /```html/i.test(aiResponse)) {
+              aiResponse = aiResponse
+                .replace(/(?:^|\r?\n)[ \t]*:::\s*(?:upsert|update|delete|set|rename)\s+[^\n\r]*[\s\S]*?\r?\n[ \t]*:::[ \t]*(?:\r?\n|$)/gi, '')
+                .replace(/```html[ \t]*\r?\n?[\s\S]*?\r?\n?```/gi, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+              _execNotes.push('⚠️ AI 在报告阶段违规输出了操作块/HTML（已剥离，未写入卡片）——请严格按流程先输出「生成计划报告」等用户确认');
+              try {
+                showToast(
+                  _hasReport
+                    ? '⚠️ AI 输出了报告但也夹带了操作块——操作块已被剥离未生效。请确认报告内容后再让它执行'
+                    : '⚠️ AI 未按协议先给「生成计划报告」，本轮产物已被丢弃。\n若你确实想立即生成，请回复"直接做"',
+                  'warning', 8000
+                );
+              } catch (_) {}
+              if (!aiResponse || aiResponse.length < 10) {
+                aiResponse = '（AI 未按协议输出生成计划报告，请重试或回复"直接做"跳过确认）';
+              }
+            } else if (!_hasReport) {
+              // AI 什么都没输出（既没报告也没产物）→ 提示重试
+              _execNotes.push('❌ AI 未输出任何内容——请重试或回复"直接做"跳过报告流程');
             }
           }
           let parsed = null;
@@ -15790,6 +16816,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               showToast('⚠️ AI回复中有HTML代码块，但未识别为状态栏/前端界面（未保存）。\n详情见浏览器Console的 [statusbar] / [frontend] 日志', 'warning', 7000);
             }
           }
+          // 关键失败（HTML未保存）已经在 _execNotes 里，再加一次阻塞性 toast 保证用户不会漏看
+          if (_htmlSavedCount === 0 && /```html|<!doctype|<html/i.test(aiResponse || '')) {
+            const _hint = _execNotes.filter(function(n) { return /^❌/.test(String(n)); })[0] || '';
+            try {
+              showToast('❌ AI 输出了 HTML，但未通过写卡器识别，尚未保存到卡片\n' + (_hint ? '原因：' + _hint.slice(0, 80) : ''), 'error', 9000);
+            } catch (_) {}
+          }
           if (_htmlSavedCount > 0) _stepProduced = true;
 
           // ========== Agent Loop 收尾（ReAct核心：观察反馈 + 动态重规划 + 失败重试）==========
@@ -15864,7 +16897,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             } else if (_newPlan && _newPlan.steps && _newPlan.steps.length >= 2 && !agentLoopActive && !_userConfirmedPlan) {
               // ★ AI 绕过理解阶段直接给计划 → 阻止自动执行，保留计划等待用户确认
               _execNotes.push('⚠️ 检测到 AI 未走理解阶段就直接给出执行计划——已阻止自动执行，请先确认概览后再开始');
-              showToast('⚠️ AI 未按协议先给「卡片概览 + 缺口清单」——请先确认方向再点「继续执行计划」', 'warning', 8000);
+              showToast('⚠️ AI 未按协议先给「生成计划报告」——请先确认方向再点「继续执行计划」', 'warning', 8000);
               agentPlan = _newPlan;
               agentLastObservation = '';
               saveToStorage();
@@ -15921,8 +16954,23 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             .replace(/\n{3,}/g, '\n\n')
             .trim();
           // ReAct观察入消息流：执行结果区块持久化（用户可见，下一轮AI也能从对话历史读取）
+          // 用 ```execnotes 包裹，交由 renderMessageSections 渲染成"失败置顶"的可折叠卡片
           if (_execNotes.length > 0) {
-            rawContent = (rawContent || '') + '\n\n---\n**【执行结果】**\n' + _execNotes.join('\n');
+            const _fail = _execNotes.filter(function(n) { return /^(❌|⚠️)/.test(String(n)); });
+            const _ok   = _execNotes.filter(function(n) { return /^✅/.test(String(n)); });
+            const _other = _execNotes.filter(function(n) { return !/^(❌|⚠️|✅)/.test(String(n)); });
+            let _block = '```execnotes\n【执行结果】\n';
+            if (_fail.length > 0) {
+              _block += '❌ 未生效/失败（' + _fail.length + ' 项）：\n' + _fail.map(function(n) { return '· ' + String(n).replace(/^(❌|⚠️)\s*/, ''); }).join('\n') + '\n\n';
+            }
+            if (_other.length > 0) {
+              _block += '· ' + _other.join('\n· ') + '\n\n';
+            }
+            if (_ok.length > 0) {
+              _block += '✅ 已生效（' + _ok.length + ' 项）：\n' + _ok.map(function(n) { return '· ' + String(n).replace(/^✅\s*/, ''); }).join('\n') + '\n';
+            }
+            _block += '\n```';
+            rawContent = (rawContent || '') + '\n\n' + _block;
           }
 
           // 1. 先存储到历史（Agent模式：单一会话数组）
@@ -15963,20 +17011,34 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           // Agent步骤模式：返回步骤执行结果（produced/control）给 agentLoop；普通模式返回 null
           return _agentCtl;
         } catch (err) {
-          // 严重错误：AI 调用/响应解析/合并失败。控制台留完整错误栈（带 scope），对话内给用户可读提示
-          logError('callAIChat', err);
-          removeTyping();
-          // ⚠️修复：关闭队列模式并清空队列，否则 addAssistantMsg 会把错误消息压进队列，
-          // 随后 finally 的 _aiChatNotesQueue=[] 会直接丢弃，用户界面看不到任何错误提示
-          _aiChatQueueMode = false;
-          _aiChatNotesQueue = [];
-          try {
-            addAssistantMsg('😞 出错了：' + (err && err.message) + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。');
-          } catch (e) { logWarn("callAIChat", e); }
-          try {
-            setEnabled(true);
-          } catch (e) { logWarn("callAIChat", e); }
+          if (window.__cwAbortRequested) {
+            // 用户主动中止：底层请求已被真中断，这不是错误——静默收尾（setEnabled(true) 由 finally 负责）
+            removeTyping();
+            showToast('⏹ 已停止生成，本次结果未写入卡片', 'info', 4000);
+            _aiChatQueueMode = false;
+            _aiChatNotesQueue = [];
+          } else {
+            // 严重错误：AI 调用/响应解析/合并失败。控制台留完整错误栈（带 scope），对话内给用户可读提示
+            logError('callAIChat', err);
+            removeTyping();
+            // ⚠️修复：关闭队列模式并清空队列，否则 addAssistantMsg 会把错误消息压进队列，
+            // 随后 finally 的 _aiChatNotesQueue=[] 会直接丢弃，用户界面看不到任何错误提示
+            _aiChatQueueMode = false;
+            _aiChatNotesQueue = [];
+            try {
+              addAssistantMsg('😞 出错了：' + (err && err.message) + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。');
+            } catch (_e) {
+              logWarn("callAIChat", _e);
+              // ↓ 新增：连 addAssistantMsg 都失败，直接 toast 保证用户能看见
+              try { showToast('出错了：' + (err && err.message), 'error', 8000); } catch (_) {}
+            }
+            try {
+              setEnabled(true);
+            } catch (e) { logWarn("callAIChat", e); }
+          }
         } finally {
+          _abortRequested = false;
+          try { window.__cwAbortRequested = false; } catch (_abF) {}
           // ⚠️修复：队列模式收尾统一放 finally，任何异常路径都不会残留 _aiChatQueueMode=true 或队列数据
           _aiChatQueueMode = false;
           _aiChatNotesQueue = [];
@@ -15986,8 +17048,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           } catch (e) { logWarn("callAIChat", e); }
           // 摩擦主动提示：每轮对话结束后检查一次（带冷却，不打扰）
           try { maybeShowFrictionTip(); } catch (_) {}
-          // 每轮 AI 对话结束尝试一次偏好分析（shouldAnalyze 内部已节流）
-          try { _maybeAutoAnalyze(); } catch (_) {}
+          // ★ 修复：AI 对话结束后不再触发写作偏好分析——只在「写入酒馆」/「导出JSON」/「我的习惯→立即分析」时触发
         }
       }
 
@@ -16006,30 +17067,31 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const sendBtn = doc.getElementById('sendBtn');
         const saveBtn = doc.getElementById('saveBtn');
         const input = doc.getElementById('chatInput');
-        if (sendBtn) sendBtn.disabled = !enabled;
-        if (saveBtn) saveBtn.disabled = !enabled;
-        if (input) {
-          // 禁用前记录焦点状态；恢复时仅当原本聚焦才重新聚焦
-          if (!enabled) {
-            _inputWasFocused = (doc.activeElement === input);
-            input.disabled = true;
+
+        // 发送按钮：空闲 = 发送；生成中 = 停止（不 disabled，供点击 requestAbort）
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          if (enabled) {
+            sendBtn.classList.remove('is-waiting', 'is-aborting');
+            sendBtn.title = '发送';
+            sendBtn.innerHTML = svgIcon('send', 18, 'send-icon') + svgIcon('spinner', 18, 'send-spinner ic-spin');
           } else {
-            input.disabled = false;
-            if (_inputWasFocused) {
-              try {
-                input.focus();
-              } catch (e) { logWarn("setEnabled", e); }
-            }
-            _inputWasFocused = false;
+            sendBtn.classList.remove('is-aborting');
+            sendBtn.classList.add('is-waiting');
+            // 生成中把 send-icon 位置换成 stop-icon（CSS 控制显隐）
+            sendBtn.innerHTML = svgIcon('send', 18, 'send-icon') +
+                                svgIcon('stop', 16, 'stop-icon') +
+                                svgIcon('spinner', 18, 'send-spinner ic-spin');
           }
         }
-        // 发送按钮图标切换：生成中显示等待（转圈）图标，空闲显示发送图标
-        if (sendBtn) {
-          const waiting = !enabled;
-          if (waiting) sendBtn.classList.add('is-waiting');
-          else sendBtn.classList.remove('is-waiting');
+        if (saveBtn) saveBtn.disabled = !enabled;
+
+        // ⚠️输入框不再禁用：生成中用户可以先打字准备下一条（Ctrl+Enter 会被 handleSend 的 isGenerating 挡住）
+        if (input) {
+          input.disabled = false;
         }
-        // 快捷按钮、上下文模块按钮统一禁用/启用，避免生成中误触
+
+        // 其余快捷按钮/上下文按钮统一禁用（保持原逻辑不变）
         const sels = ['.quick-btn', '.ctx-mod'];
         for (let s = 0; s < sels.length; s++) {
           const nodes = doc.querySelectorAll(sels[s]);
@@ -16493,10 +17555,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         // 按分组展示
         const groupOrder = ['常驻体系', '触发体系', '动态系统', '自定义'];
         const groupColors = {
-          '常驻体系': '#15803d',
-          '触发体系': '#a16207',
-          '动态系统': '#ca8a04',
-          '自定义': '#667085'
+          '常驻体系': 'var(--sage, #15803d)',
+          '触发体系': 'var(--amber, #a16207)',
+          '动态系统': 'var(--amber, #ca8a04)',
+          '自定义':   'var(--muted, #667085)'
         };
         groupOrder.forEach(function(g) {
           const groupEntries = entries.filter(function(e) {
@@ -16533,7 +17595,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             h += '<div class="wv-entry" style="border-left-color:' + wl.color + '">' +
               '<div class="wv-entry-header">' +
               '<span class="wv-entry-name" title="' + escHtml(comment) + '">' + escHtml(comment) + '</span>' +
-              '<span class="wv-entry-level" style="background:' + wl.color + '20;color:' + wl.color + ';border:1px solid ' + wl.color + '50">' + wl.level + '</span>' +
+              '<span class="wv-entry-level" style="background:' + (wl.bg || 'var(--w-level-mid-bg)') + ';color:' + wl.color + ';border:1px solid ' + (wl.border || 'var(--w-level-mid-border)') + '">' + wl.level + '</span>' +
               '<span class="wv-entry-token">' + tk + 'T</span>' +
               '</div>' +
               '<div class="wv-entry-meta">' +
@@ -16582,10 +17644,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           groups[g].push(e);
         });
         const groupColors = {
-          '常驻体系': '#15803d',
-          '触发体系': '#a16207',
-          '动态系统': '#ca8a04',
-          '自定义': '#667085'
+          '常驻体系': 'var(--sage, #15803d)',
+          '触发体系': 'var(--amber, #a16207)',
+          '动态系统': 'var(--amber, #ca8a04)',
+          '自定义':   'var(--muted, #667085)'
         };
         let h = '<div class="modal" id="groupModal">' +
           '<div class="modal-content">' +
@@ -16999,7 +18061,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         const upAnalyzeBtn = doc.getElementById('upAnalyzeBtn');
         if (upAnalyzeBtn) upAnalyzeBtn.addEventListener('click', function() {
           close();
-          analyzeWritingPreferences(true).catch(function(e) {
+          // ★ 修复 Bug3：用户手动分析传 'manual'，明确允许来源
+          analyzeWritingPreferences(true, 'manual').catch(function(e) {
             showToast('分析失败：' + (e && e.message ? e.message : e), 'error');
           });
         });
@@ -17103,8 +18166,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       // ===== 预览渲染 =====
-      /* 改进V：renderPreview防抖——合并连续渲染请求（如批量更新entries时），避免16+调用点全量重建卡顿 */
-      let _renderPreviewTimer = null;
+      /* 迭代1·H6：旧 _renderPreviewTimer 已由调度器的 _previewTimer 取代，不再声明独立防抖变量 */
 
       // ===== 合并 diff 预览高亮 =====
       // 合并前记录 entries 快照，合并后由 computeEntryDiff 得到差异，
@@ -17124,6 +18186,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         batch: false,
         selected: {}
       };
+      // 迭代1·M1：预览面板世界书条目展开态（按 comment 键控，重建后仍生效）
+      const _pvExpanded = {};
       let _pvSearchHadFocus = false;
       function _snapshotEntries() {
         const arr = (cardData.character_book && cardData.character_book.entries) || [];
@@ -17180,12 +18244,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       }
 
       function renderPreview() {
-        if (_renderPreviewTimer) clearTimeout(_renderPreviewTimer);
-        _renderPreviewTimer = setTimeout(_renderPreviewImpl, CONFIG.PREVIEW_DEBOUNCE_MS);
+        markDirty('preview');
       }
 
       function _renderPreviewImpl() {
-        _renderPreviewTimer = null;
         const body = doc.getElementById('previewBody');
         if (!body) return;
         updateProgress();
@@ -17246,20 +18308,20 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             {
               has: _pvD[3],
               icon: 'list',
-              name: '第4条 变量列表',
-              desc: '固定内容：<status_current_variables>null</status_current_variables>'
+              name: '第4条 变量当前状态',
+              desc: '固定内容：{{format_message_variable::stat_data}} 宏注入'
             },
             {
               has: _pvD[4],
               icon: 'list',
               name: '第5条 [mvu_update]输出格式',
-              desc: '固定YAML：<UpdateVariable>+<Analysis>+<JSONPatch>（5种操作）'
+              desc: '固定格式：<UpdateVariable>+<Analysis>+<JSONPatch>（4种操作）'
             },
             {
               has: _pvD[5],
               icon: 'list',
               name: '第6条 输出格式强调',
-              desc: '固定YAML原样输出强调，AI不输出<UpdateVariable>时启用'
+              desc: '固定内容原样输出强调，AI不输出<UpdateVariable>时启用'
             },
             {
               has: _pvD[6],
@@ -17309,7 +18371,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             mvuEntries.forEach(function(e, i) {
               const eTok = countTokens(e.content || '');
               const disabledTag = e.enabled === false ? '<span class="pv-tag off">禁用</span>' : '';
-              h += '<details class="pv-entry" data-pv-comment="' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '"><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + '</span></summary>' +
+              h += '<details class="pv-entry" data-pv-comment="' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '"' + (_pvExpanded[e.comment || ('MVU条目' + (i + 1))] ? ' open' : '') + '><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + '</span></summary>' +
                 '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(e.content || '') + '</div></div></details>';
             });
             h += '</div>';
@@ -17554,7 +18616,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
             const grpTag = grp ? '<span class="pv-tag grp">' + escHtml(grp) + '</span>' : '';
             const checkBox = _pvFilter.batch ?
               ('<input type="checkbox" class="pv-batch-check" data-pv-check-comment="' + escHtml(label) + '" title="选择该条目"' + (_pvFilter.selected[label] ? ' checked' : '') + '>') : '';
-            eH += '<details class="pv-entry' + (_pvFilter.selected[label] ? ' selected' : '') + '" data-pv-comment="' + escHtml(label) + '"><summary>' +
+            eH += '<details class="pv-entry' + (_pvFilter.selected[label] ? ' selected' : '') + '" data-pv-comment="' + escHtml(label) + '"' + (_pvExpanded[label] ? ' open' : '') + '><summary>' +
               checkBox +
               '<span class="pv-entry-summary-main">' + escHtml(label) + '</span>' +
               '<span class="pv-entry-summary-tags">' +
@@ -17712,7 +18774,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
         let sH = '<div class="pv-sub">';
 
         // ===== 8步进度可视化条（紧凑方块，绿=完成/灰=待办）=====
-        const _stepNames = ['①zod变量结构', '②[InitVar]初始变量', '③[mvu_update]更新规则', '④变量列表', '⑤[mvu_update]输出格式', '⑥输出格式强调', '⑦<状态栏>占位提醒', '⑧状态栏HTML(正则6)'];
+        const _stepNames = ['①zod变量结构', '②[InitVar]初始变量', '③[mvu_update]更新规则', '④变量当前状态', '⑤[mvu_update]输出格式', '⑥输出格式强调', '⑦<状态栏>占位提醒', '⑧状态栏HTML(正则6)'];
         const _stepStates = [_d[0], _d[1], _d[2], _d[3], _d[4], _d[5], _d[6], mvuChk.has8];
         const _stepShort = ['1', '2', '3', '4', '5', '6', '7', '栏'];
         sH += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 10px 0">';
@@ -17910,7 +18972,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 aiReply: ''
               });
               UserProfile.recordFriction('manual-delete', name, 2);
-              _maybeAutoAnalyze();
             } catch (_) {}
             // 这里用 allEntries 里的真实引用直接 splice 掉
             allEntries.splice(idx, 1);
@@ -18037,7 +19098,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 entryPairs: _batchPairs,
                 aiReply: ''
               });
-              _maybeAutoAnalyze();
             }
           } catch (_) {}
           let changed = 0;
@@ -18240,7 +19300,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
                 aiReply: currentVal.slice(0, 1500),
                 userEdit: newVal.slice(0, 1500)
               });
-              _maybeAutoAnalyze();
             }
           } catch (_) {}
           if (type === 'field') {
@@ -18331,7 +19390,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           });
           const hasMVU = !!(filledForMvu || entries.some(function(e) {
             const c = (e.comment || '').toLowerCase();
-            return c.indexOf('[initvar]') >= 0 || c.indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量列表') >= 0 || (e.comment || '').indexOf('变量输出格式') >= 0;
+            return c.indexOf('[initvar]') >= 0 || c.indexOf('[mvu_update]') >= 0 || (e.comment || '').indexOf('变量当前状态') >= 0 || (e.comment || '').indexOf('变量输出格式') >= 0;
           }));
 
           // 提取角色名列表（用于状态栏 HTML 生成）
@@ -18414,7 +19473,10 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
               // 解包 ``` 围栏（saveStatusBarToCard 用 ``` 包裹，_tavernWriteRegexScripts 会重新包裹）
               // ⚠️修复：原先 /\n?```$/m 带 m 标志会匹配 HTML 内部任何"行尾```"（如 script 里嵌套反引号），
               // 导致只删到内部位置、尾部```残留进酒馆。改为无 m 标志只匹配整体首行/末行
-              statusBarHtml = customSb.replace(/^```[a-z]*[ \t]*\r?\n?/, '').replace(/\r?\n?[ \t]*```\s*$/, '').trim();
+              statusBarHtml = customSb
+                .replace(/^\s*```[a-zA-Z]*[ \t]*\r?\n/, '')   // 只剥开头的 ``` 语言行
+                .replace(/\r?\n?[ \t]*```\s*$/, '')            // 只剥结尾的 ```
+                .trim();
             }
             // 4c-2. 兜底：AI 完全没生成状态栏时，用统一模板生成默认状态栏（保证写入酒馆不缺状态栏）
             if (!statusBarHtml) statusBarHtml = generateMvuStatusBarHtml(charNames);
@@ -18462,6 +19524,8 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
           try { UserProfile.recordCardSaved(cardData); } catch (_) {}
           // ===== 正样本采集（以"最终写入酒馆"为金标准）=====
           try { _collectAcceptedSamples('save-character'); } catch (_accErr) { logWarn('saveCharacter.accepted', _accErr); }
+          // ★ 修复 Bug4：只有 save-character 白名单触发分析
+          try { _maybeAutoAnalyze('save-character'); } catch (_) {}
           showToast('✅ 角色卡已成功写入酒馆' + mvuTip, 'success');
         } catch (e) {
           console.error('[时之写卡器] 写入酒馆失败:', e);
@@ -18476,11 +19540,64 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 
       // showJsonModal 已移除：导出功能改为直接写入酒馆角色卡（见 saveCharacter）
 
-      renderWelcome();
+      // ===== 关闭钩子：flush 未消费的 dirty → 置 sessionAlive=false → 清定时器（E2/E3）=====
+      try {
+        window.__cwBeforeClose = function() {
+          _flush();                 // ⚠️必须在 _sessionAlive=false 之前，否则会短路丢最后一次编辑（D1）
+          _sessionAlive = false;
+          clearSessionTimers();
+        };
+      } catch (_eHook) {}
+
+      // ★ 修复 Bug1：每次打开时强制渲染欢迎页，独立 try-catch 保证后续步骤不受前序失败影响
+      try { if (doc && doc.body) doc.body.innerHTML = ''; } catch (_preClear) {}
+      try {
+        if (typeof activeTab !== 'undefined') activeTab = 'card';
+        if (typeof currentTab !== 'undefined') currentTab = 'card';
+        if (typeof window !== 'undefined') window.__tab_activeTab = 'card';
+      } catch (_tabReset) {}
+
+      try {
+        renderWelcome();
+        // 渲染校验：DOM 里必须有 .welcome 容器，否则说明渲染失败
+        let _welcomeCheck = doc.querySelector('.welcome');
+        // ★ 修复 Bug1：首次渲染失败时清空 body 后重试一次（应对极端情况下 DOM 残留冲突）
+        if (!_welcomeCheck) {
+          console.warn('[写卡诊断] 欢迎页首次渲染失败，清空 body 后重试');
+          try { doc.body.innerHTML = ''; } catch (_clr) {}
+          renderWelcome();
+          _welcomeCheck = doc.querySelector('.welcome');
+        }
+        if (!_welcomeCheck) throw new Error('renderWelcome 未产出 .welcome 容器（含重试）');
+        // ★ 修复 Bug1：防御性清理残留聊天界面元素（禁止"打开即进入聊天"）
+        const _strayChat = doc.querySelector('.chat-panel, .chat-messages, .chat-input-area');
+        if (_strayChat) {
+          console.warn('[写卡诊断] 检测到残留聊天界面元素，强制清空 body 后重渲染欢迎页');
+          try { doc.body.innerHTML = ''; } catch (_clr2) {}
+          renderWelcome();
+        }
+        if (WRITER_DEBUG) console.log('[写卡诊断] 欢迎页已强制渲染，当前状态=welcome');
+      } catch (_welcomeErr) {
+        console.error('[时之写卡器] renderWelcome 异常，触发纯净兜底:', _welcomeErr);
+        try {
+          doc.body.innerHTML =
+            '<div class="app"><div class="topbar"><div class="topbar-left">' +
+            '<h1>' + svgIcon('bolt', 18, 'topbar-ic') + ' 时之写卡器</h1></div>' +
+            '<div class="topbar-right"><button class="icon-btn icon-btn-square danger" id="closeBtn">' +
+            svgIcon('close', 16) + '</button></div></div>' +
+            '<div class="welcome"><h2>时之写卡器</h2>' +
+            '<p>欢迎页渲染异常。请关闭后重开，或刷新酒馆页面。</p></div></div>';
+          const _cb = doc.getElementById('closeBtn');
+          if (_cb) _cb.addEventListener('click', closeModal);
+        } catch (_e2) {}
+      }
 
     } catch (e) {
       console.error('时之写卡器 Error:', e);
       showToast('打开失败: ' + e.message, 'error');
+    } finally {
+      // ★ 释放重入锁
+      try { if (typeof window !== 'undefined') window.__cwEditorOpening = false; } catch (_) {}
     }
   }
 
@@ -18514,7 +19631,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // 习惯画像回答"用户喜欢什么"；摩擦画像回答"用户卡在哪"——共用存储，规则引擎不同
   const UP_FRICTION_WINDOW_MS = 5 * 60 * 1000;   // 5min 滑动窗口
   const UP_FRICTION_MAX = 200;                    // 摩擦事件环形缓冲
-  const UP_FRICTION_TIP_COOLDOWN_MS = 30 * 60 * 1000;  // 同模式提示冷却 30min
 
   // 显式疑问信号：从用户消息文本里识别
   const _UP_QUESTION_PATTERNS = [
@@ -19231,9 +20347,6 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
       // 写作类规则始终注入（句子长短/比喻/描写/对话比例是全局约束）
       allowedCats.writing = true;
       if (intents.indexOf('card') >= 0 || intents.indexOf('all') >= 0) allowedCats.scale = true;
-      const _byIntent = function(arr) {
-        return (arr || []).filter(function(r) { return allowedCats[r.category || 'general']; });
-      };
 
       // ★写作规约（从历史反馈提炼，按本轮场景过滤）
       try {
@@ -19798,7 +20911,15 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
   // skill 规范：脚本代码的副作用（DOM注册、按钮、监听器）必须在 jQuery ready 回调中，
   // 禁止使用 DOMContentLoaded（远程加载场景不会触发），禁止直接在顶层作用域执行 DOM 写入。
   function scriptEntryPoint() {
+    // iframe 内 pagehide 兼容性不足，补 beforeunload 双保险（cleanupScriptArtifacts 内部幂等）
     window.addEventListener('pagehide', cleanupScriptArtifacts);
+    window.addEventListener('beforeunload', cleanupScriptArtifacts);
+    // 父窗口卸载时也尝试清理（子 iframe 的监听不总会触发）
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.addEventListener('pagehide', cleanupScriptArtifacts);
+      }
+    } catch (_) {}
     addDynamicFloatIcon(); // 动态悬浮图标（常驻入口：单击打开/拖拽/缩放/右键菜单）
     tryInit();
   }
