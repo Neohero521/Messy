@@ -17474,7 +17474,7 @@ html,body{scrollbar-gutter:stable}
           '   · ⚠️豁免：单纯修改已存在 MVU 条目的字段值（如改 InitVar 里的日期/数值/文本），直接改第2条重发即可，第1/3条自动同步重生成；\n' +
           '   · 第8条状态栏HTML依赖前7条——前7条未齐时绝不出状态栏HTML；生成时变量路径照抄你 InitVar 的 YAML 键名。\n' +
           '6. 🚫【脚本格式铁律】脚本一律用 `::: upsert script:脚本名` 操作块输出（首行可写 `// 脚本名称：xxx` 注释），**禁止用 ```javascript/typescript/js 代码块包裹脚本**——散装代码块只是写卡器兜底识别，规范输出必须用 ::: 操作块；正则同理用 `::: upsert regex:正则名` 操作块或文字「查找正则/替换规则/勾选参数」描述。\n' +
-          '6b. 🔧【行级编辑铁律（IDE式增删改查）】修改已有脚本时**先看上方「当前已有脚本」带行号源码**（超长脚本可看省略区◇结构大纲定位），优先用行号定位：`_action: replace`/`_action: delete` + `_lines: 起始行-结束行`（直接按行号替换/删除）、`_action: insert` + `_lines: N`（插到第N行后）、`_action: insert_before` + `_lines: N`（插到第N行前）——_lines 行下面直接写新代码，不需要旧代码段；小改动也可用锚点方式：`_action: replace`（旧代码段`---`新代码段）/ `_action: insert`（锚点段`---`新代码，插锚点后）；追加末尾用 `_action: append`。修改已有正则（含状态栏HTML）同样用 `::: upsert regex:名称` + `_action:` + `_field: replaceString`（也支持 `_lines:` 行号定位）做内容行级编辑。**当任务是"扩写/增加/补全/修改"已有脚本/正则时，禁止整体重新生成**（只有用户明确说"重写/重构"或改动面覆盖大半脚本时才允许整体覆盖）。编辑生效后必须核对执行结果里的编辑回显（命中位置+原文摘录），🚨语法体检报出的问题下一轮优先修复。\n' +
+          '6b. 🔧【行级编辑铁律（IDE式增删改查）】修改已有脚本时**先看上方「当前已有脚本」的结构大纲**（◇为真实行号；要看原文细节先 `_action: read` + `_lines: 区间` 翻页），优先用行号定位：`_action: replace`/`_action: delete` + `_lines: 起始行-结束行`（直接按行号替换/删除）、`_action: insert` + `_lines: N`（插到第N行后）、`_action: insert_before` + `_lines: N`（插到第N行前）——_lines 行下面直接写新代码，不需要旧代码段；小改动也可用锚点方式：`_action: replace`（旧代码段`---`新代码段）/ `_action: insert`（锚点段`---`新代码，插锚点后）；追加末尾用 `_action: append`。修改已有正则（含状态栏HTML）同样用 `::: upsert regex:名称` + `_action:` + `_field: replaceString`（也支持 `_lines:` 行号定位）做内容行级编辑。**当任务是"扩写/增加/补全/修改"已有脚本/正则时，禁止整体重新生成**（只有用户明确说"重写/重构"或改动面覆盖大半脚本时才允许整体覆盖）。编辑生效后必须核对执行结果里的编辑回显（命中位置+原文摘录），🚨语法体检报出的问题下一轮优先修复。\n' +
           '7. 完成后在回复末尾单独一行输出控制标记：\n' +
           '   <agent:done> ——当前是计划的最后一步（或本步完成后目标已达成）\n' +
           '   <agent:next> ——后面还有待执行步骤\n' +
@@ -21294,6 +21294,19 @@ html,body{scrollbar-gutter:stable}
           const initVarContent = String(initVarEntry.content || '');
           if (!initVarContent.trim()) return [];
 
+          // —— ★复查修复：哈希标记同步（防"每轮打回模板"）——
+          //   旧逻辑"现存内容≠模板即重生成"会在 InitVar 在场的每一轮触发——AI/用户行级编辑定制的
+          //   zod（takeRight/enum/intersection 等 InitVar 推不出的高级特性）或更新规则，下一轮任何
+          //   操作块都会被打回派生模板。修复：只在「上次派生后 InitVar 真的变了」才重生成第1/3条；
+          //   首次接触（旧卡迁移，无标记）已存在的第1/3条一律不动（保守——不clobber既有内容）。
+          cardData.extensions = cardData.extensions || {};
+          cardData.extensions.tavern_helper = cardData.extensions.tavern_helper || { scripts: [], variables: {} };
+          if (!Array.isArray(cardData.extensions.tavern_helper.scripts)) cardData.extensions.tavern_helper.scripts = [];
+          let _ivH = 0;
+          for (let _hi = 0; _hi < initVarContent.length; _hi++) { _ivH = (_ivH * 31 + initVarContent.charCodeAt(_hi)) | 0; }
+          const _prevIvH = (typeof cardData.extensions._mvuDerivedIvHash === 'number') ? cardData.extensions._mvuDerivedIvHash : undefined;
+          const _ivChanged = (_prevIvH !== undefined) && (_prevIvH !== _ivH);
+
           // —— 条目查找辅助：按核心名（剥前缀）精确匹配 ——
           const _findByCore = function(core, extra) {
             for (let i = 0; i < entries.length; i++) {
@@ -21332,43 +21345,44 @@ html,body{scrollbar-gutter:stable}
             return e;
           };
 
-          // —— 第 1 条：zod 变量结构脚本（InitVar 变化 → 同步重生成）——
+          // —— 第 1 条：zod 变量结构脚本（缺失→创建；InitVar 变化→同步重生成；否则不动——保护定制）——
           try {
             const newSchema = generateMvuSchemaScript(initVarContent);
             if (newSchema && newSchema.trim()) {
-              const thScripts = (cardData.extensions && cardData.extensions.tavern_helper && cardData.extensions.tavern_helper.scripts) || [];
+              const thScripts = cardData.extensions.tavern_helper.scripts;
               let schemaScript = null;
               for (let i = 0; i < thScripts.length; i++) {
                 const s = thScripts[i];
                 if (!s || isFixedMvuScript(s)) continue;
                 if (String(s.content || '').indexOf('registerMvuSchema') >= 0 || String(s.content || '').indexOf('z.object') >= 0) { schemaScript = s; break; }
               }
-              if (schemaScript) {
-                if (String(schemaScript.content || '') !== newSchema) {
-                  schemaScript.content = newSchema;
-                  derived.push('第1条 zod脚本（已按InitVar同步重生成）');
-                }
-              } else {
+              if (!schemaScript) {
                 thScripts.push({ type: 'script', enabled: true, name: '变量结构', id: 'mvu-schema', content: newSchema, info: '', button: { enabled: true, buttons: [] }, data: {} });
                 derived.push('第1条 zod脚本（本地派生）');
+              } else if (_ivChanged) {
+                // 只有「上次派生后 InitVar 变了」才重生成——InitVar 没变时现存脚本可能是行级编辑的定制版，不动
+                if (String(schemaScript.content || '') !== newSchema) {
+                  schemaScript.content = newSchema;
+                  derived.push('第1条 zod脚本（已按InitVar变更同步重生成）');
+                }
               }
             }
           } catch (_e1) { logWarn('derive.schema', _e1); }
 
-          // —— 第 3 条：[mvu_update]变量更新规则（InitVar 变化 → 同步重生成）——
+          // —— 第 3 条：[mvu_update]变量更新规则（同第1条策略：缺失→创建；InitVar 变化→重生成；否则不动）——
           try {
             const charNames = extractCharNames(cardData, entries);
             const newRule = generateVarUpdateRule(charNames);
             if (newRule && newRule.trim()) {
               const old3 = _findByCore('变量更新规则');
-              if (old3) {
-                if (String(old3.content || '') !== newRule) {
-                  old3.content = newRule;
-                  derived.push('第3条 更新规则（已按InitVar同步重生成）');
-                }
-              } else {
+              if (!old3) {
                 _createEntry('[mvu_update]变量更新规则', newRule, { order: 200, position: 4, depth: 0 });
                 derived.push('第3条 更新规则（本地派生）');
+              } else if (_ivChanged) {
+                if (String(old3.content || '') !== newRule) {
+                  old3.content = newRule;
+                  derived.push('第3条 更新规则（已按InitVar变更同步重生成）');
+                }
               }
             }
           } catch (_e2) { logWarn('derive.rule', _e2); }
@@ -21403,10 +21417,15 @@ html,body{scrollbar-gutter:stable}
             }
           } catch (_e3) { logWarn('derive.fixed', _e3); }
 
-          if (derived.length > 0) {
+          // —— 盖标记：记录"本次派生对应的 InitVar 哈希"（下轮据此判断 InitVar 是否真的变了）——
+          const _markerChanged = (_prevIvH !== _ivH);
+          if (_markerChanged) cardData.extensions._mvuDerivedIvHash = _ivH;
+          if (derived.length > 0 || _markerChanged) {
             renderPreview();
             saveToStorage();
-            try { showToast('🤖 MVU本地派生：' + derived.join('、'), 'success'); } catch (_) {}
+            if (derived.length > 0) {
+              try { showToast('🤖 MVU本地派生：' + derived.join('、'), 'success'); } catch (_) {}
+            }
           }
           return derived;
         } catch (_deriveErr) {
