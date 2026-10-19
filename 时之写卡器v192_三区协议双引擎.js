@@ -6492,9 +6492,11 @@ html,body{scrollbar-gutter:stable}
     //   只有第 2 条在缺失清单里时才提示 AI 输出，其余缺失项会在 InitVar 落盘后自动补齐
     const hasInitVarMissing = missing.some(function(item) { return /\[InitVar\]|初始变量/.test(String(item)); });
     if (!hasInitVarMissing) {
+      // ★复查修复：此分支 = InitVar 已在卡上但派生条目缺失（旧卡迁移/派生异常兜底）——
+      //   不能谎称"卡片没有 InitVar"；正确指引 = 重发一次 InitVar 原内容触发本地派生补齐
       return '⚠️ MVU 前7条未齐全（第8条=状态栏HTML，前7条完成后才生成）。\n' +
         '当前缺失 ' + missing.length + ' 条：\n' + hint + '\n\n' +
-        '★这些缺失条目由写卡器从 [InitVar] 本地自动派生——但当前卡片还没有 [InitVar]初始变量 条目（变量设计的源头）。请先输出第2条 [InitVar]初始变量（YAML正文直接写在::: upsert块内），落盘后其余条目会自动补齐。';
+        '★这些条目由写卡器从 [InitVar] 本地自动派生，无需你逐条输出——若 [InitVar]初始变量 还不在卡上，先输出它（YAML正文直接写在::: upsert块内）；若已存在，把它的 YAML 原文重发一次 upsert 即可触发自动补齐。';
     }
     return '⚠️ 前7条未齐全（第8条=状态栏HTML，必须前7条完成后才生成）。\n' +
       '当前缺失 ' + missing.length + ' 条：\n' + hint + '\n\n' +
@@ -19244,6 +19246,17 @@ html,body{scrollbar-gutter:stable}
                 } catch (derr) { logWarn("_deriveEntryKeys", derr); }
               }
               if (!mergedEntry.secondary_keys) mergedEntry.secondary_keys = [];
+              // ★v192 清单化配套守卫（软性，不阻断）：旧正文较长而新正文大幅缩水 → 大概率是
+              //   AI 没先 read 就凭摘要改条目（v191 全文注入时无此风险）。合法精简不受影响
+              //   （只在缩到不足一半且旧文>200字时提示），AI 可下轮 read 后重发完整内容。
+              if (basePatch.content !== undefined && basePatch.content !== null) {
+                const _oldLen = String((oldEntry && oldEntry.content) || '').length;
+                const _newLen = String(basePatch.content || '').length;
+                if (_oldLen > 200 && _newLen > 0 && _newLen < _oldLen * 0.5) {
+                  changeLog._entryShrinkWarnings = changeLog._entryShrinkWarnings || [];
+                  changeLog._entryShrinkWarnings.push('⟦' + (mergedEntry.comment || op.key) + '⟧ 新正文仅' + _newLen + '字，不足原文(' + _oldLen + '字)一半——若是有意精简可忽略；若是修改该条，先 `_action: read` 该条目拿完整旧正文，再输出 旧内容+改动 的完整版（凭摘要改会丢内容）');
+                }
+              }
               cd.character_book.entries[foundIdx] = mergedEntry;
               modified = true;
               changeLog.updated++;
@@ -21926,6 +21939,11 @@ html,body{scrollbar-gutter:stable}
                   _execNotes.push('⚠️ 整体重写检测（内容已保存，但违反行级编辑协议）：\n' + _frwList +
                     '\n→ 记住：改动只有十几行/几十行时，用 _action: replace/insert/delete 只输出改动行，绝不重抄未变的代码（写卡器每轮都会检测）');
                 }
+                // ★v192 条目缩水守卫反馈（清单化配套）：新正文不足原文一半 → 提示先 read 再改（软性，有意精简可忽略）
+                if (crOps._entryShrinkWarnings && crOps._entryShrinkWarnings.length > 0) {
+                  const _eswList = crOps._entryShrinkWarnings.slice(0, 5).map(function(e, i) { return (i+1) + '. ' + e; }).join('\n');
+                  _execNotes.push('⚠️ 条目正文大幅缩水检测（内容已保存；若非有意精简请修正）：\n' + _eswList);
+                }
                 // ★v188 编辑回显（IDE式 verification）：行级编辑命中位置回显，AI 核对防"改错地方"
                 if (crOps._appliedLineEdits && crOps._appliedLineEdits.length > 0) {
                   const _aleList = crOps._appliedLineEdits.slice(0, 8).map(function(e, i) { return (i+1) + '. ' + e; }).join('\n');
@@ -22449,14 +22467,27 @@ html,body{scrollbar-gutter:stable}
           // 旧版把 execNotes 全文 + 结构化卡片快照整段注入下一步任务指令——与历史里的 execnotes 块
           // 双份重复、卡片状态与 qcBlock 三份重复。v192 拆分：
           //   observation       = execNotes 全文（兜底/向后兼容，auto-fix 等机制不受影响）
-          //   observationFailures = 失败/回滚/警告类 note（buildAgentDirective 只注入这份精简回执；
-          //                        成功明细对话历史 execnotes 块里已有，不再二次注入）
-          //   结构化卡片快照不再进观察（C 区 qcBlock 进度总览已覆盖同一信息）
+          //   observationFailures = 失败/回滚/警告类 note + validateCardData 的 error 级问题
+          //                        （★复查修复：校验告警通道不能随结构化快照一起消失——条目缺keys/
+          //                          MVU不完整这类错误仍须反馈给下一步修正；buildAgentDirective 只注入这份精简回执）
           if (_agentCtl) {
             _agentCtl.observation = _execNotes.join('\n');
             const _obsFailNotes = _execNotes.filter(function(n) {
               return /^\s*(❌|⚠️|⛔|🚨)/.test(String(n));
             });
+            // 校验错误级问题并入失败回执（最多5条，一行一条——状态/进度类信息 qcBlock 已覆盖，不重复）
+            // ⚠️排除 NAME_EMPTY/DESC_EMPTY 等"创作进度类"错误：它们是计划后续步骤的正常待办
+            //   （qcBlock 进度总览已呈现），每步都报会把 AI 从当前步骤拽去补世界观——破坏步骤边界
+            try {
+              const _valR = validateCardData(cardData);
+              if (_valR && _valR.valid === false && _valR.issues) {
+                _valR.issues.filter(function(x) {
+                  return x && x.level === 'error' && x.code !== 'NAME_EMPTY' && x.code !== 'DESC_EMPTY';
+                })
+                  .slice(0, 5)
+                  .forEach(function(x) { _obsFailNotes.push('🚨 卡片校验：' + x.msg); });
+              }
+            } catch (_vObsErr) { logWarn('obsValidate', _vObsErr); }
             _agentCtl.observationFailures = _obsFailNotes.join('\n');
           }
 
