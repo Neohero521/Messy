@@ -188,13 +188,16 @@
   //      [InitVar] 作为 AI 唯一创作物全文保留；脚本/正则 >60 行只注入真实行号结构大纲（◇行号可直接
   //      用于 _lines: 行级编辑），≤60 行小资产仍全文。read 工具升级为第一公民：新增世界书条目 read
   //      支持（::: upsert 条目名 + _action: read + _lines:），v190 的 read/search 安全线全部沿用。
-  //   3) ★★三区协议（前缀缓存友好）：A区=身份+SYS_PROMPT+行级编辑协议+正则编辑协议+SPEC_TOC目录
-  //      +输出协议提醒（会话内字节级冻结，附 hash 断言防易变内容混入）；B区=资产索引；C区=意图命中
-  //      的领域规范全文+状态+进度+画像+阶段提示+历史。意图门控翻动不再破坏前缀缓存（DeepSeek KV
-  //      cache 第0 token起一致才命中，命中≈1/10价）。v185"资产在场必注入"协议块随 A 区化删除。
-  //   4) ★★历史双轨+阈值折叠（OpenHands condenser 式）：会话>24条消息才触发；最近6轮保完整清洗
-  //      原文，更早的助手消息折叠为「完成摘要行+失败行(≤3行)」一行；用户消息永远原文；UI 显示不变。
-  //      不频繁折叠正是为了保住追加段缓存。
+  //   3) ★★三区协议（前缀缓存友好，按波动率升序排列）：A区=身份+SYS_PROMPT+行级编辑协议+正则编辑协议
+  //      +SPEC_TOC目录+输出协议提醒（会话内字节级冻结，附 hash 断言防易变内容混入）→ 意图命中的领域
+  //      规范全文（仅门控翻转时变，前置于B区——Agent循环中资产每步变而规范全程稳定，前置让每步都
+  //      命中"A+规范"最大稳定前缀）→ B区=资产索引 → C区=状态+进度+画像+阶段+历史（每步必变）。
+  //      意图门控翻动不再破坏 A 区缓存（DeepSeek KV cache 第0 token起一致才命中，命中≈1/10价）。
+  //      v185"资产在场必注入"协议块随 A 区化删除。
+  //   4) ★★历史双轨+阈值折叠（OpenHands condenser 式）：会话>24条消息才触发；保留最近14条完整清洗
+  //      原文（交互≈7轮；Agent循环≈14步——循环无用户消息，按位置截断两种场景都覆盖），更早的助手
+  //      消息折叠为「完成摘要行+失败行(≤3行)」一行；用户消息永远原文；UI 显示不变。不频繁折叠正是
+  //      为了保住追加段缓存。
   //   5) ★★回执化观察（消除双份冗余）：observation 拆分——全文（兼容）+ observationFailures（失败/
   //      回滚/警告类）；buildAgentDirective 只注入失败回执（成功明细历史 execnotes 块已有，不再二次
   //      注入）；结构化卡片快照不再进观察（C 区 qcBlock 已覆盖）——三份重复压成一份。
@@ -3122,7 +3125,7 @@ html,body{scrollbar-gutter:stable}
     '\n' +
     '【条目生成原则（★必须遵守）】\n' +
     '- 生成条目时，按需填写会影响该条目生效的字段（触发型必填 keys；常驻型必填 constant=true；需要自定义位置的写 position/depth）；其余保持默认即可，不必逐项过一遍。\n' +   // ★P2-7：不再强制 40 元素逐项决策
-    '- ★生成条目时，必须参考上方「当前角色卡已有内容」中 name/description/开场白/已有条目 的全部信息，让新条目的触发词（keys）、常驻或触发（constant）、插入位置（position）、扫描深度（depth）、触发逻辑（selectiveLogic）、分组（group）等元素与整体世界观协调一致，不冲突、不重复\n' +
+    '- ★生成条目时，必须参考上方「当前角色卡资产索引」中 name/description/开场白/已有条目 的信息（条目正文只有摘要——需要细节先 `_action: read`），让新条目的触发词（keys）、常驻或触发（constant）、插入位置（position）、扫描深度（depth）、触发逻辑（selectiveLogic）、分组（group）等元素与整体世界观协调一致，不冲突、不重复\n' +
     '- ★条目正文必须用YAML中文格式（见上方「条目正文格式规范」），结构化、易读\n' +
     '- 已有条目覆盖时必须完整输出旧content+改动部分\n' +
     '- 中文 matchWholeWords 必须 false\n' +
@@ -8636,7 +8639,7 @@ html,body{scrollbar-gutter:stable}
         if (mvuOnlyEntries.length > 0) {
           // InitVar = AI 唯一创作物（修改变量的依据+路径来源）→ 全文注入；其余派生条目只列名
           const initVarEntry = mvuOnlyEntries.filter(function(e) {
-            return /[initvar]/i.test(String(e.comment || ''));
+            return /\[initvar\]|<initvar>/i.test(String(e.comment || ''));
           })[0] || null;
           const otherMvu = mvuOnlyEntries.filter(function(e) { return e !== initVarEntry; });
           let mvuEntryText = '世界书条目·MVU变量系统（共' + mvuOnlyEntries.length + '条）：\n';
@@ -9147,7 +9150,7 @@ html,body{scrollbar-gutter:stable}
       ('\n\n=== 🤖 Agent自主执行模式（任务指令，最高优先级）===\n' + agentDirective) :
       (cardGenerated ?
         '\n\n=== 当前状态：角色卡主体内容已具备 ===\n用户可继续完善细节（角色卡/MVU/前端均可）。★提醒：即使主体已具备，也严禁一次性生成完整卡——每次只做用户明确要求的那一部分。' :
-        '\n\n=== 当前状态：创作进行中 ===\n★若用户本次描述笼统（"做张卡"/"看看缺啥"/"随便来点什么"），按上方「需求评估」四档判档：属档 2/3 则先输出「生成计划报告」让用户确认，禁止直接生成；用户确认后按报告清单分步执行。\n若用户本次已明确指出具体要做的一小块（如"先做世界观总纲"/"加个角色白娅"），则直接按意图路由执行该小块。\n【继续指令处理规则（★用户说"继续/接着来/往下做"时）】先扫一遍「当前角色卡已有内容」（顶部上下文）确定下一条缺口再动手——MVU 场景从最小缺失序号开始（当前已有第X条则从第X+1条起）；普通设定按上一次对话计划推进；**已完成的不重复输出**；若全部完成，明确告知"已完成全部计划内容"，并给 1-2 条可选的深化方向让用户挑，不擅自扩做。');
+        '\n\n=== 当前状态：创作进行中 ===\n★若用户本次描述笼统（"做张卡"/"看看缺啥"/"随便来点什么"），按上方「需求评估」四档判档：属档 2/3 则先输出「生成计划报告」让用户确认，禁止直接生成；用户确认后按报告清单分步执行。\n若用户本次已明确指出具体要做的一小块（如"先做世界观总纲"/"加个角色白娅"），则直接按意图路由执行该小块。\n【继续指令处理规则（★用户说"继续/接着来/往下做"时）】先扫一遍「当前角色卡资产索引」（顶部上下文）确定下一条缺口再动手——MVU 场景从最小缺失序号开始（当前已有第X条则从第X+1条起）；普通设定按上一次对话计划推进；**已完成的不重复输出**；若全部完成，明确告知"已完成全部计划内容"，并给 1-2 条可选的深化方向让用户挑，不擅自扩做。');
 
     // ========== 7. 组装系统提示词（Agent版：SYS_PROMPT完整版 + 按需领域规范 + 用户历史偏好画像）==========
     // 意图从单选改多选；writing 类规则无条件注入（见 buildPromptHint）
@@ -9169,7 +9172,7 @@ html,body{scrollbar-gutter:stable}
     const jsonReminder = '\n\n⚠️【输出格式提醒 - 每次回复必须遵守（Agent统一协议）】\n' +
       '1. 【条目增删改：只用:::操作块】禁止输出```json代码块。格式：::: upsert 条目名\n   keys=触发词1,触发词2\n   constant=false\n   position=4\n   depth=4\n   selectiveLogic=0\n   probability=100\n   order=100\n   match_whole_words=false\n\n   身份：……\n   外貌：……\n   :::\n' +
       '   ⚠️【禁止围栏包裹】操作块正文直接写，禁止用 ```yaml/```json/``` 包裹——围栏会被当作正文内容一起保存，预览与导出会对不上。MVU变量/条目正文一律裸写。\n' +
-      '   五种动作：upsert增改 / update只改 / delete删 / set顶层字段 / rename重命名；set可改 description/first_mes/alternate_greetings（多条用---分割）/name 等；改已有条目时先读「当前角色卡已有内容」拿完整旧content，upsert输出完整旧内容+改动，严禁只输出变化字段。\n' +
+      '   五种动作：upsert增改 / update只改 / delete删 / set顶层字段 / rename重命名；set可改 description/first_mes/alternate_greetings（多条用---分割）/name 等；改已有条目时先对它 `_action: read` 拿完整旧content（资产索引里只有摘要），upsert输出完整旧内容+改动，严禁只输出变化字段。\n' +
       '2. 【范围控制】用户**本次消息**里明确提到的多个内容可以同一次回复完成；但未提到的一律不做——"加白娅"就只加白娅，不加关系网/家族/装备。用户表述笼统（"做张卡""看看缺啥"）→ 先出大白话计划让用户确认；说"直接做/你看着办"则跳过。\n' +
       '3. 【语义优先】用户说话=要增删改！反问句/不满句=隐含修改需求，不要当聊天。改+增+删可混在同一回复；只处理用户「最新一条」消息的指令。\n' +
       '4. 【修改原则】用户明确要求改/删/重写时直接改；未提及时保持原内容不动。与旧内容冲突时按用户意图覆盖，不必机械地"只增不删"。条目标签自由命名，结合已有内容调整 keys/constant/position/depth 使其协调。\n' +
@@ -9177,7 +9180,7 @@ html,body{scrollbar-gutter:stable}
       '6. 【MVU双引擎自检】涉及MVU变量系统：你只输出第2条 [InitVar]初始变量（YAML正文直接写在::: upsert块内）——第1/3/4/5/6/7条由写卡器自动派生勿输出；第8条状态栏HTML在前7条就绪后用独立完整```html代码块输出（变量路径照抄你InitVar的YAML键名），严禁塞进操作块/JSON。⚠️豁免：单纯修改已存在MVU条目的字段值（改InitVar数值/文本）直接改第2条重发即可，第1/3条自动同步。\n' +
       '7. 【报告 vs 选项】报告=大白话讲清"要做什么+加哪几条+先做哪个"（60~300 字，5 段：🎯我想帮你做/🌍世界观或现状/📋打算加的条目/✏️要改的地方/🔧先做哪个，末尾附 <agent_plan>…</agent_plan> 2-8 步——没有它用户无法一键执行）；选项=<agent_options> 里的方案A/B/C，仅档 3 重大调整（需删/方向冲突/清空重做）使用；档 1/4 直接执行，不出报告不出选项。不要替用户做决定：用户没确认前一个字都不写进卡片。\n' +
       '8. 🎨【对话内容用 Markdown】鼓励使用 `## 标题`/`- ` 列表/`**加粗**` 增强可读性；避免 <details>/<summary>（写卡器会接管折叠）；有需要修改的内容时输出操作块/代码块，纯粹聊天/建议则正常回复即可。\n' +
-      '9. ✅【交付前自查（每个操作块/代码块输出前过一遍，防止写坏卡片）】①条目名：先对照「当前角色卡已有内容」确认不是错别字版重名（同名=覆盖更新，不同名=新增，想改名用 rename 动作）；②必填字段：upsert 至少带 keys 或 constant=true（触发型没 keys=永不生效）；③content：YAML 维度化（每行「维度：内容」），不是一大段散文；④MVU 路径：涉及变量时逐字核对 InitVar 的 YAML 键名（不得翻译/缩写）；⑤HTML 完整性：```html 代码块必须是完整文档（<head>样式脚本 + <body>带 id 的 DOM），严禁半截代码。自查不过的改好再输出，不要指望写卡器帮你修。\n' +
+      '9. ✅【交付前自查（每个操作块/代码块输出前过一遍，防止写坏卡片）】①条目名：先对照「当前角色卡资产索引」的⟦精确comment清单⟧确认不是错别字版重名（同名=覆盖更新，不同名=新增，想改名用 rename 动作）；②必填字段：upsert 至少带 keys 或 constant=true（触发型没 keys=永不生效）；③content：YAML 维度化（每行「维度：内容」），不是一大段散文；④MVU 路径：涉及变量时逐字核对 InitVar 的 YAML 键名（不得翻译/缩写）；⑤HTML 完整性：```html 代码块必须是完整文档（<head>样式脚本 + <body>带 id 的 DOM），严禁半截代码。自查不过的改好再输出，不要指望写卡器帮你修。\n' +
       '10. 📋【完成摘要（每次输出操作块/代码块后必须附，一行内讲清改动，让用户一眼核验）】格式：`✅ 本轮完成：新增【条目名A】【条目名B】；修改【条目名C】（改了哪个字段）；删除【条目名D】；顶层字段/HTML另列`。没有改动则写 `✅ 本轮无卡片改动（纯建议/对话）`。\n';
 
     // ========== ★v192 三区协议组装 ==========
@@ -9239,23 +9242,21 @@ html,body{scrollbar-gutter:stable}
       // 其他情况：不注入阶段提示，AI 按 agentIdentity 里的评估规则自行判断
     }
 
-    // ★v192 三区组装：A区(静态前缀·缓存命中) → B区(资产索引) → C区(动态尾：领域规范→状态→进度→画像→阶段→历史)
-    //   意图门控的领域规范全文（specBlock）后置到 C 区——翻动不再破坏 A 区缓存
-    let fullPrompt = sysPrompt + existingInfo + specBlock + stateInfo + qcBlock + _habitInjected + _agentStageBlock + '\n\n=== 对话历史（Agent单会话） ===\n';
+    // ★v192 三区组装（按波动率升序排列，最大化前缀缓存命中）：
+    //   A区 sysPrompt(会话内字节级冻结) → specBlock(意图命中的领域规范全文，仅意图/资产门控翻转时变)
+    //   → B区 existingInfo(资产索引，资产增删改时变) → C区动态尾(每步必变：任务指令/进度/画像/阶段/历史)
+    //   specBlock 前置于 B 区的理由：Agent 循环中资产每步都在变（B区必然失缓存），而领域规范只在
+    //   门控翻转时变（且整个循环内通常只翻转一次）——前置让 12~50 步循环的每一步都命中"A+规范"这段最大的稳定前缀。
+    let fullPrompt = sysPrompt + specBlock + existingInfo + stateInfo + qcBlock + _habitInjected + _agentStageBlock + '\n\n=== 对话历史（Agent单会话） ===\n';
 
     // ===== ★v192 历史双轨（双轨制：UI/对话流显示全量不变，只压缩"发给模型的历史"）=====
     // 阈值触发（OpenHands condenser 式：不频繁压缩正是为了保住追加段缓存）：
-    //   会话 > 24 条消息（≈12轮）才折叠；最近 6 轮（按用户消息计）保留完整清洗原文；
+    //   会话 > 24 条消息才折叠；保留最近 14 条完整清洗原文（交互聊天≈最近7轮；Agent循环≈最近14步
+    //   ——循环步没有用户消息，按"用户轮"计数会永不折叠，故按消息位置截断，两种场景都覆盖）；
     //   更早的助手消息压缩为「完成摘要行 + 历史失败行（若有，≤3行）」——用户消息永远保留原文。
     let _foldCutoffIdx = -1;
     if (tabMessages.length > 24) {
-      let _userSeen = 0;
-      for (let _fi = tabMessages.length - 1; _fi >= 0; _fi--) {
-        if (tabMessages[_fi] && tabMessages[_fi].role === 'user') {
-          _userSeen++;
-          if (_userSeen >= 6) { _foldCutoffIdx = _fi; break; }
-        }
-      }
+      _foldCutoffIdx = Math.max(0, tabMessages.length - 14);
     }
     tabMessages.forEach(function(m, idx) {
       const isLast = (idx === tabMessages.length - 1);
@@ -21274,7 +21275,7 @@ html,body{scrollbar-gutter:stable}
           // —— 找 [InitVar] 条目（不存在则不派生，也不清理已有派生物——保守策略）——
           let initVarEntry = null;
           for (let i = 0; i < entries.length; i++) {
-            if (/[initvar]/i.test(String(entries[i].comment || ''))) { initVarEntry = entries[i]; break; }
+            if (/\[initvar\]|<initvar>/i.test(String(entries[i].comment || ''))) { initVarEntry = entries[i]; break; }
           }
           if (!initVarEntry) return [];
           const initVarContent = String(initVarEntry.content || '');
@@ -21932,7 +21933,7 @@ html,body{scrollbar-gutter:stable}
                 }
                 // ★v190 只读工具反馈：read 区间原文 / search 全局命中（IDE 式"先看再改"）
                 if (crOps._readResults && crOps._readResults.length > 0) {
-                  _execNotes.push('📖 源码查看（_action: read，行号即 _lines: 可用的真实行号）：\n' + crOps._readResults.join('\n\n'));
+                  _execNotes.push('📖 read 查看（行号即 _lines: 可用的真实行号；条目/脚本/正则原文均可这样翻页）：\n' + crOps._readResults.join('\n\n'));
                 }
                 if (crOps._searchResults && crOps._searchResults.length > 0) {
                   _execNotes.push('🔍 全局搜索（_action: search，跨脚本/正则/世界书）：\n' + crOps._searchResults.join('\n\n'));
@@ -21977,7 +21978,7 @@ html,body{scrollbar-gutter:stable}
                 const _roCL = opResult.changeLog || {};
                 if (_roCL._readOnlyActions && ((_roCL._readResults && _roCL._readResults.length) || (_roCL._searchResults && _roCL._searchResults.length))) {
                   if (_roCL._readResults && _roCL._readResults.length > 0) {
-                    _execNotes.push('📖 源码查看（_action: read，行号即 _lines: 可用的真实行号）：\n' + _roCL._readResults.join('\n\n'));
+                    _execNotes.push('📖 read 查看（行号即 _lines: 可用的真实行号；条目/脚本/正则原文均可这样翻页）：\n' + _roCL._readResults.join('\n\n'));
                   }
                   if (_roCL._searchResults && _roCL._searchResults.length > 0) {
                     _execNotes.push('🔍 全局搜索（_action: search，跨脚本/正则/世界书）：\n' + _roCL._searchResults.join('\n\n'));
@@ -22115,7 +22116,7 @@ html,body{scrollbar-gutter:stable}
                     }
                     // ★v190 只读工具 + 回滚反馈（JSON/mergePartial 路径）
                     if (cr._readResults && cr._readResults.length > 0) {
-                      _execNotes.push('📖 源码查看（_action: read，行号即 _lines: 可用的真实行号）：\n' + cr._readResults.join('\n\n'));
+                      _execNotes.push('📖 read 查看（行号即 _lines: 可用的真实行号；条目/脚本/正则原文均可这样翻页）：\n' + cr._readResults.join('\n\n'));
                     }
                     if (cr._searchResults && cr._searchResults.length > 0) {
                       _execNotes.push('🔍 全局搜索（_action: search，跨脚本/正则/世界书）：\n' + cr._searchResults.join('\n\n'));
@@ -22134,7 +22135,7 @@ html,body{scrollbar-gutter:stable}
                 const _roCLJ = changeLogResult || {};
                 if (_roCLJ._readOnlyActions && ((_roCLJ._readResults && _roCLJ._readResults.length) || (_roCLJ._searchResults && _roCLJ._searchResults.length))) {
                   if (_roCLJ._readResults && _roCLJ._readResults.length > 0) {
-                    _execNotes.push('📖 源码查看（_action: read，行号即 _lines: 可用的真实行号）：\n' + _roCLJ._readResults.join('\n\n'));
+                    _execNotes.push('📖 read 查看（行号即 _lines: 可用的真实行号；条目/脚本/正则原文均可这样翻页）：\n' + _roCLJ._readResults.join('\n\n'));
                   }
                   if (_roCLJ._searchResults && _roCLJ._searchResults.length > 0) {
                     _execNotes.push('🔍 全局搜索（_action: search，跨脚本/正则/世界书）：\n' + _roCLJ._searchResults.join('\n\n'));
