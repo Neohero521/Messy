@@ -9268,11 +9268,25 @@ html,body{scrollbar-gutter:stable}
       // 发送给AI前全部清理掉，避免AI模仿格式、浪费token、产生混淆
       let msgContent = m.content || '';
       if (m.role === 'assistant') {
-        // ★v192 折叠区：cutoff 之前的助手消息 → 一行摘要（完成摘要 + 失败行）
+        // ★v192 折叠区：cutoff 之前的助手消息 → 一行摘要（完成摘要 + 失败段头及其明细，防"只留头不留因"）
         if (_foldCutoffIdx >= 0 && idx < _foldCutoffIdx) {
           const _origLines = String(msgContent || '').split(/\r?\n/);
           const _sumLine = (_origLines.filter(function(l) { return /✅\s*本轮完成/.test(l); })[0] || '').trim();
-          const _failLines = _origLines.filter(function(l) { return /^\s*(❌|⛔|🚨)/.test(l); }).slice(0, 3).map(function(l) { return l.trim(); });
+          // 小状态机：失败/回滚/语法段头（❌/⛔/🚨）保留，其后紧随的 '· ' 明细行最多带 3 条（空行/非明细行即停）
+          const _failLines = [];
+          let _keepDetail = 0;
+          for (let _fl = 0; _fl < _origLines.length; _fl++) {
+            const _ln = _origLines[_fl];
+            if (/^\s*(❌|⛔|🚨)/.test(_ln)) {
+              if (_failLines.length < 8) _failLines.push(_ln.trim());
+              _keepDetail = 3;
+            } else if (_keepDetail > 0 && /^\s*·/.test(_ln)) {
+              if (_failLines.length < 8) _failLines.push(_ln.trim());
+              _keepDetail--;
+            } else {
+              _keepDetail = 0;
+            }
+          }
           const _foldParts = [];
           _foldParts.push(_sumLine ? ('（历史轮·已折叠）' + _sumLine) : '（历史轮·已折叠：已应用修改）');
           if (_failLines.length) _foldParts.push(_failLines.join('\n'));
@@ -21125,9 +21139,9 @@ html,body{scrollbar-gutter:stable}
           injected.push('bundle.js');
         }
 
-        // === 2. 注入变量结构 zod 脚本（如果有 InitVar 条目）===
-        // ⚠️用户要求：变量结构脚本由 AI 在 MVU Tab 一条一条生成，不再自动注入
-        // （原逻辑已移除，AI 按 9.1.5 工作流生成）
+        // === 2. 变量结构 zod 脚本 ===
+        // ★v192 双引擎：zod 脚本/更新规则/变量列表/输出格式/强调/占位提醒改由 _autoDeriveMvuWorkflowEntries
+        //   从 [InitVar] 本地派生（InitVar 落盘后自动触发）——本函数只管 bundle.js 与正则1-5
 
         // === 4. 注入正则1：仅格式思维链（移除<Analysis>段）===
         const hasR1 = rxList.some(function(r) {
@@ -21271,9 +21285,10 @@ html,body{scrollbar-gutter:stable}
       //   第 1/3/4/5/6/7 条全部是 InitVar 的确定性派生物（生成函数早已存在，此前只走 UI 路径）。
       //   旧协议要求 AI"原样照抄固定模板"：输入端每轮注入模板 + 输出端每轮重抄 + 路径不一致重试，
       //   三份 token 全花在确定性内容上——现在 AI 只写 InitVar + 状态栏，其余 6 条落盘后自动派生。
-      // 派生策略：
-      //   · 第 1 条 zod 脚本 / 第 3 条更新规则：依赖 InitVar——内容与现存不同则同步重生成（含首次创建）；
-      //     路径一致性从"事后体检"变为"结构上不可能错"（schema 字段与更新规则路径同源于一份 InitVar 解析）。
+      // 派生策略（三态 + 哈希标记，保护定制不被打回模板）：
+      //   · 第 1 条 zod 脚本 / 第 3 条更新规则：缺失→创建；InitVar 相比上次派生真变了→同步重生成
+      //     （哈希标记 _mvuDerivedIvHash 判定；没变时不动——AI/用户行级编辑的定制版受保护；
+      //      同步块异常时不盖标记，下轮安全重试）；路径一致性从"事后体检"变为"结构上不可能错"。
       //   · 第 4/5/6/7 条固定模板：只在缺失时创建，已存在不覆盖（导出路径 normalizeVar* 仍会强制规范化）。
       // 返回派生/更新明细（用于 execnotes 回执），无变化返回 []。
       // ============================================================================
@@ -21346,6 +21361,7 @@ html,body{scrollbar-gutter:stable}
           };
 
           // —— 第 1 条：zod 变量结构脚本（缺失→创建；InitVar 变化→同步重生成；否则不动——保护定制）——
+          let _syncErr = false;   // ★#1/#3 同步块任一异常 → 不盖标记（下轮重试；内容已正确时重试为 no-op）
           try {
             const newSchema = generateMvuSchemaScript(initVarContent);
             if (newSchema && newSchema.trim()) {
@@ -21367,7 +21383,7 @@ html,body{scrollbar-gutter:stable}
                 }
               }
             }
-          } catch (_e1) { logWarn('derive.schema', _e1); }
+          } catch (_e1) { _syncErr = true; logWarn('derive.schema', _e1); }
 
           // —— 第 3 条：[mvu_update]变量更新规则（同第1条策略：缺失→创建；InitVar 变化→重生成；否则不动）——
           try {
@@ -21385,7 +21401,7 @@ html,body{scrollbar-gutter:stable}
                 }
               }
             }
-          } catch (_e2) { logWarn('derive.rule', _e2); }
+          } catch (_e2) { _syncErr = true; logWarn('derive.rule', _e2); }
 
           // —— 第 4/5/6/7 条：固定模板，只在缺失时创建 ——
           try {
@@ -21418,14 +21434,15 @@ html,body{scrollbar-gutter:stable}
           } catch (_e3) { logWarn('derive.fixed', _e3); }
 
           // —— 盖标记：记录"本次派生对应的 InitVar 哈希"（下轮据此判断 InitVar 是否真的变了）——
-          const _markerChanged = (_prevIvH !== _ivH);
+          // ⚠️#1/#3 同步块异常时不盖（防"内容陈旧但标记已更新"的静默失同步——下轮会安全重试）
+          const _markerChanged = (_prevIvH !== _ivH) && !_syncErr;
           if (_markerChanged) cardData.extensions._mvuDerivedIvHash = _ivH;
-          if (derived.length > 0 || _markerChanged) {
+          if (derived.length > 0) {
             renderPreview();
             saveToStorage();
-            if (derived.length > 0) {
-              try { showToast('🤖 MVU本地派生：' + derived.join('、'), 'success'); } catch (_) {}
-            }
+            try { showToast('🤖 MVU本地派生：' + derived.join('、'), 'success'); } catch (_) {}
+          } else if (_markerChanged) {
+            saveToStorage();   // 仅标记更新（首轮/变更轮无资产变化）——持久化标记，无需刷预览
           }
           return derived;
         } catch (_deriveErr) {
