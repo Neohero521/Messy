@@ -3238,7 +3238,7 @@ html,body{scrollbar-gutter:stable}
   // —— 酒馆命令表（runtime 意图门控：写运行时脚本/命令交互时才注入）——
   const SYS_CMD_REF =
     '【酒馆官方命令/字段一致性参照（生成内容必须能被酒馆直接操作，禁止臆造字段）】\n' +
-    '- 世界书条目字段与酒馆命令完全一致：/createentry（创建条目）、/setentryfield field=字段名（修改字段）、/findentry、/getentryfield（查询）；字段枚举同上方40个官方字段名，生成条目的 keys/content/position/constant/selective/probability/group/sticky/cooldown/delay/triggers 等必须与酒馆世界书编辑器完全一致。\n' +
+    '- 世界书条目字段与酒馆命令完全一致：/createentry（创建条目）、/setentryfield field=字段名（修改字段）、/findentry、/getentryfield（查询）；生成条目的 keys/content/position/constant/selective/probability/group/sticky/cooldown/delay/triggers 等字段名必须与酒馆世界书编辑器完全一致（标准40官方字段，禁止臆造）。\n' +
     '- 角色卡顶层字段与 /char-create、/char-update 参数一致：name、description、personality、scenario、firstMessage(first_mes)、messageExamples(mes_example)、creatorNotes(creator_notes)、systemPrompt(system_prompt)、postHistoryInstructions(post_history_instructions)、characterVersion、tags、world(世界书)、depthPrompt(深度提示，含depth/prompt/role)。\n' +
     '- 运行时命令（知识参照，写卡器内部不使用，生成的角色卡内容应与这些命令/宏协作兼容）：/setvar、/getvar、/addvar、/incvar、/decvar、/flushvar、/listvar 管理聊天变量；/gen、/genraw 生成文本；/inject 注入提示词；/trigger 触发生成。\n' ;
 
@@ -17874,9 +17874,12 @@ html,body{scrollbar-gutter:stable}
               showToast('⏹ Agent已停止（当前步骤成果已保留，剩余' + agentPlan.steps.filter(function(s) { return !s.done; }).length + '步可点「继续执行计划」）', 'info', 6000);
               break;
             }
-            // 重试信号：本步无产出（callAIChat未标记done）→ 循环回到同一步，带失败观察重试
+            // 重试信号：本步无产出或未过门禁 → 循环回到同一步，带失败观察重试
+            // ★复查修复：区分两种 retry——verifyMissing 非空 = 内容已落盘但没过质量门禁（≠空产出，
+            //   不能计入"连续两步没有产出"的误杀计数，否则两次门禁不过循环就被带错误提示杀掉）
+            const _verifyRetry = !!(r && r.control === 'retry' && r.verifyMissing && r.verifyMissing.length);
             if (r && r.control === 'retry') {
-              showToast('⚠️ 本步未通过验证/未产出，Agent将带修正项重试', 'warning', 5000);
+              showToast(_verifyRetry ? '⚠️ 本步产出未通过质量门禁，Agent将带修正项重做' : '⚠️ 本步未产出有效内容，Agent将结合执行结果重试', 'warning', 5000);
               try { UserProfile.recordAgentStepRetry(idx); } catch (_) {}
             }
             // ★v193 账本追加：每步一条（思考/产物/验证结果）——下一步注入最近3条，重开可续
@@ -17890,8 +17893,8 @@ html,body{scrollbar-gutter:stable}
               if (agentLedger.length > 30) agentLedger = agentLedger.slice(-30);
               saveToStorage();
             } catch (_lgErr) { logWarn('ledger', _lgErr); }
-            // 产出检测（防AI空转；skip是显式跳过，不算失败）
-            if (r && (r.produced || r.control === 'skip' || r.control === 'replan')) {
+            // 产出检测（防AI空转；skip是显式跳过不算失败；★门禁重试=已产出，只走停滞检测不进误杀计数）
+            if (r && (r.produced || r.control === 'skip' || r.control === 'replan' || _verifyRetry)) {
               agentConsecutiveFailures = 0;
             } else {
               agentConsecutiveFailures++;
@@ -21707,6 +21710,18 @@ html,body{scrollbar-gutter:stable}
         return fails;
       }
 
+      // ★v193 内容签名（快照/验证共用，单一实现防漂移）：长度+全字符哈希——
+      //   ★复查修复：早期版本用采样步长省 CPU（短文1/中文3/长文7），仿真发现 3 字符改动可整体落在
+      //   步长间隙（漏检→误判"无变化"→假 hardFail）。全字符哈希对 JS 是微秒级（5MB 内容≈20ms），
+      //   采样属过早优化——删除步长，盲区归零：任何单字符改动必改变哈希。
+      function _contentSig(str) {
+        const t = String(str || '');
+        const n = t.length;
+        let h = 0;
+        for (let i = 0; i < n; i++) { h = ((h * 31) + t.charCodeAt(i)) | 0; }
+        return n + ':' + h;
+      }
+
       // ============================================================================
       // ★★★ v193 步骤级质量门禁（plan-act-observe 的 verify 环）：验证通过才算完成 ★★★
       // ----------------------------------------------------------------------------
@@ -21730,21 +21745,30 @@ html,body{scrollbar-gutter:stable}
           const entries = (cardData.character_book || {}).entries || [];
           const thScripts = ((cardData.extensions || {}).tavern_helper || {}).scripts || [];
           const rx = (cardData.extensions || {}).regex_scripts || [];
-          // 变更检测（对比 before 快照）
+          // 变更检测（对比 before 快照；★复查修复：签名=长度+自适应采样哈希——纯长度签名会漏检"同长度编辑"）
           const newEntries = [];
           const changedEntries = [];
           entries.forEach(function(e) {
             if (!e) return;
-            const L = String(e.content || '').length;
+            const sg = _contentSig(e.content);
             const prev = beforeSnap.entryLen[String(e.comment || '')];
             if (prev === undefined) newEntries.push(e);
-            else if (prev !== L) changedEntries.push(e);
+            else if (prev !== sg) changedEntries.push(e);
           });
-          const scriptsChanged = (thScripts.map(function(s) { return String((s && s.content) || '').length; }).join(',') !== beforeSnap.scriptSig);
-          const rxChanged = (rx.map(function(r) { return String((r && r.replaceString) || '').length + ':' + String((r && r.findRegex) || '').length; }).join(',') !== beforeSnap.rxSig);
+          const scriptsChanged = (thScripts.map(function(s) { return _contentSig((s && s.content) || ''); }).join(',') !== beforeSnap.scriptSig);
+          const rxChanged = (rx.map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',') !== beforeSnap.rxSig);
           const anyChange = newEntries.length > 0 || changedEntries.length > 0 || scriptsChanged || rxChanged;
-          // 1. 语法/结构硬伤（既有体检通道的 🚨）
-          if ((execNotes || []).some(function(n) { return /^\s*🚨/.test(String(n)); })) {
+          // —— 步骤语义分类 ——
+          const isEntryStep = /条目|角色|NPC|设定|人物|地点|势力|事件|世界书|开场白|世界观/.test(desc);
+          const isScriptStep = /脚本|功能|监听|控制器|处理器/.test(desc) && !/状态栏|界面|面板|美化/.test(desc);
+          const isHtmlStep = /状态栏|界面|面板|美化|HTML/i.test(desc);
+          const isVarStep = /initvar|初始变量|变量设计|变量系统/i.test(desc);
+          // ★复查修复：检查/体检类步骤（"检查XX设定"）没有变更本来就是正常结果——
+          //   不做"预期有变化"检查，否则体检步骤必然 hardFail 卡死循环
+          const isInspectStep = /检查|体检|审阅|盘点|查看|分析|评估|确认/.test(desc) && !/生成|新增|修改|添加|创建|补全|重写|修复/.test(desc);
+          // 1. 语法/结构硬伤（★复查修复：只对代码类步骤生效——历史遗留的🚨（AI正在修的旧账）
+          //    不应阻断无关的条目/检查步骤；代码步骤保留硬门禁，与"🚨必须优先修复"协议一致）
+          if ((isScriptStep || isHtmlStep) && (execNotes || []).some(function(n) { return /^\s*🚨/.test(String(n)); })) {
             missing.push('本轮存在🚨语法/结构错误（见上方执行结果明细）');
           }
           // 2. 占位符 + 空正文 + 偏短（新增/变更条目）
@@ -21759,14 +21783,12 @@ html,body{scrollbar-gutter:stable}
             if (c.length < 50 && !isMVUEntry(nm, c)) warns.push('条目「' + nm + '」正文偏短（' + c.length + '字）');
             else if ((c.match(/：/g) || []).length < 2 && c.length > 80 && !isMVUEntry(nm, c)) warns.push('条目「' + nm + '」结构化不足（「维度：内容」行太少）');
           });
-          // 3. 按步骤语义分派的"预期产物"检查
-          const isEntryStep = /条目|角色|NPC|设定|人物|地点|势力|事件|世界书|开场白|世界观/.test(desc);
-          const isScriptStep = /脚本|功能|监听|控制器|处理器/.test(desc) && !/状态栏|界面|面板|美化/.test(desc);
-          const isHtmlStep = /状态栏|界面|面板|美化|HTML/i.test(desc);
-          const isVarStep = /initvar|初始变量|变量设计|变量系统/i.test(desc);
-          if (isEntryStep && !anyChange) missing.push('本步预期新增/修改世界书条目，但卡片没有任何条目变化');
-          if (isScriptStep && !scriptsChanged && newEntries.length === 0) missing.push('本步预期修改/新增脚本，但脚本没有任何变化');
-          if (isHtmlStep && !rxChanged) missing.push('本步预期生成/修改界面HTML（正则 replaceString），但正则没有任何变化');
+          // 3. 按步骤语义分派的"预期产物"检查（isInspectStep 豁免——检查类步骤无变更是正常结果）
+          if (!isInspectStep) {
+            if (isEntryStep && !anyChange) missing.push('本步预期新增/修改世界书条目，但卡片没有任何条目变化');
+            if (isScriptStep && !scriptsChanged && newEntries.length === 0) missing.push('本步预期修改/新增脚本，但脚本没有任何变化');
+            if (isHtmlStep && !rxChanged) missing.push('本步预期生成/修改界面HTML（正则 replaceString），但正则没有任何变化');
+          }
           if (isVarStep) {
             const iv = entries.filter(function(e) { return /\[initvar\]|<initvar>/i.test(String((e && e.comment) || '')); })[0];
             if (iv && (newEntries.indexOf(iv) >= 0 || changedEntries.indexOf(iv) >= 0)) {
@@ -21798,16 +21820,16 @@ html,body{scrollbar-gutter:stable}
           _aiChatQueueMode = true;
           _aiChatNotesQueue = [];
           const curTabMessages = getCurrentMessages();
-          // ★v193 步骤前快照（agentStep）：供 _verifyStepOutcome 对比本轮新增/变更（条目长度表+脚本/正则签名）
+          // ★v193 步骤前快照（agentStep）：供 _verifyStepOutcome 对比本轮新增/变更（签名=_contentSig 共用）
           let _beforeSnap = null;
           if (opts.agentStep) {
             try {
               _beforeSnap = { entryLen: {}, scriptSig: '', rxSig: '' };
               ((cardData.character_book || {}).entries || []).forEach(function(e) {
-                if (e) _beforeSnap.entryLen[String(e.comment || '')] = String(e.content || '').length;
+                if (e) _beforeSnap.entryLen[String(e.comment || '')] = _contentSig(e.content);
               });
-              _beforeSnap.scriptSig = (((cardData.extensions || {}).tavern_helper || {}).scripts || []).map(function(s) { return String((s && s.content) || '').length; }).join(',');
-              _beforeSnap.rxSig = ((cardData.extensions || {}).regex_scripts || []).map(function(r) { return String((r && r.replaceString) || '').length + ':' + String((r && r.findRegex) || '').length; }).join(',');
+              _beforeSnap.scriptSig = (((cardData.extensions || {}).tavern_helper || {}).scripts || []).map(function(s) { return _contentSig((s && s.content) || ''); }).join(',');
+              _beforeSnap.rxSig = ((cardData.extensions || {}).regex_scripts || []).map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',');
             } catch (_bsErr) { _beforeSnap = null; logWarn('beforeSnap', _bsErr); }
           }
           // ===== 执行边界锁：上一条AI回复如果是报告，且用户本轮回复了"确认"，注入报告作为执行契约 =====
