@@ -17768,7 +17768,29 @@ html,body{scrollbar-gutter:stable}
         if (agentLastObservation && agentLastObservation.trim()) {
           d += '【上一轮执行结果·需修正项（成功明细见对话历史，勿重复已成功改动）】\n' + agentLastObservation + '\n\n';
         }
-        d += '▶【当前任务】执行第' + (stepIdx + 1) + '步：「' + agentPlan.steps[stepIdx].desc + '」\n\n';
+        d += '▶【当前任务】';
+        // ★实测升级（微批执行）：连续同类小步骤合并为一次回复——解决"一条一条输出"碎片化
+        //   （拆分保证每步可独立验证，批量让一次回复产出多条，消息数与AI调用次数双降）
+        const _batchIdxs = (Array.isArray(arguments[1]) && arguments[1].length) ? arguments[1] : [stepIdx];
+        if (_batchIdxs.length > 1) {
+          d += '本次回复**一次性**完成以下 ' + _batchIdxs.length + ' 步（依次输出每步的操作块，一个回复内全部给完，禁止只做第一条）：\n';
+          _batchIdxs.forEach(function(bi, i) {
+            d += '  ' + (i + 1) + '. 第' + (bi + 1) + '步：「' + (agentPlan.steps[bi] ? agentPlan.steps[bi].desc : '') + '」\n';
+          });
+          d += '\n';
+        } else {
+          d += '执行第' + (stepIdx + 1) + '步：「' + agentPlan.steps[stepIdx].desc + '」\n\n';
+        }
+        // ★实测修复（重做风暴）：同一小步打回 ≥2 次时升级指令——明确要求换方法而非复读（实测 AI 连写 6 遍
+        //   first_mes，因为打回话术始终相同）；≥3 次由 agentLoop 自动跳过转人工，不无限烧
+        const _rt = (agentPlan.steps[stepIdx] && agentPlan.steps[stepIdx]._retries) || 0;
+        if (_rt >= 2) {
+          d += '⚠️【重试升级】本步已重试 ' + _rt + ' 次仍未通过验证——**禁止重复上一轮的输出方式**。\n' +
+            '请逐字比对【上一轮执行结果·需修正项】与本步要求，找出"你产出的形式"与"门禁要求的形式"的差异后再换一种做法：\n' +
+            '· 门禁要世界书条目 → 用 `::: upsert <自定义条目>名称`；要顶层字段 → 用 `::: set 字段名`\n' +
+            '· 锚点/行号不命中 → 先 `_action: read` 看真实原文再改\n' +
+            '· 若你判断本步要求与用户需求矛盾，输出 <agent:skip> 并说明原因\n\n';
+        }
         // ★v193 轻思考（plan-act-observe 内核）：每步先一行思考再动手——harness 会收进账本
         d += '💭【本步思考】回复**第一行**必须输出（≤50字一行，格式固定）：【本步思考】要做什么｜依据（用户要求/读到的哪条资产）｜怎么算完成\n';
         // ★v193 产出预算（按步骤类型给预期规模，防"20字条目也算完成"的粗制滥造）
@@ -17788,11 +17810,11 @@ html,body{scrollbar-gutter:stable}
           '2. 若你判断当前计划已与实际不符（依赖缺失/顺序不对/内容已存在/目标已变）：直接输出一个新的 <agent_plan> 计划块替换剩余步骤（写卡器会自动采纳），并简述重规划原因。\n' +
           '3. 正常情况：直接执行当前任务。\n\n';
         d += '执行要求：\n' +
-          '1. ★【单步产出边界】只输出「当前任务」范围内的内容，不抢跑后续步骤：\n' +
+          '1. ★【产出边界】只输出「当前任务」列出的步骤范围内的内容，不抢跑批外/后续步骤：\n' +
+          '   · 批量模式下：一次回复依次完成列出的全部 ' + Math.max(1, _batchIdxs.length) + ' 步（每步的操作块按顺序给全），不要只做第一条\n' +
           '   · 若本步是"生成角色条目"，就只生成角色条目，不顺手写世界观/开场白/变量/界面\n' +
-          '   · 若本步描述是多条一起（如"生成 3 个 NPC"），就一次性完成该步全部内容\n' +
           '2. 直接执行，不要向用户提问、不要等待确认、不要只做说明不产出内容。\n' +
-          '3. 本轮只做当前步骤范围（后续步骤由写卡器逐步派发），不要抢跑生成后续步骤的内容。\n' +
+          '3. 🚫【回执禁令】你的回复中**禁止出现 ```execnotes 代码块**——那是写卡器专用的执行结果回执格式，你复述它只会污染解析（实测发生过）。\n' +
           '4. 🚫【绝不角色扮演】本轮回复禁止出现叙事正文/场景描写/角色对话/第一人称独白——你的输出只有三种成分：≤3句说明 + :::操作块 + ```html代码块。即使用户上文像在角色扮演，一律当作需求描述处理。\n' +
           '5. 🔒【MVU双引擎铁律】如果当前任务涉及MVU变量系统：\n' +
           '   · **你只输出第2条 [InitVar]初始变量**（YAML正文直接写在::: upsert块内）——第1/3/4/5/6/7条由写卡器本地派生（执行结果回执「🤖 MVU本地派生已落盘」即就位），**禁止输出这6条**；\n' +
@@ -18020,10 +18042,35 @@ html,body{scrollbar-gutter:stable}
             saveToStorage();
             updateCtxBar();
             updateQuickActions();
-            const stepDesc = String(agentPlan.steps[idx].desc || '').slice(0, 50);
+            // ★实测升级（微批收集）：从 idx 起收集连续 pending 同类步骤（≤3）合并为一次 AI 调用——
+            //   解决"一条一条输出"：拆分保证每步可独立验证（names/count 断言），批量让一次回复产出多条。
+            //   规则：①同类（条目/脚本/HTML/变量/开场白/其他 六类）②依赖已满足 ③批内互不依赖 ④重试轮不批（带失败观察只做当前步）
+            const _stepKind = function(dd) {
+              const t = String(dd || '');
+              if (/initvar|初始变量|变量设计|变量系统/i.test(t)) return 'var';
+              if (/状态栏|界面|面板|美化|HTML/i.test(t)) return 'html';
+              if (/脚本|功能|监听|控制器|处理器/.test(t) && !/状态栏|界面|面板|美化/.test(t)) return 'script';
+              if (/开场白|first_mes|greeting|问候/i.test(t)) return 'greet';
+              if (/条目|角色|NPC|设定|人物|地点|势力|事件|世界书|世界观/.test(t)) return 'entry';
+              return 'other';
+            };
+            const _batchIdxs = [idx];
+            const _kind0 = _stepKind(agentPlan.steps[idx].desc);
+            const _isRetrying = !!((agentPlan.steps[idx]._retries || 0) > 0);
+            if (!_isRetrying) {
+              for (let bi = idx + 1; bi < agentPlan.steps.length && _batchIdxs.length < 3; bi++) {
+                const bs = agentPlan.steps[bi];
+                if (!bs || bs.done) break;                       // 只批连续 pending（中断即停）
+                if (_stepKind(bs.desc) !== _kind0) break;         // 跨资产类型不合并
+                if (bs._retries) break;                           // 有失败历史的步不批（单独处理）
+                if (bs.dependsOn && bs.dependsOn.some(function(di) { return di >= idx && !agentPlan.steps[di].done; })) break;  // 依赖批内未完成步骤的不批
+                _batchIdxs.push(bi);
+              }
+            }
+            const stepDesc = String(agentPlan.steps[idx].desc || '').slice(0, 50) + (_batchIdxs.length > 1 ? '（+' + (_batchIdxs.length - 1) + '步合并执行）' : '');
             pushWorkToast('Agent执行 ' + (idx + 1) + '/' + agentPlan.steps.length + '：' + stepDesc, 'working');
-            // 执行单步（callAIChat内含完整应用链路：操作块/JSON/状态栏/前端HTML自动提取保存）
-            const r = await callAIChat({ agentStep: true, stepIdx: idx });
+            // 执行（callAIChat内含完整应用链路：操作块/JSON/状态栏/前端HTML自动提取保存）
+            const r = await callAIChat({ agentStep: true, stepIdx: idx, batchIdxs: _batchIdxs });
             // ReAct：保存本步执行结果观察，作为下一步任务指令的反馈
             // ★v192 回执化：优先存失败回执（精简）；成功明细历史 execnotes 块已有，不重复注入
             if (r && (r.observationFailures || r.observation)) {
@@ -18054,6 +18101,24 @@ html,body{scrollbar-gutter:stable}
             //   不能计入"连续两步没有产出"的误杀计数，否则两次门禁不过循环就被带错误提示杀掉）
             const _verifyRetry = !!(r && r.control === 'retry' && r.verifyMissing && r.verifyMissing.length);
             if (r && r.control === 'retry') {
+              // ★实测修复（重做风暴）：重试计数 + 3 次上限——实测同一小步被打回 6 次（AI 复读 first_mes），
+              //   旧逻辑 retry 不进任何停滞统计（停滞只统计 next+软失败），也无每步上限 → 无限烧。
+              //   现在：≥2 次触发指令升级（见 buildAgentDirective），≥3 次自动跳过该步转人工，绝不无限重试。
+              const _rtStep = agentPlan.steps[idx];
+              if (_rtStep) _rtStep._retries = (_rtStep._retries || 0) + 1;
+              if (_rtStep && _rtStep._retries >= 3) {
+                _rtStep.done = true;
+                _rtStep.skipped = true;
+                addAssistantMsg('⚠️ 第' + (idx + 1) + '步「' + String(_rtStep.desc || '').slice(0, 40) + '」连续 3 次未通过验证，已自动跳过（其余步骤继续）。\n' +
+                  '可能原因：步骤描述与期望产物形式不匹配。可在对话中说明这一步的具体要求（要条目还是要字段/脚本），我会单独重做。');
+                try {
+                  agentLedger.push({ step: idx + 1, think: '', act: String(_rtStep.desc || '').slice(0, 50), res: '⛔ 3次未过门禁→自动跳过转人工', verified: false });
+                  if (agentLedger.length > 30) agentLedger = agentLedger.slice(-30);
+                } catch (_) {}
+                saveToStorage();
+                showToast('⛔ 第' + (idx + 1) + '步连续3次未过验证，已跳过', 'warning', 6000);
+                continue;   // 跳到下一步（不进入下方 retry 分支的常规处理）
+              }
               showToast(_verifyRetry ? '⚠️ 本步产出未通过质量门禁，Agent将带修正项重做' : '⚠️ 本步未产出有效内容，Agent将结合执行结果重试', 'warning', 5000);
               try { UserProfile.recordAgentStepRetry(idx); } catch (_) {}
             }
@@ -21982,13 +22047,23 @@ html,body{scrollbar-gutter:stable}
           });
           const anyChange = newEntries.length > 0 || changedEntries.length > 0 || scriptsChanged || rxChanged;
           // —— 步骤语义分类 ——
-          const isEntryStep = /条目|角色|NPC|设定|人物|地点|势力|事件|世界书|开场白|世界观/.test(desc);
+          // ★实测修复（聊天记录实证）：isEntryStep 去掉「开场白」——开场白的合法产物是 ::: set first_mes
+          //   （顶层字段操作），不是世界书条目；旧关键词表导致"写开场白"步骤被要求"必须有条目变化"
+          const isEntryStep = /条目|角色|NPC|设定|人物|地点|势力|事件|世界书|世界观/.test(desc) && !/开场白|first_mes|greeting/i.test(desc);
+          const isGreetingStep = /开场白|first_mes|greeting|问候/i.test(desc);
           const isScriptStep = /脚本|功能|监听|控制器|处理器/.test(desc) && !/状态栏|界面|面板|美化/.test(desc);
           const isHtmlStep = /状态栏|界面|面板|美化|HTML/i.test(desc);
           const isVarStep = /initvar|初始变量|变量设计|变量系统/i.test(desc);
           // ★复查修复：检查/体检类步骤（"检查XX设定"）没有变更本来就是正常结果——
           //   不做"预期有变化"检查，否则体检步骤必然 hardFail 卡死循环
           const isInspectStep = /检查|体检|审阅|盘点|查看|分析|评估|确认/.test(desc) && !/生成|新增|修改|添加|创建|补全|重写|修复/.test(desc);
+          // ★实测修复：顶层字段变化检测（写开场白=改 first_mes/alternate_greetings，旧验证器完全看不见）
+          let fieldsChanged = false;
+          if (beforeSnap.fieldSig) {
+            fieldsChanged = ['name', 'description', 'first_mes', 'personality', 'scenario'].some(function(f) {
+              return _contentSig(cardData[f]) !== beforeSnap.fieldSig[f];
+            }) || (_contentSig((Array.isArray(cardData.alternate_greetings) ? cardData.alternate_greetings : []).join('\u0001')) !== beforeSnap.fieldSig.alternate_greetings);
+          }
           // 1. 语法/结构硬伤（★复查修复：只对代码类步骤生效——历史遗留的🚨（AI正在修的旧账）
           //    不应阻断无关的条目/检查步骤；代码步骤保留硬门禁，与"🚨必须优先修复"协议一致）
           if ((isScriptStep || isHtmlStep) && (execNotes || []).some(function(n) { return /^\s*🚨/.test(String(n)); })) {
@@ -22009,6 +22084,9 @@ html,body{scrollbar-gutter:stable}
           // 3. 按步骤语义分派的"预期产物"检查（isInspectStep 豁免——检查类步骤无变更是正常结果）
           if (!isInspectStep) {
             if (isEntryStep && !anyChange) missing.push('本步预期新增/修改世界书条目，但卡片没有任何条目变化');
+            // ★实测修复：开场白步骤的预期产物=开场白字段（first_mes/alternate_greetings）变化——
+            //   实测中 AI 用 ::: set first_mes 完全合法，却被"要求条目变化"打了 6 遍
+            if (isGreetingStep && !fieldsChanged && !anyChange) missing.push('本步预期写入开场白（::: set first_mes 或 alternate_greetings），但开场白字段没有任何变化');
             if (isScriptStep && !scriptsChanged && newEntries.length === 0) missing.push('本步预期修改/新增脚本，但脚本没有任何变化');
             if (isHtmlStep && !rxChanged) missing.push('本步预期生成/修改界面HTML（正则 replaceString），但正则没有任何变化');
           }
@@ -22020,7 +22098,13 @@ html,body{scrollbar-gutter:stable}
           }
           // 4. ★v194 语义断言校验（_parseStepAssertions）：AI 必须"真做到步骤说的每一条"才算过门禁
           //    ——数量（要求3条实际1条）/ 名单（缺哪个角色）/ 字段值（name 是否真改了）/ HTML 内容片段
-          const _asserts = _parseStepAssertions(desc);
+          //    ★实测修复：开场白类步骤豁免 count/names 断言——「生成开场白「起床撞见」」里的"起床撞见"是
+          //    场景名而非条目名，写 first_mes 是正确产物，但 names 断言只在条目 comment 里找 → 永远判缺
+          //    → 实测 6 连败重做风暴。豁免条件：开场白步骤且 desc 不含"条目"（含"条目"=真的要条目）。
+          const _asserts = _parseStepAssertions(desc).filter(function(a) {
+            if ((a.type === 'count' || a.type === 'names') && isGreetingStep && !/条目/.test(desc)) return false;
+            return true;
+          });
           _asserts.forEach(function(a) {
             if (a.type === 'count') {
               const _gotN = newEntries.length;
@@ -22077,12 +22161,19 @@ html,body{scrollbar-gutter:stable}
           let _beforeSnap = null;
           if (opts.agentStep) {
             try {
-              _beforeSnap = { entryLen: {}, scriptSig: '', rxSig: '' };
+              _beforeSnap = { entryLen: {}, scriptSig: '', rxSig: '', fieldSig: {} };
               ((cardData.character_book || {}).entries || []).forEach(function(e) {
                 if (e) _beforeSnap.entryLen[String(e.comment || '')] = _contentSig(e.content);
               });
               _beforeSnap.scriptSig = (((cardData.extensions || {}).tavern_helper || {}).scripts || []).map(function(s) { return _contentSig((s && s.content) || ''); }).join(',');
               _beforeSnap.rxSig = ((cardData.extensions || {}).regex_scripts || []).map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',');
+              // ★实测修复（聊天记录实证）：顶层字段签名纳入快照——「写开场白」步骤的合法产物是
+              //   ::: set first_mes（字段操作），旧快照只盯条目/脚本/正则 → 字段写入不在验证视野，
+              //   names 断言永远判缺 → AI 连写 6 遍 first_mes 被打回 6 次（重做风暴）
+              ['name', 'description', 'first_mes', 'personality', 'scenario'].forEach(function(f) {
+                _beforeSnap.fieldSig[f] = _contentSig(cardData[f]);
+              });
+              _beforeSnap.fieldSig.alternate_greetings = _contentSig((Array.isArray(cardData.alternate_greetings) ? cardData.alternate_greetings : []).join('\u0001'));
               const _st0 = agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx];
               if (_st0 && !_st0._snap0) _st0._snap0 = _beforeSnap;
             } catch (_bsErr) { _beforeSnap = null; logWarn('beforeSnap', _bsErr); }
@@ -22129,7 +22220,7 @@ html,body{scrollbar-gutter:stable}
           } catch (_ecErr) { logWarn('execContract', _ecErr); }
           // ========== Agent步骤模式：注入任务指令（计划总览+当前步骤+控制标记协议）；普通模式走统一提示词 ==========
           let prompt = opts.agentStep ?
-            buildPrompt(cardData, cardGenerated, curTabMessages, buildAgentDirective(opts.stepIdx)) :
+            buildPrompt(cardData, cardGenerated, curTabMessages, buildAgentDirective(opts.stepIdx, opts.batchIdxs)) :
             buildPrompt(cardData, cardGenerated, curTabMessages);
           // 注入全局人设（AI/用户人设，从 localStorage 读取，头像菜单可编辑）
           const _personaHdr = getPersonaHeader();
@@ -22160,6 +22251,11 @@ html,body{scrollbar-gutter:stable}
             return opts.agentStep ? { produced: false, control: 'skip', observation: '用户主动中止' } : null;
           }
           aiResponse = cleanAIReply(aiResponse);
+          // ★实测修复（回执回显）：剥离 AI 复读的 ```execnotes 块——那是写卡器的执行结果回执格式，
+          //   AI 模仿输出会污染解析与后续历史（实测发生过整段回执被复读后紧跟操作块）
+          try {
+            aiResponse = aiResponse.replace(/```execnotes[\s\S]*?```/gi, '').replace(/```\s*【执行结果】[\s\S]*?```/g, '');
+          } catch (_) {}
           // ===== 中止检查点2：响应清理后再次确认（极少数异步竞态下兜底）=====
           if (_abortRequested) {
             removeTyping();
@@ -22855,16 +22951,39 @@ html,body{scrollbar-gutter:stable}
             if (_tm) _stepThink = _tm[1].trim().slice(0, 120);
           }
           // ★v193 质量门禁：验证通过才算完成（hardFail→retry 本步；软提示→进账本不阻断）
+          // ★实测升级（微批）：opts.batchIdxs = 本次回复覆盖的多个计划步骤——逐步跑断言，
+          //   通过的各自标 done，失败的打回（带"第N步"前缀）；拆分保证验证粒度，批量提升产出效率
           let _stepVerify = null;
+          const _batchIdxs = (opts.agentStep && Array.isArray(opts.batchIdxs) && opts.batchIdxs.length) ? opts.batchIdxs : (typeof opts.stepIdx === 'number' ? [opts.stepIdx] : []);
+          const _batchResults = [];   // {idx, desc, verify}
           if (opts.agentStep) {
             try {
-              const _vStep = (agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx]) ? agentPlan.steps[opts.stepIdx] : null;
-              const _vd = _vStep ? _vStep.desc : '';
-              // ★复查修复：验证基准 = 步骤首次快照（_snap0）——重试轮断言按"步骤开始以来"累计判定，
-              //   首试已产出的条目在重试轮仍计为新增（否则数量/名单断言永远凑不齐 → 假死循环）
-              _stepVerify = _verifyStepOutcome(_vd, (_vStep && _vStep._snap0) || _beforeSnap, _execNotes);
+              const _vStep0 = (agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx]) ? agentPlan.steps[opts.stepIdx] : null;
+              const _snapBase = (_vStep0 && _vStep0._snap0) || _beforeSnap;   // 批量共用起点快照（=首步 _snap0）
+              let _mergedHard = false;
+              const _mergedMissing = [];
+              const _mergedWarns = [];
+              _batchIdxs.forEach(function(bi) {
+                const _bs = (agentPlan && agentPlan.steps && agentPlan.steps[bi]) ? agentPlan.steps[bi] : null;
+                if (!_bs) return;
+                const _bv = _verifyStepOutcome(String(_bs.desc || ''), _snapBase, _execNotes);
+                _batchResults.push({ idx: bi, desc: String(_bs.desc || ''), verify: _bv });
+                if (_bv.hardFail) {
+                  _mergedHard = true;
+                  _mergedMissing.push('第' + (bi + 1) + '步：' + _bv.missing.join('；'));
+                } else if (!_bv.pass) {
+                  _mergedMissing.push('第' + (bi + 1) + '步(软)：' + _bv.missing.join('；'));
+                }
+                if (_bv.warns && _bv.warns.length) _mergedWarns.push('第' + (bi + 1) + '步：' + _bv.warns.join('；'));
+              });
+              _stepVerify = {
+                pass: !_mergedHard && _mergedMissing.length === 0,
+                hardFail: _mergedHard,
+                missing: _mergedMissing.slice(0, 4),
+                warns: _mergedWarns.slice(0, 3)
+              };
               if (_stepVerify.hardFail) {
-                _execNotes.push('🚨 步骤验证未通过（本步不算完成，按下列修正项重做本步）：' + _stepVerify.missing.join('；'));
+                _execNotes.push('🚨 步骤验证未通过（本批未过的步骤不算完成，按下列修正项重做）：' + _stepVerify.missing.join('；'));
               } else if (!_stepVerify.pass) {
                 _execNotes.push('⚠️ 步骤质量提示（内容已保存，下轮可顺手优化）：' + _stepVerify.missing.join('；'));
               }
@@ -22891,20 +23010,41 @@ html,body{scrollbar-gutter:stable}
               updateCtxBar();
               _agentCtl = { produced: true, control: 'replan', think: _stepThink, actionSummary: _actSum };
             } else if (_stepProduced && _stepVerify && _stepVerify.hardFail) {
-              // —— ★v193 质量门禁拦截：有产出但验证硬伤（占位符/空正文/语法错/预期产物缺失）→ 不标完成，重试本步 ——
+              // —— ★v193 质量门禁拦截：有产出但验证硬伤 → 不标完成，重试 ——
+              // ★实测升级（微批）：批内通过的步骤照常标 done（成果保留），只打回未过的步骤；
+              //   retryStepIdx = 批内第一个 hardFail 步（agentLoop findIndex 自然落回它）
+              let _firstFailIdx = opts.stepIdx;
+              _batchResults.forEach(function(br) {
+                if (br.verify && !br.verify.hardFail) {
+                  if (agentPlan.steps[br.idx]) agentPlan.steps[br.idx].done = true;
+                }
+              });
+              for (let k = 0; k < _batchResults.length; k++) {
+                if (_batchResults[k].verify && _batchResults[k].verify.hardFail) { _firstFailIdx = _batchResults[k].idx; break; }
+              }
               _agentCtl = {
                 produced: false,
                 control: 'retry',
-                retryStepIdx: opts.stepIdx,
+                retryStepIdx: _firstFailIdx,
                 verified: false,
                 verifyMissing: _stepVerify.missing,
                 think: _stepThink,
                 actionSummary: _actSum
               };
             } else if (_stepProduced || _skipMark) {
-              // —— 本步有产出（或显式跳过）且过门禁 → 标记完成（软提示随账本带走，不阻断）——
-              agentPlan.steps[opts.stepIdx].done = true;
-              if (_skipMark && !_stepProduced) agentPlan.steps[opts.stepIdx].skipped = true;
+              // —— 本步/本批有产出（或显式跳过）且过门禁 → 标记完成（软提示随账本带走，不阻断）——
+              // ★实测升级（微批）：批内全部步骤各自标 done
+              _batchIdxs.forEach(function(bi) {
+                if (agentPlan.steps[bi]) {
+                  agentPlan.steps[bi].done = true;
+                  if (_skipMark && !_stepProduced) agentPlan.steps[bi].skipped = true;
+                }
+              });
+              if (_batchResults.length) {
+                _batchResults.forEach(function(br) {
+                  if (agentPlan.steps[br.idx] && br.verify && !br.verify.hardFail) agentPlan.steps[br.idx].done = true;
+                });
+              }
               _agentCtl = {
                 produced: _stepProduced,
                 control: _doneMark ? 'done' : (_skipMark ? 'skip' : 'next'),
