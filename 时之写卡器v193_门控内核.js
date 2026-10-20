@@ -367,35 +367,66 @@
 
   // ★v194 复合步骤拆分（豆包工作模式"原子粒度"）：一步一产物，每步独立过门禁——
   //   "生成白娅、林月、苏晚" 拆成 3 步（≥2 项即拆；单名不拆）。物理消除复合步骤的糊弄空间。
+  //   ★复查修复：两遍法 + dependsOn 索引重映射——拆分移动后续步骤索引，原索引依赖会指向错误
+  //   目标（"步骤3依赖步骤2"在步骤1拆成3片后指到碎片上）；重映射规则：依赖 d → d 的最后一个
+  //   碎片的新索引（全部碎片完成才算前置完成），后续索引整体右移。
   function _splitStepIfCompound(steps) {
-    const out = [];
-    const VERB = '(?:生成|新增|添加|创建|写|补全|完善|加)';
+    const _SPLIT_VERBS = ['生成', '新增', '添加', '创建', '写', '补全', '补充', '完善', '加'];
+    const VERB = '(?:' + _SPLIT_VERBS.join('|') + ')';
+    // —— pass 1：每个原步骤的碎片列表（拆分 或 [原步骤]）——
+    const piecesPer = [];
     for (let si = 0; si < steps.length; si++) {
       const s = steps[si];
-      if (!s || !s.desc) { out.push(s); continue; }
+      if (!s || !s.desc) { piecesPer.push([s]); continue; }
       const d = String(s.desc);
-      // 形式1：动词 + A、B、C（顿号/逗号/斜杠分隔 ≥2 项，每项 2-8 字）
-      // 形式2：动词 + 「A」/「B」（带引号名单）
       let names = null, verb = '';
       const m1 = d.match(new RegExp('^' + VERB + '\\s*([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})(?:的|条目|角色|NPC|人物|设定|条|个|张)?'));
       const m2 = d.match(new RegExp('^' + VERB + '\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?\\s*(?:和|与|及|跟)\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?'));
       const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『"]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})[」』"\\)]'));
-      const m4 = d.match(new RegExp('[（(]([^（）()]{2,60})[)）]'));   // 括号名单："生成3个NPC（白娅/林月/苏晚）"
+      const m4 = d.match(/[（(]([^（）()]{2,60})[)）]/);   // 括号名单："生成3个NPC（白娅/林月/苏晚）"
       if (m1) { verb = d.slice(0, d.indexOf(m1[1])); names = m1[1].split(/\s*[、\/，,]\s*/); }
       else if (m3) { verb = d.slice(0, d.indexOf(m3[1])); names = m3[1].split(/\s*[、\/，,]\s*/); }
       else if (m2) { verb = d.slice(0, d.indexOf(m2[1])); names = [m2[1], m2[2]]; }
-      else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && VERB.slice(4, -2).split('|').some(function(v) { return d.indexOf(v) >= 0; })) {
+      else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && _SPLIT_VERBS.some(function(v) { return d.indexOf(v) >= 0; })) {
         verb = ''; names = m4[1].split(/\s*[、\/，,]\s*/);
       }
       if (names && names.length >= 2) {
+        const pieces = [];
         names.filter(Boolean).forEach(function(n, i) {
-          const piece = { desc: (verb || '生成') + '「' + n + '」' + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d };
-          out.push(piece);
+          pieces.push({ desc: (verb || '生成') + '「' + n + '」' + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d });
         });
+        piecesPer.push(pieces);
       } else {
-        out.push(s);
+        piecesPer.push([s]);
       }
     }
+    // —— pass 2：原步骤 i 的首个碎片新索引 ——
+    const startIdx = [];
+    let _cur = 0;
+    piecesPer.forEach(function(ps) { startIdx.push(_cur); _cur += ps.length; });
+    // —— pass 3：组装 + 依赖重映射（依赖 d → startIdx[d] + 碎片数-1 = d 最后一片的新索引）——
+    const out = [];
+    const _lastPieceOf = function(dep) {
+      return (dep >= 0 && dep < steps.length) ? (startIdx[dep] + piecesPer[dep].length - 1) : dep;
+    };
+    steps.forEach(function(s, i) {
+      const ps = piecesPer[i];
+      const isSplit = ps.length > 1;
+      if (!isSplit) {
+        if (s && s.dependsOn && s.dependsOn.length) {
+          s.dependsOn = s.dependsOn.map(_lastPieceOf);
+        }
+        out.push(s);
+      } else {
+        ps.forEach(function(p) {
+          // 碎片继承原步骤的前置依赖（重映射后）——每个碎片都需要该前置完成
+          if (s && s.dependsOn && s.dependsOn.length) {
+            p.dependsOn = s.dependsOn.map(_lastPieceOf);
+          }
+          out.push(p);
+        });
+      }
+    });
     return out;
   }
 
@@ -431,8 +462,9 @@
       if (list.length >= 2) asserts.push({ type: 'names', list: list });
       else if (list.length === 1) asserts.push({ type: 'names', list: list });   // 单名也断言（拆分后步骤"生成「白娅」"）
     }
-    // 3) 字段断言："把 name 改成「X」" / "名字改为Y" / "comment 改成 Z"
-    const fieldM = d.match(/(?:把|将|改)?\s*['"]?(name|description|first_mes|personality|scenario|comment|title)['"]?\s*(?:改成|改为|设为|变成|设成)\s*[「『"']?([^「』"'，。;\n]+)/i);
+    // 3) 字段断言："把 name 改成「X」" / "名字改为Y"（★只认 cardData 真实顶层字段——comment 是条目级、
+    //    title 不是卡字段，写进白名单会拿 undefined 比对 → 假失败）
+    const fieldM = d.match(/(?:把|将|改)?\s*['"]?(name|description|first_mes|personality|scenario)['"]?\s*(?:改成|改为|设为|变成|设成)\s*[「『"']?([^「』"'，。;\n]+)/i);
     if (fieldM) asserts.push({ type: 'field', field: fieldM[1].toLowerCase(), expect: fieldM[2].trim().replace(/[」』"']+\s*$/, '') });
     // 4) HTML内容断言："标题改成X" / "按钮改为Y" / "加上Z"（校验变更正则的 replaceString 含该片段）
     const htmlM = d.match(/(?:标题|按钮|标签|文字|文案|占位符|图标)\s*(?:改成|改为|设为|换成|加上|补上|添加)\s*[「『"']?([^」』"'，。;\n]{1,40})/);
@@ -21909,10 +21941,13 @@ html,body{scrollbar-gutter:stable}
           const _rxSigNow = rx.map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',');
           const rxChanged = (_rxSigNow !== beforeSnap.rxSig);
           // 变更正则名单（供 htmlContent 断言校验"标题改成X"类修改落在哪个正则上）
+          // ★复查修复：新增正则（索引越界 = before 里没有）也必须算"变更"——"生成状态栏，标题为「资源」"
+          //   产生全新正则时，旧条件把它排除在外 → htmlContent 断言假 hardFail 无限重试（新状态栏主路径！）
           const _rxSigBeforeArr = beforeSnap.rxSig.split(',');
           const changedRxComments = [];
           rx.forEach(function(r, ri) {
-            if (_rxSigBeforeArr[ri] !== undefined && _rxSigBeforeArr[ri] !== (_contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''))) {
+            const _sigNow = _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || '');
+            if (_rxSigBeforeArr[ri] === undefined || _rxSigBeforeArr[ri] !== _sigNow) {
               changedRxComments.push(String((r && r.scriptName) || ''));
             }
           });
