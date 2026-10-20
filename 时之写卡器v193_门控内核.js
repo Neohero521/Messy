@@ -14671,7 +14671,9 @@ html,body{scrollbar-gutter:stable}
                     desc: String((s && s.desc) || ''),
                     done: !!(s && s.done),
                     dependsOn: (s && Array.isArray(s.dependsOn)) ? s.dependsOn.filter(function(n) { return typeof n === 'number' && n >= 0; }) : [],
-                    _snap0: (s && s._snap0 && typeof s._snap0 === 'object') ? s._snap0 : undefined
+                    _snap0: (s && s._snap0 && typeof s._snap0 === 'object') ? s._snap0 : undefined,
+                    // ★复查修复：恢复保留 _retries——否则重开后重试计数归零，升级指令/3次上限失效
+                    _retries: (s && typeof s._retries === 'number') ? s._retries : 0
                   };
                 }).filter(function(s) {
                   return s.desc.length > 1;
@@ -18063,7 +18065,9 @@ html,body{scrollbar-gutter:stable}
                 if (!bs || bs.done) break;                       // 只批连续 pending（中断即停）
                 if (_stepKind(bs.desc) !== _kind0) break;         // 跨资产类型不合并
                 if (bs._retries) break;                           // 有失败历史的步不批（单独处理）
-                if (bs.dependsOn && bs.dependsOn.some(function(di) { return di >= idx && !agentPlan.steps[di].done; })) break;  // 依赖批内未完成步骤的不批
+                // ★复查修复（依赖全量检查）：任何未完成的依赖（不限 di>=idx）都阻止入批——
+                //   旧版只查批内依赖，漏掉"指向批前 pending 步骤"的跨指依赖 → 依赖未满足就并入批乱序执行
+                if (bs.dependsOn && bs.dependsOn.some(function(di) { return !agentPlan.steps[di] || !agentPlan.steps[di].done; })) break;
                 _batchIdxs.push(bi);
               }
             }
@@ -18104,23 +18108,27 @@ html,body{scrollbar-gutter:stable}
               // ★实测修复（重做风暴）：重试计数 + 3 次上限——实测同一小步被打回 6 次（AI 复读 first_mes），
               //   旧逻辑 retry 不进任何停滞统计（停滞只统计 next+软失败），也无每步上限 → 无限烧。
               //   现在：≥2 次触发指令升级（见 buildAgentDirective），≥3 次自动跳过该步转人工，绝不无限重试。
-              const _rtStep = agentPlan.steps[idx];
+              // ★复查修复（微批计数错位）：计数必须加在 r.retryStepIdx（批内真正失败的步骤）上——
+              //   旧版固定加 steps[idx]（批首步），批内非首步失败时首步已 done、失败步计数恒 0
+              //   → 升级指令/3次上限对它完全失效（重做风暴在微批场景回归）
+              const _rtIdx = (r && typeof r.retryStepIdx === 'number' && agentPlan.steps[r.retryStepIdx] && !agentPlan.steps[r.retryStepIdx].done) ? r.retryStepIdx : idx;
+              const _rtStep = agentPlan.steps[_rtIdx];
               if (_rtStep) _rtStep._retries = (_rtStep._retries || 0) + 1;
               if (_rtStep && _rtStep._retries >= 3) {
                 _rtStep.done = true;
                 _rtStep.skipped = true;
-                addAssistantMsg('⚠️ 第' + (idx + 1) + '步「' + String(_rtStep.desc || '').slice(0, 40) + '」连续 3 次未通过验证，已自动跳过（其余步骤继续）。\n' +
+                addAssistantMsg('⚠️ 第' + (_rtIdx + 1) + '步「' + String(_rtStep.desc || '').slice(0, 40) + '」连续 3 次未通过验证，已自动跳过（其余步骤继续）。\n' +
                   '可能原因：步骤描述与期望产物形式不匹配。可在对话中说明这一步的具体要求（要条目还是要字段/脚本），我会单独重做。');
                 try {
-                  agentLedger.push({ step: idx + 1, think: '', act: String(_rtStep.desc || '').slice(0, 50), res: '⛔ 3次未过门禁→自动跳过转人工', verified: false });
+                  agentLedger.push({ step: _rtIdx + 1, think: '', act: String(_rtStep.desc || '').slice(0, 50), res: '⛔ 3次未过门禁→自动跳过转人工', verified: false });
                   if (agentLedger.length > 30) agentLedger = agentLedger.slice(-30);
                 } catch (_) {}
                 saveToStorage();
-                showToast('⛔ 第' + (idx + 1) + '步连续3次未过验证，已跳过', 'warning', 6000);
+                showToast('⛔ 第' + (_rtIdx + 1) + '步连续3次未过验证，已跳过', 'warning', 6000);
                 continue;   // 跳到下一步（不进入下方 retry 分支的常规处理）
               }
               showToast(_verifyRetry ? '⚠️ 本步产出未通过质量门禁，Agent将带修正项重做' : '⚠️ 本步未产出有效内容，Agent将结合执行结果重试', 'warning', 5000);
-              try { UserProfile.recordAgentStepRetry(idx); } catch (_) {}
+              try { UserProfile.recordAgentStepRetry(_rtIdx); } catch (_) {}
             }
             // ★v193 账本追加：每步一条（思考/产物/验证结果）——下一步注入最近3条，重开可续
             try {
@@ -22058,7 +22066,9 @@ html,body{scrollbar-gutter:stable}
           //   不做"预期有变化"检查，否则体检步骤必然 hardFail 卡死循环
           const isInspectStep = /检查|体检|审阅|盘点|查看|分析|评估|确认/.test(desc) && !/生成|新增|修改|添加|创建|补全|重写|修复/.test(desc);
           // ★实测修复：顶层字段变化检测（写开场白=改 first_mes/alternate_greetings，旧验证器完全看不见）
-          let fieldsChanged = false;
+          // ★复查修复（升级兼容）：旧版快照无 fieldSig（v194.0 期间开始的计划重开恢复）→ 视为"已变化"
+          //   宽松放行——恒 false 会让 greeting 步骤在字段已正确写入时误打回
+          let fieldsChanged = true;
           if (beforeSnap.fieldSig) {
             fieldsChanged = ['name', 'description', 'first_mes', 'personality', 'scenario'].some(function(f) {
               return _contentSig(cardData[f]) !== beforeSnap.fieldSig[f];
@@ -22174,8 +22184,14 @@ html,body{scrollbar-gutter:stable}
                 _beforeSnap.fieldSig[f] = _contentSig(cardData[f]);
               });
               _beforeSnap.fieldSig.alternate_greetings = _contentSig((Array.isArray(cardData.alternate_greetings) ? cardData.alternate_greetings : []).join('\u0001'));
-              const _st0 = agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx];
-              if (_st0 && !_st0._snap0) _st0._snap0 = _beforeSnap;
+              // ★复查修复（微批快照锁定）：批内**所有**步骤都锁 _snap0——旧版只锁批首步，
+              //   批内第2步失败打回后重试轮 _snapBase 落到新拍快照（批产出已落盘）→ 部分产出
+              //   不算新增 → 断言永远凑不齐 → 3次上限误跳过（重试死循环在微批场景回归）
+              const _st0list = (Array.isArray(opts.batchIdxs) && opts.batchIdxs.length) ? opts.batchIdxs : (typeof opts.stepIdx === 'number' ? [opts.stepIdx] : []);
+              _st0list.forEach(function(bi) {
+                const _st = agentPlan && agentPlan.steps && agentPlan.steps[bi];
+                if (_st && !_st._snap0) _st._snap0 = _beforeSnap;
+              });
             } catch (_bsErr) { _beforeSnap = null; logWarn('beforeSnap', _bsErr); }
           }
           // ===== 执行边界锁：上一条AI回复如果是报告，且用户本轮回复了"确认"，注入报告作为执行契约 =====
