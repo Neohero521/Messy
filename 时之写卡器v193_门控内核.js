@@ -1031,7 +1031,7 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 .pv-filter-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 2px 8px}
 .pv-f-search{flex:1 1 140px;min-width:120px;padding:5px 10px;font-size:.78em;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink)}
 .pv-f-search:focus{outline:none;border-color:var(--accent-border);box-shadow:0 0 0 2px var(--accent-soft)}
-.pv-f-kind,.pv-f-group{padding:5px 8px;font-size:.76em;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-soft);cursor:pointer;max-width:130px}
+.pv-f-kind,.pv-f-group,.pv-f-sort{padding:5px 8px;font-size:.76em;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-soft);cursor:pointer;max-width:130px}
 .pv-f-batch{padding:5px 12px;font-size:.76em;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .18s;flex-shrink:0}
 .pv-f-batch:hover{border-color:var(--accent-border);color:var(--accent-deep)}
 .pv-f-batch.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -1054,6 +1054,13 @@ svg.ic{display:inline-block;vertical-align:-.18em;flex-shrink:0;transition:color
 @keyframes pvFlashAdd{0%{background:#dff7e9;box-shadow:0 0 0 2px rgba(52,168,107,.45)}100%{background:transparent;box-shadow:none}}
 @keyframes pvFlashUpd{0%{background:#fdf0da;box-shadow:0 0 0 2px rgba(217,146,43,.45)}100%{background:transparent;box-shadow:none}}
 @media (prefers-reduced-motion: reduce){.pv-entry.pv-flash-add,.pv-entry.pv-flash-upd{animation:none}}
+/* ★v194.4 Agent产物持久高亮：新增=绿边浅底，修改=琥珀边浅底（持续显示，区别于3.2s的合并闪光） */
+.pv-entry.pv-agent-new{border-left:3px solid #34a86b;background:linear-gradient(90deg,rgba(52,168,107,.10) 0%,transparent 60%)}
+.pv-entry.pv-agent-mod{border-left:3px solid #d9922b;background:linear-gradient(90deg,rgba(217,146,43,.10) 0%,transparent 60%)}
+.pv-tag.hlnew{background:#dff7e9;color:#1d7a4c;border:1px solid #9fd8b8}
+.pv-tag.hlmod{background:#fdf0da;color:#9a6416;border:1px solid #ecc98a}
+.pv-f-clearhl{flex-shrink:0;padding:2px 8px;font-size:.75em;color:#1d7a4c;background:#dff7e9;border:1px solid #9fd8b8;border-radius:999px;cursor:pointer;font-family:var(--font);transition:all .15s}
+.pv-f-clearhl:hover{background:#c9efd9}
 .pv-section .pv-code{font-family:var(--font-mono);font-size:.8em;color:var(--ink);background:linear-gradient(135deg,var(--surface-soft) 0%,var(--surface) 100%);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:10px 12px;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:260px;overflow:auto;transition:border-color .2s,box-shadow .2s}
 .pv-section .pv-code:hover{border-color:var(--accent-soft);box-shadow:inset 0 1px 3px rgba(79,70,229,.04)}
 /* ===== 预览代码块复制按钮（第15轮新增）===== */
@@ -12867,6 +12874,10 @@ html,body{scrollbar-gutter:stable}
       let agentLoopActive = false;
       let agentConsecutiveFailures = 0;
       let agentLastObservation = '';
+      // ★v194.4 Agent产物高亮：循环结束后 diff 出本次新增/修改的条目（comment→'new'|'mod'），
+      //   预览面板持续高亮（🆕绿=新增 / ✏️黄=修改），下次 Agent 启动自动重置，也可在预览工具条手动清除
+      let agentHighlight = {};
+      let _agentLoopStartSig = null;
       let moduleProgress = {
         total: 0,
         constant: 0,
@@ -18023,6 +18034,14 @@ html,body{scrollbar-gutter:stable}
         }
         agentLoopActive = true;
         agentConsecutiveFailures = 0;
+        // ★v194.4 Agent产物高亮：循环起点条目签名快照（comment→内容签名），结束时 diff 出本次新增/修改
+        agentHighlight = {};
+        try {
+          _agentLoopStartSig = new Map();
+          (((cardData.character_book || {}).entries) || []).forEach(function(e) {
+            if (e && e.comment != null) _agentLoopStartSig.set(String(e.comment), _contentSig(e.content));
+          });
+        } catch (_hlE) { _agentLoopStartSig = null; }
         // ===== ★v193 门禁停滞检测状态（依据=账本 verified 连续 false，阈值 2——取代 v191 状态距离检测）=====
         let _stagnantCount = 0;
         const STAGNANT_THRESHOLD = 2;
@@ -18205,6 +18224,24 @@ html,body{scrollbar-gutter:stable}
         } finally {
           agentLoopActive = false;
           agentConsecutiveFailures = 0;
+          // ★v194.4 Agent产物高亮：所有退出路径（完成/停止/让位/异常）统一在这里 diff——
+          //   新 comment = 🆕新增；签名变化 = ✏️修改；随后预览面板持续高亮，用户可直观看到"这次Agent做了什么"
+          try {
+            if (_agentLoopStartSig) {
+              let _hlNew = 0, _hlMod = 0;
+              (((cardData.character_book || {}).entries) || []).forEach(function(e) {
+                if (!e || e.comment == null) return;
+                const c = String(e.comment);
+                const prevSig = _agentLoopStartSig.get(c);
+                if (prevSig === undefined) { agentHighlight[c] = 'new'; _hlNew++; }
+                else if (prevSig !== _contentSig(e.content)) { agentHighlight[c] = 'mod'; _hlMod++; }
+              });
+              _agentLoopStartSig = null;
+              if (_hlNew + _hlMod > 0) {
+                addAssistantMsg('🤖 **本次 Agent 产物已在预览面板高亮**：🆕 新增 ' + _hlNew + ' 条 · ✏️ 修改 ' + _hlMod + ' 条（绿色边=新增，黄色边=修改）。\n可在「世界书条目」工具条点「清除高亮」恢复普通显示。');
+              }
+            }
+          } catch (_hlE2) { logWarn('agentHighlight', _hlE2); }
           try {
             saveToStorage();
             updateQuickActions();
@@ -24529,13 +24566,45 @@ html,body{scrollbar-gutter:stable}
       };
       // ===== 世界书条目搜索/筛选/批量操作状态（预览面板重建后仍保留）=====
       // kind: all=全部 / constant=常驻 / triggered=关键词触发 / off=已禁用；group 取 e.extensions.group
+      // sort: 排序模式（对齐 SillyTavern 世界书排序）——默认 priority
       const _pvFilter = {
         q: '',
         kind: 'all',
         group: '',
         batch: false,
-        selected: {}
+        selected: {},
+        sort: 'priority'
       };
+      // ★v194.4 ST对齐排序：复刻 SillyTavern world-info.js 的 sortWorldInfoEntries——
+      //   主排序按模式分派，次排序恒为 order 降序，末排序恒为创建序升序（稳定，对应 ST 的 uid）。
+      //   ST 默认 = Priority：常驻(constant) → 普通 → 禁用(disable)。
+      //   依据：github.com/SillyTavern/SillyTavern release 分支 public/scripts/world-info.js
+      //   （secondarySort = b.order - a.order; tertiarySort = a.uid - b.uid; 默认选项 value=0 Priority）
+      function _stSortEntries(arr, mode) {
+        const idxArr = arr.map(function(e, i) { return { e: e, i: i }; });
+        const _order = function(x) { const n = Number(x.e.order); return isFinite(n) ? n : 0; };
+        const secondary = function(a, b) { return _order(b) - _order(a); };          // order 降序（ST 恒定）
+        const tertiary = function(a, b) { return a.i - b.i; };                        // 创建序升序（ST uid）
+        let primary;
+        switch (mode) {
+          case 'added': return arr.slice();                                           // 添加顺序（本工具原生，无次级排序）
+          case 'title_asc': primary = function(a, b) { return String(a.e.comment || '').localeCompare(String(b.e.comment || ''), 'zh-CN'); }; break;
+          case 'title_desc': primary = function(a, b) { return String(b.e.comment || '').localeCompare(String(a.e.comment || ''), 'zh-CN'); }; break;
+          case 'tokens_asc': primary = function(a, b) { return String(a.e.content || '').length - String(b.e.content || '').length; }; break;
+          case 'tokens_desc': primary = function(a, b) { return String(b.e.content || '').length - String(a.e.content || '').length; }; break;
+          case 'order_asc': primary = function(a, b) { return _order(a) - _order(b); }; break;
+          case 'order_desc': primary = function(a, b) { return _order(b) - _order(a); }; break;
+          default:  // 'priority'（ST 默认）：常驻 → 普通 → 禁用（禁用判定兼容 MVU 系统条目的 _effectiveEntryEnabled）
+            primary = function(a, b) {
+              const _p = function(x) {
+                const dis = (x.e.enabled === false) || (_effectiveEntryEnabled(String(x.e.comment || ''), x.e) === false);
+                return dis ? 2 : (x.e.constant ? 0 : 1);
+              };
+              return _p(a) - _p(b);
+            };
+        }
+        return idxArr.sort(function(a, b) { return primary(a, b) || secondary(a, b) || tertiary(a, b); }).map(function(x) { return x.e; });
+      }
       // 迭代1·M1：预览面板世界书条目展开态（按 comment 键控，重建后仍生效）
       const _pvExpanded = {};
       let _pvSearchHadFocus = false;
@@ -24715,11 +24784,12 @@ html,body{scrollbar-gutter:stable}
             h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>' + svgIcon('code', 14) + ' 变量结构脚本</span><span class="pv-toggle"></span></h3><div class="pv-empty">尚未生成脚本</div></div>';
           }
 
-          // ④ MVU变量条目（世界书条目，过滤MVU相关）
+          // ④ MVU变量条目（世界书条目，过滤MVU相关；★v194.4 ST对齐排序 + Agent高亮）
+          const _mvuShown = _stSortEntries(mvuEntries, _pvFilter.sort);
           h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + (mvuEntries.length > 0 ? 'full' : 'empty') + '"></span>' + svgIcon('book', 14) + ' MVU变量条目</span><span class="sec-right">' + mvuEntries.length + '条</span><span class="pv-toggle"></span></h3>';
           if (mvuEntries.length > 0) {
             h += '<div class="pv-entry-list">';
-            mvuEntries.forEach(function(e, i) {
+            _mvuShown.forEach(function(e, i) {
               // ★用户反馈"导出的角色卡和聊天气泡里的不一样"：预览显示 AI 原始 content，
               //   导出走规范化（剥 stat_data 根键/过滤 _/$ 字段）。此处统一为规范化显示，所见即所得。
               const _nv = normalizeMvuEntryContentForView(e.comment || '', e.content || '');
@@ -24735,7 +24805,11 @@ html,body{scrollbar-gutter:stable}
                            : _isEjsStage ? '<span class="pv-tag">EJS阶段</span>'
                            : (_isEjs ? '<span class="pv-tag ok">EJS</span>' : '');
               const emptyTag = _isEmptyMvu ? '<span class="pv-tag off">导出时自动生成</span>' : '';
-              h += '<details class="pv-entry" data-pv-comment="' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '"' + (_pvExpanded[e.comment || ('MVU条目' + (i + 1))] ? ' open' : '') + '><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + ejsTag + emptyTag + '</span></summary>' +
+              // ★v194.4 Agent产物高亮（MVU Tab 同样生效）
+              const _mHl = agentHighlight[String(e.comment || '')];
+              const _mHlCls = _mHl === 'new' ? ' pv-agent-new' : (_mHl === 'mod' ? ' pv-agent-mod' : '');
+              const _mHlTag = _mHl === 'new' ? '<span class="pv-tag hlnew">🆕Agent新增</span>' : (_mHl === 'mod' ? '<span class="pv-tag hlmod">✏️Agent修改</span>' : '');
+              h += '<details class="pv-entry' + _mHlCls + '" data-pv-comment="' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '"' + (_pvExpanded[e.comment || ('MVU条目' + (i + 1))] ? ' open' : '') + '><summary><span>' + escHtml(e.comment || ('MVU条目' + (i + 1))) + '</span><span class="sec-right">~' + eTok + 'T ' + disabledTag + ejsTag + _mHlTag + emptyTag + '</span></summary>' +
                 '<div class="pv-entry-body"><div class="pv-entry-content">' + escHtml(_dispContent) + (_isEmptyMvu ? '<div class="pv-empty">（内容为空，导出角色卡时会自动生成默认内容）</div>' : '') + '</div></div></details>';
             });
             h += '</div>';
@@ -24928,6 +25002,9 @@ html,body{scrollbar-gutter:stable}
           const kindSel = function(v) {
             return _pvFilter.kind === v ? ' selected' : '';
           };
+          const sortSel = function(v) {
+            return _pvFilter.sort === v ? ' selected' : '';
+          };
           // —— 工具条 ——
           let barH = '<div class="pv-filter-bar">';
           barH += '<input type="search" class="pv-f-search" placeholder="搜索条目名 / 内容…" value="' + escHtml(_pvFilter.q) + '" aria-label="搜索世界书条目">';
@@ -24937,7 +25014,23 @@ html,body{scrollbar-gutter:stable}
             barH += '<option value="' + escHtml(g) + '"' + optSel(g) + '>' + escHtml(g) + '</option>';
           });
           barH += '</select>';
+          // ★v194.4 ST对齐排序下拉（默认=ST默认的Priority；次级恒Order降序+创建序，见 _stSortEntries）
+          barH += '<select class="pv-f-sort" aria-label="条目排序（对齐SillyTavern世界书）" title="排序对齐 SillyTavern 世界书：默认优先级=常驻→触发→禁用；同级按 Order 降序、再按创建序（同ST的uid）">' +
+            '<option value="priority"' + sortSel('priority') + '>ST优先级</option>' +
+            '<option value="added"' + sortSel('added') + '>添加顺序</option>' +
+            '<option value="title_asc"' + sortSel('title_asc') + '>标题A-Z</option>' +
+            '<option value="title_desc"' + sortSel('title_desc') + '>标题Z-A</option>' +
+            '<option value="tokens_desc"' + sortSel('tokens_desc') + '>Token↘</option>' +
+            '<option value="tokens_asc"' + sortSel('tokens_asc') + '>Token↗</option>' +
+            '<option value="order_desc"' + sortSel('order_desc') + '>Order↘</option>' +
+            '<option value="order_asc"' + sortSel('order_asc') + '>Order↗</option>' +
+            '</select>';
           barH += '<button type="button" class="pv-f-batch' + (_pvFilter.batch ? ' on' : '') + '" data-pv-batch-toggle title="进入批量选择模式，可批量启用/禁用/删除/改分组">' + (_pvFilter.batch ? '退出批量' : '批量操作') + '</button>';
+          // ★v194.4 Agent产物高亮清除按钮（仅当有高亮时显示）
+          const _hlCount = Object.keys(agentHighlight).length;
+          if (_hlCount > 0) {
+            barH += '<button type="button" class="pv-f-clearhl" data-pv-clear-hl title="清除Agent产物高亮标记">🤖高亮×' + _hlCount + ' ✕</button>';
+          }
           barH += '</div>';
           // —— 批量操作条 ——
           if (_pvFilter.batch) {
@@ -24971,12 +25064,14 @@ html,body{scrollbar-gutter:stable}
             }
             return true;
           });
+          // ★v194.4 ST对齐排序：过滤结果按当前排序模式排列（默认 ST Priority；见 _stSortEntries）
+          const shownSorted = _stSortEntries(shown, _pvFilter.sort);
           let eH = barH + '<div class="pv-entry-list">';
-          if (!shown.length) {
+          if (!shownSorted.length) {
             eH += '<div class="pv-empty">没有匹配的条目</div>';
           }
-          for (let i = 0; i < shown.length; i++) {
-            const e = shown[i];
+          for (let i = 0; i < shownSorted.length; i++) {
+            const e = shownSorted[i];
             const label = e.comment || ('条目' + (i + 1));
             // ★用户反馈"导出的角色卡和聊天气泡里的不一样"：MVU 条目统一规范化显示（与导出一致）
             const _nv = normalizeMvuEntryContentForView(e.comment || '', e.content || '');
@@ -24991,11 +25086,15 @@ html,body{scrollbar-gutter:stable}
             const grpTag = grp ? '<span class="pv-tag grp">' + escHtml(grp) + '</span>' : '';
             const checkBox = _pvFilter.batch ?
               ('<input type="checkbox" class="pv-batch-check" data-pv-check-comment="' + escHtml(label) + '" title="选择该条目"' + (_pvFilter.selected[label] ? ' checked' : '') + '>') : '';
-            eH += '<details class="pv-entry' + (_pvFilter.selected[label] ? ' selected' : '') + '" data-pv-comment="' + escHtml(label) + '"' + (_pvExpanded[label] ? ' open' : '') + '><summary>' +
+            // ★v194.4 Agent产物高亮：🆕新增（绿边）/✏️修改（黄边），来自本次 Agent 循环的 diff
+            const _hlKind = agentHighlight[label];
+            const hlCls = _hlKind === 'new' ? ' pv-agent-new' : (_hlKind === 'mod' ? ' pv-agent-mod' : '');
+            const hlTag = _hlKind === 'new' ? '<span class="pv-tag hlnew">🆕Agent新增</span>' : (_hlKind === 'mod' ? '<span class="pv-tag hlmod">✏️Agent修改</span>' : '');
+            eH += '<details class="pv-entry' + (_pvFilter.selected[label] ? ' selected' : '') + hlCls + '" data-pv-comment="' + escHtml(label) + '"' + (_pvExpanded[label] ? ' open' : '') + '><summary>' +
               checkBox +
               '<span class="pv-entry-summary-main">' + escHtml(label) + '</span>' +
               '<span class="pv-entry-summary-tags">' +
-              '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + grpTag + disabledTag + (_isEmptyMvu ? '<span class="pv-tag off">导出自动生成</span>' : '') + '</span>' +
+              '<span class="sec-right" style="margin-right:0">~' + eTok + 'T ' + constTag + posTag + depTag + grpTag + disabledTag + hlTag + (_isEmptyMvu ? '<span class="pv-tag off">导出自动生成</span>' : '') + '</span>' +
               '<button type="button" class="pv-entry-del" data-pv-entry-del data-entry-comment="' + escHtml(label) + '" title="删除该条目">🗑</button>' +
               '</span>' +
               '</summary>' +
@@ -25452,6 +25551,22 @@ html,body{scrollbar-gutter:stable}
         if (fGroup) {
           fGroup.addEventListener('change', function() {
             _pvFilter.group = this.value;
+            renderPreview();
+          });
+        }
+        // ★v194.4 ST对齐排序下拉
+        const fSort = body.querySelector('.pv-f-sort');
+        if (fSort) {
+          fSort.addEventListener('change', function() {
+            _pvFilter.sort = this.value;
+            renderPreview();
+          });
+        }
+        // ★v194.4 清除Agent产物高亮
+        const clearHl = body.querySelector('[data-pv-clear-hl]');
+        if (clearHl) {
+          clearHl.addEventListener('click', function() {
+            agentHighlight = {};
             renderPreview();
           });
         }
