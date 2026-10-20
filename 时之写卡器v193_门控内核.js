@@ -379,21 +379,35 @@
       const s = steps[si];
       if (!s || !s.desc) { piecesPer.push([s]); continue; }
       const d = String(s.desc);
-      let names = null, verb = '';
-      const m1 = d.match(new RegExp('^' + VERB + '\\s*([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})(?:的|条目|角色|NPC|人物|设定|条|个|张)?'));
-      const m2 = d.match(new RegExp('^' + VERB + '\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?\\s*(?:和|与|及|跟)\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?'));
-      const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『"]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})[」』"\\)]'));
+      let names = null, verb = '', tail = '';
+      // ★复查修复（懒惰量词）：名字量词用 {2,8}?——贪婪版会把名单后的限定语吞进名字
+      //   （"苏晚的背景设定" 整段被当人名）。懒惰匹配取最短合法名，限定语留给 tail。
+      const m1 = d.match(new RegExp('^' + VERB + '\\s*([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?){1,})(?:的|条目|角色|NPC|人物|设定|条|个|张)?'));
+      const m2 = d.match(new RegExp('^' + VERB + '\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?)[」』"]?\\s*(?:和|与|及|跟)\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?)[」』"]?'));
+      const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『"]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?){1,})[」』"\\)]'));
       const m4 = d.match(/[（(]([^（）()]{2,60})[)）]/);   // 括号名单："生成3个NPC（白娅/林月/苏晚）"
-      if (m1) { verb = d.slice(0, d.indexOf(m1[1])); names = m1[1].split(/\s*[、\/，,]\s*/); }
-      else if (m3) { verb = d.slice(0, d.indexOf(m3[1])); names = m3[1].split(/\s*[、\/，,]\s*/); }
-      else if (m2) { verb = d.slice(0, d.indexOf(m2[1])); names = [m2[1], m2[2]]; }
-      else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && _SPLIT_VERBS.some(function(v) { return d.indexOf(v) >= 0; })) {
+      if (m1) {
+        verb = d.slice(0, d.indexOf(m1[1])); names = m1[1].split(/\s*[、\/，,]\s*/);
+      } else if (m3) {
+        verb = d.slice(0, d.indexOf(m3[1])); names = m3[1].split(/\s*[、\/，,]\s*/);
+      } else if (m2) {
+        verb = d.slice(0, d.indexOf(m2[1])); names = [m2[1], m2[2]];
+      } else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && _SPLIT_VERBS.some(function(v) { return d.indexOf(v) >= 0; })) {
         verb = ''; names = m4[1].split(/\s*[、\/，,]\s*/);
+      }
+      // ★复查修复（尾缀保留）：连续名单（m1/m2/m3）拆分时保留名单之后的限定语——
+      //   "补充白娅、苏晚的背景设定" 拆成 "补充「白娅」的背景设定"，而不是丢失限定语的 "补充「白娅」"
+      if (names && names.length >= 2 && (m1 || m2 || m3)) {
+        const _lastNm = names[names.length - 1];
+        const _lastPos = d.indexOf(_lastNm);
+        if (_lastPos >= 0) {
+          tail = d.slice(_lastPos + _lastNm.length).replace(/^[）)」』"'\s]+/, '');
+        }
       }
       if (names && names.length >= 2) {
         const pieces = [];
         names.filter(Boolean).forEach(function(n, i) {
-          pieces.push({ desc: (verb || '生成') + '「' + n + '」' + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d });
+          pieces.push({ desc: (verb || '生成') + '「' + n + '」' + tail + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d });
         });
         piecesPer.push(pieces);
       } else {
@@ -454,7 +468,8 @@
       if (qn) names = qn[1].split(/\s*[、\/，,]\s*/);
     }
     if (!names) {
-      const ln = d.match(/(?:生成|新增|添加|创建|写)\s*([\u4e00-\u9fa5A-Za-z0-9_]{2,8}(?:\s*[、\/，,]\s*[\u4e00-\u9fa5A-Za-z0-9_]{2,8}){1,})/);
+      // ★懒惰量词（与 _splitStepIfCompound 同款修复）：防"苏晚的背景设定"被整段当人名
+      const ln = d.match(/(?:生成|新增|添加|创建|写)\s*([\u4e00-\u9fa5A-Za-z0-9_]{2,8}?(?:\s*[、\/，,]\s*[\u4e00-\u9fa5A-Za-z0-9_]{2,8}?){1,})/);
       if (ln) names = ln[1].split(/\s*[、\/，,]\s*/);
     }
     if (names) {
@@ -553,6 +568,13 @@
     });
     if (steps.length < 1) return null;
     if (steps.length > 12) steps.length = 12;
+    // ★v194 复查补充：报告兜底计划同样过复合拆分（与 <agent_plan> 路径一致——
+    //   否则 AI 报告里"生成白娅、林月"绕过原子化，门禁语义断言失去拆分前提）
+    const _rpSplit = _splitStepIfCompound(steps);
+    if (_rpSplit.length > steps.length) {
+      steps.length = 0;
+      _rpSplit.forEach(function(x) { steps.push(x); });
+    }
     return {
       goal: '按报告执行',
       steps: steps,
@@ -14643,7 +14665,14 @@ html,body{scrollbar-gutter:stable}
               agentPlan = {
                 goal: String(state.agentPlan.goal || 'Agent创作计划'),
                 steps: state.agentPlan.steps.map(function(s) {
-                  return { desc: String((s && s.desc) || ''), done: !!(s && s.done) };
+                  // ★v194 复查修复：恢复时保留 dependsOn/_snap0——旧逻辑只回 {desc,done}，
+                  //   重开后依赖等待丢失（步骤乱序执行）、重试累计基准丢失（断言假失败）
+                  return {
+                    desc: String((s && s.desc) || ''),
+                    done: !!(s && s.done),
+                    dependsOn: (s && Array.isArray(s.dependsOn)) ? s.dependsOn.filter(function(n) { return typeof n === 'number' && n >= 0; }) : [],
+                    _snap0: (s && s._snap0 && typeof s._snap0 === 'object') ? s._snap0 : undefined
+                  };
                 }).filter(function(s) {
                   return s.desc.length > 1;
                 }),
@@ -22041,6 +22070,10 @@ html,body{scrollbar-gutter:stable}
           _aiChatNotesQueue = [];
           const curTabMessages = getCurrentMessages();
           // ★v193 步骤前快照（agentStep）：供 _verifyStepOutcome 对比本轮新增/变更（签名=_contentSig 共用）
+          // ★复查修复（重试语义）：断言类校验（数量/名单/HTML内容）必须以「步骤首次尝试前」为基准——
+          //   旧实现每次重试都重拍快照，"生成3个NPC"首试出1个被打回、重试补齐2个时 newEntries=2<3
+          //   再次 hardFail → 永远凑不齐"本轮新增3条"，死循环到步数上限。修复：step._snap0 首次锁定，
+          //   重试轮沿用（补齐的条目相对步骤起点仍是"新增"）；replan/完成自然换新。
           let _beforeSnap = null;
           if (opts.agentStep) {
             try {
@@ -22050,6 +22083,8 @@ html,body{scrollbar-gutter:stable}
               });
               _beforeSnap.scriptSig = (((cardData.extensions || {}).tavern_helper || {}).scripts || []).map(function(s) { return _contentSig((s && s.content) || ''); }).join(',');
               _beforeSnap.rxSig = ((cardData.extensions || {}).regex_scripts || []).map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',');
+              const _st0 = agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx];
+              if (_st0 && !_st0._snap0) _st0._snap0 = _beforeSnap;
             } catch (_bsErr) { _beforeSnap = null; logWarn('beforeSnap', _bsErr); }
           }
           // ===== 执行边界锁：上一条AI回复如果是报告，且用户本轮回复了"确认"，注入报告作为执行契约 =====
@@ -22823,8 +22858,11 @@ html,body{scrollbar-gutter:stable}
           let _stepVerify = null;
           if (opts.agentStep) {
             try {
-              const _vd = (agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx]) ? agentPlan.steps[opts.stepIdx].desc : '';
-              _stepVerify = _verifyStepOutcome(_vd, _beforeSnap, _execNotes);
+              const _vStep = (agentPlan && agentPlan.steps && agentPlan.steps[opts.stepIdx]) ? agentPlan.steps[opts.stepIdx] : null;
+              const _vd = _vStep ? _vStep.desc : '';
+              // ★复查修复：验证基准 = 步骤首次快照（_snap0）——重试轮断言按"步骤开始以来"累计判定，
+              //   首试已产出的条目在重试轮仍计为新增（否则数量/名单断言永远凑不齐 → 假死循环）
+              _stepVerify = _verifyStepOutcome(_vd, (_vStep && _vStep._snap0) || _beforeSnap, _execNotes);
               if (_stepVerify.hardFail) {
                 _execNotes.push('🚨 步骤验证未通过（本步不算完成，按下列修正项重做本步）：' + _stepVerify.missing.join('；'));
               } else if (!_stepVerify.pass) {
