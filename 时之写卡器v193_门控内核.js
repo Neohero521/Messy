@@ -365,6 +365,18 @@
                     Math.max(AGENT_LOOP_MAX_STEPS_SOFT, plan.steps.length * 4));
   }
 
+  // ★v194.3 实体名卫生检查：防"常驻""写清两室一厅布局"这类属性词/动词短语被当成条目名——
+  //   实测（chatlog 03:43）：垃圾名进 names 断言 → 条目永远"判缺" → 3连败自动跳过风暴 → 计划报废
+  const _NAME_STOPWORDS = /^(?:常驻|触发|触发型|条目|角色|NPC|人物|设定|世界观|状态栏|界面|脚本|变量|开场白|总纲|性格|外观|背景|正文|内容|描述|说明|可选|轻量|主力|默认|全部|其余|其他|新建|新增|修改|补充|完善|清单|总览|概览)$/;
+  const _NAME_VERB_PREFIX = /^(?:写|画|做|列|补|改|串|带|每|新增|生成|创建|添加|完善|描述|说明|列出|包含|回改|重写|扩写|拆分|标出|设置|勾选|启用|关闭|输出|格式|结构)/;
+  function _looksLikeEntityName(x) {
+    const t = String(x || '').trim();
+    if (!t || t.length < 2 || t.length > 10) return false;
+    if (_NAME_STOPWORDS.test(t)) return false;
+    if (_NAME_VERB_PREFIX.test(t)) return false;
+    return true;
+  }
+
   // ★v194 复合步骤拆分（豆包工作模式"原子粒度"）：一步一产物，每步独立过门禁——
   //   "生成白娅、林月、苏晚" 拆成 3 步（≥2 项即拆；单名不拆）。物理消除复合步骤的糊弄空间。
   //   ★复查修复：两遍法 + dependsOn 索引重映射——拆分移动后续步骤索引，原索引依赖会指向错误
@@ -380,31 +392,28 @@
       if (!s || !s.desc) { piecesPer.push([s]); continue; }
       const d = String(s.desc);
       let names = null, verb = '', tail = '';
-      // ★复查修复（懒惰量词）：名字量词用 {2,8}?——贪婪版会把名单后的限定语吞进名字
-      //   （"苏晚的背景设定" 整段被当人名）。懒惰匹配取最短合法名，限定语留给 tail。
-      const m1 = d.match(new RegExp('^' + VERB + '\\s*([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?){1,})(?:的|条目|角色|NPC|人物|设定|条|个|张)?'));
-      const m2 = d.match(new RegExp('^' + VERB + '\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?)[」』"]?\\s*(?:和|与|及|跟)\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?)[」』"]?'));
-      const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『"]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?){1,})[」』"\\)]'));
-      const m4 = d.match(/[（(]([^（）()]{2,60})[)）]/);   // 括号名单："生成3个NPC（白娅/林月/苏晚）"
-      if (m1) {
-        verb = d.slice(0, d.indexOf(m1[1])); names = m1[1].split(/\s*[、\/，,]\s*/);
-      } else if (m3) {
-        verb = d.slice(0, d.indexOf(m3[1])); names = m3[1].split(/\s*[、\/，,]\s*/);
-      } else if (m2) {
-        verb = d.slice(0, d.indexOf(m2[1])); names = [m2[1], m2[2]];
-      } else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && _SPLIT_VERBS.some(function(v) { return d.indexOf(v) >= 0; })) {
-        verb = ''; names = m4[1].split(/\s*[、\/，,]\s*/);
+      // ★v194.3 实测回退（灾难修复）：只拆「显式引号名单」（生成「白娅、林月、苏晚」）。
+      //   实测聊天记录证明自由文本/括号/连词拆分是灾难源——步骤"新增条目【公寓格局】（常驻，写清两室
+      //   一厅布局、门帘窗位置、走光合理性锚点）"被旧 m4 拆成「常驻」「写清两室一厅布局」等 4 个垃圾
+      //   "名字"→ names 断言要求条目叫这些名字 → AI 写出正确条目反而 3 连败自动跳过 ×3 → 计划报废。
+      //   复合步骤保持整步执行：AI 一次回复输出全部条目（用户要的效果），count/names 断言对整步照样校验。
+      const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?(?:\\s*[、\\/]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}?){1,})[」』]'));
+      if (m3) {
+        // ★修复：verb 剥掉尾随开引号——"生成「白娅…」"的 slice 会带上「→ 碎片名变"生成「「白娅」」"
+        verb = d.slice(0, d.indexOf(m3[1])).replace(/[「『"'\s]+$/, '');
+        names = m3[1].split(/\s*[、\/]\s*/);   // 引号内只认顿号/斜杠（逗号=从句分隔，不是名单）
       }
-      // ★复查修复（尾缀保留）：连续名单（m1/m2/m3）拆分时保留名单之后的限定语——
-      //   "补充白娅、苏晚的背景设定" 拆成 "补充「白娅」的背景设定"，而不是丢失限定语的 "补充「白娅」"
-      if (names && names.length >= 2 && (m1 || m2 || m3)) {
+      // 名单卫生检查：全部名字必须像实体名（非属性词/动词短语），任何一个不过关 → 整步不拆（保守）
+      if (names && names.length >= 2 && !names.every(function(n) { return _looksLikeEntityName(n); })) {
+        names = null;
+      }
+      // ★尾缀保留：拆分时保留名单之后的限定语（"补充「白娅」的背景设定"而非丢失限定语）
+      if (names && names.length >= 2) {
         const _lastNm = names[names.length - 1];
         const _lastPos = d.indexOf(_lastNm);
         if (_lastPos >= 0) {
           tail = d.slice(_lastPos + _lastNm.length).replace(/^[）)」』"'\s]+/, '');
         }
-      }
-      if (names && names.length >= 2) {
         const pieces = [];
         names.filter(Boolean).forEach(function(n, i) {
           pieces.push({ desc: (verb || '生成') + '「' + n + '」' + tail + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d });
@@ -458,24 +467,27 @@
       const cntCn = d.match(new RegExp('(?:生成|新增|添加|加|补|创建|写)\\s*([' + Object.keys(CN_NUM).join('') + '])(?:\\s*[-~至]\\s*[' + Object.keys(CN_NUM).join('') + '])?\\s*(?:个|条|张|份|名|位|步)'));
       if (cntCn && CN_NUM[cntCn[1]]) asserts.push({ type: 'count', min: CN_NUM[cntCn[1]], max: CN_NUM[cntCn[1]] });
     }
-    // 2) 名单断言：括号名单 /「」引号名单（含单名）/ 顿号名单（≥2项）
+    // 2) 名单断言（★v194.3 收紧——实测垃圾名断言风暴修复）：
+    //    · 括号名单必须是纯顿号/斜杠名单（含逗号=描述从句不是名单："（常驻，写清两室一厅布局…）"）
+    //    · 引号/书名号名单支持【】（AI 计划惯用"新增条目【公寓格局】"）
+    //    · 所有名字过实体名卫生检查（_looksLikeEntityName），垃圾名直接剔除
     let names = null;
     const pn = d.match(/[（(]([^（）()]{2,60})[)）]/);
-    if (pn && pn[1].split(/\s*[、\/，,]\s*/).length >= 2) names = pn[1].split(/\s*[、\/，,]\s*/);
+    if (pn && pn[1].indexOf('，') < 0 && pn[1].indexOf(',') < 0 && /[、\/]/.test(pn[1])) names = pn[1].split(/\s*[、\/]\s*/);
     if (!names) {
       // ★修复：引号名单不要求含分隔符——「白娅」单名也是断言（拆分后步骤形如 生成「白娅」）
-      const qn = d.match(/[「『"]([^」』"]{2,40})[」』"]/);
-      if (qn) names = qn[1].split(/\s*[、\/，,]\s*/);
+      const qn = d.match(/[「『"【]([^」』"】]{2,40})[」』"】]/);
+      if (qn) names = qn[1].split(/\s*[、\/]\s*/);
     }
     if (!names) {
-      // ★懒惰量词（与 _splitStepIfCompound 同款修复）：防"苏晚的背景设定"被整段当人名
-      const ln = d.match(/(?:生成|新增|添加|创建|写)\s*([\u4e00-\u9fa5A-Za-z0-9_]{2,8}?(?:\s*[、\/，,]\s*[\u4e00-\u9fa5A-Za-z0-9_]{2,8}?){1,})/);
+      // ★懒惰量词 + ★v194.3 卫生过滤 + ★边界前瞻：防"苏晚的背景设定"被整段当人名 / 动词短语混进名单 /
+      //   末位名字被懒惰量词截断成2字（"门帘窗位置"→"门帘"）——前瞻强制名单终止于边界（空白/标点/的/句尾）
+      const ln = d.match(/(?:生成|新增|添加|创建|写)\s*([\u4e00-\u9fa5A-Za-z0-9_]{2,8}?(?:\s*[、\/，,]\s*[\u4e00-\u9fa5A-Za-z0-9_]{2,8}?){1,})(?=[\s，,。；;）)的]|$)/);
       if (ln) names = ln[1].split(/\s*[、\/，,]\s*/);
     }
     if (names) {
-      const list = names.map(function(x) { return x.trim(); }).filter(function(x) { return x.length >= 2 && x.length <= 10; });
-      if (list.length >= 2) asserts.push({ type: 'names', list: list });
-      else if (list.length === 1) asserts.push({ type: 'names', list: list });   // 单名也断言（拆分后步骤"生成「白娅」"）
+      const list = names.map(function(x) { return x.trim(); }).filter(_looksLikeEntityName);
+      if (list.length >= 1) asserts.push({ type: 'names', list: list });   // 单名也断言（"生成「白娅」"/"回改【室友档案】"）
     }
     // 3) 字段断言："把 name 改成「X」" / "名字改为Y"（★只认 cardData 真实顶层字段——comment 是条目级、
     //    title 不是卡字段，写进白名单会拿 undefined 比对 → 假失败）
@@ -17803,6 +17815,9 @@ html,body{scrollbar-gutter:stable}
           d += '📏 本步产物要求：完整可运行代码（核心逻辑齐备、无TODO/占位/半截函数）\n';
         } else if (/initvar|初始变量|变量/i.test(_sd)) {
           d += '📏 本步产物要求：InitVar 覆盖该步计划的全部角色/维度（YAML结构完整、初始值具体）\n';
+        } else if (/开场白|first_mes|greeting|问候/i.test(_sd)) {
+          // ★v194.3：实测 AI 把开场白正文裸输出（叙事散文不带操作块）→ 不会写入卡片 → 判"无产出"打回
+          d += '📏 本步产物要求：开场白正文**完整写进 `::: set first_mes` 操作块**（备选开场白逐条 `::: set alternate_greetings`），禁止裸输出叙事正文——裸正文不会写入卡片\n';
         } else {
           d += '📏 本步产物要求：条目正文充分展开（每条≥100字、多维度「维度：内容」结构化，禁止占位符/一句话糊弄）\n';
         }
@@ -17814,6 +17829,7 @@ html,body{scrollbar-gutter:stable}
         d += '执行要求：\n' +
           '1. ★【产出边界】只输出「当前任务」列出的步骤范围内的内容，不抢跑批外/后续步骤：\n' +
           '   · 批量模式下：一次回复依次完成列出的全部 ' + Math.max(1, _batchIdxs.length) + ' 步（每步的操作块按顺序给全），不要只做第一条\n' +
+          '   · 若本步含多个条目/角色（如"生成3个NPC"或步骤内含顿号名单）：一次回复把全部条目输出完（多个 ::: upsert 块连排），禁止一条一条挤牙膏\n' +
           '   · 若本步是"生成角色条目"，就只生成角色条目，不顺手写世界观/开场白/变量/界面\n' +
           '2. 直接执行，不要向用户提问、不要等待确认、不要只做说明不产出内容。\n' +
           '3. 🚫【回执禁令】你的回复中**禁止出现 ```execnotes 代码块**——那是写卡器专用的执行结果回执格式，你复述它只会污染解析（实测发生过）。\n' +
@@ -22120,8 +22136,11 @@ html,body{scrollbar-gutter:stable}
               const _gotN = newEntries.length;
               if (_gotN < a.min) missing.push('本步要求生成 ' + a.min + (a.max !== a.min ? '-' + a.max : '') + ' 条，实际只新增 ' + _gotN + ' 条——按步骤要求补齐');
             } else if (a.type === 'names') {
-              const _got = newEntries.map(function(e) { return String(e.comment || ''); });
-              const _lost = a.list.filter(function(n) { return !_got.some(function(g) { return g.indexOf(n) >= 0; }); });
+              // ★v194.3：匹配池 = 新增+修改条目（"回改【室友档案】"类修改步骤的合法产物是变更而非新增）；
+              //   双向包含匹配——期望"写清两室一厅布局"可命中实际条目"两室一厅布局"（描述性前后缀不致死）
+              const _pool = newEntries.concat(changedEntries);
+              const _got = _pool.map(function(e) { return String(e.comment || ''); });
+              const _lost = a.list.filter(function(n) { return !_got.some(function(g) { return g.indexOf(n) >= 0 || n.indexOf(g) >= 0; }); });
               if (_lost.length) missing.push('本步要求生成「' + a.list.join('」「') + '」，实际缺少：' + _lost.join('、') + '——缺哪条补哪条');
             } else if (a.type === 'field') {
               const _fv = String(cardData[a.field] || '');
