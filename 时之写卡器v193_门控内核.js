@@ -175,6 +175,23 @@
   //      直接指出"第N行的 { 到文件尾未闭合"——从"Unexpected end of input"到"约第N行，源码如下"。
   //   5) ★协议升级：IDE思考流程①读 补"看不清先 read/search"；SCRIPT_EDIT_PROTOCOL 新增
   //      「只读工具」段；REGEX_CONTENT_EDIT_PROTOCOL 同步支持 read/search；回滚计入 toast 统计。
+  // ★★★ v194：断言内核——验证器语义化 + 原子拆分 + 失败分派 + 循环历史压缩（豆包/DSH 最后 20%）★★★
+  //   v193 装好了闸门；v194 让闸门"看得懂步骤到底要什么"：
+  //   1) ★★步骤断言（差距1）：_parseStepAssertions 从步骤描述提取结构化预期——数量（"生成3个NPC"，含中文
+  //      数字"三个"）/ 名单（括号/引号/顿号三种形式，"（白娅/林月/苏晚）"）/ 字段值（"把name改成「X」"）/
+  //      HTML内容片段（"标题改成资源"→校验变更正则 replaceString 含该片段）。AI 必须真做到每一条才算完成，
+  //      被打回时原因精确到"要求3条实际1条，缺少林月、苏晚"。
+  //   2) ★★复合步骤拆分（差距2）：_splitStepIfCompound 在 parseAgentPlan 内把"生成白娅、林月、苏晚"
+  //      拆成3个原子步骤（顿号/引号/括号/和连四种形式）——一步一产物独立过门禁，糊弄空间物理消除；
+  //      minSteps 按拆分前数量判定（防1步被拆成2步意外触发循环）。
+  //   3) ★★失败分派指令（差距3）：_collectAutoFixFailures 从"失败清单"升级为"按类型分组的修正指令"——
+  //      语法/未命中/占位/数量名单/HTML未识别/其他 六组，各附针对性修法（"先read再改"/"行号定位"/
+  //      "按模板重发"）。返回数组语义不变，_fixDirectives 消费方零改动。
+  //   4) ★★循环历史压缩（差距4）：Agent 循环步（agentDirective 在场）历史里的 AI 消息只保留最近4条
+  //      （≈当前步+上一步），更早的丢弃——决策上下文由 agentLedger+计划总览承载，两套数据不再重复吃 token。
+  //      10步循环历史从 ~6K 降到 ~1.5K。用户插话轮不受影响。
+  //   5) ★★token 透明（优化B）：buildPrompt 记录 __cwLastPromptTokens，updateCtxBar 显示"📊 ~x.xkT"chip
+  //      ——用户直观看到门控省了多少（豆包工作模式式透明度）。
   // ★★★ v193：门控内核——规范 pull 化 + plan-act-observe 闭环 + 质量门禁（对标豆包工作模式/DSH）★★★
   //   v192 把"资产"做成了 pull 模式；v193 把"规范"和"历史"也做成 pull，并给每步装上"验证才算完"的闸门：
   //   1) ★★A区瘦身+规范门控（P0-A）：原 SYS_PROMPT 大块（~11K token）拆五段——身份铁律+输出协议留 A 区恒定
@@ -234,7 +251,7 @@
   //   3) ★竞态防护：Agent 计划模式不触发（agentLoop 自带 retry 机制）；本轮输出 <agent:continue>
   //      或新计划已采纳时让位（那些机制接管）；用户中止不触发；两轮耗尽 toast 告知手动处理。
   //   4) ★协议升级：告知 AI 编辑失败会被自动回传修正——修正轮只输出失败项的操作块。
-  const CARDER_VERSION = 'v193';
+  const CARDER_VERSION = 'v194';
   // ★★★ 根治「保存失败/导出失败: Cannot access 'cardData' before initialization」★★★
   // 根因1：cardData 曾为 let 声明在 try 块内部（renderWelcome 之后），若 iframe 加载竞态/热重载期间
   //   提前触发事件，回调读到的 cardData 仍处于 TDZ（暂时性死区），抛 ReferenceError。
@@ -348,6 +365,81 @@
                     Math.max(AGENT_LOOP_MAX_STEPS_SOFT, plan.steps.length * 4));
   }
 
+  // ★v194 复合步骤拆分（豆包工作模式"原子粒度"）：一步一产物，每步独立过门禁——
+  //   "生成白娅、林月、苏晚" 拆成 3 步（≥2 项即拆；单名不拆）。物理消除复合步骤的糊弄空间。
+  function _splitStepIfCompound(steps) {
+    const out = [];
+    const VERB = '(?:生成|新增|添加|创建|写|补全|完善|加)';
+    for (let si = 0; si < steps.length; si++) {
+      const s = steps[si];
+      if (!s || !s.desc) { out.push(s); continue; }
+      const d = String(s.desc);
+      // 形式1：动词 + A、B、C（顿号/逗号/斜杠分隔 ≥2 项，每项 2-8 字）
+      // 形式2：动词 + 「A」/「B」（带引号名单）
+      let names = null, verb = '';
+      const m1 = d.match(new RegExp('^' + VERB + '\\s*([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})(?:的|条目|角色|NPC|人物|设定|条|个|张)?'));
+      const m2 = d.match(new RegExp('^' + VERB + '\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?\\s*(?:和|与|及|跟)\\s*[「『"]?([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8})[」』"]?'));
+      const m3 = d.match(new RegExp('^' + VERB + '\\s*[「『"]([\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}(?:\\s*[、\\/，,]\\s*[\\u4e00-\\u9fa5A-Za-z0-9_]{2,8}){1,})[」』"\\)]'));
+      const m4 = d.match(new RegExp('[（(]([^（）()]{2,60})[)）]'));   // 括号名单："生成3个NPC（白娅/林月/苏晚）"
+      if (m1) { verb = d.slice(0, d.indexOf(m1[1])); names = m1[1].split(/\s*[、\/，,]\s*/); }
+      else if (m3) { verb = d.slice(0, d.indexOf(m3[1])); names = m3[1].split(/\s*[、\/，,]\s*/); }
+      else if (m2) { verb = d.slice(0, d.indexOf(m2[1])); names = [m2[1], m2[2]]; }
+      else if (m4 && /\s*[、\/，,]\s*/.test(m4[1]) && m4[1].split(/\s*[、\/，,]\s*/).every(function(x) { return x.length >= 2 && x.length <= 8; }) && VERB.slice(4, -2).split('|').some(function(v) { return d.indexOf(v) >= 0; })) {
+        verb = ''; names = m4[1].split(/\s*[、\/，,]\s*/);
+      }
+      if (names && names.length >= 2) {
+        names.filter(Boolean).forEach(function(n, i) {
+          const piece = { desc: (verb || '生成') + '「' + n + '」' + (i === 0 ? '（原复合步骤已拆分为' + names.length + '小步）' : ''), done: false, dependsOn: [], _splitFrom: d };
+          out.push(piece);
+        });
+      } else {
+        out.push(s);
+      }
+    }
+    return out;
+  }
+
+  // ★v194 步骤断言解析（验证器语义化）：从步骤描述提取结构化预期——数量/名单/字段值/HTML内容片段
+  //   供 _verifyStepOutcome 逐条校验："生成3个NPC（白娅/林月/苏晚）"→ count:3 + names:[白娅,林月,苏晚]
+  function _parseStepAssertions(desc) {
+    const asserts = [];
+    const d = String(desc || '');
+    // 1) 数量断言："生成3个"/"加两条"/"补2-3条"（阿拉伯数字 + 中文数字一二三…十）
+    const CN_NUM = { '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+    const cntM = d.match(/(?:生成|新增|添加|加|补|创建|写)\s*(\d+)(?:\s*[-~至]\s*(\d+))?\s*(?:个|条|张|份|名|位|条|步)/);
+    if (cntM) {
+      asserts.push({ type: 'count', min: +cntM[1], max: cntM[2] ? +cntM[2] : +cntM[1] });
+    } else {
+      const cntCn = d.match(new RegExp('(?:生成|新增|添加|加|补|创建|写)\\s*([' + Object.keys(CN_NUM).join('') + '])(?:\\s*[-~至]\\s*[' + Object.keys(CN_NUM).join('') + '])?\\s*(?:个|条|张|份|名|位|步)'));
+      if (cntCn && CN_NUM[cntCn[1]]) asserts.push({ type: 'count', min: CN_NUM[cntCn[1]], max: CN_NUM[cntCn[1]] });
+    }
+    // 2) 名单断言：括号名单 /「」引号名单（含单名）/ 顿号名单（≥2项）
+    let names = null;
+    const pn = d.match(/[（(]([^（）()]{2,60})[)）]/);
+    if (pn && pn[1].split(/\s*[、\/，,]\s*/).length >= 2) names = pn[1].split(/\s*[、\/，,]\s*/);
+    if (!names) {
+      // ★修复：引号名单不要求含分隔符——「白娅」单名也是断言（拆分后步骤形如 生成「白娅」）
+      const qn = d.match(/[「『"]([^」』"]{2,40})[」』"]/);
+      if (qn) names = qn[1].split(/\s*[、\/，,]\s*/);
+    }
+    if (!names) {
+      const ln = d.match(/(?:生成|新增|添加|创建|写)\s*([\u4e00-\u9fa5A-Za-z0-9_]{2,8}(?:\s*[、\/，,]\s*[\u4e00-\u9fa5A-Za-z0-9_]{2,8}){1,})/);
+      if (ln) names = ln[1].split(/\s*[、\/，,]\s*/);
+    }
+    if (names) {
+      const list = names.map(function(x) { return x.trim(); }).filter(function(x) { return x.length >= 2 && x.length <= 10; });
+      if (list.length >= 2) asserts.push({ type: 'names', list: list });
+      else if (list.length === 1) asserts.push({ type: 'names', list: list });   // 单名也断言（拆分后步骤"生成「白娅」"）
+    }
+    // 3) 字段断言："把 name 改成「X」" / "名字改为Y" / "comment 改成 Z"
+    const fieldM = d.match(/(?:把|将|改)?\s*['"]?(name|description|first_mes|personality|scenario|comment|title)['"]?\s*(?:改成|改为|设为|变成|设成)\s*[「『"']?([^「』"'，。;\n]+)/i);
+    if (fieldM) asserts.push({ type: 'field', field: fieldM[1].toLowerCase(), expect: fieldM[2].trim().replace(/[」』"']+\s*$/, '') });
+    // 4) HTML内容断言："标题改成X" / "按钮改为Y" / "加上Z"（校验变更正则的 replaceString 含该片段）
+    const htmlM = d.match(/(?:标题|按钮|标签|文字|文案|占位符|图标)\s*(?:改成|改为|设为|换成|加上|补上|添加)\s*[「『"']?([^」』"'，。;\n]{1,40})/);
+    if (htmlM) asserts.push({ type: 'htmlContent', expect: htmlM[1].trim().replace(/[」』"']+\s*$/, '') });
+    return asserts;
+  }
+
   // ===== 解析AI输出的计划块 <agent_plan>...</agent_plan>（Agent Loop 入口协议）=====
   // minSteps（可选，默认2）：最小步骤数门槛——初始计划≥2步才触发循环；动态重规划传1（剩余工作可能只有一件）
   // 返回 { goal, steps:[{desc,done}], createdAt, stepRuns } 或 null
@@ -385,8 +477,15 @@
         s.desc = s.desc.replace(depMatch[0], '').trim();
       }
     });
+    // ★v194 复合步骤拆分（依赖解析后、门槛判断前）："生成白娅、林月、苏晚"→3步；拆分后步骤数变多，minSteps 按原数判定
+    const _preSplitCount = steps.length;
+    const _splitSteps = _splitStepIfCompound(steps);
+    if (_splitSteps !== steps && _splitSteps.length !== steps.length) {
+      steps.length = 0;
+      _splitSteps.forEach(function(x) { steps.push(x); });
+    }
     const _minNeed = (typeof minSteps === 'number') ? minSteps : 2;
-    if (steps.length < _minNeed) return null; // 初始计划少于2步不触发循环；重规划由调用方放宽门槛
+    if (_preSplitCount < _minNeed) return null; // 初始计划少于2步不触发循环；重规划由调用方放宽门槛（按拆分前数量判定，防拆分把1步变2步意外触发）
     if (steps.length > AGENT_LOOP_MAX_STEPS) steps.length = AGENT_LOOP_MAX_STEPS; // 超长计划截断
     // ⚠️步骤粒度启发式校验：拒绝明显过大的步骤描述，避免"生成完整角色卡"这类单步吃掉整个卡
     // ★修复#5：只保留最极端的整体生成信号——移除"整个世界/整体世界观/整体设定/全部设定"等会误伤正常"生成世界观"一步的词
@@ -9378,6 +9477,10 @@ html,body{scrollbar-gutter:stable}
       const isLast = (idx === tabMessages.length - 1);
       const roleLabel = (m.role === 'user' ? '用户' : '助手');
       let msgContent = m.content || '';
+      // ★v194 循环历史压缩（agentDirective 在场 = Agent 循环步）：已完成步骤的 AI 消息只保留最近 4 条
+      //   （≈当前步+上一步），更早的直接跳过——决策上下文由 agentLedger（最近3条）+ 计划总览承载，
+      //   两套数据不再重复吃 token。用户消息不丢（走正常分层）。
+      if (agentDirective && m.role === 'assistant' && idx < tabMessages.length - 4) return;
       // —— 分层判定 ——
       // _zone: 2=近区(完整) 1=中区 0=远区 -1=不分层(≤20条全量)
       let _zone = -1;
@@ -9433,6 +9536,9 @@ html,body{scrollbar-gutter:stable}
       '  · 若你上轮已输出「生成计划报告」且用户本轮回复「确认/开始/OK/可以/做吧」等肯定词：严格按上方「本次执行契约」清单执行，只做清单内的内容，严禁越界。\n' +
       '  · 档 1/档 4 的大任务需多轮完成时：末尾单独一行输出 <agent:continue>，写卡器会自动续跑（最多15轮），全部完成时输出 <agent:done>；下一轮基于历史继续未完成部分，不要重复已完成内容。\n' +
       '  · 若用户消息形如"我选择：xxx"，那是选项确认——直接执行该方向，不要再给概览/选项。）';
+
+    // ★v194 token 显示（豆包工作模式式透明度）：记录本轮提示词规模，updateCtxBar 展示给用户
+    try { window.__cwLastPromptTokens = countTokens(fullPrompt); } catch (_) {}
 
     return fullPrompt;
   }
@@ -14679,6 +14785,14 @@ html,body{scrollbar-gutter:stable}
           const _feS = getFrontendStructuredRegexes();
           const _feOk = _feBList.length > 0 || _feS.length > 0;
           h += '<span class="ctx-chip ' + (_feOk ? 'ok' : 'todo') + '" title="前端界面正则（正文美化 + 数据面板）">' + svgIcon(_feOk ? 'checkCircle' : 'circle', 11) + ' 界面' + (_feBList.length > 0 ? ('·美化×' + _feBList.length) : '') + (_feS.length > 0 ? ('·面板×' + _feS.length) : '') + '</span>';
+          // —— ★v194 本轮上下文 token 估算 chip（豆包工作模式式透明度；随每轮 buildPrompt 更新）——
+          try {
+            const _ptk = (typeof window !== 'undefined' && window.__cwLastPromptTokens) || 0;
+            if (_ptk > 0) {
+              const _ptkDisp = _ptk >= 1000 ? (_ptk / 1000).toFixed(1) + 'k' : String(_ptk);
+              h += '<span class="ctx-chip info" title="上一轮发给AI的提示词规模（估算）——门控内核按需注入，越小越省">📊 ~' + _ptkDisp + 'T</span>';
+            }
+          } catch (_) {}
           // —— 阶段自适应主操作按钮（右对齐：按最大缺口推荐）——
           if (!_ctxChk.all7Done) {
             if (_doneCnt === 0 && !_feOk) {
@@ -21700,14 +21814,50 @@ html,body{scrollbar-gutter:stable}
       // 排除：⚠️整体重写警告（内容已保存，只是方式违规——自动重试只会浪费一轮重做同样内容）、ℹ️/✅/🛠️/📖/🔍信息类。
       // ⚠️用 codePointAt 按代码点判定，不用正则字符类——🚨 是星芒面字符（surrogate对），
       //   放进 [❌⛔🚨] 会被拆成两个码点，导致首码点相同的成功类反馈（🛠️📖🔍 同以 U+D83D 开头）被误判为失败。
+      // ★v194 失败分派指令式（从"重做"到"按类型精准修"）：按失败类型分组，每组附带针对性修正指令——
+      //   AI 拿到的是"这类失败该做什么"，不是"按诊断修正"这种要它自己再想一遍的模糊话。
+      //   返回数组语义不变（_fixDirectives join 进 prompt，消费方兼容）。
       function _collectAutoFixFailures(execNotes) {
-        const fails = [];
+        const groups = { syntax: [], miss: [], placeholder: [], quota: [], html: [], other: [] };
         (execNotes || []).forEach(function(n) {
           const s = String(n || '');
           const _cp = s.codePointAt(0);
-          if (_cp === 0x274C /* ❌ */ || _cp === 0x26D4 /* ⛔ */ || _cp === 0x1F6A8 /* 🚨 */) fails.push(s);
+          const isFail = (_cp === 0x274C /* ❌ */ || _cp === 0x26D4 /* ⛔ */ || _cp === 0x1F6A8 /* 🚨 */);
+          if (!isFail) return;
+          // ★修复：具体类型优先于 🚨 前缀——"🚨 步骤验证未通过：要求生成3条"是 quota 不是 syntax
+          if (/要求生成|实际只新增|实际缺少|实际值不符|未在变更产物中找到|预期.*实际/.test(s)) groups.quota.push(s);
+          else if (/占位符|TODO|待补充|正文为空/.test(s)) groups.placeholder.push(s);
+          else if (/未命中|行级编辑失败|锚点|首行在原文中不存在/.test(s)) groups.miss.push(s);
+          else if (/HTML.*未识别|未识别为状态栏|未通过写卡器识别/.test(s)) groups.html.push(s);
+          else if (/语法|括号|标签不配对|解析失败|^\s*🚨/.test(s)) groups.syntax.push(s);
+          else groups.other.push(s);
         });
-        return fails;
+        const directives = [];
+        if (groups.syntax.length) {
+          directives.push('【语法/结构错误 · 按定位修】\n' + groups.syntax.join('\n') +
+            '\n→ 修正方法：先 `_action: read` 查看错误行附近原文，再 `_lines: 行号` 精确替换坏段；禁止整体重写（会把好代码一起改坏）');
+        }
+        if (groups.miss.length) {
+          directives.push('【锚点/定位未命中 · 先 read 再改】\n' + groups.miss.join('\n') +
+            '\n→ 修正方法：从 read 回显的带行号原文**逐字复制**锚点段（去掉"行号: "前缀、缩进空行原样），或直接改用 `_lines: 起始行-结束行` 行号定位（100%精确）');
+        }
+        if (groups.placeholder.length) {
+          directives.push('【占位内容 · 逐处替换为实际内容】\n' + groups.placeholder.join('\n') +
+            '\n→ 修正方法：用 `_action: replace` 把每处 TODO/待补充/空正文替换为符合世界观的完整实际内容（≥100字结构化正文），禁止保留任何占位');
+        }
+        if (groups.quota.length) {
+          directives.push('【数量/名单/字段不符 · 按步骤要求补齐】\n' + groups.quota.join('\n') +
+            '\n→ 修正方法：缺哪条补哪条（对照步骤要求逐项核对）——数量不够补足条目；名单缺谁补谁；字段值不符重新 ::: set');
+        }
+        if (groups.html.length) {
+          directives.push('【HTML 未被识别 · 按标准结构重发】\n' + groups.html.join('\n') +
+            '\n→ 修正方法：按对应标准模板结构重发完整 ```html 代码块（完整文档 + 带id的DOM + 核心函数齐备），特征函数缺失会导致提取器不认');
+        }
+        if (groups.other.length) {
+          directives.push('【其他失败 · 按诊断修正】\n' + groups.other.join('\n') +
+            '\n→ 修正方法：按每条失败诊断里的提示改；看不清目标现状先 `_action: read` / `_action: search`');
+        }
+        return directives;
       }
 
       // ★v193 内容签名（快照/验证共用，单一实现防漂移）：长度+全字符哈希——
@@ -21756,7 +21906,16 @@ html,body{scrollbar-gutter:stable}
             else if (prev !== sg) changedEntries.push(e);
           });
           const scriptsChanged = (thScripts.map(function(s) { return _contentSig((s && s.content) || ''); }).join(',') !== beforeSnap.scriptSig);
-          const rxChanged = (rx.map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',') !== beforeSnap.rxSig);
+          const _rxSigNow = rx.map(function(r) { return _contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''); }).join(',');
+          const rxChanged = (_rxSigNow !== beforeSnap.rxSig);
+          // 变更正则名单（供 htmlContent 断言校验"标题改成X"类修改落在哪个正则上）
+          const _rxSigBeforeArr = beforeSnap.rxSig.split(',');
+          const changedRxComments = [];
+          rx.forEach(function(r, ri) {
+            if (_rxSigBeforeArr[ri] !== undefined && _rxSigBeforeArr[ri] !== (_contentSig((r && r.replaceString) || '') + '|' + _contentSig((r && r.findRegex) || ''))) {
+              changedRxComments.push(String((r && r.scriptName) || ''));
+            }
+          });
           const anyChange = newEntries.length > 0 || changedEntries.length > 0 || scriptsChanged || rxChanged;
           // —— 步骤语义分类 ——
           const isEntryStep = /条目|角色|NPC|设定|人物|地点|势力|事件|世界书|开场白|世界观/.test(desc);
@@ -21795,6 +21954,32 @@ html,body{scrollbar-gutter:stable}
               try { parseInitVar(String(iv.content || '')); } catch (_) { missing.push('InitVar YAML 解析失败——检查缩进与键名格式'); }
             }
           }
+          // 4. ★v194 语义断言校验（_parseStepAssertions）：AI 必须"真做到步骤说的每一条"才算过门禁
+          //    ——数量（要求3条实际1条）/ 名单（缺哪个角色）/ 字段值（name 是否真改了）/ HTML 内容片段
+          const _asserts = _parseStepAssertions(desc);
+          _asserts.forEach(function(a) {
+            if (a.type === 'count') {
+              const _gotN = newEntries.length;
+              if (_gotN < a.min) missing.push('本步要求生成 ' + a.min + (a.max !== a.min ? '-' + a.max : '') + ' 条，实际只新增 ' + _gotN + ' 条——按步骤要求补齐');
+            } else if (a.type === 'names') {
+              const _got = newEntries.map(function(e) { return String(e.comment || ''); });
+              const _lost = a.list.filter(function(n) { return !_got.some(function(g) { return g.indexOf(n) >= 0; }); });
+              if (_lost.length) missing.push('本步要求生成「' + a.list.join('」「') + '」，实际缺少：' + _lost.join('、') + '——缺哪条补哪条');
+            } else if (a.type === 'field') {
+              const _fv = String(cardData[a.field] || '');
+              if (_fv !== a.expect && _fv.indexOf(a.expect) < 0) missing.push('本步要求 ' + a.field + ' = 「' + a.expect + '」，实际值不符——按步骤要求重新设置');
+            } else if (a.type === 'htmlContent') {
+              // 校验变更/新增正则的 replaceString 是否包含期望片段（状态栏/界面标题类修改）
+              const _rxHit = rx.some(function(r) {
+                return changedRxComments.indexOf(String((r && r.scriptName) || '')) >= 0 &&
+                  String((r && r.replaceString) || '').indexOf(a.expect) >= 0;
+              });
+              const _entryHit = newEntries.concat(changedEntries).some(function(e) {
+                return String(e.content || '').indexOf(a.expect) >= 0;
+              });
+              if (!_rxHit && !_entryHit) missing.push('本步要求界面/内容包含「' + a.expect + '」，实际未在变更产物中找到');
+            }
+          });
           return { pass: missing.length === 0, hardFail: missing.length > 0, missing: missing.slice(0, 4), warns: warns.slice(0, 3) };
         } catch (_vErr) {
           logWarn('verifyStep', _vErr);
