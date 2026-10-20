@@ -18230,7 +18230,9 @@ html,body{scrollbar-gutter:stable}
             if (_agentLoopStartSig) {
               let _hlNew = 0, _hlMod = 0;
               (((cardData.character_book || {}).entries) || []).forEach(function(e) {
-                if (!e || e.comment == null) return;
+                // ★验证修复（口径对齐）：空 comment 不入高亮表——渲染端 label 对空 comment 回退为
+                //   '条目N' 兜底名，若此处收录空串键，两端键永不相等 → 该条目永远亮不起来
+                if (!e || !e.comment) return;
                 const c = String(e.comment);
                 const prevSig = _agentLoopStartSig.get(c);
                 if (prevSig === undefined) { agentHighlight[c] = 'new'; _hlNew++; }
