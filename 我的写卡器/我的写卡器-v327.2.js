@@ -4778,6 +4778,19 @@ body{background:var(--canvas);font-size:var(--fs-base);letter-spacing:.005em}
   .chat-messages{padding-left:28px;padding-right:28px}
 }
 @media(max-width:900px), (pointer:coarse) and (max-height:600px){
+  .send-content-panel,.chat-panel,.preview-panel{
+    flex:0 0 100%;width:100%;max-width:100%;min-width:0;
+    transition:transform .28s cubic-bezier(.22,.61,.36,1)
+  }
+  .send-content-panel{order:1;transform:translateX(-100%)}
+  .chat-panel{order:2;transform:translateX(-100%)}
+  .preview-panel{order:3;transform:translateX(-100%)}
+  .main.tab-send .send-content-panel,
+  .main.tab-send .chat-panel,
+  .main.tab-send .preview-panel{transform:translateX(0)}
+  .main.tab-preview .send-content-panel,
+  .main.tab-preview .chat-panel,
+  .main.tab-preview .preview-panel{transform:translateX(-200%)}
   html.cw-keyboard-open .topbar,
   html.cw-keyboard-open .ctx-bar{display:none}
   html.cw-keyboard-open .main{border-radius:0}
